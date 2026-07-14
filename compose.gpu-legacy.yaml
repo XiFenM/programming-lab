@@ -1,0 +1,13 @@
+# Compatibility GPU reservation for Docker Compose 2.27 through 2.29.
+# Compose applies this deploy reservation to local containers as a device
+# request; Swarm mode is not required.
+services:
+  dev:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities:
+                - gpu

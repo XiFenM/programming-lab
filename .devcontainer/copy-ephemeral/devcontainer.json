@@ -2,6 +2,7 @@
   "name": "Programming Lab: copy + ephemeral",
   "dockerComposeFile": [
     "../../compose.yaml",
+    "../../compose.gpu-legacy.yaml",
     "../../compose.copy.yaml"
   ],
   "service": "dev",

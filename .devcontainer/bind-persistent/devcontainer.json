@@ -2,6 +2,7 @@
   "name": "Programming Lab: bind + persistent",
   "dockerComposeFile": [
     "../../compose.yaml",
+    "../../compose.gpu-legacy.yaml",
     "../../compose.bind.yaml",
     "../../compose.persist.yaml"
   ],

@@ -2,6 +2,7 @@
   "name": "Programming Lab: copy + persistent",
   "dockerComposeFile": [
     "../../compose.yaml",
+    "../../compose.gpu-legacy.yaml",
     "../../compose.copy.yaml",
     "../../compose.persist.yaml",
     "../../compose.copy-persist.yaml"

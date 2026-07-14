@@ -1,5 +1,6 @@
-# Common service definition. Select one workspace override (bind/copy) and
-# optionally compose.persist.yaml; scripts/container.sh assembles them safely.
+# Common service definition. Select one GPU override, one workspace override
+# (bind/copy), and optionally compose.persist.yaml; scripts/container.sh
+# assembles them safely.
 name: ${COMPOSE_PROJECT_NAME:-programming-lab}
 
 services:
@@ -24,7 +25,6 @@ services:
     command: ["sleep", "infinity"]
     tty: true
     stdin_open: true
-    gpus: all
     shm_size: 8gb
     cap_add:
       - SYS_PTRACE

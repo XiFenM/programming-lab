@@ -1,0 +1,4 @@
+# Docker Compose 2.30+ supports the concise `gpus` service attribute.
+services:
+  dev:
+    gpus: all
