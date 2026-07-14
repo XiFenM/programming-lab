@@ -1,0 +1,6 @@
+[build]
+target-dir = "target"
+
+[alias]
+lint = "clippy --workspace --all-targets -- -D warnings"
+test-all = "test --workspace --all-targets --locked"

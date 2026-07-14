@@ -1,0 +1,10 @@
+# Container-only Cargo network settings. Keeping this in the image avoids
+# forcing China-specific mirrors on GitHub-hosted CI runners.
+[source.crates-io]
+replace-with = "rsproxy-sparse"
+
+[source.rsproxy-sparse]
+registry = "sparse+https://rsproxy.cn/index/"
+
+[net]
+git-fetch-with-cli = true

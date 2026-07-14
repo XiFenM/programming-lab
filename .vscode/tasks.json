@@ -1,0 +1,61 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Lab: initialize environment",
+      "type": "shell",
+      "command": "bash scripts/init-env.sh",
+      "problemMatcher": []
+    },
+    {
+      "label": "Lab: doctor",
+      "type": "shell",
+      "command": "make doctor",
+      "problemMatcher": []
+    },
+    {
+      "label": "Lab: lint",
+      "type": "shell",
+      "command": "make lint",
+      "problemMatcher": ["$gcc", "$rustc"]
+    },
+    {
+      "label": "Lab: test",
+      "type": "shell",
+      "command": "make test",
+      "problemMatcher": ["$gcc", "$rustc", "$python"]
+    },
+    {
+      "label": "Lab: verify everything",
+      "type": "shell",
+      "command": "make verify",
+      "problemMatcher": ["$gcc", "$rustc", "$python"],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "CMake: build debug",
+      "type": "shell",
+      "command": "cmake --preset debug && cmake --build --preset debug --parallel",
+      "problemMatcher": ["$gcc"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "GPU: run Triton vector add",
+      "type": "shell",
+      "command": "uv run --frozen python -m gpu.triton.vector_add",
+      "problemMatcher": ["$python"]
+    },
+    {
+      "label": "GPU: inspect TileLang install",
+      "type": "shell",
+      "command": "uv run --frozen python -m gpu.tilelang.check_install",
+      "problemMatcher": ["$python"]
+    }
+  ]
+}

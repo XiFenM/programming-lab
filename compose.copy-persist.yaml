@@ -1,0 +1,7 @@
+services:
+  dev:
+    volumes:
+      - workspace-data:/workspace
+
+volumes:
+  workspace-data:

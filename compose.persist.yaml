@@ -1,0 +1,21 @@
+services:
+  dev:
+    volumes:
+      - uv-venvs:/home/coder/.venvs
+      - uv-python:/home/coder/.local/share/uv/python
+      - uv-cache:/home/coder/.cache/uv
+      - ccache:/home/coder/.cache/ccache
+      - triton-cache:/home/coder/.cache/triton
+      - tilelang-cache:/home/coder/.cache/tilelang
+      - cargo-registry:/home/coder/.cargo/registry
+      - cargo-git:/home/coder/.cargo/git
+
+volumes:
+  uv-venvs:
+  uv-python:
+  uv-cache:
+  ccache:
+  triton-cache:
+  tilelang-cache:
+  cargo-registry:
+  cargo-git:

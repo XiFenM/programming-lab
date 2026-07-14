@@ -1,0 +1,58 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+.direnv/
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.basedpyright/
+.coverage
+coverage.xml
+htmlcov/
+
+# CMake, C++ and CUDA
+build/
+cmake-build-*/
+compile_commands.json
+*.o
+*.obj
+*.so
+*.a
+*.out
+
+# Rust
+target/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# GPU compiler caches and generated artifacts
+.cache/
+*.cubin
+*.fatbin
+*.ptx
+
+# Editors and operating systems
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Explicit export destination for snapshot-mode containers
+container-export/

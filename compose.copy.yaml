@@ -1,0 +1,5 @@
+services:
+  dev:
+    image: ${COMPOSE_PROJECT_NAME:-programming-lab}:copy
+    build:
+      target: workspace-copy

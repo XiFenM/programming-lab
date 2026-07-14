@@ -1,0 +1,9 @@
+services:
+  dev:
+    image: ${COMPOSE_PROJECT_NAME:-programming-lab}:bind
+    build:
+      target: runtime
+    volumes:
+      - type: bind
+        source: .
+        target: /workspace

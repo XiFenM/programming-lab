@@ -1,0 +1,41 @@
+{
+  "name": "Programming Lab: copy + persistent",
+  "dockerComposeFile": [
+    "../../compose.yaml",
+    "../../compose.copy.yaml",
+    "../../compose.persist.yaml",
+    "../../compose.copy-persist.yaml"
+  ],
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "coder",
+  "shutdownAction": "stopCompose",
+  "overrideCommand": false,
+  "postCreateCommand": "bash scripts/init-env.sh",
+  "waitFor": "postCreateCommand",
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb",
+    "storage": "32gb",
+    "gpu": true
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "charliermarsh.ruff",
+        "detachhead.basedpyright",
+        "editorconfig.editorconfig",
+        "llvm-vs-code-extensions.vscode-clangd",
+        "ms-python.debugpy",
+        "ms-python.python",
+        "ms-vscode.cmake-tools",
+        "ms-vscode.cpptools",
+        "nvidia.nsight-vscode-edition",
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "timonwong.shellcheck",
+        "vadimcn.vscode-lldb"
+      ]
+    }
+  }
+}

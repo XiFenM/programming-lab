@@ -1,0 +1,33 @@
+# shellcheck shell=bash
+# ~/.bashrc for the programming-lab development user.
+
+case $- in
+  *i*) ;;
+  *) return ;;
+esac
+
+export NVM_DIR="$HOME/.nvm"
+if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+  # shellcheck source=/dev/null
+  . "$NVM_DIR/nvm.sh"
+fi
+
+export UV_PROJECT_ENVIRONMENT="${UV_PROJECT_ENVIRONMENT:-$HOME/.venvs/programming-lab}"
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$HOME/.cache/uv}"
+export UV_PYTHON_PREFERENCE="${UV_PYTHON_PREFERENCE:-only-managed}"
+
+if [[ -f "$UV_PROJECT_ENVIRONMENT/bin/activate" ]]; then
+  # This environment is created and managed by uv.
+  # shellcheck source=/dev/null
+  . "$UV_PROJECT_ENVIRONMENT/bin/activate"
+fi
+
+if [[ -f /etc/bash_completion ]]; then
+  # shellcheck source=/dev/null
+  . /etc/bash_completion
+fi
+
+alias ll='ls -alF'
+alias gs='git status --short --branch'
+
+PS1='\[\033[01;32m\]\u@programming-lab\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '

@@ -1,0 +1,47 @@
+# Common service definition. Select one workspace override (bind/copy) and
+# optionally compose.persist.yaml; scripts/container.sh assembles them safely.
+name: ${COMPOSE_PROJECT_NAME:-programming-lab}
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        USER_UID: ${LOCAL_UID:-1000}
+        USER_GID: ${LOCAL_GID:-1000}
+        UBUNTU_MIRROR: ${UBUNTU_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/ubuntu}
+        UBUNTU_PORTS_MIRROR: ${UBUNTU_PORTS_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports}
+        NVIDIA_APT_MIRROR: ${NVIDIA_APT_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/nvidia-cuda}
+        PYPI_INDEX_URL: ${PYPI_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+        NVM_NODEJS_ORG_MIRROR: ${NVM_NODEJS_ORG_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/nodejs-release}
+        RUSTUP_DIST_SERVER: ${RUSTUP_DIST_SERVER:-https://mirrors.tuna.tsinghua.edu.cn/rustup}
+        RUSTUP_UPDATE_ROOT: ${RUSTUP_UPDATE_ROOT:-https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup}
+    image: ${COMPOSE_PROJECT_NAME:-programming-lab}:dev
+    init: true
+    working_dir: /workspace
+    command: ["sleep", "infinity"]
+    tty: true
+    stdin_open: true
+    gpus: all
+    shm_size: 8gb
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp=unconfined
+    environment:
+      NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-all}
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      UV_PROJECT_ENVIRONMENT: /home/coder/.venvs/programming-lab
+      UV_CACHE_DIR: /home/coder/.cache/uv
+      UV_PYTHON_PREFERENCE: only-managed
+      UV_LINK_MODE: copy
+      UV_DEFAULT_INDEX: ${PYPI_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+      PIP_INDEX_URL: ${PYPI_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+      NVM_NODEJS_ORG_MIRROR: ${NVM_NODEJS_ORG_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/nodejs-release}
+      RUSTUP_DIST_SERVER: ${RUSTUP_DIST_SERVER:-https://mirrors.tuna.tsinghua.edu.cn/rustup}
+      RUSTUP_UPDATE_ROOT: ${RUSTUP_UPDATE_ROOT:-https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup}
+      CCACHE_DIR: /home/coder/.cache/ccache
+      TRITON_CACHE_DIR: /home/coder/.cache/triton
+      TILELANG_CACHE_DIR: /home/coder/.cache/tilelang
