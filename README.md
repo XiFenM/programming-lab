@@ -14,8 +14,8 @@ Toolkit 和 VS Code。
 
 - 基础镜像固定为 `nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04`，包含 CUDA 13.0、cuDNN
   和 `nvcc`。
-- Ubuntu/Ubuntu Ports、NVIDIA CUDA apt 软件源使用清华 TUNA 镜像；uv/PyPI、Node.js
-  release 和 rustup 同样使用清华镜像，Cargo crate 使用 RsProxy sparse 镜像。
+- Ubuntu/Ubuntu Ports 使用清华 TUNA 镜像，NVIDIA CUDA apt 使用 NVIDIA 官方中国站；
+  uv/PyPI、Node.js release 和 rustup 使用清华镜像，Cargo crate 使用 RsProxy sparse 镜像。
 - 使用非 root 用户 `coder` 开发，可通过 `.env` 将 UID/GID 对齐宿主机，减少 bind mount
   文件权限问题。
 - 未主动安装 Ubuntu 的 `python3`；使用 uv 官方安装命令安装 uv，再由 uv 下载 CPython
@@ -122,8 +122,9 @@ cp .env.example .env
 
 - `UBUNTU_MIRROR`：清华 Ubuntu 镜像；
 - `UBUNTU_PORTS_MIRROR`：清华 Ubuntu Ports 镜像；
-- `NVIDIA_APT_MIRROR`：清华 NVIDIA CUDA 软件源镜像；
+- `NVIDIA_APT_MIRROR`：NVIDIA CUDA 软件源的官方中国站；
 - `PYPI_INDEX_URL`：清华 PyPI 镜像，传给 uv 和兼容的 pip 构建过程；
+- `UV_CONCURRENT_DOWNLOADS`：uv 的并发下载数，默认限制为 `4`；
 - `NVM_NODEJS_ORG_MIRROR`：清华 Node.js release 镜像，供 nvm 下载 Node 二进制；
 - `RUSTUP_DIST_SERVER` / `RUSTUP_UPDATE_ROOT`：清华 rustup 镜像。
 
@@ -247,7 +248,8 @@ ARG BASE_IMAGE=nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04
 
 - `archive.ubuntu.com` / `security.ubuntu.com` → 清华 Ubuntu；
 - `ports.ubuntu.com/ubuntu-ports` → 清华 Ubuntu Ports；
-- `developer.download.nvidia.com/compute/cuda/repos` → 清华 NVIDIA CUDA 镜像。
+- `developer.download.nvidia.com/compute/cuda/repos` → NVIDIA 官方中国站
+  `developer.download.nvidia.cn/compute/cuda/repos`。
 
 APT 还配置了 5 次重试和 30 秒 HTTP/HTTPS 超时。所有镜像地址都是 Docker build args，既有
 清华默认值，也能从 `.env` 覆盖，不需要修改 Dockerfile。
@@ -585,6 +587,11 @@ NVM_NODEJS_ORG_MIRROR=https://nodejs.org/dist
 RUSTUP_DIST_SERVER=https://static.rust-lang.org
 RUSTUP_UPDATE_ROOT=https://static.rust-lang.org/rustup
 ```
+
+清华 TUNA 当前没有提供
+`nvidia-cuda/ubuntu2404/x86_64/Release`，将 `NVIDIA_APT_MIRROR` 指向该路径会让
+`apt-get update` 以 “does not have a Release file” 失败。因此 NVIDIA apt 默认使用可访问的
+官方中国站，而 Ubuntu、PyPI、Node.js 和 rustup 仍使用清华镜像。
 
 Cargo 的 RsProxy 配置位于 `docker/cargo-config.toml`，只复制到容器用户目录，不影响 GitHub
 托管 CI。需要官方 crates.io 时，移除该文件中的 `[source.crates-io]` 替换配置并重建镜像。

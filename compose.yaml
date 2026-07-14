@@ -14,7 +14,7 @@ services:
         USER_GID: ${LOCAL_GID:-1000}
         UBUNTU_MIRROR: ${UBUNTU_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/ubuntu}
         UBUNTU_PORTS_MIRROR: ${UBUNTU_PORTS_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports}
-        NVIDIA_APT_MIRROR: ${NVIDIA_APT_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/nvidia-cuda}
+        NVIDIA_APT_MIRROR: ${NVIDIA_APT_MIRROR:-https://developer.download.nvidia.cn/compute/cuda/repos}
         PYPI_INDEX_URL: ${PYPI_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
         NVM_NODEJS_ORG_MIRROR: ${NVM_NODEJS_ORG_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/nodejs-release}
         RUSTUP_DIST_SERVER: ${RUSTUP_DIST_SERVER:-https://mirrors.tuna.tsinghua.edu.cn/rustup}
@@ -37,6 +37,7 @@ services:
       UV_CACHE_DIR: /home/coder/.cache/uv
       UV_PYTHON_PREFERENCE: only-managed
       UV_LINK_MODE: copy
+      UV_CONCURRENT_DOWNLOADS: ${UV_CONCURRENT_DOWNLOADS:-4}
       UV_DEFAULT_INDEX: ${PYPI_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
       PIP_INDEX_URL: ${PYPI_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
       NVM_NODEJS_ORG_MIRROR: ${NVM_NODEJS_ORG_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/nodejs-release}

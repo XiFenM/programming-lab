@@ -1,9 +1,9 @@
-#include "leetcode/cpp/two_sum.hpp"
-
 #include <array>
 #include <cassert>
 #include <stdexcept>
 #include <vector>
+
+#include "leetcode/cpp/two_sum.hpp"
 
 auto main() -> int {
   const auto first = leetcode::two_sum(std::vector<int>{2, 7, 11, 15}, 9);

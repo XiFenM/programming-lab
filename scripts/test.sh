@@ -10,7 +10,7 @@ if [[ ! -f uv.lock ]]; then
 fi
 
 echo "[1/3] Python tests"
-uv run --frozen pytest
+uv run --frozen python -m pytest
 
 echo "[2/3] Rust tests"
 cargo test --workspace --all-targets --locked

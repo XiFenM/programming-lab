@@ -1,10 +1,11 @@
-//! LeetCode 1: Two Sum.
+//! `LeetCode` 1: Two Sum.
 
 use std::collections::HashMap;
 
 /// Returns the indices of two values whose sum equals `target`.
 ///
 /// Time complexity is O(n); auxiliary space complexity is O(n).
+#[must_use]
 pub fn two_sum(nums: &[i32], target: i32) -> Option<(usize, usize)> {
     let mut seen = HashMap::with_capacity(nums.len());
 
