@@ -179,6 +179,41 @@ curl --proxy socks5h://127.0.0.1:20170 -I https://api.openai.com
 
 SOCKS5 URL 中使用 `socks5h`，让域名通过代理端解析，避免容器本地 DNS 与代理侧结果不一致。
 
+## 为当前 shell 开启或关闭代理
+
+需要让 curl、Git、uv 等多个命令共同使用 sidecar 时，必须把脚本 source 到当前
+shell；直接执行子进程无法修改父 shell 的环境变量。
+
+开启：
+
+```bash
+source scripts/proxy-env.sh on
+```
+
+查看状态：
+
+```bash
+source scripts/proxy-env.sh status
+```
+
+关闭并 unset 大小写两套标准代理变量：
+
+```bash
+source scripts/proxy-env.sh off
+```
+
+开发镜像的交互式 Bash 已提供等价快捷命令：
+
+```bash
+proxy-on
+proxy-status
+proxy-off
+```
+
+`on` 会同时 export `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`、`NO_PROXY` 及它们的
+小写形式；`off` 会同时 unset 这八个变量。脚本使用 Compose 传入的
+`V2RAYA_HTTP_PROXY`、`V2RAYA_SOCKS_PROXY` 与 `V2RAYA_NO_PROXY` 作为地址来源。
+
 ## 启动 Codex CLI
 
 开发镜像的 `docker/bashrc` 已内置代理函数。新建交互式 Bash 后直接执行：
@@ -201,7 +236,6 @@ NO_PROXY    = localhost,127.0.0.1
 
 也可以显式调用同一个代理函数：
 
-
 ```bash
 codex-proxy
 ```
@@ -212,21 +246,22 @@ codex-proxy
 codex-direct
 ```
 
-代理地址来自 Compose 传入的下列变量，可在宿主机的 `.env` 中覆盖：
+代理地址默认继承 Compose 传入的 `V2RAYA_*` 变量；如果 Codex 需要不同的
+代理，可在宿主机的 `.env` 中设置专用覆盖：
 
 ```dotenv
-CODEX_HTTP_PROXY=http://127.0.0.1:20171
-CODEX_SOCKS_PROXY=socks5h://127.0.0.1:20170
-CODEX_NO_PROXY=localhost,127.0.0.1
+CODEX_HTTP_PROXY=
+CODEX_SOCKS_PROXY=
+CODEX_NO_PROXY=
 ```
 
 函数的实际定义为：
 
 ```bash
 codex-proxy() {
-  local http_proxy="${CODEX_HTTP_PROXY:-http://127.0.0.1:20171}"
-  local socks_proxy="${CODEX_SOCKS_PROXY:-socks5h://127.0.0.1:20170}"
-  local no_proxy="${CODEX_NO_PROXY:-localhost,127.0.0.1}"
+  local http_proxy="${CODEX_HTTP_PROXY:-${V2RAYA_HTTP_PROXY:-http://127.0.0.1:20171}}"
+  local socks_proxy="${CODEX_SOCKS_PROXY:-${V2RAYA_SOCKS_PROXY:-socks5h://127.0.0.1:20170}}"
+  local no_proxy="${CODEX_NO_PROXY:-${V2RAYA_NO_PROXY:-localhost,127.0.0.1}}"
 
   HTTP_PROXY="${http_proxy}" \
   HTTPS_PROXY="${http_proxy}" \

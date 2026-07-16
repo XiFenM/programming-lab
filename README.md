@@ -82,6 +82,7 @@ Toolkit 和 VS Code。
 │   ├── doctor.sh                    # 工具链、uv Python 和 NVIDIA 运行时诊断
 │   ├── lint.sh                      # 全语言静态质量检查
 │   ├── format.sh                    # 全语言格式化
+│   ├── proxy-env.sh                 # 当前 shell 的 v2rayA 代理环境开关
 │   ├── test.sh                      # Python/Rust/C++/CUDA 测试
 │   ├── check_python_gpu.py          # PyTorch/Triton/TileLang GPU 栈验收
 │   └── verify-env.sh                # 完整验收入口
@@ -138,13 +139,16 @@ cp .env.example .env
 - `V2RAYA_WEB_BIND_ADDRESS` / `V2RAYA_WEB_PORT`：Web UI 的宿主机绑定，默认
   `127.0.0.1:2017`；
 - `V2RAYA_LOG_LEVEL`：sidecar 日志级别，默认 `info`。
-- `CODEX_HTTP_PROXY` / `CODEX_SOCKS_PROXY` / `CODEX_NO_PROXY`：交互式 Bash 中 Codex CLI
-  专用的代理参数，默认指向共享 loopback 上的 v2rayA Lite sidecar。
+- `V2RAYA_HTTP_PROXY` / `V2RAYA_SOCKS_PROXY` / `V2RAYA_NO_PROXY`：当前 shell 与 Codex
+  默认使用的 sidecar 代理参数；
+- `CODEX_HTTP_PROXY` / `CODEX_SOCKS_PROXY` / `CODEX_NO_PROXY`：可选的 Codex 专用
+  覆盖，空值会继承对应的 `V2RAYA_*` 默认值。
 
 如需让 Codex CLI 通过容器内 v2rayA Lite 访问网络，参见
 [Codex CLI 代理配置指南](docs/proxy-configuration.md)。显式 HTTP/SOCKS5 代理不需要为开发容器
 授予 iptables 或 `NET_ADMIN` 权限。开发镜像的交互式 Bash 已将 `codex` 封装为代理
-启动函数；需要绕过代理时使用 `codex-direct`。
+启动函数；需要绕过代理时使用 `codex-direct`。其他工具可使用 `proxy-on`、
+`proxy-off` 与 `proxy-status` 切换当前 shell 的标准代理环境变量。
 
 UID/GID 会在构建镜像时用于创建 `coder`。如果先构建后再修改，需要重新构建镜像；如果还
 复用了旧的命名卷，参见“常见问题”中的权限处理。

@@ -31,9 +31,9 @@ fi
 # every tool in the development container. `command codex` bypasses the shell
 # function below and resolves the actual Codex CLI executable.
 codex-proxy() {
-  local http_proxy="${CODEX_HTTP_PROXY:-http://127.0.0.1:20171}"
-  local socks_proxy="${CODEX_SOCKS_PROXY:-socks5h://127.0.0.1:20170}"
-  local no_proxy="${CODEX_NO_PROXY:-localhost,127.0.0.1}"
+  local http_proxy="${CODEX_HTTP_PROXY:-${V2RAYA_HTTP_PROXY:-http://127.0.0.1:20171}}"
+  local socks_proxy="${CODEX_SOCKS_PROXY:-${V2RAYA_SOCKS_PROXY:-socks5h://127.0.0.1:20170}}"
+  local no_proxy="${CODEX_NO_PROXY:-${V2RAYA_NO_PROXY:-localhost,127.0.0.1}}"
 
   HTTP_PROXY="${http_proxy}" \
   HTTPS_PROXY="${http_proxy}" \
@@ -49,6 +49,10 @@ codex() {
 codex-direct() {
   command codex "$@"
 }
+
+alias proxy-on='source /workspace/scripts/proxy-env.sh on'
+alias proxy-off='source /workspace/scripts/proxy-env.sh off'
+alias proxy-status='source /workspace/scripts/proxy-env.sh status'
 
 alias ll='ls -alF'
 alias gs='git status --short --branch'
