@@ -53,7 +53,8 @@ Toolkit 和 VS Code。
 ├── docker/                          # Bash 环境和容器专用 Cargo 镜像配置
 ├── docs/
 │   ├── cuda-upgrade.md             # CUDA/cuDNN/Ubuntu 基础镜像升级指南
-│   └── proxy-configuration.md      # v2rayA Lite 与 Codex CLI 代理配置指南
+│   ├── proxy-configuration.md      # v2rayA Lite 与 Codex CLI 代理配置指南
+│   └── triton-tutorials/           # Triton 官方教程快照与学习路线
 ├── pyproject.toml                   # Python/GPU 依赖及 Ruff/Pyright/pytest 配置
 ├── .python-version                  # uv 管理的 CPython 3.12
 ├── .nvmrc                           # nvm 使用的 Node.js 24 主版本
