@@ -27,6 +27,29 @@ if [[ -f /etc/bash_completion ]]; then
   . /etc/bash_completion
 fi
 
+# Keep proxying scoped to Codex instead of exporting HTTP_PROXY globally for
+# every tool in the development container. `command codex` bypasses the shell
+# function below and resolves the actual Codex CLI executable.
+codex-proxy() {
+  local http_proxy="${CODEX_HTTP_PROXY:-http://127.0.0.1:20171}"
+  local socks_proxy="${CODEX_SOCKS_PROXY:-socks5h://127.0.0.1:20170}"
+  local no_proxy="${CODEX_NO_PROXY:-localhost,127.0.0.1}"
+
+  HTTP_PROXY="${http_proxy}" \
+  HTTPS_PROXY="${http_proxy}" \
+  ALL_PROXY="${socks_proxy}" \
+  NO_PROXY="${no_proxy}" \
+    command codex "$@"
+}
+
+codex() {
+  codex-proxy "$@"
+}
+
+codex-direct() {
+  command codex "$@"
+}
+
 alias ll='ls -alF'
 alias gs='git status --short --branch'
 

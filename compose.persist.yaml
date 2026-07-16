@@ -9,6 +9,9 @@ services:
       - tilelang-cache:/home/coder/.cache/tilelang
       - cargo-registry:/home/coder/.cargo/registry
       - cargo-git:/home/coder/.cargo/git
+  proxy:
+    volumes:
+      - v2raya-data:/etc/v2raya
 
 volumes:
   uv-venvs:
@@ -19,3 +22,4 @@ volumes:
   tilelang-cache:
   cargo-registry:
   cargo-git:
+  v2raya-data:

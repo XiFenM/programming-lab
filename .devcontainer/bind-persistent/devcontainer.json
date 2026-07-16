@@ -6,6 +6,7 @@
     "../../compose.bind.yaml",
     "../../compose.persist.yaml"
   ],
+  "runServices": ["dev", "proxy"],
   "service": "dev",
   "workspaceFolder": "/workspace",
   "remoteUser": "coder",

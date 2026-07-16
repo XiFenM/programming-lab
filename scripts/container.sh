@@ -14,10 +14,12 @@ Workspace modes:
   copy          Copy a repository snapshot into the image (no host sync).
 
 Persistence modes:
-  persistent    Keep tool caches/venvs in named volumes. In copy mode, also
-                keep /workspace in a named volume seeded once from the image.
+  persistent    Keep tool caches/venvs and v2rayA configuration in named
+                volumes. In copy mode, also keep /workspace in a named volume
+                seeded once from the image.
   ephemeral     Keep generated environments/caches in the container writable
-                layer only; image-baked tools remain in the image.
+                layer only and v2rayA configuration in tmpfs; image-baked
+                tools remain in the image.
 
 Compose versions:
   2.30+         Add compose.gpu.yaml with its gpus: all declaration.
@@ -27,6 +29,7 @@ Actions:
   build         Build the selected image target.
   up            Build if needed and start in the background.
   status        Show service status.
+  logs          Follow recent dev and proxy service logs.
   shell         Open an interactive Bash shell in the running container.
   init          Run scripts/init-env.sh in the running container.
   stop          Stop without removing the container.
@@ -54,7 +57,7 @@ if [[ -z "${action}" || "${action}" == "help" || "${action}" == "-h" || "${actio
 fi
 
 case "${action}" in
-  build | up | status | shell | init | stop | down | destroy | config | export) ;;
+  build | up | status | logs | shell | init | stop | down | destroy | config | export) ;;
   *)
     usage >&2
     exit 2
@@ -154,6 +157,8 @@ if [[ "${persistence_mode}" == "persistent" ]]; then
   if [[ "${workspace_mode}" == "copy" ]]; then
     compose_files+=(-f compose.copy-persist.yaml)
   fi
+else
+  compose_files+=(-f compose.ephemeral.yaml)
 fi
 
 compose=(docker compose "${compose_files[@]}")
@@ -170,6 +175,9 @@ case "${action}" in
     ;;
   status)
     "${compose[@]}" ps
+    ;;
+  logs)
+    "${compose[@]}" logs --tail=200 --follow
     ;;
   shell)
     "${compose[@]}" exec dev bash

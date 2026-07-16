@@ -1,0 +1,7 @@
+# Prevent the v2rayA image's declared /etc/v2raya volume from creating an
+# orphaned anonymous volume in ephemeral mode. Configuration exists only for
+# the lifetime of the proxy container in this mode.
+services:
+  proxy:
+    tmpfs:
+      - /etc/v2raya

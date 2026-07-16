@@ -3,8 +3,10 @@
   "dockerComposeFile": [
     "../../compose.yaml",
     "../../compose.gpu-legacy.yaml",
-    "../../compose.bind.yaml"
+    "../../compose.bind.yaml",
+    "../../compose.ephemeral.yaml"
   ],
+  "runServices": ["dev", "proxy"],
   "service": "dev",
   "workspaceFolder": "/workspace",
   "remoteUser": "coder",
