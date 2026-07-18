@@ -87,18 +87,51 @@ RUN apt-get update \
     && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN if ! getent group "${USER_GID}" >/dev/null; then \
+# Ubuntu 24.04 CUDA images may already reserve UID/GID 1000 for an `ubuntu`
+# account. Reuse that numeric identity when present so bind-mount ownership
+# still matches the WSL user while the development account remains `coder`.
+RUN set -eux; \
+    if [[ ! "${USER_UID}" =~ ^[1-9][0-9]*$ || ! "${USER_GID}" =~ ^[1-9][0-9]*$ ]]; then \
+        echo "USER_UID and USER_GID must be positive non-root integers" >&2; \
+        exit 64; \
+    fi; \
+    named_group_gid="$(getent group "${USERNAME}" | cut -d: -f3 || true)"; \
+    if [[ -n "${named_group_gid}" && "${named_group_gid}" != "${USER_GID}" ]]; then \
+        echo "group ${USERNAME} already exists with GID ${named_group_gid}" >&2; \
+        exit 65; \
+    fi; \
+    if ! getent group "${USER_GID}" >/dev/null; then \
         groupadd --gid "${USER_GID}" "${USERNAME}"; \
-    fi \
-    && useradd \
-        --uid "${USER_UID}" \
-        --gid "${USER_GID}" \
-        --create-home \
-        --shell /bin/bash \
-        "${USERNAME}" \
-    && echo "${USERNAME} ALL=(root) NOPASSWD:ALL" > "/etc/sudoers.d/${USERNAME}" \
-    && chmod 0440 "/etc/sudoers.d/${USERNAME}" \
-    && mkdir -p \
+    fi; \
+    uid_username="$(getent passwd "${USER_UID}" | cut -d: -f1 || true)"; \
+    named_user_uid="$(getent passwd "${USERNAME}" | cut -d: -f3 || true)"; \
+    if [[ -n "${named_user_uid}" && "${named_user_uid}" != "${USER_UID}" ]]; then \
+        echo "user ${USERNAME} already exists with UID ${named_user_uid}" >&2; \
+        exit 65; \
+    fi; \
+    if [[ -n "${uid_username}" && "${uid_username}" != "${USERNAME}" ]]; then \
+        usermod --login "${USERNAME}" "${uid_username}"; \
+    elif [[ -z "${uid_username}" ]]; then \
+        useradd \
+            --uid "${USER_UID}" \
+            --gid "${USER_GID}" \
+            --home-dir "/home/${USERNAME}" \
+            --create-home \
+            --shell /bin/bash \
+            "${USERNAME}"; \
+    fi; \
+    current_home="$(getent passwd "${USERNAME}" | cut -d: -f6)"; \
+    if [[ "${current_home}" != "/home/${USERNAME}" ]]; then \
+        if [[ -d "${current_home}" && ! -e "/home/${USERNAME}" ]]; then \
+            usermod --home "/home/${USERNAME}" --move-home "${USERNAME}"; \
+        else \
+            usermod --home "/home/${USERNAME}" "${USERNAME}"; \
+        fi; \
+    fi; \
+    usermod --gid "${USER_GID}" --shell /bin/bash "${USERNAME}"; \
+    printf '%s ALL=(root) NOPASSWD:ALL\n' "${USERNAME}" > "/etc/sudoers.d/${USERNAME}"; \
+    chmod 0440 "/etc/sudoers.d/${USERNAME}"; \
+    mkdir -p \
         /workspace \
         "/home/${USERNAME}/.cache/ccache" \
         "/home/${USERNAME}/.cache/tilelang" \
@@ -106,8 +139,8 @@ RUN if ! getent group "${USER_GID}" >/dev/null; then \
         "/home/${USERNAME}/.cache/uv" \
         "/home/${USERNAME}/.cargo/git" \
         "/home/${USERNAME}/.cargo/registry" \
-        "/home/${USERNAME}/.venvs" \
-    && chown -R "${USER_UID}:${USER_GID}" /workspace "/home/${USERNAME}"
+        "/home/${USERNAME}/.venvs"; \
+    chown -R "${USER_UID}:${USER_GID}" /workspace "/home/${USERNAME}"
 
 COPY --chown=${USER_UID}:${USER_GID} docker/bashrc /home/${USERNAME}/.bashrc
 COPY --chown=${USER_UID}:${USER_GID} docker/cargo-config.toml /home/${USERNAME}/.cargo/config.toml
