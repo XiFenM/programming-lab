@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG BASE_IMAGE=nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04
+ARG BASE_IMAGE=nvidia/cuda:13.2.1-cudnn-devel-ubuntu24.04
 FROM ${BASE_IMAGE} AS toolchain
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

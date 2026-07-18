@@ -12,7 +12,7 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
 
 ## 已配置的内容
 
-- 基础镜像固定为 `nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04`，包含 CUDA 13.0、cuDNN
+- 基础镜像固定为 `nvidia/cuda:13.2.1-cudnn-devel-ubuntu24.04`，包含 CUDA 13.2、cuDNN
   和 `nvcc`。
 - Ubuntu/Ubuntu Ports 使用清华 TUNA 镜像，NVIDIA CUDA apt 使用 NVIDIA 官方中国站；
   uv/PyPI、Node.js release 和 rustup 使用清华镜像，Cargo crate 使用 RsProxy sparse 镜像。
@@ -166,7 +166,7 @@ python .agent-skills/tools/materialize_skills.py --repo . --check
 推荐 Linux；Windows 建议使用带 GPU 支持的 WSL2。macOS 不能运行这个 NVIDIA CUDA
 容器。
 
-1. NVIDIA GPU 和能够支持 CUDA 13.0 的宿主机驱动。容器使用宿主机驱动，而不是在容器
+1. NVIDIA GPU 和能够支持 CUDA 13.2 的宿主机驱动。容器使用宿主机驱动，而不是在容器
    中安装内核驱动。
 2. Docker Engine 与 Docker Compose 2.27+。命令行脚本会检测 Compose 版本：2.30+
    使用 `gpus: all`，2.27–2.29 使用兼容的 GPU device reservation 配置。
@@ -442,7 +442,7 @@ VS Code Dev Container 不经过 `container.sh`，因此八套配置固定引用�
 `Dockerfile` 的基础镜像使用精确 tag：
 
 ```dockerfile
-ARG BASE_IMAGE=nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04
+ARG BASE_IMAGE=nvidia/cuda:13.2.1-cudnn-devel-ubuntu24.04
 ```
 
 在第一次 `apt-get update` 之前，Dockerfile 会同时处理 Ubuntu 24.04 常见的 deb822
@@ -546,7 +546,7 @@ uv sync --locked --extra gpu --group dev
 `make verify` 后再提交 `pyproject.toml` 和 `uv.lock`。
 
 没有强行配置一个假定存在的 CUDA 13 PyTorch wheel index。PyPI 上的 PyTorch wheel 通常
-携带自己的 CUDA 用户态依赖，它报告的 `torch.version.cuda` 可能与系统 `nvcc 13.0` 不同，
+携带自己的 CUDA 用户态依赖，它报告的 `torch.version.cuda` 可能与系统 `nvcc 13.2` 不同，
 这本身不等于错误；关键是宿主机驱动兼容，并且实际 PyTorch/Triton kernel 能运行。当前
 PyTorch、Triton 与 TileLang 的具体兼容组合由 `uv.lock` 固定。
 
@@ -758,10 +758,10 @@ GitHub 托管 runner 默认没有 NVIDIA GPU，因此云端 workflow 不声称�
 是否能运行任意 `--gpus all` 容器。若 `nvcc --version` 正常但 `nvidia-smi` 失败，通常说明
 镜像工具链存在、GPU runtime 转发不存在；重装 Python 包不会解决它。
 
-还要确认宿主机驱动支持 CUDA 13.0。基础镜像里的 CUDA toolkit 版本可以高于 PyTorch wheel
+还要确认宿主机驱动支持 CUDA 13.2。基础镜像里的 CUDA toolkit 版本可以高于 PyTorch wheel
 携带的 CUDA runtime 版本，但不能高于宿主机驱动实际能够承载的范围。
 
-### `nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04` 拉取失败
+### `nvidia/cuda:13.2.1-cudnn-devel-ubuntu24.04` 拉取失败
 
 先确认 tag、CPU 架构和 NVIDIA registry 可用性。仓库按你的要求固定了该 tag，不会静默回退到
 另一个 CUDA 版本。如果 NVIDIA 未为宿主机架构发布它，需要明确选择受支持的镜像 tag，并
