@@ -191,6 +191,14 @@ ENV CCACHE_DIR=${HOME}/.cache/ccache \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONUNBUFFERED=1
 
+# Nested native volumes/tmpfs mounts are used at runtime so CMake and Cargo
+# never write permission-sensitive files to a Windows 9p/DrvFS workspace mount.
+# Keep this late in the image to avoid invalidating the expensive tool layers.
+USER root
+RUN mkdir -p /workspace/build /workspace/target \
+    && chown "${USER_UID}:${USER_GID}" /workspace/build /workspace/target
+USER ${USERNAME}
+
 LABEL org.opencontainers.image.title="programming-lab" \
       org.opencontainers.image.description="CUDA, Triton, TileLang and LeetCode development environment"
 
