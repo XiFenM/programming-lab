@@ -8,12 +8,12 @@
 系统 CUDA Toolkit 的版本由 `Dockerfile` 顶部的基础镜像决定：
 
 ```dockerfile
-ARG BASE_IMAGE=nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04
+ARG BASE_IMAGE=nvidia/cuda:13.2.1-cudnn-devel-ubuntu24.04
 ```
 
 这个 tag 同时表达了四项选择：
 
-- `13.0.3`：CUDA Toolkit 版本；
+- `13.2.1`：CUDA Toolkit 版本；
 - `cudnn`：镜像包含 cuDNN；
 - `devel`：镜像包含 `nvcc`、头文件和开发库，原生 CUDA 示例依赖这一变体；
 - `ubuntu24.04`：容器操作系统版本。
@@ -93,7 +93,7 @@ PY
 编辑 `Dockerfile` 的 `BASE_IMAGE`：
 
 ```diff
--ARG BASE_IMAGE=nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04
+-ARG BASE_IMAGE=nvidia/cuda:13.2.1-cudnn-devel-ubuntu24.04
 +ARG BASE_IMAGE=nvidia/cuda:<目标版本>-cudnn-devel-ubuntu24.04
 ```
 
@@ -106,7 +106,7 @@ PY
 README 中包含当前镜像、宿主机要求和故障排查示例。用下面的命令查找旧版本引用并更新：
 
 ```bash
-rg '13\.0\.3|CUDA 13\.0|nvcc 13\.0' README.md Dockerfile docs
+rg '13\.2\.1|CUDA 13\.2|nvcc 13\.2' README.md Dockerfile docs
 ```
 
 如果目标版本不再属于 CUDA 13，应同时检查更宽泛的引用：
@@ -160,7 +160,7 @@ cmake --fresh --preset debug
 
 ### 仅升级同一 CUDA 主版本或补丁版本
 
-例如从 CUDA 13.0 升到另一个 CUDA 13.x 版本时，先保留现有 `pyproject.toml` 和
+例如在 CUDA 13.x 范围内升级时，先保留现有 `pyproject.toml` 和
 `uv.lock`，执行完整验收。只要 PyTorch、Triton 和 TileLang 的实际 GPU 测试通过，就没有
 必要仅为了让版本字符串一致而重新锁定依赖。
 
