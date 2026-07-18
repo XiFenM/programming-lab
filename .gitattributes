@@ -1,0 +1,14 @@
+# Normalize every text file to LF in both the Git index and the working tree.
+# `text=auto` leaves files detected as binary untouched, while `eol=lf`
+# overrides core.autocrlf on every platform.
+* text=auto eol=lf
+
+# Keep Linux entry points executable from WSL and containers after a Windows
+# checkout, regardless of the user's global core.autocrlf setting.
+.gitattributes text eol=lf
+*.sh text eol=lf
+*.bash text eol=lf
+Dockerfile* text eol=lf
+Makefile* text eol=lf
+*.mk text eol=lf
+docker/bashrc text eol=lf
