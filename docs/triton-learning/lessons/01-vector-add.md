@@ -679,6 +679,7 @@ uv run --frozen ruff format --check gpu/triton/lesson01_vector_ops.py \
 | --- | --- | --- |
 | Kernel / wrapper | `gpu/triton/lesson01_vector_ops.py` | 第三轮评审后已修 R08/R09 核心逻辑，待测试固化与代码整理 |
 | GPU tests | `gpu/triton/lesson01_vector_ops_test.py` | 现有 20 个用例全通过，输入契约覆盖仍待补齐 |
+| 旧 strided add 练习 | 已归并到 `gpu/triton/lesson01_vector_ops.py` | 仅整理位置，尚无 wrapper、pytest 与正式评审 |
 | Benchmark | 可放在实现文件的 `main()` 或独立文件 | 可选 |
 
 ### 第一版实现摘要
@@ -732,6 +733,22 @@ uv run --frozen ruff format --check gpu/triton/lesson01_vector_ops.py \
 - 修改后重新运行现有测试：`20 passed in 4.51s`。
 - 上述四项新行为尚未全部写入 pytest，因此 R08/R09 标为“实现已修改、待 R10 固化”，而不是
   直接关闭。
+
+### 旧 strided vector add 练习归档
+
+阶段性保存后，学习者将原本独立位于 `gpu/triton/strided_vector_add.py` 的
+`strided_1d_vector_add` kernel 原样移动到 `gpu/triton/lesson01_vector_ops.py`，并删除旧文件，
+便于把第一课相关的一维向量 kernel 集中整理。此次变更没有修改该 kernel 的计算逻辑。
+
+当前归档边界：
+
+- 只有 `@triton.jit` kernel，没有 Python wrapper。
+- 没有 pytest 覆盖；现有 `20 passed` 不包含该 kernel。
+- 尚未正式检查 stride 单位、输入/输出 shape 契约、负 stride、零 stride、地址重叠、空输入、
+  launch grid 或非连续 PyTorch view 的端到端行为。
+- 因此它当前属于“保存下来的旧练习”，而不是已通过第一课验收的第三个算子。后续若要继续
+  完善，应单独定义 wrapper 与测试要求，不与 R07–R10 的当前收尾工作混在一起。
+- 归并后复跑现有测试：`20 passed in 4.27s`；Ruff 仍为此前已知的 4 项，未新增诊断。
 
 ## 9. 代码评审与修改闭环
 
@@ -901,7 +918,8 @@ uv run --frozen ruff format --check gpu/triton/lesson01_vector_ops.py \
 | 学习阶段 | 评审中，第三轮 review 后已完成 R08/R09 实现修改，等待测试固化与复审 |
 | Kernel / wrapper | `gpu/triton/lesson01_vector_ops.py` |
 | pytest | `gpu/triton/lesson01_vector_ops_test.py` |
-| 最近完整测试 | 20 passed in 4.51s，Python 3.12.13 / pytest 8.4.2 |
+| 旧练习归档 | `strided_1d_vector_add` 已并入实践源码，但不在当前 20 个 pytest 用例内 |
+| 最近完整测试 | 20 passed in 4.27s，Python 3.12.13 / pytest 8.4.2 |
 | 尚未关闭 | R07、R10；R08/R09 实现已修改但尚未由新增 pytest 固化 |
 | 下一课程 | 第 02 课尚未开始 |
 
@@ -954,7 +972,7 @@ uv run --frozen ruff format --check gpu/triton/lesson01_vector_ops.py \
 | 空输入 | 两个 wrapper 都直接返回正确空输出；配置先于早返回验证 | 非法配置行为尚未固化为 pytest |
 | block size | 显式 128/256/512/1024 通过；`128.0` 已由 wrapper 拒绝 | 类型与空输入组合尚未固化为 pytest |
 | 默认 heuristic | 手工探针在 `N=513` 时两个算子均与 reference 一致 | 尚未固化为 pytest 用例 |
-| pytest | `20 passed in 4.51s` | 通过集合仍未覆盖最新修复和全部接口契约 |
+| pytest | `20 passed in 4.27s` | 通过集合仍未覆盖最新修复、旧 strided kernel 和全部接口契约 |
 | 静态质量 | 测试文件已通过 Ruff formatter | `ruff check` 仍有 4 项，实现文件尚待格式化 |
 
 阶段验证命令：
@@ -967,7 +985,7 @@ uv run --frozen pytest -vv gpu/triton/lesson01_vector_ops_test.py
 
 ```text
 collected 20 items
-20 passed in 4.51s
+20 passed in 4.27s
 ```
 
 第三轮 review 时复现过、必须保留的反例证据：
@@ -1078,3 +1096,4 @@ uv run --frozen ruff format --check gpu/triton/lesson01_vector_ops.py \
 | 2026-07-20 | Q04 答疑 | 区分 GPU 编译执行、CPU host wrapper、解释器模式与实验性 CPU backend |
 | 2026-07-20 | 第三版评审 | 确认现有 20 项全通过，并新增多 GPU、配置类型/顺序和测试覆盖意见 |
 | 2026-07-20 | 阶段性保存 | 汇总已完成内容、实测证据、R07–R10、恢复顺序及进入第二课的门槛 |
+| 2026-07-20 | 旧练习归档 | 将 `strided_1d_vector_add` 原样并入第一课实践源码，明确其尚未评审或测试 |

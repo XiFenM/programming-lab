@@ -70,6 +70,8 @@ docs/triton-learning/
 - 当前课程：第 01 课 Vector Addition。
 - 当前阶段：第三轮代码评审之后，状态为 `评审中`，尚未进入最终验收。
 - 当前成果：两个练习 kernel 与 wrapper 已完成；pytest 已建立，现有 20 个用例全部通过。
+- 整理状态：旧练习 `strided_1d_vector_add` 已从独立文件归并到第一课实践源码；目前只有 kernel，
+  尚无 wrapper、pytest 或正式评审，不计入第一课已验收成果。
 - 当前遗留：R08/R09 的核心实现已经手工复验，仍需通过 R10 将多 GPU、block-size 类型与验证
   顺序等行为固化为 pytest，并改善跨卡错误消息；R07 的 Ruff/formatter 尚未完成。
 - 恢复入口：阅读[第一课“阶段性暂停快照”](lessons/01-vector-add.md#11-阶段性暂停快照2026-07-20)，
