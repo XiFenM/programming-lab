@@ -13,6 +13,7 @@
 | 仓库已有参考 | [`gpu/triton/vector_add.py`](../../../gpu/triton/vector_add.py) |
 | 学习者实践源码 | [`lesson01_vector_ops.py`](../../../gpu/triton/lesson01_vector_ops.py) |
 | 测试代码 | [`lesson01_vector_ops_test.py`](../../../gpu/triton/lesson01_vector_ops_test.py) |
+| 原始对话 | [`dialogues/01-vector-add.md`](../dialogues/01-vector-add.md)，阶段性已导出 |
 | 补充材料 | [pytest GPU 测试参考](../references/pytest-gpu-kernel-tests.md) |
 
 ### 环境基线
@@ -41,6 +42,7 @@
 - [ ] 已通过正确性与边界测试
 - [ ] 已完成知识复述与变式验收
 - [ ] 已总结并关闭本课
+- [x] 已在阶段性中断时后验导出原始对话
 
 ## 2. 学习目标与前置知识
 
@@ -919,6 +921,7 @@ uv run --frozen ruff format --check gpu/triton/lesson01_vector_ops.py \
 | Kernel / wrapper | `gpu/triton/lesson01_vector_ops.py` |
 | pytest | `gpu/triton/lesson01_vector_ops_test.py` |
 | 旧练习归档 | `strided_1d_vector_add` 已并入实践源码，但不在当前 20 个 pytest 用例内 |
+| 原始对话 | 57 条用户/助手可见消息已导出到 `dialogues/01-vector-add.md` |
 | 最近完整测试 | 20 passed in 4.27s，Python 3.12.13 / pytest 8.4.2 |
 | 尚未关闭 | R07、R10；R08/R09 实现已修改但尚未由新增 pytest 固化 |
 | 下一课程 | 第 02 课尚未开始 |
@@ -1062,7 +1065,26 @@ uv run --frozen ruff format --check gpu/triton/lesson01_vector_ops.py \
 6. 默认 Triton 编译 kernel 运行在 GPU；CPU wrapper、解释器模拟和实验性 CPU backend 是三个
    不同层次，不能混为一谈。
 
-## 12. 参考资料
+## 12. 原始对话与参考资料
+
+### 原始对话归档
+
+- **归档文件**：[第 01 课原始学习对话](../dialogues/01-vector-add.md)
+- **来源 session**：`rollout-2026-07-20T01-13-19-019f7d15-aa74-7bd2-abf5-e028149c8b47.jsonl`
+- **session ID**：`019f7d15-aa74-7bd2-abf5-e028149c8b47`
+- **截取范围**：从用户消息“非常好，这就让我们开始第一课时吧。”开始，到 2026-07-20
+  09:14:28 UTC 助手完成旧 strided vector add 整理提交为止；本次新增归档功能的元对话未纳入。
+- **消息数量**：57，包括用户消息、助手过程更新和助手正式回答。
+- **规范化**：移除 environment/IDE context，去除相邻重复；不包含 system/developer、reasoning、
+  工具调用和工具输出。
+- **导出日期**：2026-07-21。
+- **使用说明**：[Codex 学习对话后验归档](../references/raw-dialogue-export.md)
+
+本文件是阶段性导出。第一课最终结束时，如果后续仍在同一 session 中继续，应使用原有开课
+边界和新的结束边界重新导出并人工审核 diff；若跨 session，则分别保留 provenance 并在此建立
+多文件索引。
+
+### 参考资料
 
 - [本地官方案例](../../triton-tutorials/official/01-vector-add.py)
 - [本地教程来源记录](../../triton-tutorials/SOURCE.md)
@@ -1097,3 +1119,4 @@ uv run --frozen ruff format --check gpu/triton/lesson01_vector_ops.py \
 | 2026-07-20 | 第三版评审 | 确认现有 20 项全通过，并新增多 GPU、配置类型/顺序和测试覆盖意见 |
 | 2026-07-20 | 阶段性保存 | 汇总已完成内容、实测证据、R07–R10、恢复顺序及进入第二课的门槛 |
 | 2026-07-20 | 旧练习归档 | 将 `strided_1d_vector_add` 原样并入第一课实践源码，明确其尚未评审或测试 |
+| 2026-07-21 | 原始对话归档 | 新增后验导出功能，并生成包含 57 条消息的第一课阶段性原始对话 |

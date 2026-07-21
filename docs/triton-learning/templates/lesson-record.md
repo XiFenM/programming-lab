@@ -17,6 +17,7 @@
 | 完成日期 | — |
 | 实践源码 | `gpu/triton/<file>.py` |
 | 测试代码 | `路径或待创建` |
+| 原始对话 | `docs/triton-learning/dialogues/<NN>-<topic>.md` 或待导出 |
 | 补充材料 | `docs/triton-learning/attachments/<lesson>/` 或无 |
 
 ### 环境基线
@@ -45,6 +46,7 @@
 - [ ] 已通过正确性与边界测试
 - [ ] 已完成知识复述与变式验收
 - [ ] 已总结并关闭本课
+- [ ] 已在课程结束或中断时后验导出原始对话
 
 ## 2. 学习目标与前置知识
 
@@ -338,7 +340,18 @@
 - [ ] 文档中的问题、实验和最终实现已同步
 - [ ] 学习者确认可以进入下一课
 
-## 12. 参考资料
+## 12. 原始对话与参考资料
+
+### 原始对话归档
+
+- **归档文件**：`docs/triton-learning/dialogues/<NN>-<topic>.md`
+- **Codex session**：`rollout-<timestamp>-<session-id>.jsonl`
+- **截取边界**：从“开课用户消息”到“下一阶段用户消息”之前
+- **导出选项**：默认 / `--keep-client-context` / `--final-only` 等
+- **审核结果**：待审核 / 已确认首尾、消息数和敏感信息边界
+- **导出命令**：见 `docs/triton-learning/references/raw-dialogue-export.md`
+
+### 参考资料
 
 - 官方案例：
 - Triton API 文档：
