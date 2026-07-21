@@ -35,6 +35,8 @@ Toolkit 和 VS Code。
   `privileged`、`NET_ADMIN` 或容器内 iptables。
 - 提供四套 VS Code Dev Container 组合、编辑器设置、推荐插件、任务和调试配置。
 - 提供可选的本地 pre-commit hook，以及不依赖 GPU 的 GitHub Actions 代码质量检查。
+- 仓库级 Codex Skills 的源码统一放在 `skills/<skill-name>/`，并通过
+  `.agents/skills/<skill-name>` 的相对软链接供当前仓库发现。
 
 ## 仓库结构
 
@@ -50,6 +52,9 @@ Toolkit 和 VS Code。
 ├── compose.persist.yaml             # uv/Cargo/GPU 编译缓存命名卷
 ├── compose.copy-persist.yaml        # 快照模式的 /workspace 持久卷
 ├── .devcontainer/                   # bind/copy × persistent/ephemeral 四套配置
+├── .agents/skills/                  # 指向版本化 Skill 源码的仓库级发现链接
+├── skills/
+│   └── learn-by-practice/           # 讲解、实践、评审、验收与学习归档闭环
 ├── docker/                          # Bash 环境和容器专用 Cargo 镜像配置
 ├── docs/
 │   ├── cuda-upgrade.md             # CUDA/cuDNN/Ubuntu 基础镜像升级指南
@@ -90,6 +95,16 @@ Toolkit 和 VS Code。
 ├── .pre-commit-config.yaml          # 可选的本地静态检查 hook
 └── .github/workflows/quality.yml    # 无 GPU 的云端质量检查
 ```
+
+## 仓库级 Codex Skills
+
+Skill 的唯一源码位于 `skills/<skill-name>/`，可以正常参与 Git 版本控制和跨仓库复制。
+`.agents/skills/` 只保存指向源码目录的相对软链接；不要在软链接路径下维护另一份副本。
+
+当前提供的 [`learn-by-practice`](skills/learn-by-practice/SKILL.md) 将 Triton 学习中形成的
+“完整讲解 → 问题答疑 → 渐进练习 → 学习者实现 → 代码或作品评审 → 修改复审 → 掌握验收 →
+阶段归档”流程抽象为领域无关的 Skill。它可以初始化独立学习档案，也可以接管已有档案并从暂停
+checkpoint 恢复。
 
 ## 宿主机要求
 

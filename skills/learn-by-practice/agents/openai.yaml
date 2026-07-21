@@ -1,0 +1,4 @@
+interface:
+  display_name: "Learn by Practice"
+  short_description: "Guide structured learning through practice and review"
+  default_prompt: "Use $learn-by-practice to help me learn a topic through explanation, questions, practice, review, and documented mastery."
