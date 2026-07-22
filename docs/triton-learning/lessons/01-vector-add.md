@@ -7,21 +7,21 @@
 | 课程编号 | `01` |
 | 官方案例 | [`01-vector-add.py`](../../triton-tutorials/official/01-vector-add.py) |
 | 教程快照 | Triton `main` 文档，下载于 2026-07-15 UTC |
-| 学习状态 | 评审中 |
+| 学习状态 | 已完成 |
 | 开始日期 | 2026-07-20 |
-| 完成日期 | — |
+| 完成日期 | 2026-07-22 |
 | 仓库已有参考 | [`gpu/triton/vector_add.py`](../../../gpu/triton/vector_add.py) |
 | 学习者实践源码 | [`lesson01_vector_ops.py`](../../../gpu/triton/lesson01_vector_ops.py) |
 | 测试代码 | [`lesson01_vector_ops_test.py`](../../../gpu/triton/lesson01_vector_ops_test.py) |
-| 原始对话 | [`dialogues/01-vector-add.md`](../dialogues/01-vector-add.md)，阶段性已导出 |
+| 原始对话 | [第一段](../dialogues/01-vector-add.md)（57 条）；[续段](../dialogues/01-vector-add-part2.md)（37 条） |
 | 补充材料 | [pytest GPU 测试参考](../references/pytest-gpu-kernel-tests.md) |
 
 ### 环境基线
 
 | 项目 | 版本或型号 |
 | --- | --- |
-| GPU | 当前记录环境未透传 GPU，待实际实验时补充 |
-| NVIDIA driver | 当前记录环境无法通过 `nvidia-smi` 查询 |
+| GPU | 8 × NVIDIA A100-SXM4-80GB（2026-07-22 实测） |
+| NVIDIA driver | 580.159.03（2026-07-22 实测） |
 | CUDA Toolkit (`nvcc`) | 13.0，build 13.0.88 |
 | Python | 3.12.13 |
 | PyTorch | 2.13.0，CUDA runtime 13.0 |
@@ -38,10 +38,10 @@
 - [x] 已接受实践任务
 - [x] 已提交第一版实现
 - [x] 已完成至少一轮代码评审
-- [ ] 已处理全部阻塞问题
-- [ ] 已通过正确性与边界测试
-- [ ] 已完成知识复述与变式验收
-- [ ] 已总结并关闭本课
+- [x] 已处理全部阻塞问题
+- [x] 已通过正确性与边界测试
+- [x] 已完成知识复述与变式验收
+- [x] 已总结并关闭本课
 - [x] 已在阶段性中断时后验导出原始对话
 
 ## 2. 学习目标与前置知识
@@ -396,22 +396,26 @@ GB/s = 3 * N * element_size * 1e-9 / (milliseconds * 1e-3)
 
 ### 当前心智模型
 
-待补充。
+一个 Triton launch 先通过 grid 创建多个 program instances；每个 program 用自己的
+`program_id` 定位数据块，再由 `tl.arange` 创建固定形状的 block tensor。`tl.load/store` 对
+pointer tensor 逐 lane 执行带 mask 的内存操作，编译器再把这些逻辑操作映射到实际 GPU
+threads/warps。`BLOCK_SIZE` 是逻辑数据块大小而不是 CUDA thread 数；mask 是 predication 而
+不是 compaction。
 
 ### 我可以独立解释的问题
 
-- [ ] 为什么 grid 是 `ceil(N / BLOCK_SIZE)`？
-- [ ] 一个 program instance 处理哪些数据？
-- [ ] 为什么最后一个 program 需要 mask？
-- [ ] `BLOCK_SIZE` 为什么是 `tl.constexpr`？
-- [ ] `BLOCK_SIZE=1024` 为什么不等于 1024 个 CUDA threads？
-- [ ] `x_ptr + offsets` 的含义是什么？
-- [ ] 为什么这个算子通常受内存带宽限制？
-- [ ] 为什么普通 CPU 计时可能错误衡量异步 GPU kernel？
+- [x] 为什么 grid 是 `ceil(N / BLOCK_SIZE)`？
+- [x] 一个 program instance 处理哪些数据？
+- [x] 为什么最后一个 program 需要 mask？
+- [x] `BLOCK_SIZE` 为什么是 `tl.constexpr`？
+- [x] `BLOCK_SIZE=1024` 为什么不等于 1024 个 CUDA threads？
+- [x] `x_ptr + offsets` 的含义是什么？
+- [x] 为什么这个算子通常受内存带宽限制？
+- [x] 为什么普通 CPU 计时可能错误衡量异步 GPU kernel？
 
 ### 尚不牢固的概念
 
-- 当前没有已知的未解决概念。Q01–Q03 均已由学习者确认解决。
+- Q01–Q04 已由学习者口头确认解决；Q05–Q09 已通过后续测试实现与复审验证。
 
 ## 6. 问题与答疑记录
 
@@ -527,6 +531,179 @@ GB/s = 3 * N * element_size * 1e-9 / (milliseconds * 1e-3)
 - **是否解决**：是，学习者已确认。
 - **衍生问题**：以后需要调试 kernel 中间值时，可专门练习 `TRITON_INTERPRET=1`、
   `static_print` 和 `device_print`。
+
+### Q05：pytest 参数中如何携带 `expected_exception`？
+
+- **日期**：2026-07-22
+- **我的原始问题**：不知道如何在参数中携带 `expected_exception`。
+- **提问时的理解/假设**：已经会参数化普通输入值，但还不清楚异常类型本身也能作为 Python
+  对象放入 pytest 参数表。
+- **讲解与回答**：异常类可以像整数、shape 或 dtype 一样作为参数传入。参数表可同时提供
+  `block_size` 与 `expected_exception`，测试函数再把后者交给
+  `pytest.raises(expected_exception, ...)`。应传 `TypeError`/`ValueError` 这样的异常类，而不是
+  `TypeError()` 实例。当前接口约定中，浮点配置属于错误类型，期待 `TypeError`；整数但取值不在
+  允许集合中，期待 `ValueError`。
+- **最小例子或推导**：
+
+  ```python
+  @pytest.mark.parametrize(
+      ("block_size", "expected_exception"),
+      [
+          pytest.param(0, ValueError, id="zero"),
+          pytest.param(1.2, TypeError, id="float"),
+      ],
+  )
+  def test_invalid_block_size(
+      block_size: int | float,
+      expected_exception: type[Exception],
+  ) -> None:
+      with pytest.raises(expected_exception, match="block_size"):
+          ...
+  ```
+
+- **最终结论**：pytest 参数不仅能携带测试数据，也能携带异常类、函数、dtype 等普通 Python
+  对象；参数化的价值是让每一行用例同时声明输入与期望行为。
+- **是否解决**：待学习者修改测试后确认。
+- **衍生问题**：若不同异常还需要不同消息，可再增加一个 `match` 参数；若每种错误准备逻辑差异
+  很大，拆成独立测试会比过度参数化更清楚。
+
+### Q06：如何构造一维非连续 PyTorch 输入？
+
+- **日期**：2026-07-22
+- **我的原始问题**：不知道如何构建非连续输入。
+- **提问时的理解/假设**：需要得到仍为一维、shape 正常，但 `is_contiguous()` 为 false 的 tensor，
+  用于验证 wrapper 的 stride 契约。
+- **讲解与回答**：先分配更长的连续 tensor，再用步长切片取得 view。例如长度 16 的 storage
+  取 `base[::2]` 后，逻辑 shape 是 8，但 stride 是 `(2,)`；相邻逻辑元素在 storage 中间隔两个
+  元素，因此它不是连续 tensor。切片通常不复制数据，适合构造这一测试。只需令 AXPBY 的一个
+  输入非连续，就能验证 wrapper 是否拒绝不受支持的布局。
+- **最小例子或推导**：
+
+  ```python
+  base = torch.randn(16, device="cuda", dtype=torch.float32)
+  x = base[::2]
+  y = torch.randn(8, device="cuda", dtype=torch.float32)
+
+  assert x.shape == y.shape == (8,)
+  assert x.stride() == (2,)
+  assert not x.is_contiguous()
+
+  with pytest.raises(ValueError, match="contiguous"):
+      ops.axpby(1.0, x, 1.0, y)
+  ```
+
+- **最终结论**：contiguous 描述逻辑索引到 storage 地址的布局，不等同于 shape。`base[::2]`
+  保持一维 shape，却将 stride 改为 2，正好能暴露本课裸指针线性寻址的接口限制。
+- **是否解决**：待学习者补充 AXPBY 与 threshold 测试后确认。
+- **衍生问题**：以后完善 `strided_1d_vector_add` 时，这类 view 可以从“应被拒绝的输入”变成
+  “显式传入 stride 后应被正确支持的输入”。
+
+### Q07：Ruff 的 import 排序与 lambda 赋值诊断具体指什么？
+
+- **日期**：2026-07-22
+- **我的原始问题**：import 排序问题和 lambda 赋值问题具体是什么？
+- **提问时的理解/假设**：`I001` 看起来像导入名称顺序错误，`E731` 则指向 callable grid 的
+  lambda 写法，但不知道为什么不允许。
+- **讲解与回答**：本轮运行 `ruff check --diff` 后确认，两个 `I001` 实际都不是 `torch`、
+  `triton` 或 `pytest` 的顺序问题，而是 import 区块与后续模块常量之间多了一行空行；删除额外
+  空行即可。`E731` 表示把 lambda 赋值给名称，例如 `grid = lambda meta: ...`。若确实需要命名
+  callable，PEP 8/Ruff 建议写普通 `def`，这样函数名、traceback 和可读性更明确。本例中
+  `resolve_block_size` 已经在 host 端给出具体整数，因此 grid 根本不必是 callable，可以直接
+  构造一维 tuple，并用关键字明确传入 meta-parameter。
+- **最小例子或推导**：
+
+  ```python
+  grid = (triton.cdiv(n_elements, block_size),)
+  axpby_kernel[grid](
+      alpha,
+      x,
+      beta,
+      y,
+      output,
+      n_elements,
+      BLOCK_SIZE=block_size,
+  )
+  ```
+
+  callable grid 适合其维度依赖 launch meta-parameters 的场景；直接 tuple 则适合当前所有配置都
+  已在 wrapper 中解析完成的场景。
+- **最终结论**：先看 Ruff 的实际 diff，不要只从规则名称猜修复方式；本次 `I001` 修空行，
+  `E731` 则通过直接 tuple grid 消除，而不是机械地把 lambda 改成另一个不必要的函数。
+- **是否解决**：待学习者完成 R07 后确认。
+- **衍生问题**：当后续使用 `triton.autotune`、不同 config 改变 `BLOCK_SIZE` 时，callable grid
+  重新具有价值，但应使用符合项目 lint 约定的命名函数或教程允许的内联形式。
+
+### Q08：什么情况下需要 callable grid？
+
+- **日期**：2026-07-22
+- **我的原始问题**：什么情况下需要写成 callable grid？
+- **提问时的理解/假设**：已经知道本课可把 lambda grid 改成直接 tuple，但需要区分这只是当前
+  wrapper 的简化，还是 callable grid 本身没有用途。
+- **讲解与回答**：grid 必须在 launch 前确定 program instance 的数量和维度。直接 tuple 是
+  “wrapper 现在就计算”；callable grid 是“先把计算规则交给 Triton，等 kernel 参数和配置绑定
+  后再计算”。当前 Triton 3.7.1 的 launch 路径会先绑定参数，再以这份参数映射调用 grid
+  callable。它在 grid 依赖 `tl.constexpr` meta-parameter，而该值要由 `triton.autotune`、
+  `triton.heuristics` 或其他 launch 配置稍后决定时最有价值。
+- **最小例子或推导**：autotuned matmul 的不同候选可能采用不同 `BLOCK_SIZE_M/N`。每个 program
+  覆盖的输出 tile 随配置改变，因此 program 数也必须用同一候选重新计算：
+
+  ```python
+  def grid(meta):
+      return (
+          triton.cdiv(m, meta["BLOCK_SIZE_M"])
+          * triton.cdiv(n, meta["BLOCK_SIZE_N"]),
+      )
+
+  matmul_kernel[grid](..., M=m, N=n, K=k)
+  ```
+
+  若 wrapper 已经把 `block_size` 解析为具体整数，则直接写
+  `grid = (triton.cdiv(n_elements, block_size),)` 更简单。输入 `n_elements` 每次调用会变化本身并不
+  要求 callable，因为 wrapper 每次仍可重新计算 tuple。
+- **最终结论**：当 grid 依赖“launch 时才绑定或选出的 meta 配置”时使用 callable；当 grid 所需
+  的值已在 wrapper 中确定时使用 tuple。callable 在 CPU 端求值，不能读取 GPU tensor 内容来
+  决定本次 launch 的 grid。
+- **是否解决**：待学习者确认。
+- **衍生问题**：有 autotune 并不自动意味着必须 callable；只有被调优的值会改变 grid 时才需要
+  延迟计算。例如只改变 `num_warps` 而 tile 大小不变时，grid 可以仍是固定 tuple。
+
+### Q09：如何单独参数化测试 `resolve_block_size(n, None)`？
+
+- **日期**：2026-07-22
+- **我的原始问题**：如何为 `resolve_block_size(n, None)` 单独参数化测试？
+- **提问时的理解/假设**：现有端到端测试会省略 `block_size` 并检查数值结果，但还不知道如何
+  直接观察 resolver 选择的具体配置。
+- **讲解与回答**：`resolve_block_size` 是不需要 GPU 数据的纯 host 函数，可以把
+  `n_elements` 和 `expected_block_size` 作为两列 pytest 参数，直接断言返回值。当前分支使用
+  严格小于 512、1024、2048，因此每个阈值都应至少测试“前一个值”和“阈值本身”，这样能捕获
+  把 `<` 误写成 `<=` 等边界错误。
+- **最小例子或推导**：
+
+  ```python
+  @pytest.mark.parametrize(
+      ("n_elements", "expected_block_size"),
+      [
+          pytest.param(0, 128, id="empty"),
+          pytest.param(511, 128, id="before-512"),
+          pytest.param(512, 256, id="at-512"),
+          pytest.param(1023, 256, id="before-1024"),
+          pytest.param(1024, 512, id="at-1024"),
+          pytest.param(2047, 512, id="before-2048"),
+          pytest.param(2048, 1024, id="at-2048"),
+      ],
+  )
+  def test_resolve_block_size_uses_size_heuristic(
+      n_elements: int,
+      expected_block_size: int,
+  ) -> None:
+      assert ops.resolve_block_size(n_elements, None) == expected_block_size
+  ```
+
+- **最终结论**：端到端测试证明“无论选什么合法配置，结果都正确”；resolver 单元测试证明
+  “默认选择策略本身符合当前约定”。两者观察的行为不同，不能互相替代。
+- **是否解决**：待学习者补充测试后确认。
+- **衍生问题**：只有当 heuristic 选择策略被视为稳定契约时才应断言具体值；若以后准备频繁调整
+  性能策略，可只断言返回值属于允许集合，把具体选择留给 benchmark，而避免测试过度绑定实现。
 
 ## 7. 实践任务
 
@@ -886,6 +1063,110 @@ uv run --frozen ruff format --check gpu/triton/lesson01_vector_ops.py \
 5. threshold wrapper 的 CPU、二维、非 float32、非连续与非法 block size。
 6. 有两张 GPU 时：不同 device 必须被拒绝；同一张非当前 GPU 必须成功并返回在该设备上的结果。
 
+### 第 4 轮评审（2026-07-22）
+
+#### 本轮提交与执行证据
+
+学习者已开始扩充 R10：为两个 wrapper 增加默认 `block_size=None` 用例、空输入与非法配置组合，
+并为 AXPBY 增加 shape、dtype 和二维输入用例。当前环境可见 8 张 A100-SXM4-80GB，driver 为
+580.159.03；本轮执行结果为：
+
+```text
+pytest：收集 43 项，41 passed、2 failed，用时 2.55s
+ruff check：4 errors（两个 import 排序、两个 E731 lambda 赋值）
+ruff format --check：两个文件均待格式化
+```
+
+两项 pytest 失败都来自同一个测试契约不一致：`block_size=1.2` 会按 wrapper 的既定设计抛出
+`TypeError`，而两组空输入测试统一期待 `ValueError`。这反而证明配置验证确实发生在空输入早
+返回之前，不是 kernel 数值错误。
+
+#### 评审意见与状态迁移
+
+| 编号 | 严重程度 | 发现与证据 | 修改方向 | 状态 |
+| --- | --- | --- | --- | --- |
+| R07 | 次要 | Ruff 仍报告 4 项，formatter 认为实现与测试文件都需整理 | 手工整理 import、grid 和空格/换行，再运行 check 与 format check | 待修改 |
+| R08 | 阻塞 | 手工探针再次确认跨卡输入由 wrapper 拒绝，同一非当前卡输入可成功；但跨卡消息仍写成“must be CUDA tensors”，且没有 pytest | 分开表达“必须是 CUDA”与“必须同 device”，再固化两种多 GPU 行为 | 实现已手工验证，待测试与消息优化 |
+| R09 | 主要 | 空输入配非法整数已由测试验证；浮点配置正确抛 `TypeError`，但测试错误期待 `ValueError` | 按“类型错误 / 值错误”分别声明预期异常，并同步测试参数类型 | 需进一步修改测试 |
+| R10 | 主要 | 默认 heuristic 的四个选择区间已被覆盖；仍缺 AXPBY 非连续输入、threshold 的 CPU/二维/非 float32/非连续输入以及两种多 GPU 用例，文件末尾目前只有占位注释 | 把每个占位项变成独立、可失败的测试；多 GPU 测试在设备数不足时跳过 | 修改中 |
+| R11 | 主要 | 两个 `block_size=1.2` 用例导致当前测试集失败：实现抛 `TypeError`，测试期待 `ValueError` | 参数化预期异常类型，或将类型错误与非法整数值拆成两组测试 | 待修改 |
+
+本轮没有修改学习者实践代码。R08 只达到“实现已观察正确”，R09/R10 也仍未达到可关闭状态；
+待上述测试补齐且全部通过后再关闭相应发现。
+
+### 第 5 轮评审（2026-07-22）
+
+#### 本轮成果与执行证据
+
+学习者已补齐默认配置、异常类型、非连续输入、threshold 输入契约和多 GPU 测试，并将 callable
+grid 改成已解析 block size 对应的直接 tuple。完整 GPU 测试结果为：
+
+```text
+pytest：收集 50 项，50 passed，用时 3.19s
+非连续输入探针：shape=(5,)，stride=(2,)，is_contiguous=False
+ruff check：3 个 E501，均为测试函数签名超过 100 列
+ruff format --check：实现与测试两个文件仍需格式化
+```
+
+额外聚焦运行 BasedPyright 得到 125 个错误，但这不作为本课新增失败门槛：项目配置只将
+`leetcode/python` 与 `tests/python` 纳入常规 BasedPyright，显式检查 Triton 文件会因当前 Triton
+Python API 类型信息大量为 unknown 而产生噪声。wrapper 自身的 host 类型标注仍可作为代码质量
+改进，但本课按既定 pytest 与 Ruff 验收。
+
+#### 评审意见与状态迁移
+
+| 编号 | 严重程度 | 发现与证据 | 修改方向 | 状态 |
+| --- | --- | --- | --- | --- |
+| R07 | 次要 | import 区块与 E731 已修复；仍有 3 个超长测试签名，两个文件均未通过 formatter check | 运行 formatter 处理机械排版，再复跑 Ruff check/format check | 学习者已修改，仍需收尾 |
+| R08 | 阻塞 | 跨 GPU pytest 通过；错误消息已包含 same-device 要求；同一非当前 GPU 行为此前手工探针及本轮正常环境测试均通过 | 无 | 已验证并关闭 |
+| R09 | 主要 | 两个 wrapper 的空输入非法整数和浮点类型用例全部通过，证明配置验证先于空输入早返回 | 无 | 已验证并关闭 |
+| R10 | 主要 | 要求的输入矩阵均已转化为 pytest 且 50 项全通过；但“非当前 GPU”用例没有自行建立此前提 | 修复 R12 后即可关闭 | 需进一步修改测试 |
+| R11 | 主要 | 参数表已携带预期异常类，`1.2 -> TypeError`、非法整数值 `-> ValueError` 均通过 | 无 | 已验证并关闭 |
+| R12 | 主要 | `test_axpby_same_no_active_gpu` 固定使用 `cuda:1`，却未保证当前 device 不是 1；强制 `torch.cuda.set_device(1)` 后该测试仍通过，说明它可能没有测试名称声称的条件 | 根据 `torch.cuda.current_device()` 动态选择另一张卡，并断言输入卡确实不是当前卡 | 待修改 |
+| R13 | 次要 | shape 类型注解与数据不一致：`tuple[int]` 不能表达二维/任意维 shape；若想表达一维 shape，`(10)` 实际是整数而非 tuple | 使用 `tuple[int, ...]`，一元素 tuple 写成 `(10,)`；参数集合类型也应与实际结构一致 | 待修改 |
+
+#### 非阻塞建议
+
+- 默认 heuristic 的数值测试能证明各尺寸均正确运行，但不能观察 resolver 实际选择了哪个
+  block size；可直接参数化 `resolve_block_size(n, None)` 的预期返回值，使四个分支的配置选择也
+  成为可回归行为。
+- 非连续用例可在调用 wrapper 前显式断言 `not x.is_contiguous()`，让测试夹具失效时更易定位。
+- 实践契约要求公开 wrapper 保留简短 docstring；可在本轮 Ruff 收尾时一并补齐。
+
+本轮没有修改学习者实践代码。当前已没有阻塞级发现；R07、R12、R13 收尾并复跑验证后，可以
+将课程从“评审中”推进到“待验收”。
+
+### 第 6 轮评审（2026-07-22）
+
+#### 验证结果
+
+学习者已修正非当前设备测试的前置条件、shape 类型标注与一元素 tuple，加入非连续布局断言，
+并为默认 block-size heuristic 增加 8 个直接单元测试。执行结果：
+
+```text
+pytest：收集 58 项，58 passed，用时 3.79s
+ruff check：All checks passed
+ruff format --check：2 files already formatted
+反向设备探针：先强制 current device=1，非当前 GPU 定向测试仍通过
+```
+
+反向设备探针中，测试根据 `torch.cuda.current_device()` 动态选择下一张卡，因此不再依赖进程
+默认设备为 0。resolver 测试覆盖 511/512、1023/1024、2047/2048 三组阈值两侧，能直接观察
+heuristic 的配置选择，而不仅是最终数值结果。
+
+#### 评审意见与状态迁移
+
+| 编号 | 严重程度 | 验证结论 | 状态 |
+| --- | --- | --- | --- |
+| R07 | 次要 | 三个超长签名已格式化；lint 与 formatter 均通过 | 已验证并关闭 |
+| R10 | 主要 | 默认路径、输入契约、非连续、异常顺序和多 GPU 矩阵均已由 pytest 固化 | 已验证并关闭 |
+| R12 | 主要 | 非当前设备由当前设备动态推导并显式断言；current=1 的反向探针通过 | 已验证并关闭 |
+| R13 | 次要 | shape 改用 `tuple[int, ...]`，一维 shape 均使用 `(10,)` | 已验证并关闭 |
+| R14 | 次要 | 原实践契约要求公开 wrapper 保留简短 docstring，当前 `axpby` 与 `threshold_square` 仍没有 docstring | 待最终关闭前补齐，不阻挡概念验收 |
+
+此前所有阻塞与主要发现均已关闭，实践代码的正确性、边界和格式证据可复现。课程状态由
+“评审中”推进到“待验收”；R14 可与最终知识总结一并收尾。
+
 ## 10. 掌握验收
 
 ### 概念验收
@@ -896,15 +1177,81 @@ uv run --frozen ruff format --check gpu/triton/lesson01_vector_ops.py \
 4. 指出官方 wrapper 对 shape、dtype、stride 和空 tensor 的隐含假设。
 5. 推导 benchmark 中系数 3 的来源，并解释为什么它叫有效带宽。
 
+#### 概念验收第 1 轮（2026-07-22）
+
+学习者已用自己的话完成第一轮复述，评估如下：
+
+| 项目 | 学习者复述要点 | 评估 |
+| --- | --- | --- |
+| grid、offsets、mask | 正确给出三个 program 的 offsets 与 `[T,T,F,F]` 尾块 mask，并用向上取整解释 grid=3 | 通过 |
+| `BLOCK_SIZE` 心智模型 | 正确说明它是每个 program 的逻辑数据块大小，不是计算单元或 CUDA thread 数量 | 基本通过；“抽象层”术语仍需补讲 |
+| masked load/store | 正确说明 false store lane 不写入，因此保留 clone 原值；知道 `other` 防止未定义值传播 | 部分通过；固定形状的原因误归因于“目的地已分配同样空间” |
+| 运行时与编译期参数 | 正确区分 `n_elements` 与 `tl.constexpr BLOCK_SIZE`，并指出 autotune 改变 block size 时适合 callable grid | 通过；直接 tuple 的对照结论已在 Q08 实践中验证 |
+| stride 迁移 | 正确指出当前裸指针 `+offset` 不支持非连续布局，支持时需传 stride 并按 `offset * stride` 寻址 | 通过 |
+| 带宽与异步计时 | 正确解释低计算强度、两读一写的系数 3，以及 CPU wall-clock 在异步 kernel 完成前停止会低估时间 | 通过 |
+| 反思 | 识别出曾将 mask 误解为 compaction；现已理解 false lane 仍属于静态形状，未提供 `other` 时值未定义 | 通过 |
+
+需要纠正的关键点：`tl.load` 的结果不是因为预先分配了一块同尺寸“目的地内存”才保持形状。
+`offsets` 是形状 `[BLOCK_SIZE]` 的块级 tensor，`x_ptr + offsets` 因此是同形状的 pointer tensor；
+`tl.load` 对它逐 lane 求值并返回同形状的块级值。mask 只控制各 lane 是否访问内存及 false lane
+取什么值，不改变表达式的静态形状。这个结果主要是 kernel 内部的编译器值，不是 wrapper
+预先分配的 output tensor。
+
+概念门槛尚差一次很短的补充复述：说明 `program_id`、`arange`、`load/store` 与实际 GPU
+threads/warps 的层次关系，并用 pointer tensor 的形状重新解释 masked load。完成后即可关闭概念
+验收；反思维度已经通过。
+
+#### 概念验收第 2 轮（2026-07-22）
+
+学习者补充说明：`program_id` 属于 program-instance 层，`arange` 创建 block-tensor，
+`load/store` 对 block-tensor 逐 lane 访存，而 threads/warps 位于编译器映射后的硬件执行层；
+mask 只改变各 lane 的访存和值，不改变 load 结果形状。该层次关系正确，概念验收通过。
+
+术语上的最后校准是：load 结果形状由 `x_ptr + offsets` 形成的 **pointer tensor** 形状决定，
+不是由完整 PyTorch 输入 `x` 的 shape 决定。例如 `x` 有 N 个元素，而每个 program 的 pointer
+tensor 与 load 结果仍只具有 `[BLOCK_SIZE]` 形状。
+
+学习者还正确推导出：若条件 store 不再显式合并 boundary mask，而 masked load 的 `other=0`、
+threshold 又为负数，越界 lane 可能错误满足条件并尝试越界写。`other=-inf` 可令“是否越界”编码
+进该特定大于比较，但稳健实现仍应显式保留 `boundary_mask & condition`，避免把内存安全依赖于
+填充值和谓词的偶然关系。
+
+概念、实践与反思三个维度现已通过。结课只剩 R14：为两个公开 wrapper 补充简短 docstring，
+复跑既定检查，并由学习者确认关闭本课。
+
 ### 实践验收
 
-- [ ] 可以独立重写核心 kernel，而不是逐行照抄
-- [ ] 覆盖小尺寸、整除尺寸和非整除尺寸
-- [ ] reference 与断言完整
-- [ ] 输入契约明确
-- [ ] 代码通过项目格式检查
+- [x] 可以独立重写核心 kernel，而不是逐行照抄
+- [x] 覆盖小尺寸、整除尺寸和非整除尺寸
+- [x] reference 与断言完整
+- [x] 输入契约明确
+- [x] 代码通过项目格式检查
 - [ ] benchmark 排除首次 JIT 并正确处理异步执行
-- [ ] 至少完成一个与纯连续一维加法不同的变式
+- [x] 至少完成一个与纯连续一维加法不同的变式
+
+benchmark 属于本课可选练习，不阻挡最终验收；若不完成，应在结课总结中明确记录为未做的可选
+扩展，而不是暗示已经获得本机性能结论。
+
+### 结课判定（2026-07-22）
+
+学习者最终明确复述：masked load 的固定形状来自当前 program 中局部 pointer tensor 的形状，
+而不是完整输入 tensor 的 shape。两个公开 wrapper 已补充简短 docstring，R14 随最终复验关闭。
+
+最终证据：
+
+```text
+pytest -q gpu/triton/lesson01_vector_ops_test.py：58 passed in 2.74s
+ruff check：All checks passed
+ruff format --check：2 files already formatted
+```
+
+概念、实践与反思三个掌握维度均通过；全部阻塞、主要和要求关闭的次要发现均已关闭。学习者已
+完成 AXPBY 与条件 masked store 两个变式，并能解释 grid、program instance、block tensor、
+pointer tensor、mask、`tl.constexpr`、stride、多 GPU device guard、有效带宽和异步计时。
+
+可选的 block-size benchmark 未完成，因此本课不记录任何本机性能结论。旧
+`strided_1d_vector_add` 只作为历史练习归档，仍无 wrapper/pytest，不属于本课已验收成果，也不
+阻挡官方 Vector Addition 案例结课。学习者已完成最终修改并确认理解，课程状态设为“已完成”。
 
 ## 11. 阶段性暂停快照（2026-07-20）
 
@@ -1069,20 +1416,24 @@ uv run --frozen ruff format --check gpu/triton/lesson01_vector_ops.py \
 
 ### 原始对话归档
 
-- **归档文件**：[第 01 课原始学习对话](../dialogues/01-vector-add.md)
+- **归档文件**：
+  - [第一段：开课至阶段性保存](../dialogues/01-vector-add.md)
+  - [第二段：恢复学习至最终复验](../dialogues/01-vector-add-part2.md)
 - **来源 session**：`rollout-2026-07-20T01-13-19-019f7d15-aa74-7bd2-abf5-e028149c8b47.jsonl`
 - **session ID**：`019f7d15-aa74-7bd2-abf5-e028149c8b47`
-- **截取范围**：从用户消息“非常好，这就让我们开始第一课时吧。”开始，到 2026-07-20
-  09:14:28 UTC 助手完成旧 strided vector add 整理提交为止；本次新增归档功能的元对话未纳入。
-- **消息数量**：57，包括用户消息、助手过程更新和助手正式回答。
+- **截取范围**：第一段从用户消息“非常好，这就让我们开始第一课时吧。”开始，到
+  2026-07-20 09:14:28 UTC 阶段性保存为止；第二段从用户消息“好的，接下来我们继续 lesson 01
+  的学习”开始，到 2026-07-22 09:54:40 UTC 最终复验通过为止。两段之间的归档功能、Skill
+  创建和仓库贡献指南等元对话未纳入。
+- **消息数量**：第一段 57 条、第二段 37 条，合计 94 条，包括用户消息、助手过程更新和助手
+  正式回答。
 - **规范化**：移除 environment/IDE context，去除相邻重复；不包含 system/developer、reasoning、
   工具调用和工具输出。
-- **导出日期**：2026-07-21。
+- **导出日期**：第一段 2026-07-21，第二段 2026-07-22。
 - **使用说明**：[Codex 学习对话后验归档](../references/raw-dialogue-export.md)
 
-本文件是阶段性导出。第一课最终结束时，如果后续仍在同一 session 中继续，应使用原有开课
-边界和新的结束边界重新导出并人工审核 diff；若跨 session，则分别保留 provenance 并在此建立
-多文件索引。
+同一 rollout 中间包含不属于本课的元工作，因此按两个不连续片段分别保存 provenance，没有把
+中间消息拼入课程对话。第二段采用显式结束时间边界；两份生成文件均未人工改写消息正文。
 
 ### 参考资料
 
@@ -1120,3 +1471,6 @@ uv run --frozen ruff format --check gpu/triton/lesson01_vector_ops.py \
 | 2026-07-20 | 阶段性保存 | 汇总已完成内容、实测证据、R07–R10、恢复顺序及进入第二课的门槛 |
 | 2026-07-20 | 旧练习归档 | 将 `strided_1d_vector_add` 原样并入第一课实践源码，明确其尚未评审或测试 |
 | 2026-07-21 | 原始对话归档 | 新增后验导出功能，并生成包含 57 条消息的第一课阶段性原始对话 |
+| 2026-07-22 | 复审与掌握验收 | 完成 58 项测试、六轮评审、两轮概念复述并关闭 R01–R14 |
+| 2026-07-22 | 正式结课 | 最终 pytest/Ruff 通过，记录可选 benchmark 未完成，并导出续段原始对话 |
+| 2026-07-22 | 归档过滤修正 | 默认排除客户端独立注入的 Skill 文档，续段由 38 条修正为 37 条 |

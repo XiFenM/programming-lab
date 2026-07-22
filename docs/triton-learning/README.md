@@ -36,7 +36,8 @@ docs/triton-learning/
 │   └── raw-dialogue-export.md         # Codex 原始对话后验导出说明
 ├── dialogues/
 │   ├── 00-learning-workflow.md        # 学习流程建立的原始对话
-│   └── 01-vector-add.md               # 第一课原始对话
+│   ├── 01-vector-add.md               # 第一课开课至阶段性保存
+│   └── 01-vector-add-part2.md         # 第一课恢复学习至最终复验
 ├── lessons/
 │   ├── 01-vector-add.md              # 每个官方案例一份主记录
 │   ├── 02-fused-softmax.md
@@ -57,7 +58,7 @@ docs/triton-learning/
 
 | 课次 | 官方案例 | 学习记录 | 状态 |
 | --- | --- | --- | --- |
-| 01 | `01-vector-add.py` | [lessons/01-vector-add.md](lessons/01-vector-add.md) | 评审中 |
+| 01 | `01-vector-add.py` | [lessons/01-vector-add.md](lessons/01-vector-add.md) | 已完成 |
 | 02 | `02-fused-softmax.py` | `lessons/02-fused-softmax.md` | 未开始 |
 | 03 | `03-matrix-multiplication.py` | `lessons/03-matrix-multiplication.md` | 未开始 |
 | 04 | `04-low-memory-dropout.py` | `lessons/04-low-memory-dropout.md` | 未开始 |
@@ -78,24 +79,24 @@ docs/triton-learning/
 | 编号 | 范围 | 原始对话 | 消息数 | 归档状态 |
 | --- | --- | --- | --- | --- |
 | 00 | 学习流程建立 | [dialogues/00-learning-workflow.md](dialogues/00-learning-workflow.md) | 4 | 已导出 |
-| 01 | Vector Addition | [dialogues/01-vector-add.md](dialogues/01-vector-add.md) | 57 | 阶段性已导出 |
+| 01-A | Vector Addition：开课至阶段性保存 | [dialogues/01-vector-add.md](dialogues/01-vector-add.md) | 57 | 已导出 |
+| 01-B | Vector Addition：恢复至最终复验 | [dialogues/01-vector-add-part2.md](dialogues/01-vector-add-part2.md) | 37 | 已导出 |
 
 ## 当前学习断点
 
-阶段性保存时间：2026-07-20。
+最近同步时间：2026-07-22。
 
-- 当前课程：第 01 课 Vector Addition。
-- 当前阶段：第三轮代码评审之后，状态为 `评审中`，尚未进入最终验收。
-- 当前成果：两个练习 kernel 与 wrapper 已完成；pytest 已建立，现有 20 个用例全部通过。
-- 对话归档：学习流程建立与第一课截至 2026-07-20 09:14 UTC 的原始可见对话已后验导出；
-  当前新增归档功能的元对话不属于第一课文件。
+- 最近完成课程：第 01 课 Vector Addition。
+- 当前阶段：概念、实践与反思验收均已通过，状态为 `已完成`。
+- 当前成果：两个练习 kernel 与 wrapper 已完成；pytest 已扩充为 58 个用例并全部通过，Ruff
+  lint/format 均通过，R01–R14 已全部关闭。
+- 对话归档：第一课以两个片段保存，共 94 条用户/助手可见消息；两段之间的归档功能、Skill
+  创建和贡献指南元对话未纳入。
 - 整理状态：旧练习 `strided_1d_vector_add` 已从独立文件归并到第一课实践源码；目前只有 kernel，
   尚无 wrapper、pytest 或正式评审，不计入第一课已验收成果。
-- 当前遗留：R08/R09 的核心实现已经手工复验，仍需通过 R10 将多 GPU、block-size 类型与验证
-  顺序等行为固化为 pytest，并改善跨卡错误消息；R07 的 Ruff/formatter 尚未完成。
-- 恢复入口：阅读[第一课“阶段性暂停快照”](lessons/01-vector-add.md#11-阶段性暂停快照2026-07-20)，
-  然后从其中的“下一步执行顺序”继续。
-- 推进约束：关闭阻塞项、补齐测试并完成概念验收之前，不进入第 02 课。
+- 遗留边界：可选 block-size benchmark 未完成，没有形成本机性能结论；旧 strided add 仍只是
+  未验收的历史练习，不计入第一课成果。
+- 后续入口：第 02 课 Fused Softmax 尚未开始；进入时按固定学习闭环新建课程记录。
 
 ## 记录原则
 
