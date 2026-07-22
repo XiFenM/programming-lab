@@ -10,6 +10,16 @@
   "service": "dev",
   "workspaceFolder": "/workspace",
   "remoteUser": "coder",
+  "remoteEnv": {
+    "HTTP_PROXY": "${containerEnv:V2RAYA_HTTP_PROXY}",
+    "HTTPS_PROXY": "${containerEnv:V2RAYA_HTTP_PROXY}",
+    "ALL_PROXY": "${containerEnv:V2RAYA_SOCKS_PROXY}",
+    "NO_PROXY": "${containerEnv:V2RAYA_NO_PROXY}",
+    "http_proxy": "${containerEnv:V2RAYA_HTTP_PROXY}",
+    "https_proxy": "${containerEnv:V2RAYA_HTTP_PROXY}",
+    "all_proxy": "${containerEnv:V2RAYA_SOCKS_PROXY}",
+    "no_proxy": "${containerEnv:V2RAYA_NO_PROXY}"
+  },
   "shutdownAction": "stopCompose",
   "overrideCommand": false,
   "postCreateCommand": "bash scripts/init-env.sh",

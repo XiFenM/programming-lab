@@ -214,6 +214,22 @@ proxy-off
 小写形式；`off` 会同时 unset 这八个变量。脚本使用 Compose 传入的
 `V2RAYA_HTTP_PROXY`、`V2RAYA_SOCKS_PROXY` 与 `V2RAYA_NO_PROXY` 作为地址来源。
 
+## VS Code Server 与扩展市场
+
+四种版本化的 Dev Container 配置均通过 `remoteEnv` 将同一组代理变量传递给
+VS Code Server 及其集成终端、任务和调试进程。因此扩展市场下载会使用 sidecar，
+无需在工作区 `.vscode/settings.json` 中配置 `http.proxy`。
+
+配置变更后，使用 **Dev Containers: Rebuild and Reopen in Container** 重新创建环境。
+可在容器中的 VS Code 终端确认：
+
+```bash
+env | rg '(^|_)(HTTP|HTTPS|ALL|NO)_PROXY='
+```
+
+`remoteEnv` 只应用于通过 Dev Container 客户端启动的远端工具。若需要从容器外部
+启动的独立进程也使用代理，仍可在其 shell 中执行 `proxy-on`。
+
 ## 启动 Codex CLI
 
 开发镜像的 `docker/bashrc` 已内置代理函数。新建交互式 Bash 后直接执行：
