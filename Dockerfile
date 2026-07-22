@@ -145,7 +145,10 @@ RUN set -eux; \
 COPY --chown=${USER_UID}:${USER_GID} docker/bashrc /home/${USERNAME}/.bashrc
 COPY --chown=${USER_UID}:${USER_GID} docker/cargo-config.toml /home/${USERNAME}/.cargo/config.toml
 COPY docker/entrypoint.sh /usr/local/bin/programming-lab-entrypoint
-RUN chmod 0755 /usr/local/bin/programming-lab-entrypoint
+# Docker build contexts created on Windows can preserve CRLF despite Git's
+# attributes. Normalize the Linux entrypoint defensively before execution.
+RUN sed -i 's/\r$//' /usr/local/bin/programming-lab-entrypoint \
+    && chmod 0755 /usr/local/bin/programming-lab-entrypoint
 
 USER ${USERNAME}
 WORKDIR /workspace
