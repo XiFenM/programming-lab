@@ -24,6 +24,7 @@ Python 标准库，不修改原始 JSONL。
 - system、developer 指令。
 - reasoning、工具调用、工具输出和其他内部事件。
 - 独立的 `<environment_context>` 消息。
+- 客户端独立注入的 `<skill>...</skill>` Skill 文档原文；用户显式写出的 Skill 调用请求仍保留。
 - IDE 自动注入的 active file、open tabs、附件列表等外壳；只保留
   `## My request for Codex:` 后面的用户请求。
 - 规范化后相邻且完全相同的重复消息。这类重复可能在 session 恢复或 compaction 后出现。

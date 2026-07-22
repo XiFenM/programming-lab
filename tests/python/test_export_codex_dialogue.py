@@ -51,6 +51,11 @@ def _write_session(path: Path) -> None:
         ),
         _message_row("2026-07-20T00:00:03Z", "user", "开始第一课"),
         _message_row(
+            "2026-07-20T00:00:03.500Z",
+            "user",
+            "<skill>\n<name>example</name>\n# Injected instructions\n</skill>",
+        ),
+        _message_row(
             "2026-07-20T00:00:04Z",
             "user",
             "# Context from my IDE setup:\n\n"
@@ -97,6 +102,12 @@ def test_normalize_user_text_strips_client_wrappers() -> None:
     )
     assert normalize_user_text(text) == "请解释 mask"
     assert normalize_user_text("# Context from my IDE setup:\nonly context") == ""
+    assert (
+        normalize_user_text(
+            "<skill>\n<name>learn-by-practice</name>\n# Injected instructions\n</skill>"
+        )
+        == ""
+    )
 
 
 def test_load_and_select_dialogue_excludes_internal_events(tmp_path: Path) -> None:
@@ -114,6 +125,9 @@ def test_load_and_select_dialogue_excludes_internal_events(tmp_path: Path) -> No
         "结束本课",
         "本课之后的消息。",
     ]
+
+    messages_with_context, _ = load_dialogue(session, keep_client_context=True)
+    assert any(message.text.startswith("<skill>") for message in messages_with_context)
 
     selected = select_dialogue(
         messages,

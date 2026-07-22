@@ -141,6 +141,11 @@ def test_exporter_keeps_visible_interval_and_provenance(tmp_path: Path) -> None:
         ),
         _message_row("2026-07-21T00:00:02Z", "user", "Start lesson"),
         _message_row(
+            "2026-07-21T00:00:02.500Z",
+            "user",
+            "<skill>\n<name>example</name>\n# Injected instructions\n</skill>",
+        ),
+        _message_row(
             "2026-07-21T00:00:03Z",
             "assistant",
             "I will inspect the source.",
@@ -182,4 +187,5 @@ def test_exporter_keeps_visible_interval_and_provenance(tmp_path: Path) -> None:
     assert "I will inspect the source." in rendered
     assert "Here is the explanation." in rendered
     assert "internal instruction" not in rendered
+    assert "Injected instructions" not in rendered
     assert "Next lesson" not in rendered

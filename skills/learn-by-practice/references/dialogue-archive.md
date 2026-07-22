@@ -20,6 +20,8 @@ The bundled exporter retains only `response_item` message payloads whose role is
 
 - retains user text, assistant commentary, assistant final answers, timestamps, and Markdown;
 - removes standalone environment context and IDE request wrappers while preserving the request;
+- removes standalone `<skill>...</skill>` documents injected by the client while preserving the
+  user's explicit Skill invocation text;
 - removes adjacent identical messages after normalization;
 - excludes system/developer messages, reasoning, tool calls, tool results, and internal events.
 
