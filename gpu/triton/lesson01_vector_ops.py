@@ -78,7 +78,15 @@ def axpby(
         return output
     grid = (triton.cdiv(n_elements, block_size),)
     with torch.cuda.device(x.device):
-        axpby_kernel[grid](alpha, x, beta, y, output, n_elements, block_size)
+        axpby_kernel[grid](
+            alpha,
+            x,
+            beta,
+            y,
+            output,
+            n_elements,
+            block_size,  # pyright: ignore[reportArgumentType]
+        )
     return output
 
 
@@ -99,7 +107,13 @@ def threshold_square(x: torch.Tensor, threshold, block_size=None) -> torch.Tenso
         return output
     grid = (triton.cdiv(n_elements, block_size),)
     with torch.cuda.device(x.device):
-        threshold_square_kernel[grid](x, output, threshold, n_elements, block_size)
+        threshold_square_kernel[grid](
+            x,
+            output,
+            threshold,
+            n_elements,
+            block_size,  # pyright: ignore[reportArgumentType]
+        )
     return output
 
 

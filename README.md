@@ -586,6 +586,9 @@ workspace = true
 - Even Better TOML、YAML、ShellCheck、Markdownlint、EditorConfig、Error Lens；
 - VS Code LeetCode 插件。
 
+各扩展的职责、自动安装范围、仓库配置关系和常见冲突见
+[VS Code 推荐扩展说明](docs/vscode-extensions.md)。
+
 clangd 和 Microsoft C/C++ IntelliSense 同时启用会产生重复诊断，因此配置保留 Microsoft 插件
 的 GDB 调试能力，但关闭它的 IntelliSense，由 clangd 负责补全和 clang-tidy。首次执行
 `make configure` 后 clangd 才能读取 `build/debug/compile_commands.json`。
