@@ -227,6 +227,10 @@ powershell -ExecutionPolicy Bypass -File scripts/container.ps1 init bind persist
 powershell -ExecutionPolicy Bypass -File scripts/container.ps1 shell bind persistent
 ```
 
+两个入口已经完成代码级行为对照，但尚未在 Windows PowerShell、Docker Desktop、WSL2 和 GPU
+环境中进行实际运行。待验证的环境矩阵与操作清单见
+[Windows 容器工作流验证清单](docs/windows-container-validation.md)。
+
 脚本要求显式给出工作区和持久化模式。例如，使用同步源码与持久缓存：
 
 ```bash

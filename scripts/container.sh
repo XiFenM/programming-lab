@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# Keep this script's external behavior in sync with scripts/container.ps1.
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${repo_root}"
 
@@ -51,6 +52,11 @@ action="${1:-}"
 workspace_mode="${2:-}"
 persistence_mode="${3:-}"
 export_directory="${4:-container-export}"
+
+if (($# > 4)); then
+  usage >&2
+  exit 2
+fi
 
 if [[ -z "${action}" || "${action}" == "help" || "${action}" == "-h" || "${action}" == "--help" ]]; then
   usage

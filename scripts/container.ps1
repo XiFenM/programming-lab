@@ -1,4 +1,5 @@
 [CmdletBinding()]
+# Keep this script's external behavior in sync with scripts/container.sh.
 param(
     [Parameter(Position = 0)]
     [string] $Action,
@@ -10,7 +11,10 @@ param(
     [string] $PersistenceMode,
 
     [Parameter(Position = 3)]
-    [string] $ExportDirectory = "container-export"
+    [string] $ExportDirectory = "container-export",
+
+    [Parameter(Position = 4, ValueFromRemainingArguments = $true)]
+    [string[]] $RemainingArguments
 )
 
 Set-StrictMode -Version 3.0
@@ -116,9 +120,13 @@ function Invoke-DockerCommand {
 }
 
 $usage = Get-Usage
+if ($null -ne $RemainingArguments -and $RemainingArguments.Count -gt 0) {
+    [Console]::Error.WriteLine($usage)
+    exit 2
+}
 if (
-    [string]::IsNullOrWhiteSpace($Action) -or
-    @("help", "-h", "--help") -contains $Action
+    [string]::IsNullOrEmpty($Action) -or
+    @("help", "-h", "--help") -ccontains $Action
 ) {
     [Console]::Out.WriteLine($usage)
     exit 0
@@ -128,17 +136,20 @@ $validActions = @(
     "build", "up", "status", "logs", "shell", "init",
     "stop", "down", "destroy", "config", "export"
 )
-if ($validActions -notcontains $Action) {
+if ($validActions -cnotcontains $Action) {
     [Console]::Error.WriteLine($usage)
     exit 2
 }
-if (@("bind", "copy") -notcontains $WorkspaceMode) {
+if (@("bind", "copy") -cnotcontains $WorkspaceMode) {
     [Console]::Error.WriteLine($usage)
     exit 2
 }
-if (@("persistent", "ephemeral") -notcontains $PersistenceMode) {
+if (@("persistent", "ephemeral") -cnotcontains $PersistenceMode) {
     [Console]::Error.WriteLine($usage)
     exit 2
+}
+if ([string]::IsNullOrEmpty($ExportDirectory)) {
+    $ExportDirectory = "container-export"
 }
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
@@ -179,27 +190,27 @@ try {
         "-f", "compose.yaml",
         "-f", $gpuComposeFile
     )
-    if ($WorkspaceMode -eq "bind") {
+    if ($WorkspaceMode -ceq "bind") {
         $composeArguments += @("-f", "compose.bind.yaml")
     } else {
         $composeArguments += @("-f", "compose.copy.yaml")
     }
 
-    if ($PersistenceMode -eq "persistent") {
+    if ($PersistenceMode -ceq "persistent") {
         $composeArguments += @("-f", "compose.persist.yaml")
-        if ($WorkspaceMode -eq "copy") {
+        if ($WorkspaceMode -ceq "copy") {
             $composeArguments += @("-f", "compose.copy-persist.yaml")
         }
     } else {
         $composeArguments += @("-f", "compose.ephemeral.yaml")
     }
 
-    switch ($Action) {
+    switch -CaseSensitive ($Action) {
         "build" {
             Invoke-DockerCommand ($composeArguments + @("build"))
         }
         "up" {
-            if ($WorkspaceMode -eq "copy" -and $PersistenceMode -eq "persistent") {
+            if ($WorkspaceMode -ceq "copy" -and $PersistenceMode -ceq "persistent") {
                 Write-Output "Note: an existing workspace-data volume is not overwritten by a rebuilt image."
             }
             Invoke-DockerCommand ($composeArguments + @("up", "-d", "--build"))
@@ -222,7 +233,7 @@ try {
             Invoke-DockerCommand ($composeArguments + @("stop"))
         }
         "down" {
-            if ($WorkspaceMode -eq "copy" -and $PersistenceMode -eq "ephemeral") {
+            if ($WorkspaceMode -ceq "copy" -and $PersistenceMode -ceq "ephemeral") {
                 [Console]::Error.WriteLine(
                     "Warning: removing this container discards changes made to its copied workspace."
                 )
@@ -244,7 +255,7 @@ try {
             Invoke-DockerCommand ($composeArguments + @("config"))
         }
         "export" {
-            if ($WorkspaceMode -ne "copy") {
+            if ($WorkspaceMode -cne "copy") {
                 $script:RequestedExitCode = 2
                 throw "The export action is only meaningful in copy workspace mode."
             }
@@ -256,7 +267,9 @@ try {
         }
     }
 } catch {
-    [Console]::Error.WriteLine($_.Exception.Message)
+    if ($script:LastDockerExitCode -eq 0) {
+        [Console]::Error.WriteLine($_.Exception.Message)
+    }
     $exitCode = if ($script:LastDockerExitCode -ne 0) {
         $script:LastDockerExitCode
     } elseif ($script:RequestedExitCode -ne 0) {
