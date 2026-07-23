@@ -1,7 +1,11 @@
-# Prevent the v2rayA image's declared /etc/v2raya volume from creating an
-# orphaned anonymous volume in ephemeral mode. Configuration exists only for
-# the lifetime of the proxy container in this mode.
+# Keep native build output on a Linux filesystem even when /workspace is a
+# Windows bind mount. Also prevent the v2rayA image's declared /etc/v2raya
+# volume from creating an orphaned anonymous volume in ephemeral mode.
 services:
+  dev:
+    tmpfs:
+      - /workspace/build:uid=${LOCAL_UID:-1000},gid=${LOCAL_GID:-1000},mode=0775
+      - /workspace/target:uid=${LOCAL_UID:-1000},gid=${LOCAL_GID:-1000},mode=0775
   proxy:
     tmpfs:
       - /etc/v2raya

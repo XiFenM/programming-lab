@@ -1,6 +1,8 @@
 services:
   dev:
     volumes:
+      - cmake-build:/workspace/build
+      - cargo-target:/workspace/target
       - uv-venvs:/home/coder/.venvs
       - uv-python:/home/coder/.local/share/uv/python
       - uv-cache:/home/coder/.cache/uv
@@ -14,6 +16,8 @@ services:
       - v2raya-data:/etc/v2raya
 
 volumes:
+  cmake-build:
+  cargo-target:
   uv-venvs:
   uv-python:
   uv-cache:

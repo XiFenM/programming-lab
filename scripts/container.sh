@@ -14,12 +14,13 @@ Workspace modes:
   copy          Copy a repository snapshot into the image (no host sync).
 
 Persistence modes:
-  persistent    Keep tool caches/venvs and v2rayA configuration in named
-                volumes. In copy mode, also keep /workspace in a named volume
-                seeded once from the image.
-  ephemeral     Keep generated environments/caches in the container writable
-                layer only and v2rayA configuration in tmpfs; image-baked
-                tools remain in the image.
+  persistent    Keep CMake/Cargo build trees, tool caches/venvs, and v2rayA
+                configuration in named volumes. In copy mode, also keep
+                /workspace in a named volume seeded once from the image.
+  ephemeral     Keep CMake/Cargo build trees and v2rayA configuration in
+                tmpfs; other generated environments/caches stay in the
+                container writable layer, and image-baked tools remain in the
+                image.
 
 Compose versions:
   2.30+         Add compose.gpu.yaml with its gpus: all declaration.

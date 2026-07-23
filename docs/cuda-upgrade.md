@@ -132,9 +132,9 @@ bash scripts/container.sh shell bind persistent
 镜像重建。使用其他工作区或持久化模式时，把上述两个模式参数替换成实际选择，并在整组命令中
 保持一致。
 
-`persistent` 模式会保留 uv、ccache、Triton 和 TileLang 缓存。这可以减少重复下载，但不是
-全新环境。如果需要排查疑似缓存问题，可先保留现有环境完成一次升级；只有在确实需要完全重新
-初始化时才执行对应配置的 `destroy`，因为它会删除所选命名卷：
+`persistent` 模式会保留 CMake/Cargo 构建树以及 uv、ccache、Triton 和 TileLang 缓存。这可以
+减少重复下载与编译，但不是全新环境。如果需要排查疑似缓存问题，可先保留现有环境完成一次
+升级；只有在确实需要完全重新初始化时才执行对应配置的 `destroy`，因为它会删除所选命名卷：
 
 ```bash
 bash scripts/container.sh destroy bind persistent
