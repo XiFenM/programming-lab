@@ -164,6 +164,39 @@ cmake --fresh --preset debug
 `uv.lock`，执行完整验收。只要 PyTorch、Triton 和 TileLang 的实际 GPU 测试通过，就没有
 必要仅为了让版本字符串一致而重新锁定依赖。
 
+## 长期维护升级分支
+
+`codex/upgrade-cuda-13.2.1` 是一个长期存在的候选升级分支。它必须以最新远端 `main` 为
+直接基础，并且只包含一个 CUDA 版本升级提交。下面的命令应始终输出 `0 1`，分别表示升级
+分支相对 `main` 落后 0 个提交、领先 1 个提交：
+
+```bash
+git fetch origin
+git rev-list --left-right --count \
+  origin/main...origin/codex/upgrade-cuda-13.2.1
+```
+
+`.github/workflows/sync-cuda-upgrade.yml` 在每次 push 到 `main` 后自动维护这一拓扑，也支持从
+Actions 页面手动触发。工作流会：
+
+1. 抓取最新 `main` 和升级分支，并记录升级分支的远端 SHA；
+2. 要求升级分支只有一个非 merge 的独有提交，且该提交的父提交是 `main` 的祖先；
+3. 将该升级提交 rebase 到最新 `main`；
+4. 再次要求拓扑严格为 `0 1`，并运行 `git diff --check`；
+5. 使用绑定旧远端 SHA 的 `--force-with-lease` 更新升级分支。
+
+工作流使用 GitHub 自动创建的临时 `GITHUB_TOKEN`，仓库不需要保存 PAT。工作流只申请
+`contents: write`；如果仓库或组织策略禁止该权限，需在 GitHub 的
+`Settings → Actions → General → Workflow permissions` 中允许工作流写入仓库内容。
+
+这个分支不能通过“merge main into upgrade branch”更新，否则 merge commit 会让它领先不止
+一个提交。若分支保护或 ruleset 禁止 force push，需要对该升级分支允许 GitHub Actions
+执行强制更新；不要放宽 `main` 的保护规则。
+
+rebase 冲突、升级分支出现多个独有提交、升级提交变成 merge commit，或者远端分支在工作流
+运行期间被其他人更新时，工作流都会失败且不推送。此时应人工检查升级内容，重新建立单提交
+分支后，再从 Actions 页面运行 `Sync CUDA upgrade branch`。
+
 ### 跨 CUDA 主版本升级
 
 例如未来从 CUDA 13 升到 CUDA 14 时，现有 PyTorch 仍可能使用 CUDA 13 用户态运行库。

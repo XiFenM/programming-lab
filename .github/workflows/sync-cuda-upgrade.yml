@@ -1,0 +1,76 @@
+name: Sync CUDA upgrade branch
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-cuda-upgrade-branch
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Rebase the CUDA upgrade commit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      MAIN_BRANCH: main
+      TARGET_BRANCH: codex/upgrade-cuda-13.2.1
+    steps:
+      - name: Check out the triggering main revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Rebase and update the upgrade branch
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          main_ref="refs/remotes/origin/${MAIN_BRANCH}"
+          target_ref="refs/remotes/origin/${TARGET_BRANCH}"
+
+          git fetch --no-tags origin \
+            "+refs/heads/${MAIN_BRANCH}:${main_ref}" \
+            "+refs/heads/${TARGET_BRANCH}:${target_ref}"
+
+          expected_target="$(git rev-parse "${target_ref}")"
+          read -r _ target_parent < <(git rev-list --parents --max-count=1 "${target_ref}")
+          if [[ -z "${target_parent:-}" || "${target_parent}" == *" "* ]]; then
+            echo "Expected ${TARGET_BRANCH} to contain one non-merge tip commit." >&2
+            exit 1
+          fi
+
+          target_only="$(git rev-list --count "${main_ref}..${target_ref}")"
+          if [[ "${target_only}" != "1" ]]; then
+            echo "Expected ${TARGET_BRANCH} to have exactly one commit not in ${MAIN_BRANCH}; found ${target_only}." >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "${target_parent}" "${main_ref}"; then
+            echo "The parent of ${TARGET_BRANCH} is not an ancestor of ${MAIN_BRANCH}." >&2
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch --detach "${target_ref}"
+          git rebase "${main_ref}"
+
+          read -r main_only target_only < <(
+            git rev-list --left-right --count "${main_ref}...HEAD"
+          )
+          if [[ "${main_only}" != "0" || "${target_only}" != "1" ]]; then
+            echo "Unexpected topology after rebase: main-only=${main_only}, target-only=${target_only}." >&2
+            exit 1
+          fi
+
+          git diff --check "${main_ref}..HEAD"
+          git log --oneline "${main_ref}..HEAD"
+          git push \
+            --force-with-lease="refs/heads/${TARGET_BRANCH}:${expected_target}" \
+            origin "HEAD:refs/heads/${TARGET_BRANCH}"
