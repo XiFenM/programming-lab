@@ -32,7 +32,7 @@ jobs:
       - name: BasedPyright
         run: uv run --no-sync basedpyright
       - name: Pytest
-        run: uv run --no-sync pytest
+        run: uv run --no-sync python -m pytest
 
   native:
     name: C++ style, build, and shell lint
