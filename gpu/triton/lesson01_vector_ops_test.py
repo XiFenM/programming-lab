@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from gpu.triton import lesson01_vector_ops as ops
+from . import lesson01_vector_ops as ops
 
 pytestmark = pytest.mark.skipif(
     not torch.cuda.is_available(),

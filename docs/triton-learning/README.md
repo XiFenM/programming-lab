@@ -37,7 +37,8 @@ docs/triton-learning/
 ├── dialogues/
 │   ├── 00-learning-workflow.md        # 学习流程建立的原始对话
 │   ├── 01-vector-add.md               # 第一课开课至阶段性保存
-│   └── 01-vector-add-part2.md         # 第一课恢复学习至最终复验
+│   ├── 01-vector-add-part2.md         # 第一课恢复学习至最终复验
+│   └── 01-vector-add-part3.md         # 第一课可选性能扩展至阶段性暂停
 ├── lessons/
 │   ├── 01-vector-add.md              # 每个官方案例一份主记录
 │   ├── 02-fused-softmax.md
@@ -81,22 +82,29 @@ docs/triton-learning/
 | 00 | 学习流程建立 | [dialogues/00-learning-workflow.md](dialogues/00-learning-workflow.md) | 4 | 已导出 |
 | 01-A | Vector Addition：开课至阶段性保存 | [dialogues/01-vector-add.md](dialogues/01-vector-add.md) | 57 | 已导出 |
 | 01-B | Vector Addition：恢复至最终复验 | [dialogues/01-vector-add-part2.md](dialogues/01-vector-add-part2.md) | 37 | 已导出 |
+| 01-C | Vector Addition：可选性能扩展至暂停 | [dialogues/01-vector-add-part3.md](dialogues/01-vector-add-part3.md) | 87 | 已导出 |
 
 ## 当前学习断点
 
-最近同步时间：2026-07-22。
+最近同步时间：2026-07-24。
 
 - 最近完成课程：第 01 课 Vector Addition。
-- 当前阶段：概念、实践与反思验收均已通过，状态为 `已完成`。
+- 当前阶段：概念、正确性实践与反思验收均已通过，状态仍为 `已完成`；可选 block-size 性能
+  扩展暂停在工程收尾阶段。P01 详细数据、P02 尾块实验与复盘、P03 第一轮简报、P06 无 CUDA
+  错误路径均已关闭。
 - 当前成果：两个练习 kernel 与 wrapper 已完成；pytest 已扩充为 58 个用例并全部通过，Ruff
-  lint/format 均通过，R01–R14 已全部关闭。
-- 对话归档：第一课以两个片段保存，共 94 条用户/助手可见消息；两段之间的归档功能、Skill
-  创建和贡献指南元对话未纳入。
+  lint 通过，R01–R14 已全部关闭；benchmark 的 24 条 detailed record、两组汇总 CSV、PNG 和
+  HTML 已核对一致。
+- 对话归档：第一课以三个片段保存，共 181 条用户/助手可见消息；片段之间的归档功能、Skill
+  创建和贡献指南元对话未纳入，客户端插件与 `AGENTS.md` 注入也已过滤。
 - 整理状态：旧练习 `strided_1d_vector_add` 已从独立文件归并到第一课实践源码；目前只有 kernel，
   尚无 wrapper、pytest 或正式评审，不计入第一课已验收成果。
-- 遗留边界：可选 block-size benchmark 未完成，没有形成本机性能结论；旧 strided add 仍只是
-  未验收的历史练习，不计入第一课成果。
-- 后续入口：第 02 课 Fused Softmax 尚未开始；进入时按固定学习闭环新建课程记录。
+- 遗留边界：P04 仍需格式化 `lesson01_vector_ops_benchmark.py`；P05 的两条 `do_bench`
+  返回值解包仍被 BasedPyright 报告 `"None" is not iterable`。P03 有四项非阻塞措辞建议；旧
+  strided add 仍只是未验收的历史练习。
+- 后续入口：学习者自行完成 P04/P05，复跑 pytest、Ruff check/format 和聚焦 BasedPyright；
+  随后建立尚未开始的第 02 课 Fused Softmax。Profiler、置信区间、cache、baseline 与
+  autotune 等系统 benchmark 研究留待第二轮性能专题。
 
 ## 记录原则
 

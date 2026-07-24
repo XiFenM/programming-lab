@@ -56,6 +56,13 @@ def _write_session(path: Path) -> None:
             "<skill>\n<name>example</name>\n# Injected instructions\n</skill>",
         ),
         _message_row(
+            "2026-07-20T00:00:03.750Z",
+            "user",
+            "<recommended_plugins>\n- Example\n</recommended_plugins>\n"
+            "# AGENTS.md instructions for /workspace\n\n"
+            "<INSTRUCTIONS>\n# Repository Guidelines\nInternal context\n</INSTRUCTIONS>",
+        ),
+        _message_row(
             "2026-07-20T00:00:04Z",
             "user",
             "# Context from my IDE setup:\n\n"
@@ -107,6 +114,23 @@ def test_normalize_user_text_strips_client_wrappers() -> None:
             "<skill>\n<name>learn-by-practice</name>\n# Injected instructions\n</skill>"
         )
         == ""
+    )
+    assert (
+        normalize_user_text(
+            "<recommended_plugins>\n- Example\n</recommended_plugins>\n"
+            "# AGENTS.md instructions for /workspace\n\n"
+            "<INSTRUCTIONS>\n# Repository Guidelines\nInternal context\n</INSTRUCTIONS>"
+        )
+        == ""
+    )
+    assert (
+        normalize_user_text(
+            "<recommended_plugins>\n- Example\n</recommended_plugins>\n"
+            "# AGENTS.md instructions for /workspace\n\n"
+            "<INSTRUCTIONS>\n# Repository Guidelines\nInternal context\n</INSTRUCTIONS>\n"
+            "请继续本课"
+        )
+        == "请继续本课"
     )
 
 

@@ -22,6 +22,14 @@ STANDALONE_SKILL_CONTEXT_RE = re.compile(
     r"<skill>.*?</skill>",
     flags=re.DOTALL,
 )
+RECOMMENDED_PLUGINS_CONTEXT_RE = re.compile(
+    r"<recommended_plugins>.*?</recommended_plugins>",
+    flags=re.DOTALL,
+)
+AGENTS_INSTRUCTIONS_CONTEXT_RE = re.compile(
+    r"# AGENTS\.md instructions for [^\n]+\s*<INSTRUCTIONS>.*?</INSTRUCTIONS>",
+    flags=re.DOTALL,
+)
 IDE_CONTEXT_PREFIX = "# Context from my IDE setup:"
 IDE_REQUEST_MARKER = "## My request for Codex:"
 TEXT_CONTENT_TYPES = {"input_text", "output_text"}
@@ -55,6 +63,8 @@ class SessionMetadata:
 def normalize_user_text(text: str) -> str:
     """Remove Codex client context wrappers while preserving the user's request text."""
     text = ENVIRONMENT_CONTEXT_RE.sub("", text).strip()
+    text = RECOMMENDED_PLUGINS_CONTEXT_RE.sub("", text).strip()
+    text = AGENTS_INSTRUCTIONS_CONTEXT_RE.sub("", text).strip()
     if STANDALONE_SKILL_CONTEXT_RE.fullmatch(text):
         return ""
     if IDE_REQUEST_MARKER in text:
