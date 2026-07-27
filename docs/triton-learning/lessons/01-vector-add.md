@@ -10,11 +10,12 @@
 | 学习状态 | 已完成 |
 | 开始日期 | 2026-07-20 |
 | 完成日期 | 2026-07-22 |
+| 可选性能扩展完成日期 | 2026-07-27 |
 | 仓库已有参考 | [`gpu/triton/vector_add.py`](../../../gpu/triton/vector_add.py) |
 | 学习者实践源码 | [`lesson01_vector_ops.py`](../../../gpu/triton/lesson01_vector_ops.py) |
 | 测试代码 | [`lesson01_vector_ops_test.py`](../../../gpu/triton/lesson01_vector_ops_test.py) |
-| 原始对话 | [第一段](../dialogues/01-vector-add.md)（57 条）；[续段](../dialogues/01-vector-add-part2.md)（37 条） |
-| 补充材料 | [pytest GPU 测试参考](../references/pytest-gpu-kernel-tests.md) |
+| 原始对话 | [第一段](../dialogues/01-vector-add.md)（57 条）；[第二段](../dialogues/01-vector-add-part2.md)（37 条）；[第三段](../dialogues/01-vector-add-part3.md)（87 条）；[第四段](../dialogues/01-vector-add-part4.md)（18 条） |
+| 补充材料 | [pytest GPU 测试参考](../references/pytest-gpu-kernel-tests.md)；[AXPBY Benchmark 简报](../attachments/01-vector-add/axpby-benchmark.md) |
 
 ### 环境基线
 
@@ -2035,6 +2036,68 @@ uv run --frozen basedpyright gpu/triton/lesson01_vector_ops.py \
 `axpby_block_size_detailed.csv`。现有文档链接和数据均正确，因此不影响本轮证据；以后可改成
 `axpby_tail_block_detailed.csv` 提高辨识度。
 
+#### P04/P05 恢复复审第 1 轮（2026-07-27）
+
+学习者已格式化 benchmark 文件，并把两处 `do_bench` 直接解包改为先保存返回值、判断
+`list` 及长度后再解包。本轮保持实践代码只读，复跑结果如下：
+
+- Ruff check：`All checks passed!`；
+- Ruff format：`3 files already formatted`，P04 达到
+  `learner-revised -> verified -> closed`；
+- BasedPyright：`0 errors, 0 warnings, 0 notes`，原两处 `"None" is not iterable`
+  已消失；
+- correctness：`58 passed in 4.48s`；
+- A100 环境中 Triton/Torch 两个 provider 均运行成功，延迟与带宽分位顺序正确。
+
+当前 Triton 3.7.1 的 `do_bench` 没有显式类型注解；传入
+`quantiles=[0.5, 0.2, 0.8]` 时，内部 `_quantile` 按输入顺序返回三元素
+`list[float]`，所以正常路径的 `p50_ms, p20_ms, p80_ms` 顺序正确。防御路径仍有以下窄问题：
+
+| 编号 | 严重程度 | 发现与证据 | 修改方向 | 状态 |
+| --- | --- | --- | --- | --- |
+| P05-R1 | 次要 | 三个延迟先初始化为 `0.0`；若 `do_bench` 返回 `None`、标量或非三元素列表，条件分支不解包，但后续浮点类型断言仍对占位值成立，四类探针最终都误报 `ZeroDivisionError` | 不使用合法的 `0.0` 作为失败哨兵；返回后先显式拒绝非列表或非三元素结果，再解包 | `learner-revised -> needs-more-work` |
+| P05-R2 | 次要 | `assert condition, ValueError(...)` 实际抛出 `AssertionError`，而且在 `python -O` 下会被移除；全零延迟还能通过类型和排序检查 | 用普通 `if ...: raise ...` 检查元素类型以及有限正数约束，使异常靠近 `do_bench` 契约边界 | `learner-revised -> needs-more-work` |
+
+因此 P05 的静态类型目标已达到，但约定的运行时三元素检查尚未真正闭合，P05 暂不关闭。下一轮只需
+修正这两个 guard，并复跑 Ruff、BasedPyright、58 项正确性测试以及有效/无效返回值探针。
+
+#### P05 恢复复审第 2 轮（2026-07-27）
+
+学习者移除了三个 `0.0` 延迟占位，改为先显式验证 `do_bench` 返回三元素列表，再解包并检查
+元素类型、正值和分位顺序。只读探针确认：
+
+- `None`、标量和错误长度列表均在解包前抛出 `AssertionError`；
+- 错误元素类型在计算前抛出 `AssertionError`；
+- 零值与 NaN 均在延迟约束处抛出 `RuntimeError`；
+- 正常三元素列表以及 Triton/Torch 两个真实 provider 均成功。
+
+P05-R1 达到 `learner-revised -> verified -> closed`。P05-R2 中“使用显式分支而非可被优化删除的
+`assert`”以及正值检查也已完成；但有限值检查还有一个遗漏：`p80=+inf` 仍满足
+`p20 > 0` 和 `p20 <= p50 <= p80`，会被接受并生成 `gbps_lower=0.0`。因此 P05-R2 保持
+`needs-more-work`，范围收敛为对三个延迟都执行有限数检查。显式
+`raise AssertionError` 不会像 `assert` 语句一样在 `python -O` 下消失；异常类型是否改为
+`TypeError`/`RuntimeError` 只作为非阻塞语义建议。
+
+本轮回归继续通过：Ruff check、Ruff format、BasedPyright `0 errors`、58 项 pytest 以及两个
+provider smoke 均无回退。补齐 `math.isfinite` 或等价检查后只需复跑上述矩阵和 `+inf` 探针，
+即可决定关闭 P05。
+
+#### P05 最终复审（2026-07-27）
+
+学习者为 p20、p50、p80 三个延迟补充 `math.isfinite` 检查。最终只读验证结果：
+
+- Ruff check：`All checks passed!`；
+- Ruff format：`3 files already formatted`；
+- BasedPyright：`0 errors, 0 warnings, 0 notes`；
+- Lesson 01 pytest：`58 passed in 4.60s`；
+- Triton/Torch 两个真实 provider 均成功，延迟与有效带宽区间顺序正确；
+- `None`、标量、错误长度、错误元素类型、零值、NaN、`+inf` 和 `-inf` 探针均在带宽计算前
+  被拒绝；合法三元素浮点列表仍正常生成记录。
+
+P05-R2 达到 `learner-revised -> verified -> closed`，P05 随之关闭。本轮没有新的阻塞、主要或
+次要发现；显式异常类型还可按语义细分为 `TypeError`/`RuntimeError`，但只属于可选风格调整。
+结合此前状态，P01–P06 已全部关闭，Lesson 01 的可选性能扩展正式完成。
+
 ## 10. 掌握验收
 
 ### 概念验收
@@ -2094,11 +2157,11 @@ threshold 又为负数，越界 lane 可能错误满足条件并尝试越界写�
 - [x] reference 与断言完整
 - [x] 输入契约明确
 - [x] 代码通过项目格式检查
-- [ ] benchmark 排除首次 JIT 并正确处理异步执行
+- [x] benchmark 排除首次 JIT 并正确处理异步执行
 - [x] 至少完成一个与纯连续一维加法不同的变式
 
-benchmark 属于本课可选练习，不阻挡最终验收；若不完成，应在结课总结中明确记录为未做的可选
-扩展，而不是暗示已经获得本机性能结论。
+benchmark 原属本课可选练习，不阻挡 2026-07-22 的主课程验收；学习者随后在 2026-07-27
+完成该扩展，并保留环境、方法、原始产物、错误预测和适用边界。
 
 ### 结课判定（2026-07-22）
 
@@ -2120,6 +2183,10 @@ pointer tensor、mask、`tl.constexpr`、stride、多 GPU device guard、有效�
 可选的 block-size benchmark 未完成，因此本课不记录任何本机性能结论。旧
 `strided_1d_vector_add` 只作为历史练习归档，仍无 wrapper/pytest，不属于本课已验收成果，也不
 阻挡官方 Vector Addition 案例结课。学习者已完成最终修改并确认理解，课程状态设为“已完成”。
+
+后续补记（2026-07-27）：上段是 2026-07-22 主课程结课时的历史判定；此后可选 block-size
+benchmark 已完成。其本机观察、原始结果和限制见
+[AXPBY Benchmark 简报](../attachments/01-vector-add/axpby-benchmark.md)，不追溯改写原结课记录。
 
 ## 11. 阶段性暂停快照（2026-07-20）
 
@@ -2288,22 +2355,27 @@ uv run --frozen ruff format --check gpu/triton/lesson01_vector_ops.py \
   - [第一段：开课至阶段性保存](../dialogues/01-vector-add.md)
   - [第二段：恢复学习至最终复验](../dialogues/01-vector-add-part2.md)
   - [第三段：可选性能 Benchmark 扩展至本次暂停](../dialogues/01-vector-add-part3.md)
+  - [第四段：性能扩展工程收尾关闭快照](../dialogues/01-vector-add-part4.md)
 - **来源 session**：`rollout-2026-07-20T01-13-19-019f7d15-aa74-7bd2-abf5-e028149c8b47.jsonl`
 - **session ID**：`019f7d15-aa74-7bd2-abf5-e028149c8b47`
 - **截取范围**：第一段从用户消息“非常好，这就让我们开始第一课时吧。”开始，到
   2026-07-20 09:14:28 UTC 阶段性保存为止；第二段从用户消息“好的，接下来我们继续 lesson 01
   的学习”开始，到 2026-07-22 09:54:40 UTC 最终复验通过为止；第三段从用户重新开启可选
   benchmark 扩展开始，到 2026-07-24 10:10:00 UTC 本次暂停边界为止。课程片段之间的归档
-  功能、Skill 创建和仓库贡献指南等元对话未纳入。
-- **消息数量**：第一段 57 条、第二段 37 条、第三段 87 条，合计 181 条，包括用户消息、助手
-  过程更新和助手正式回答。
+  功能、Skill 创建和仓库贡献指南等元对话未纳入；第四段从 2026-07-27 恢复检查点开始，到用户
+  提出提交 Lesson 01 之前为止。
+- **消息数量**：第一段 57 条、第二段 37 条、第三段 87 条、第四段 18 条，合计 199 条，包括
+  用户消息、助手过程更新和助手正式回答。
 - **规范化**：移除 environment/IDE context、客户端注入的 Skill 文档、推荐插件列表和
   `AGENTS.md` 指令，去除相邻重复；不包含 system/developer、reasoning、工具调用和工具输出。
-- **导出日期**：第一段 2026-07-21，第二段 2026-07-22，第三段 2026-07-24。
+- **导出日期**：第一段 2026-07-21，第二段 2026-07-22，第三段 2026-07-24，第四段
+  2026-07-27。
 - **使用说明**：[Codex 学习对话后验归档](../references/raw-dialogue-export.md)
 
-同一 rollout 中间包含不属于本课的元工作，因此按三个课程片段分别保存 provenance，没有把
-中间消息拼入课程对话。第二、三段采用显式结束时间边界；三份生成文件均未人工改写消息正文。
+同一 rollout 中间包含不属于本课的元工作，因此按四个课程片段分别保存 provenance，没有把
+中间消息拼入课程对话。第二至第四段均采用显式结束边界；四份生成文件均未人工改写消息正文。
+第四段最终采用下一条用户提交请求作为排他语义边界，已经包含性能扩展的最终正式回答；提交与
+后续课程元工作不属于该原始学习对话。
 
 ### 性能扩展暂停快照（2026-07-24）
 
@@ -2328,6 +2400,34 @@ uv run --frozen ruff format --check gpu/triton/lesson01_vector_ops.py \
 
 当前没有阻塞或主要正确性问题。暂停原因是时间安排，不是技术阻塞；未完成项及其复现命令已在
 P04–P06 统一验证中保存。
+
+### 性能扩展恢复快照（2026-07-27）
+
+| 项目 | 当前状态 |
+| --- | --- |
+| P04 | Ruff check/format 已验证通过，正式关闭 |
+| P05 静态类型 | BasedPyright `0 errors`，原两条解包错误已消失 |
+| P05 运行时 guard | P05-R1 已关闭；P05-R2 只剩三个延迟值的有限数检查，`+inf` 当前仍会被接受 |
+| 回归证据 | 58 项 pytest、Ruff、BasedPyright 与 Triton/Torch provider smoke 均通过 |
+
+恢复入口收敛为一次窄修改：在现有三元素、浮点、正值和顺序 guard 上补齐三个延迟的有限数检查，
+然后复跑当前验证矩阵与 `+inf` 探针。P05 关闭后即可结束第一课性能扩展并建立第 02 课
+Fused Softmax 档案。
+
+### 性能扩展最终关闭快照（2026-07-27）
+
+| 项目 | 最终状态 |
+| --- | --- |
+| P01–P06 | 全部验证关闭 |
+| 正确性 | `58 passed in 4.60s` |
+| 静态质量 | Ruff check/format 与 BasedPyright 全部通过 |
+| Benchmark guard | 返回形状、元素类型、正值、有限值与分位顺序均已验证 |
+| 真实运行 | Triton/Torch provider smoke 的延迟和带宽区间顺序均正确 |
+| 原始对话 | 第四段 18 条已按下一条用户提交请求为边界定稿 |
+
+Lesson 01 现在没有未关闭的必做项、阻塞项、主要项或次要项。P03-R1–R4 的措辞与尾块 detailed
+CSV 命名仍是明确的非阻塞建议，不影响结课。下一学习入口是建立第 02 课 Fused Softmax 档案并
+开始官方案例讲解；profiler、cache、baseline、置信区间和 autotune 留到第二轮性能专题。
 
 ### 参考资料
 
@@ -2391,3 +2491,7 @@ P04–P06 统一验证中保存。
 | 2026-07-24 | P03 最终评审 | 第一轮简报通过并关闭 P03，保留四项非阻塞措辞建议 |
 | 2026-07-24 | P04–P06 统一验证 | 58 项正确性与 Ruff lint 通过，关闭 P06；P04 格式和 P05 两项类型错误留待恢复 |
 | 2026-07-24 | 性能扩展暂停 | 保存恢复顺序并导出 87 条第三段原始对话；客户端插件与 AGENTS 注入已过滤 |
+| 2026-07-27 | P04/P05 恢复复审 | 关闭 P04，确认 P05 静态类型通过，并以无效返回探针记录 P05-R1/R2 |
+| 2026-07-27 | P05 恢复复审第 2 轮 | 关闭 P05-R1，将 P05-R2 收敛为遗漏的有限数检查 |
+| 2026-07-27 | P05 最终复审 | 有限数探针与完整回归通过，关闭 P05 和整个可选性能扩展 |
+| 2026-07-27 | 原始对话定稿 | 以用户提交请求为边界重导出 18 条第四段对话，纳入最终复审回答 |
