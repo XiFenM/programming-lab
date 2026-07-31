@@ -39,7 +39,8 @@ docs/triton-learning/
 │   ├── 01-vector-add.md               # 第一课开课至阶段性保存
 │   ├── 01-vector-add-part2.md         # 第一课恢复学习至最终复验
 │   ├── 01-vector-add-part3.md         # 第一课可选性能扩展至阶段性暂停
-│   └── 01-vector-add-part4.md         # 第一课性能扩展工程收尾
+│   ├── 01-vector-add-part4.md         # 第一课性能扩展工程收尾
+│   └── 02-fused-softmax.md            # 第二课开课至 P01 实现前暂停
 ├── lessons/
 │   ├── 01-vector-add.md              # 每个官方案例一份主记录
 │   ├── 02-fused-softmax.md
@@ -61,7 +62,7 @@ docs/triton-learning/
 | 课次 | 官方案例 | 学习记录 | 状态 |
 | --- | --- | --- | --- |
 | 01 | `01-vector-add.py` | [lessons/01-vector-add.md](lessons/01-vector-add.md) | 已完成 |
-| 02 | `02-fused-softmax.py` | `lessons/02-fused-softmax.md` | 未开始 |
+| 02 | `02-fused-softmax.py` | [lessons/02-fused-softmax.md](lessons/02-fused-softmax.md) | 实践中 |
 | 03 | `03-matrix-multiplication.py` | `lessons/03-matrix-multiplication.md` | 未开始 |
 | 04 | `04-low-memory-dropout.py` | `lessons/04-low-memory-dropout.md` | 未开始 |
 | 05 | `05-layer-norm.py` | `lessons/05-layer-norm.md` | 未开始 |
@@ -85,26 +86,26 @@ docs/triton-learning/
 | 01-B | Vector Addition：恢复至最终复验 | [dialogues/01-vector-add-part2.md](dialogues/01-vector-add-part2.md) | 37 | 已导出 |
 | 01-C | Vector Addition：可选性能扩展至暂停 | [dialogues/01-vector-add-part3.md](dialogues/01-vector-add-part3.md) | 87 | 已导出 |
 | 01-D | Vector Addition：性能扩展工程收尾 | [dialogues/01-vector-add-part4.md](dialogues/01-vector-add-part4.md) | 18 | 已导出 |
+| 02-A | Fused Softmax：开课至 P01 布置与 Q03 确认 | [dialogues/02-fused-softmax.md](dialogues/02-fused-softmax.md) | 29 | 暂停快照 |
 
 ## 当前学习断点
 
-最近同步时间：2026-07-27。
+最近同步时间：2026-07-31。
 
-- 最近完成课程：第 01 课 Vector Addition。
-- 当前阶段：第 01 课主课程与可选 block-size 性能扩展均已完成；P01–P06 和 R01–R14 全部
-  验证关闭，第 02 课 Fused Softmax 尚未开始。
-- 当前成果：两个练习 kernel 与 wrapper 已完成；pytest 已扩充为 58 个用例并全部通过，Ruff
-  lint 通过，R01–R14 已全部关闭；benchmark 的 24 条 detailed record、两组汇总 CSV、PNG 和
-  HTML 已核对一致。
-- 对话归档：第一课以四个片段定稿，共 199 条用户/助手可见消息；第四段已包含性能扩展最终回答，
-  并以随后用户的提交请求作为排他边界。片段之间的归档功能、Skill 创建和贡献指南元对话未纳入，
-  客户端插件与 `AGENTS.md` 注入也已过滤。
-- 整理状态：旧练习 `strided_1d_vector_add` 已从独立文件归并到第一课实践源码；目前只有 kernel，
-  尚无 wrapper、pytest 或正式评审，不计入第一课已验收成果。
-- 遗留边界：没有未关闭的必做评审项。P03 有四项非阻塞措辞建议；旧 strided add 仍只是未验收
-  的历史练习，两者都不影响第一课完成状态。
-- 后续入口：建立 `lessons/02-fused-softmax.md` 并开始官方案例讲解。Profiler、置信区间、
-  cache、baseline 与 autotune 等系统 benchmark 研究留待第二轮性能专题。
+- 最近完成课程：第 01 课 Vector Addition；主课程与可选 block-size 性能扩展均已关闭。
+- 当前课程：第 02 课 Fused Softmax，完整案例讲解和 Q01–Q03 已完成；课程在 P01 自主实现前
+  主动暂停，状态仍记为实践中。
+- Lesson 02 当前成果：已建立课程主记录，完成 softmax 数学、fusion 流量、行内 reduction、
+  padding 单位元、persistent grid、occupancy、stride/资源边界和 benchmark 指标解析。
+- Lesson 02 实测：官方 `1823×781` 正确性断言与 98 个列宽、3 个 provider 的完整 benchmark
+  已在 A100、PyTorch 2.13.0、Triton 3.7.1 环境运行，进程退出码为 0。
+- 当前边界：三层实践阶梯已建立，目前只开放 P01 基础 fused softmax；两个目标文件尚未创建，
+  没有学习者实现或评审。恢复时直接从 P01 契约开始，不重复完整讲解或已关闭答疑。
+- 对话归档：Lesson 02-A 暂停快照共 29 条消息，边界从开课请求开始，到 Q03 确认答复结束；
+  本次暂停/归档元对话被明确排除。
+- Lesson 01 遗留边界：P03 的四项措辞建议和未验收的旧 `strided_1d_vector_add` 仍为非阻塞项，
+  不影响第一课完成或第二课推进。
+- 性能专题边界：profiler、置信区间、cache、完整 baseline 与 autotune 仍留待第二轮性能专题。
 
 ## 记录原则
 
