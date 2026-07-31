@@ -5,10 +5,11 @@ TileLang。LeetCode 主要支持 Python、C++ 和 Rust；日常编辑、格式�
 测试都设计为在容器内完成，宿主机只需要提供 NVIDIA 驱动、Docker、NVIDIA Container
 Toolkit 和 VS Code。
 
-> 当前环境状态：仓库已经创建首次提交并推送到远端，但还**没有构建镜像、启动容器、下载安装
-> 依赖、生成 Python 锁文件或运行初始化/检查/测试脚本**。因此文档中的版本输出和测试通过状态
-> 不是伪造的执行结果；首次进入容器后需要执行初始化和验收。`uv.lock` 会在首次初始化时
-> 生成，确认环境可用后建议提交到 Git。
+> 当前验证基线（2026-07-31）：开发容器和依赖环境已经初始化，`uv.lock` 已生成并提交；
+> `make doctor`、默认 Python/Rust/C++/CUDA 测试、Python GPU 栈检查和 Triton 第 01 课的
+> 58 个 GPU 测试均已通过。GitHub Actions 只运行不依赖 GPU 的检查。完整 `make lint` /
+> `make verify` 目前会被 `leetcode/cpp/46.permutations.cpp` 中两个已知的 clang-tidy 问题
+> 阻断，这部分留待后续算法学习时处理。
 
 ## 已配置的内容
 
@@ -28,6 +29,8 @@ Toolkit 和 VS Code。
   workspace。
 - 提供 Python/C++/Rust 的 Two Sum 示例和测试、原生 CUDA 与 Triton 向量加法 GPU
   冒烟程序、TileLang 安装探针。
+- Triton 第 01 课已经完成，包含实践 kernel、58 个 GPU 测试、性能实验、课程记录和原始
+  对话归档；第 02 课已完成完整讲解与当前答疑，并在 P01 自主实现前暂停。
 - 提供初始化、诊断、格式化、静态检查、测试和全量验收脚本，并由 Makefile 统一入口。
 - 工作区可选宿主机 bind 双向同步或构建时一次性快照复制；CMake/Cargo 构建树、
   Python/编译缓存可选命名卷持久化或随容器删除。
@@ -59,7 +62,9 @@ Toolkit 和 VS Code。
 ├── docs/
 │   ├── cuda-upgrade.md             # CUDA/cuDNN/Ubuntu 基础镜像升级指南
 │   ├── proxy-configuration.md      # v2rayA Lite 与 Codex CLI 代理配置指南
+│   ├── triton-learning/            # Triton 课程记录、评审、附件与原始对话
 │   └── triton-tutorials/           # Triton 官方教程快照与学习路线
+├── experiment_results/             # 可复现的 Triton benchmark 数据、图表与 HTML
 ├── pyproject.toml                   # Python/GPU 依赖及 Ruff/Pyright/pytest 配置
 ├── .python-version                  # uv 管理的 CPython 3.12
 ├── .nvmrc                           # nvm 使用的 Node.js 24 主版本
@@ -77,6 +82,8 @@ Toolkit 和 VS Code。
 ├── gpu/
 │   ├── cuda/vector_add.cu           # 原生 CUDA 编译/运行测试
 │   ├── triton/vector_add.py         # Triton JIT 编译/运行测试
+│   ├── triton/lesson01_vector_ops.py # 第 01 课实践 kernel
+│   ├── triton/lesson01_vector_ops_test.py # 需要 GPU 的课内测试
 │   └── tilelang/                    # TileLang 版本探针和练习说明
 ├── tests/
 │   ├── python/
@@ -200,12 +207,12 @@ CMake/Cargo 构建树与 v2rayA 配置位于 tmpfs，相关容器停止后便不
    `proxy` 服务，随后执行
    `bash scripts/init-env.sh`。
 5. 初始化脚本会让 uv 下载/确认 CPython 3.12，创建
-   `/home/coder/.venvs/programming-lab`，解析 `pyproject.toml`，安装 GPU 与开发依赖，并在
-   当前容器工作区生成 `uv.lock`。
+   `/home/coder/.venvs/programming-lab`，并按照仓库已提交的 `uv.lock` 同步 GPU 与开发依赖；
+   只有锁文件缺失时才会重新解析并生成它。
 6. 打开容器终端，执行 `make doctor`，然后执行 `make verify`。
 
-在 `bind` 模式中，生成的 `uv.lock` 会同步回宿主机；在 `copy` 模式中不会，若要保留它和
-容器内代码，需要使用下节的 `export` 操作。
+在 `bind` 模式中，对 `uv.lock` 的更新会同步回宿主机；在 `copy` 模式中不会，若要保留锁文件
+或容器内代码的修改，需要使用下节的 `export` 操作。
 
 首次构建和首次 Python 依赖解析下载量较大。VS Code 的 `postCreateCommand` 只有在容器创建
 阶段运行；重连已有容器不会每次重装全部依赖。只有 persistent 组合会跨容器复用命名卷缓存。
@@ -381,14 +388,14 @@ PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 
 `pyproject.toml` 当前包括：
 
-- 运行/GPU 依赖：NumPy、PyTorch、Triton、TileLang；
+- 运行/GPU 依赖：Matplotlib、NumPy、Pandas、PyTorch、Triton、TileLang；
 - 开发依赖组：Ruff、BasedPyright、pytest、pytest-cov、pre-commit；
 - Python 版本范围：`>=3.12,<3.13`；
 - `tool.uv.package = false`，因为本仓库是练习集合，不需要把根目录构建成 Python wheel。
 
-GPU 包在 `pyproject.toml` 中没有预设彼此可能冲突的最低版本，而是让 uv 第一次选择当前索引中
-同时支持 Python 3.12 的最高兼容组合，再由 `uv.lock` 精确固定。这样不会在未实际解析前假定
-某个 TileLang 版本一定兼容某个 PyTorch/Triton 版本；可复现性由提交后的锁文件提供。
+GPU 包在 `pyproject.toml` 中没有预设彼此可能冲突的最低版本。当前兼容组合已经由提交的
+`uv.lock` 精确固定；只有显式更新依赖或重建锁文件时，uv 才会重新选择当前索引中同时支持
+Python 3.12 的组合。
 
 首次没有 `uv.lock` 时，`init-env.sh` 会解析依赖并生成它；锁文件存在后，脚本使用
 `uv sync --locked`，防止初始化时静默改锁。如果修改了依赖，建议在容器内显式执行：
@@ -403,8 +410,8 @@ uv sync --locked --group dev
 
 没有强行配置一个假定存在的 CUDA 13 PyTorch wheel index。PyPI 上的 PyTorch wheel 通常
 携带自己的 CUDA 用户态依赖，它报告的 `torch.version.cuda` 可能与系统 `nvcc 13.0` 不同，
-这本身不等于错误；关键是宿主机驱动兼容，并且实际 PyTorch/Triton kernel 能运行。首次生成
-锁文件后，PyTorch、Triton 与 TileLang 的具体兼容组合由 `uv.lock` 固定。
+这本身不等于错误；关键是宿主机驱动兼容，并且实际 PyTorch/Triton kernel 能运行。当前
+PyTorch、Triton 与 TileLang 的具体兼容组合由 `uv.lock` 固定。
 
 ### Node.js 与 nvm
 
@@ -466,6 +473,7 @@ edition 2024 workspace，会自动包含 `leetcode/rust/*` 下的 crate，并统
 
 ```bash
 # Python
+uv run --frozen python -m pytest
 uv run --frozen pytest tests/python/test_two_sum.py
 uv run --frozen ruff check .
 uv run --frozen basedpyright
@@ -481,8 +489,13 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 
 # Triton / TileLang
 uv run --frozen python -m gpu.triton.vector_add
+uv run --frozen python -m pytest -q gpu/triton/lesson01_vector_ops_test.py
 uv run --frozen python -m gpu.tilelang.check_install
 ```
+
+默认 pytest 只发现 `tests/python/` 和 `skills/learn-by-practice/tests/` 中不依赖 GPU 的测试，
+因此适合本地 CPU 回归和 GitHub Actions。课内 Triton 测试保留在 `gpu/triton/`，必须在可用
+GPU 环境中使用上面的显式命令运行。
 
 ## 环境验收具体做什么
 
@@ -496,16 +509,19 @@ uv run --frozen python -m gpu.tilelang.check_install
 5. 运行 clang-format，生成 CMake compile database 后运行 clang-tidy。
 6. 运行 rustfmt 与 Clippy。
 7. 运行 ShellCheck。
-8. 运行 pytest 和 Cargo tests。
+8. 运行默认的 CPU-only pytest 和 Cargo tests。
 9. 用 `nvcc`/CMake 编译 CUDA 13 向量加法，实际分配显存、启动 kernel、拷回并断言结果。
 10. 用 PyTorch 实际创建 CUDA tensor。
 11. JIT 编译并运行 Triton 向量加法，与 PyTorch 结果比较。
 12. 导入 TileLang，打印实际锁定版本和模块位置。
 
-TileLang 的导入检查是有意设置的边界：TileLang DSL 仍在快速变化，在未生成实际 `uv.lock`
-之前硬编码某个版本的 kernel 模板容易产生“仓库看似完整、首次安装却 API 不兼容”的假象。
-首次锁定版本后，按照 `gpu/tilelang/README.md` 和该版本官方示例添加 kernel，并同时保存参考
-实现、正确性测试和 benchmark。CUDA、Triton 两条路径已经提供真实 kernel 级验收。
+`make verify` 中的 Triton 检查是最小 JIT 冒烟测试，不会自动运行需要 GPU 的课程测试；课程
+实现应继续使用各自的显式 pytest 命令验收。
+
+TileLang 的导入检查是有意设置的边界：TileLang DSL 仍在快速变化，当前 `uv.lock` 已经固定
+实际版本，但仓库尚未开始 TileLang kernel 课程。后续应按照 `gpu/tilelang/README.md` 和锁定
+版本的官方示例添加 kernel，并同时保存参考实现、正确性测试和 benchmark。CUDA、Triton 两条
+路径已经提供真实 kernel 级验收。
 
 ## 代码质量配置
 
@@ -611,13 +627,14 @@ clangd 和 Microsoft C/C++ IntelliSense 同时启用会产生重复诊断，因�
 
 命令面板中的 `Tasks: Run Task` 提供初始化、doctor、lint、test、完整 verify、CMake build、
 Triton 和 TileLang 入口。`launch.json` 提供当前 Python 文件、C++ Two Sum 和 Rust 测试的
-调试模板；Python Test Explorer 已指向 `tests/python` 并启用 pytest。
+调试模板；Python Test Explorer 已指向默认的两个 CPU-only pytest 目录，不会自动收集需要
+GPU 的课内 Triton 测试。
 
 ## GitHub Actions
 
 `.github/workflows/quality.yml` 在 push、pull request 或手动触发时运行：
 
-- Python Ruff、BasedPyright 和 pytest；
+- Python Ruff、BasedPyright，以及算法和 `learn-by-practice` Skill 的 CPU-only pytest；
 - C++ 格式检查、CPU Two Sum 编译/执行和 ShellCheck；
 - Rust rustfmt、Clippy 和 tests。
 

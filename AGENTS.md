@@ -35,8 +35,9 @@ and unfinished placeholders are forbidden. Shell changes must pass ShellCheck.
 ## Testing Guidelines
 
 Add a regression test for each bug fix and cover normal, boundary, and invalid inputs. There is
-no numeric coverage gate; meaningful behavioral coverage is required. Pytest discovers
-`tests/python/test_*.py` by default. Run colocated Triton tests explicitly, for example
+no numeric coverage gate; meaningful behavioral coverage is required. Pytest discovers CPU-only
+tests under `tests/python/` and `skills/learn-by-practice/tests/` by default. Run colocated Triton
+tests explicitly, for example
 `uv run --frozen python -m pytest -q gpu/triton/lesson01_vector_ops_test.py`. Record the GPU model
 and relevant software versions for device-dependent failures or benchmarks.
 

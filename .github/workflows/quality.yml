@@ -31,7 +31,7 @@ jobs:
           uv run --no-sync ruff format --check .
       - name: BasedPyright
         run: uv run --no-sync basedpyright
-      - name: Pytest
+      - name: CPU-only pytest
         run: uv run --no-sync python -m pytest
 
   native:
