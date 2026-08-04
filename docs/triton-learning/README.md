@@ -40,7 +40,8 @@ docs/triton-learning/
 │   ├── 01-vector-add-part2.md         # 第一课恢复学习至最终复验
 │   ├── 01-vector-add-part3.md         # 第一课可选性能扩展至阶段性暂停
 │   ├── 01-vector-add-part4.md         # 第一课性能扩展工程收尾
-│   └── 02-fused-softmax.md            # 第二课开课至 P01 实现前暂停
+│   ├── 02-fused-softmax.md            # 第二课开课至 P01 实现前暂停
+│   └── 02-fused-softmax-part2.md      # 第二课 P01 实践与三轮评审
 ├── lessons/
 │   ├── 01-vector-add.md              # 每个官方案例一份主记录
 │   ├── 02-fused-softmax.md
@@ -87,22 +88,24 @@ docs/triton-learning/
 | 01-C | Vector Addition：可选性能扩展至暂停 | [dialogues/01-vector-add-part3.md](dialogues/01-vector-add-part3.md) | 87 | 已导出 |
 | 01-D | Vector Addition：性能扩展工程收尾 | [dialogues/01-vector-add-part4.md](dialogues/01-vector-add-part4.md) | 18 | 已导出 |
 | 02-A | Fused Softmax：开课至 P01 布置与 Q03 确认 | [dialogues/02-fused-softmax.md](dialogues/02-fused-softmax.md) | 29 | 暂停快照 |
+| 02-B | Fused Softmax：P01 实践与三轮评审 | [dialogues/02-fused-softmax-part2.md](dialogues/02-fused-softmax-part2.md) | 32 | 暂停快照 |
 
 ## 当前学习断点
 
-最近同步时间：2026-07-31。
+最近同步时间：2026-08-04。
 
 - 最近完成课程：第 01 课 Vector Addition；主课程与可选 block-size 性能扩展均已关闭。
-- 当前课程：第 02 课 Fused Softmax，完整案例讲解和 Q01–Q03 已完成；课程在 P01 自主实现前
-  主动暂停，状态仍记为实践中。
+- 当前课程：第 02 课 Fused Softmax，完整案例讲解和 Q01–Q03 已完成；P01 普通 grid fused
+  softmax 已通过三轮评审并完成，课程状态恢复为实践中。
 - Lesson 02 当前成果：已建立课程主记录，完成 softmax 数学、fusion 流量、行内 reduction、
   padding 单位元、persistent grid、occupancy、stride/资源边界和 benchmark 指标解析。
 - Lesson 02 实测：官方 `1823×781` 正确性断言与 98 个列宽、3 个 provider 的完整 benchmark
   已在 A100、PyTorch 2.13.0、Triton 3.7.1 环境运行，进程退出码为 0。
-- 当前边界：三层实践阶梯已建立，目前只开放 P01 基础 fused softmax；两个目标文件尚未创建，
-  没有学习者实现或评审。恢复时直接从 P01 契约开始，不重复完整讲解或已关闭答疑。
-- 对话归档：Lesson 02-A 暂停快照共 29 条消息，边界从开课请求开始，到 Q03 确认答复结束；
-  本次暂停/归档元对话被明确排除。
+- 当前边界：P01 最终版在空闲 A100 上 13 个 GPU 测试通过，Ruff、格式和 BasedPyright 全绿，
+  `num_warps=8` 已由 compiled metadata 验证；P01-R01–R08 全部关闭。现暂停在 P01 完成后，
+  P02 persistent softmax 与 stages 实验已解锁但详细实践尚未开始。
+- 对话归档：Lesson 02-A、02-B 两个暂停快照分别为 29、32 条消息；02-B 从恢复课程开始，
+  到 P01 最终复审答复结束。本次暂停/归档元对话被明确排除。
 - Lesson 01 遗留边界：P03 的四项措辞建议和未验收的旧 `strided_1d_vector_add` 仍为非阻塞项，
   不影响第一课完成或第二课推进。
 - 性能专题边界：profiler、置信区间、cache、完整 baseline 与 autotune 仍留待第二轮性能专题。

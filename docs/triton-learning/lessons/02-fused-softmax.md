@@ -10,9 +10,9 @@
 | 学习状态 | 实践中 |
 | 开始日期 | 2026-07-31 |
 | 完成日期 | — |
-| 实践源码 | `gpu/triton/lesson02_fused_softmax.py`（待创建） |
-| 测试代码 | `gpu/triton/lesson02_fused_softmax_test.py`（待创建，需要 GPU） |
-| 原始对话 | [02-fused-softmax.md](../dialogues/02-fused-softmax.md)（29 条消息，暂停快照） |
+| 实践源码 | [`lesson02_fused_softmax.py`](../../../gpu/triton/lesson02_fused_softmax.py) |
+| 测试代码 | [`lesson02_fused_softmax_test.py`](../../../gpu/triton/lesson02_fused_softmax_test.py)（需要 GPU） |
+| 原始对话 | [02-A](../dialogues/02-fused-softmax.md)（29 条）；[02-B](../dialogues/02-fused-softmax-part2.md)（32 条）；均为暂停快照 |
 | 补充材料 | 无 |
 
 ### 环境基线
@@ -33,10 +33,10 @@
 - [x] 已阅读完整讲解
 - [x] 已解决当前问题
 - [x] 已接受实践任务
-- [ ] 已提交第一版实现
-- [ ] 已完成至少一轮代码评审
+- [x] 已提交第一版实现
+- [x] 已完成至少一轮代码评审
 - [ ] 已处理全部阻塞问题
-- [ ] 已通过正确性与边界测试
+- [x] 已通过正确性与边界测试
 - [ ] 已完成知识复述与变式验收
 - [ ] 已总结并关闭本课
 - [x] 已在课程结束或中断时后验导出原始对话
@@ -909,8 +909,8 @@ benchmark 每次调用还会新建并设置 stream，但不恢复先前 stream�
 
 | 层级 | 练习 | 主要证据 | 当前状态 |
 | --- | --- | --- | --- |
-| P01 | 普通 grid 的 fused softmax | reduction、padding、接口和边界测试 | **已开放** |
-| P02 | Persistent softmax 与 stages 实验 | 行分配、occupancy、资源和计时证据 | 待 P01 评审通过 |
+| P01 | 普通 grid 的 fused softmax | reduction、padding、接口和边界测试 | **已完成** |
+| P02 | Persistent softmax 与 stages 实验 | 行分配、occupancy、资源和计时证据 | **已解锁，待开始** |
 | P03 | Row-wise log-softmax 迁移 | 不照搬原式完成相关 reduction 算子 | 待 P02 评审通过 |
 
 核心 kernel、wrapper 和测试均由学习者实现。可以请求分级提示或共同定位失败，但提示默认先解释
@@ -987,7 +987,7 @@ def fused_softmax(x: torch.Tensor) -> torch.Tensor:
 每个非空正确用例至少检查：
 
 - 与 `torch.softmax(x, dim=1)` 在 `rtol=1e-4, atol=1e-6` 下接近；
-- 每一行的和接近 1；
+- kernel 输出 `actual` 的每一行之和，即 `actual.sum(dim=1)`，接近全 1 tensor；
 - 输出的 shape、dtype 和 device。
 
 错误输入至少覆盖：CPU tensor、非二维 tensor、float64 tensor、非 contiguous 二维 view、
@@ -1033,9 +1033,9 @@ uv run --frozen ruff format --check \
 
 本阶段不以运行速度、persistent program 数或 `num_stages` 为验收条件。
 
-### P02：Persistent softmax 与 `num_stages`（待开放）
+### P02：Persistent softmax 与 `num_stages`（已解锁，待开始）
 
-P01 通过后，将普通 grid 版本改造成有限 resident programs 循环覆盖全部行的版本。届时需要：
+P01 已通过。P02 将把普通 grid 版本改造成有限 resident programs 循环覆盖全部行的版本，需要：
 
 - 使用 `tl.num_programs(0)` 和带 `num_stages` 的 `tl.range`；
 - 证明 `M` 不能整除 program 数时每行仍恰好处理一次；
@@ -1043,7 +1043,7 @@ P01 通过后，将普通 grid 版本改造成有限 resident programs 循环覆
 - 先写资源与性能预测，再根据实测解释 latency hiding 与 occupancy 的取舍；
 - 不设置“某个 stages 必须最快”的硬编码性能断言。
 
-详细接口、资源读取兼容层和实验矩阵在 P01 评审后开放，避免现在预先解决核心实践。
+详细接口、资源读取兼容层和实验矩阵将在正式开始 P02 时布置，避免提前给出核心实践答案。
 
 ### P03：Row-wise log-softmax 迁移（待开放）
 
@@ -1057,17 +1057,31 @@ row-wise log-softmax，并用与原例不同的数学形式、边界测试和 Py
 
 | 用途 | 路径 | 说明 |
 | --- | --- | --- |
-| Kernel / wrapper | `gpu/triton/lesson02_fused_softmax.py` | 待创建 |
-| Tests | `gpu/triton/lesson02_fused_softmax_test.py` | 待创建；需要 GPU，保持显式运行 |
+| Kernel / wrapper | `gpu/triton/lesson02_fused_softmax.py` | P01 最终版，三轮评审完成 |
+| Tests | `gpu/triton/lesson02_fused_softmax_test.py` | P01 最终版 13 个用例；需要 GPU，保持显式运行 |
 | Benchmark | 待定 | 正确性和接口评审通过后再决定 |
 
 ### 第一版设计
 
-- 工作划分：P01 契约为一行一个 program；待学习者填写实际实现。
-- grid 与 block/tile：P01 契约为 `(M,)` 与 `next_power_of_2(N)`；待学习者解释映射。
-- mask 策略：P01 要求 masked load 使用 `-inf`、store 只覆盖有效列；待实现验证。
-- dtype/shape/stride 支持：P01 限定二维 CUDA contiguous float32；待 wrapper 与测试验证。
-- 主动取舍：待学习者填写。
+- 工作划分：第一版使用 `pid = tl.program_id(0)`，一个 program 处理一行；地址按
+  `pid * N + col_offset` 计算。
+- grid 与 block/tile：wrapper 使用 `(M,)` 和 `next_power_of_2(N)`；学习者正确推导
+  `M=5, N=781` 时 grid 为 `(5,)`、block 为 1024、有效/padding lanes 为 781/243。
+- mask 策略：masked load 使用 `-inf`，两次 reduction 后只 store 有效列。
+- dtype/shape/stride 支持：wrapper 限定二维 CUDA contiguous float32，允许 `M=0`，拒绝
+  `N=0` 和 padded block 大于 16384 的输入。
+- launch 配置：第一版未显式传 `num_warps=8`，实际编译元数据为默认 4 warps，见 P01-R01。
+
+第二版已在 launch 中显式指定 `num_warps=8`，并补充输出 row-sum 与六类非法输入测试。
+
+### 第一版设计说明评审
+
+1. **Grid/block/lane 推导：正确。** `(5,)`、1024、781、243 均正确。
+2. **`-inf` padding：核心正确。** 它不会战胜有限有效值成为 max；减去有限 row max 后仍为
+   `-inf`，其指数为 0，因此不改变指数和。本练习尚不要求定义 `NaN`、`+inf` 或全 `-inf` 行。
+3. **`M=0` 与 `N=0`：第二次复述正确。** 学习者说明前者没有样本但样本内部 schema 有效，
+   后续出现样本仍可计算；后者是样本内部/reduction domain 为空，无法计算，因此接口应明确
+   拒绝。更正式的术语是“合法空 batch”与“已有 rows 的空 reduction domain”。
 
 ### 运行命令与结果
 
@@ -1084,9 +1098,69 @@ CUDA_VISIBLE_DEVICES=0 MPLBACKEND=Agg \
 进程退出码 0。
 ```
 
+P01 第一版评审验证：
+
+```bash
+CUDA_VISIBLE_DEVICES=0 \
+  uv run --frozen python -m pytest -q gpu/triton/lesson02_fused_softmax_test.py
+
+uv run --frozen ruff check \
+  gpu/triton/lesson02_fused_softmax.py \
+  gpu/triton/lesson02_fused_softmax_test.py
+
+uv run --frozen ruff format --check \
+  gpu/triton/lesson02_fused_softmax.py \
+  gpu/triton/lesson02_fused_softmax_test.py
+
+uv run --frozen basedpyright \
+  gpu/triton/lesson02_fused_softmax.py \
+  gpu/triton/lesson02_fused_softmax_test.py
+```
+
+```text
+pytest：8 passed in 2.92s
+Ruff：通过
+format check：2 files already formatted
+BasedPyright：0 errors, 0 warnings, 0 notes
+GPU：NVIDIA A100-SXM4-80GB，CUDA_VISIBLE_DEVICES=0
+```
+
+P01 第二版复审：
+
+```text
+第一次在物理 GPU 0 运行：12 failed, 1 passed；失败均为 tensor 分配时 CUDA OOM。
+当时 GPU 0 显存占用：81029 / 81920 MiB；判定为外部设备占用，不是实现失败。
+
+切换到空闲物理 GPU 5：13 passed in 3.18s。
+compiled metadata：num_warps = 8。
+Ruff：失败，1 个 F841（pytest.raises 内未使用的 actual）。
+format check：通过。
+BasedPyright：7 errors（6 个未使用 actual；1 个 Triton 动态 launcher 关键字类型误报）。
+```
+
+P01 最终复审：
+
+```text
+物理 GPU 3：13 passed in 3.38s。
+Ruff：通过。
+format check：2 files already formatted。
+BasedPyright：0 errors, 0 warnings, 0 notes。
+compiled metadata：num_warps = 8。
+```
+
 ### 正确性用例
 
-P01 最低矩阵已在实践契约中定义，尚未建立学习者测试或结果记录。
+第一版测试覆盖空行数、最小输入、两种非 2 的幂列宽、2 的幂列宽、官方不规则 shape、常数行和
+极大有限值，8 个用例均与 Torch reference 一致。额外只读诊断得到：
+
+| 证据 | 结果 |
+| --- | --- |
+| 最大 reference 绝对误差 | `1.49e-8` |
+| 最大 row-sum 绝对误差 | `2.38e-7` |
+| 六类非法输入 | wrapper 均抛出 `ValueError`，但尚未写入 pytest |
+| 默认 launch warps | compiled metadata 显示 4，不符合契约要求的 8 |
+
+第二版已把输出 row-sum 和六类错误输入写入 pytest；在空闲 A100 上共 13 个用例全部通过。
 
 ### 性能实验
 
@@ -1095,11 +1169,97 @@ P01 最低矩阵已在实践契约中定义，尚未建立学习者测试或结�
 
 ### 失败尝试与定位过程
 
-无。
+第二轮最初在 GPU 0 出现 12 个 CUDA OOM。`nvidia-smi` 显示该卡已占用 81029 MiB，切换到空闲
+GPU 5 后全部 13 个用例通过，故该失败归因于外部资源状态。
+
+读取 compiled metadata 时曾同时访问 `compiled.n_regs`，当前对象未公开该属性而触发
+`AttributeError`；去掉与本 finding 无关的私有属性访问后，成功验证 `metadata.num_warps == 8`。
 
 ## 9. 代码评审与修改闭环
 
-尚无学习者实现，未进入评审。
+### P01 第一轮评审（2026-08-03）
+
+结论：核心计算在现有正确输入上工作，暂无 `blocking` finding；P01 仍有 4 项 `major` 和 2 项
+`minor` finding，尚不能进入 P02。
+
+| ID | 严重度 | 状态 | 位置与证据 | 修改方向 |
+| --- | --- | --- | --- | --- |
+| P01-R01 | major | open | `lesson02_fused_softmax.py:39` 未传 `num_warps`；compiled metadata 为 4 | 按契约在 launch 中显式固定 8 warps |
+| P01-R02 | major | open | 测试文件到第 96 行结束，没有六类非法输入测试；只读诊断只能证明当前行为，不能防回归 | 为六类输入添加 pytest，并检查稳定、可读的异常类型/消息 |
+| P01-R03 | major | open | 新澄清的契约项：原文“每一行的和”主语不明确；当前测试没有断言输出 `actual.sum(dim=1)` 接近 1 | 为所有非空正确用例增加输出 row-sum 不变量；不把原歧义归责于学习者 |
+| P01-R04 | major | open | 第三项设计说明明确表示“不太清楚”，且把主要原因归于是否浪费 launch | 重新解释空批次与空 reduction domain 的语义区别 |
+| P01-R05 | minor | open | `lesson02_fused_softmax.py:30` 对 `N=0` 报告 “shape cannot be negative” | 让消息准确描述列数必须大于 0 |
+| P01-R06 | minor | open | `lesson02_fused_softmax_test.py:8` 的 skip reason 仍写 “lesson 01” | 改为 Lesson 02/Fused Softmax |
+
+#### P01-R01 提示记录（2026-08-03）
+
+学习者询问 launch 时如何指定 `num_warps`。已提供最小语法提示：它是 JIT launch option，放在
+`kernel[grid](...)` 调用的关键字参数中，例如
+`kernel[grid](..., BLOCK_SIZE=block_size, num_warps=8)`；不加入 kernel 函数签名。未修改学习者
+代码，P01-R01 保持 open，等待修改后通过 compiled metadata 复验。
+
+#### P01-R03/R04 提示记录（2026-08-03）
+
+学习者询问为何 reference 对比之外还需断言 row sum，以及“第三项设计说明”所指内容。已说明：
+
+- row sum 接近 1 是 softmax 定义直接给出的独立数学不变量，能证明归一化结果本身成立，并在失败
+  时把问题定位到 denominator/normalization；它与逐元素对照 Torch 是两类互补证据。只对
+  `M > 0` 的用例检查。
+- 第三项设计说明就是 P01 提交问题 3：“为什么 `M=0` 可以直接返回，而 `N=0` 应由本练习接口
+  拒绝？”`M=0, N>0` 是没有任何 row 的合法空 batch，不需要 reduction；`M>0, N=0` 则让每个
+  已存在 row 的 reduction domain 为空，无法满足本练习的 row max/归一化及 row-sum 不变量。
+  提前返回或拒绝首先是接口语义，是否 launch/浪费资源只是实现后果。
+
+已给出测试断言的结构提示，但未修改学习者测试。P01-R03/R04 保持 open，等待学习者补测并用
+自己的话重新复述。
+
+学习者随后指出原契约可能被理解为“输入每行之和”。该反馈成立：softmax 不要求输入行和为 1，
+需要检查的是 kernel 输出行和。P01-R03 已标记为新澄清的契约项，任务正文现明确写为
+`actual.sum(dim=1)`；这一歧义不计作学习者遗漏明确要求。
+
+评审未修改学习者的 kernel 或测试。下一轮由学习者完成修改后，再逐项运行相关证据并把 finding
+推进为 `learner-revised -> verified -> closed`。
+
+### P01 第二轮评审（2026-08-03）
+
+上一轮 findings 的处理结果：
+
+| ID | 生命周期结果 | 复验证据 |
+| --- | --- | --- |
+| P01-R01 | learner-revised -> verified -> closed | launch 显式指定 8；compiled metadata 为 8 warps |
+| P01-R02 | learner-revised -> verified -> closed | CPU、ndim、float64、非连续、`N=0`、`N=16385` 均进入 pytest，GPU 5 全部通过 |
+| P01-R03 | learner-revised -> verified -> closed | 所有正确输入路径均断言输出 `actual.sum(dim=1)` 接近 1 |
+| P01-R04 | learner-revised -> verified -> closed | 学习者正确区分合法空 batch 与空 reduction domain |
+| P01-R05 | learner-revised -> needs-more-work | 消息改为 “shape must be positive”，但接口允许 `M=0`，仍未明确是 `N`/列数必须大于 0 |
+| P01-R06 | learner-revised -> verified -> closed | skip reason 已改为 Lesson 02 |
+
+第二轮新增 findings：
+
+| ID | 严重度 | 状态 | 位置与证据 | 修改方向 |
+| --- | --- | --- | --- | --- |
+| P01-R07 | minor | open | 测试第 135、141、145、150、154、157 行在 `pytest.raises` 内赋值给未使用的 `actual`；Ruff F841、BasedPyright 均失败 | 直接调用待验证函数，不保存不会使用的返回值 |
+| P01-R08 | minor | open | 新澄清的工具兼容项：实现第 39 行是有效 Triton launch，运行与 metadata 均通过，但 BasedPyright 的静态接口不知道 `num_warps`，报 `reportCallIssue` | 在该调用处添加范围最小、带具体规则名的 Pyright ignore，并保留运行时复验证据；不归责为运行时实现错误 |
+
+#### P01-R08 提示记录（2026-08-03）
+
+学习者询问如何添加最小范围的 `reportCallIssue` ignore。已说明把 launch 格式化为多行，并只在
+触发误报的 `num_warps=8` 参数行添加
+`# pyright: ignore[reportCallIssue]`。不使用裸 `# type: ignore`，不关闭整个文件的规则，也不修改
+全局 BasedPyright 配置。未修改学习者代码，P01-R08 保持 open，等待静态检查复验。
+
+第二轮仍未修改学习者代码。P01 的数值、边界和概念证据已经通过；清理 P01-R05、R07、R08 并
+重新通过静态检查后即可进行 P01 最终复审。
+
+### P01 最终复审（2026-08-04）
+
+| ID | 生命周期结果 | 复验证据 |
+| --- | --- | --- |
+| P01-R05 | learner-revised -> verified -> closed | `N=0` 消息明确为 `shape[1] must be positive`，与允许 `M=0` 的契约一致 |
+| P01-R07 | learner-revised -> verified -> closed | 六处未使用赋值已移除；Ruff 与 BasedPyright 通过 |
+| P01-R08 | learner-revised -> verified -> closed | ignore 仅位于 `num_warps=8` 参数行且限定 `reportCallIssue`；运行与 metadata 再次验证 8 warps |
+
+P01-R01–R08 已全部关闭，没有新增 finding。学习者独立完成核心 kernel、wrapper、正确输入、输出
+数学不变量和错误输入测试；三项设计说明也已确认。P01 完成，P02 解锁。
 
 ## 10. 掌握验收
 
@@ -1115,11 +1275,11 @@ P01 最低矩阵已在实践契约中定义，尚未建立学习者测试或结�
 
 ### 实践验收
 
-- [ ] 官方示例的核心版本可以独立重写，而不是逐行照抄
-- [ ] 非 2 的幂列宽正确
-- [ ] reference、数学不变量与断言完整
-- [ ] 错误输入行为明确
-- [ ] 代码通过项目格式和相关静态检查
+- [x] 官方示例的核心版本可以独立重写，而不是逐行照抄
+- [x] 非 2 的幂列宽正确
+- [x] reference、数学不变量与断言完整
+- [x] 错误输入行为明确
+- [x] 代码通过项目格式和相关静态检查
 - [ ] 性能结论有可复现实验支持，或明确说明本课不要求性能验收
 - [ ] 至少完成一个与原例不同的变式
 
@@ -1146,6 +1306,73 @@ P01 最低矩阵已在实践契约中定义，尚未建立学习者测试或结�
 | 下一动作 3 | 提交第一版代码以及 P01 的三项设计说明，进入代码评审 |
 | P02 解锁门槛 | P01 正确性、接口、静态检查和主要评审问题全部通过 |
 | 暂停归档 | Lesson 02-A 原始对话暂停快照已导出并审核，共 29 条消息 |
+
+### 恢复检查点（2026-08-03）
+
+| 项目 | 状态 |
+| --- | --- |
+| 恢复来源 | 上述 2026-07-31 暂停检查点与 Lesson 02-A 原始对话暂停快照 |
+| 仓库状态 | 工作区干净，`main` 与 `origin/main` 同步 |
+| 当前阶段 | P01 普通 grid row-wise fused softmax 自主实践 |
+| 学习者产物 | Kernel/wrapper 与 GPU test 文件仍未创建；没有待处理评审意见 |
+| 已关闭内容 | 完整讲解及 Q01 persistent/stages、Q02 persistent 类型、Q03 occupancy |
+| 当前任务 | 按第 7 节 P01 契约独立完成实现、测试和三项设计说明 |
+| 当前阻塞 | 无 |
+| P02 解锁门槛 | P01 正确性、接口、静态检查和主要评审问题全部通过 |
+
+### P01 第一轮评审检查点（2026-08-03）
+
+| 项目 | 状态 |
+| --- | --- |
+| 当前阶段 | P01 第一轮评审完成，等待学习者修改 |
+| 已验证 | 8 个现有 GPU 用例、Ruff、格式、BasedPyright 通过；额外诊断确认数值主路径和当前异常行为 |
+| 开放 findings | P01-R01–R04（major），P01-R05–R06（minor） |
+| 当前阻塞 | 无 blocking finding；4 项 major 阻止 P02 解锁 |
+| 下一动作 | 学习者修改 launch、补齐测试、修正两条消息，并重新复述第三项设计说明 |
+| 复审命令 | P01 GPU pytest、Ruff、format check、BasedPyright |
+| P02 解锁门槛 | P01-R01–R04 至少全部 verified/closed，且 P01 完成定义满足 |
+
+### P01 第二轮评审检查点（2026-08-03）
+
+| 项目 | 状态 |
+| --- | --- |
+| 当前阶段 | P01 第二轮复审完成，等待最后一轮小修 |
+| 已关闭 | P01-R01、R02、R03、R04、R06 |
+| 待处理 | P01-R05（minor, needs-more-work）、P01-R07–R08（minor, open） |
+| GPU 证据 | 物理 GPU 5 上 13 passed；`metadata.num_warps == 8` |
+| 环境事件 | 物理 GPU 0 因 81029/81920 MiB 已占用而 OOM，不计作实现失败 |
+| 下一动作 | 精确化 `N=0` 消息，移除未使用赋值，为 Triton launcher 添加窄范围 Pyright ignore |
+| P02 解锁门槛 | P01-R05、R07、R08 verified/closed，Ruff/format/BasedPyright 全部通过 |
+
+### P01 完成检查点（2026-08-04）
+
+| 项目 | 状态 |
+| --- | --- |
+| 当前阶段 | P01 已完成，P02 已解锁但尚未开始 |
+| 正确性 | 物理 GPU 3 上 13 passed；reference、row-sum、边界和错误输入均有证据 |
+| 静态检查 | Ruff、format check、BasedPyright 全部通过 |
+| Launch 证据 | `metadata.num_warps == 8` |
+| Findings | P01-R01–R08 全部 verified/closed，无开放项 |
+| 概念证据 | Grid/block/lane、`-inf` padding、空 batch/空 reduction domain 三项说明均通过 |
+| 下一动作 | 进入 P02 前布置 persistent softmax、occupancy 与 stages 实验的详细契约 |
+| Lesson 02 剩余 | P02、P03、整课知识复述与最终掌握验收 |
+
+### P01 完成后暂停检查点（2026-08-04）
+
+| 项目 | 状态 |
+| --- | --- |
+| 暂停位置 | P01 已完成；P02 已解锁但没有开始讲解、预测或实现 |
+| 已完成工作 | 学习者独立完成 P01 kernel、wrapper 和 13 个测试；三轮评审结束 |
+| 验收证据 | 物理 GPU 3 上 13 passed；Ruff、format check、BasedPyright 全绿；`metadata.num_warps == 8` |
+| Findings | P01-R01–R08 全部 verified/closed；P01 无开放项 |
+| 未解决问题 | 无；本次是学习者主动暂停，不是被问题阻塞 |
+| 未完成 | P02 persistent/stages 实践、P03 log-softmax、整课复述与最终掌握验收 |
+| 恢复入口 | 直接从第 7 节 P02 开始，先布置详细实践契约；不重复 P01 或已关闭的 Q01–Q03 |
+| 下一动作 1 | 明确 P02 的接口、persistent grid、资源读取和实验矩阵 |
+| 下一动作 2 | 学习者先写资源/性能预测，再自主实现 persistent 版本 |
+| 下一动作 3 | 运行正确性、覆盖性、资源与计时实验，进入 P02 评审 |
+| P03 解锁门槛 | P02 正确性、persistent 行覆盖、资源解释和主要评审问题通过 |
+| 暂停归档 | Lesson 02-B 原始对话暂停快照已导出并审核，共 32 条消息 |
 
 ### 最重要的三个结论
 
@@ -1180,8 +1407,10 @@ P01 最低矩阵已在实践契约中定义，尚未建立学习者测试或结�
 
 ### 原始对话归档
 
+#### Lesson 02-A：开课至 P01 实现前
+
 - **归档文件**：[02-fused-softmax.md](../dialogues/02-fused-softmax.md)
-- **归档性质**：Lesson 02-A 暂停快照；课程恢复后的新片段应另行后验导出并按顺序链接。
+- **归档性质**：Lesson 02-A 暂停快照。
 - **Codex session**：`019fb5e8-54c6-77c0-8c7a-b489d135ee40`
 - **包含起点**：用户消息“很好，接下来让我们进入triton的下一课学习。”
 - **排他终点**：用户消息“接下来我们先暂停课程，打个断点。”
@@ -1204,7 +1433,34 @@ P01 最低矩阵已在实践契约中定义，尚未建立学习者测试或结�
     --end-before-user '接下来我们先暂停课程，打个断点'
   ```
 
-  归档规则见 [`raw-dialogue-export.md`](../references/raw-dialogue-export.md)。
+#### Lesson 02-B：P01 实践与三轮评审
+
+- **归档文件**：[02-fused-softmax-part2.md](../dialogues/02-fused-softmax-part2.md)
+- **归档性质**：Lesson 02-B 暂停快照；P01 已完成，P02 尚未开始。
+- **Codex session**：`019fb5e8-54c6-77c0-8c7a-b489d135ee40`
+- **包含起点**：用户消息“好的，现在让我们从断点处恢复lesson 02吧”。
+- **排他终点**：用户消息“我们可以先暂停提交一下阶段性结果”。
+- **消息范围**：2026-08-03 00:53:02–2026-08-04 09:15:44 UTC，共 32 条；包含 commentary。
+- **哈希**：source snapshot
+  `2a4d52241eef9418517f69f30b2596909e3b7c8c763d24b140fd22aa89ef3b60`；
+  selected dialogue
+  `c38baca914597070da593afaa892e392a1088a6fd9404974711e34ed0cb8be49`。
+- **审核结果**：首尾边界正确，8 条用户消息与 24 条助手消息顺序合理；未包含本次暂停提交
+  元对话、Lesson 02-A 片段、system/developer/tool 事件、客户端注入、凭据、私人 home 路径或
+  附件内容。
+- **导出命令**：
+
+  ```bash
+  uv run --frozen python scripts/export_codex_dialogue.py export \
+    <session-jsonl> \
+    docs/triton-learning/dialogues/02-fused-softmax-part2.md \
+    --title '第 02 课：Fused Softmax P01 实践与评审原始对话（暂停快照）' \
+    --lesson 02-fused-softmax-part2 \
+    --start-user '现在让我们从断点处恢复lesson 02吧' \
+    --end-before-user '我们可以先暂停提交一下阶段性结果'
+  ```
+
+归档规则见 [`raw-dialogue-export.md`](../references/raw-dialogue-export.md)。
 
 ### 参考资料
 
@@ -1231,3 +1487,9 @@ P01 最低矩阵已在实践契约中定义，尚未建立学习者测试或结�
 | 2026-07-31 | Q03 答疑 | 区分正式 warp occupancy、源码 resident-program 计数和硬件实际利用率 |
 | 2026-07-31 | Q03 确认 | 正确计算 62.5% occupancy，校准 warp residency 与执行单元利用率的区别 |
 | 2026-07-31 | 阶段性暂停 | 保存 P01 前断点，导出并审核 29 条 Lesson 02-A 原始可见对话 |
+| 2026-08-03 | 恢复课程 | 从 Lesson 02-A 暂停断点恢复，确认 P01 产物尚未创建并重新进入自主实践 |
+| 2026-08-03 | P01 第一轮评审 | 现有 8 个 GPU 用例与静态检查通过；登记 P01-R01–R06，等待学习者修改 |
+| 2026-08-03 | P01 契约澄清 | 明确 row-sum 检查对象是 kernel 输出 `actual`，将 P01-R03 标记为新澄清项 |
+| 2026-08-03 | P01 第二轮评审 | GPU 5 上 13 个用例与 8-warps 元数据通过；关闭 5 项，保留/新增 P01-R05、R07、R08 |
+| 2026-08-04 | P01 最终复审 | GPU 3、静态检查和 metadata 全部通过；关闭 P01-R05、R07、R08，P01 完成 |
+| 2026-08-04 | 阶段性暂停 | 保存 P01 完成后断点；导出并审核 32 条 Lesson 02-B 原始可见对话 |
