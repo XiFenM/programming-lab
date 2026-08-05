@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help init hooks doctor configure build test lint format verify
+.PHONY: help init hooks doctor configure build test lint format pathnote-check verify
 
 help: ## Show the available repository commands.
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -29,6 +29,9 @@ lint: ## Run all language format, lint, and type checks.
 
 format: ## Apply Python, C++, CUDA, and Rust formatters.
 	bash scripts/format.sh
+
+pathnote-check: ## Validate staged PathNote publication packages.
+	node scripts/check-pathnote-content.mjs
 
 verify: ## Run complete toolchain, lint, test, CUDA, Triton, and TileLang checks.
 	bash scripts/verify-env.sh

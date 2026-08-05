@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "slug": "triton-axpby-benchmark",
+  "type": "practice",
+  "status": "draft",
+  "title": "AXPBY block size 实验与错误预测复盘",
+  "summary": "记录 Triton AXPBY 实现的第一轮 benchmark，比较四种 block size 在多组输入规模和尾块输入下的有效带宽，并保留实验前预测、实验后修正和结论边界。",
+  "language": "zh-CN",
+  "journeyAt": "2026-07-24",
+  "authors": [
+    {
+      "id": "xifenm",
+      "name": "XiFenM",
+      "roles": ["author"]
+    }
+  ],
+  "topics": ["gpu-programming", "triton", "performance-analysis"],
+  "rights": {
+    "basis": "original",
+    "holder": "XiFenM",
+    "license": {
+      "kind": "all-rights-reserved"
+    },
+    "attributions": [
+      {
+        "title": "Triton language and compiler tutorials",
+        "creator": "Philippe Tillet, OpenAI and Triton contributors",
+        "sourceUrl": "https://triton-lang.org/main/getting-started/tutorials/index.html",
+        "license": "MIT",
+        "note": "文章基于 Vector Addition 学习实践整理；使用上游代码时需要保留对应版权和许可说明。"
+      }
+    ]
+  },
+  "reviews": {
+    "content": {
+      "status": "pending",
+      "note": "需要处理文中残留提示和已登记的措辞问题，并核对实验结论边界。"
+    },
+    "rights": {
+      "status": "pending",
+      "note": "需要区分原创正文、原创代码和 Triton MIT 代码的权利说明。"
+    },
+    "sensitive": {
+      "status": "pending",
+      "note": "需要检查环境和路径信息是否适合公开。"
+    }
+  },
+  "resources": [
+    {
+      "kind": "source",
+      "label": "AXPBY Benchmark 简报",
+      "repositoryPath": "docs/triton-learning/attachments/01-vector-add/axpby-benchmark.md"
+    },
+    {
+      "kind": "code",
+      "label": "AXPBY 实现",
+      "repositoryPath": "gpu/triton/lesson01_vector_ops.py"
+    },
+    {
+      "kind": "code",
+      "label": "Benchmark 脚本",
+      "repositoryPath": "gpu/triton/lesson01_vector_ops_benchmark.py"
+    },
+    {
+      "kind": "code",
+      "label": "正确性测试",
+      "repositoryPath": "gpu/triton/lesson01_vector_ops_test.py"
+    }
+  ],
+  "validation": {
+    "status": "not-run",
+    "summary": "仓库档案保存了历史测试和 benchmark 结果；正式发布前需要固定 revision 并复核证据。"
+  },
+  "featured": false
+}
