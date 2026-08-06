@@ -64,10 +64,10 @@ p20/p50/p80 延迟和 GB/s 下界/中心/上界保存在 detailed CSV。
 
 原始产物：
 
-- [主矩阵 detailed CSV](../../../../experiment_results/lesson01/axpby_block_size/axpby_block_size_detailed.csv)
+- [主矩阵 detailed CSV](../../../../experiment_results/lesson01/axpby_block_size/detailed.csv)
 - [主矩阵图](../../../../experiment_results/lesson01/axpby_block_size/axpby_block_size.png)
 - [主矩阵 HTML](../../../../experiment_results/lesson01/axpby_block_size/results.html)
-- [尾块 detailed CSV](../../../../experiment_results/lesson01/axpby_tail_block/axpby_block_size_detailed.csv)
+- [尾块 detailed CSV](../../../../experiment_results/lesson01/axpby_tail_block/detailed.csv)
 - [尾块图](../../../../experiment_results/lesson01/axpby_tail_block/axpby_tail_block.png)
 - [尾块 HTML](../../../../experiment_results/lesson01/axpby_tail_block/results.html)
 

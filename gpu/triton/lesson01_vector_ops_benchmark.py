@@ -149,7 +149,7 @@ def run_benchmark(benchmark_fn, results_path_str: str):
     benchmark_records.clear()
     benchmark_fn.run(print_data=True, show_plots=False, save_path=results_path_str)
     with open(
-        os.path.join(results_path_str, "axpby_block_size_detailed.csv"),
+        os.path.join(results_path_str, "detailed.csv"),
         "w",
         newline="",
         encoding="utf-8",
