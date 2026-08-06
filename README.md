@@ -53,7 +53,7 @@ Toolkit 和 VS Code。
 ├── compose.copy.yaml                # 构建时把源码快照复制进镜像
 ├── compose.ephemeral.yaml           # CMake/Cargo 构建树与 v2rayA 配置 tmpfs
 ├── compose.persist.yaml             # 构建树与 uv/Cargo/GPU 缓存命名卷
-├── compose.copy-persist.yaml        # 快照模式的 /workspace 持久卷
+├── compose.copy-persist.yaml        # 快照模式的仓库目录持久卷
 ├── .devcontainer/                   # bind/copy × persistent/ephemeral 四套配置
 ├── .agents/skills/                  # 指向版本化 Skill 源码的仓库级发现链接
 ├── skills/
@@ -183,14 +183,15 @@ UID/GID 会在构建镜像时用于创建 `coder`。如果先构建后再修改�
 | --- | --- | --- |
 | `bind` | `persistent` | 宿主机与容器双向实时同步；CMake/Cargo 构建树、uv、编译缓存与 v2rayA 配置使用命名卷。适合日常开发 |
 | `bind` | `ephemeral` | 源码仍双向同步；CMake/Cargo 构建树和 v2rayA 配置使用 tmpfs，其他环境与缓存位于容器可写层 |
-| `copy` | `persistent` | 构建时复制源码快照，不与宿主机同步；`/workspace`、CMake/Cargo 构建树、缓存和 v2rayA 配置放入命名卷 |
+| `copy` | `persistent` | 构建时复制源码快照，不与宿主机同步；`/workspace/programming-lab`、CMake/Cargo 构建树、缓存和 v2rayA 配置放入命名卷 |
 | `copy` | `ephemeral` | 构建时复制源码快照，不同步、不使用命名卷；CMake/Cargo 构建树和 v2rayA 配置使用 tmpfs |
 
 `bind` 模式最直观，但容器内任何源码修改会立刻修改宿主机。`copy` 模式通过 Dockerfile 的
 `workspace-copy` target 在构建时执行一次 `COPY`，`.git`、`.env`、构建产物等由
 `.dockerignore` 排除，因此容器内快照不包含宿主机 Git 元数据和私密环境文件。
 
-`copy + persistent` 的 `workspace-data` 卷只在第一次创建时由镜像中的 `/workspace` 填充。
+`copy + persistent` 的 `workspace-data` 卷只在第一次创建时由镜像中的
+`/workspace/programming-lab` 填充。
 之后即使重新构建镜像，也不会覆盖该卷内的练习代码。这可以保护容器内改动，但意味着要获得
 新的宿主机快照，需要先导出需要保留的内容，再显式删除旧卷并重建。
 
@@ -297,7 +298,7 @@ Compose 可能重建现有容器；若当前是 copy + ephemeral，必须在切�
 必须叠加 `compose.gpu.yaml`（Compose
 2.30+）或 `compose.gpu-legacy.yaml`（Compose 2.27–2.29），再叠加 `compose.bind.yaml`
 或 `compose.copy.yaml`，最后按需叠加持久化文件。容器入口还会检查
-`/workspace/pyproject.toml`，若只启动公共基底，会给出模式选择提示并退出，而不是
+`/workspace/programming-lab/pyproject.toml`，若只启动公共基底，会给出模式选择提示并退出，而不是
 运行一个空工作区。
 
 VS Code Dev Container 不经过 `container.sh`，因此四套配置固定引用在所有受支持版本上
@@ -349,7 +350,8 @@ Compose 做了以下设置：
   TileLang 和 v2rayA 命名卷。
 - `compose.ephemeral.yaml` 用 tmpfs 承载 CMake/Cargo 构建树和 v2rayA 配置，既让构建产物
   使用完整的 Linux 文件系统语义，也避免镜像声明的配置目录产生无法复用的匿名卷。
-- `compose.copy-persist.yaml` 只用于 copy + persistent，为 `/workspace` 添加快照持久卷。
+- `compose.copy-persist.yaml` 只用于 copy + persistent，为
+  `/workspace/programming-lab` 添加快照持久卷。
 
 Dockerfile 包含三个 stage：`toolchain` 安装工具，`workspace-copy` 在其上复制源码，最后的
 `runtime` 不包含源码快照。bind 模式构建 `runtime`，所以普通源码修改不会让工具链镜像失效；
@@ -375,7 +377,7 @@ PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 内部镜像。`uv python install` 下载的是 uv 管理的 CPython 发行物，不经过 PyPI 镜像。
 
 镜像构建阶段执行 `uv python install 3.12`，项目初始化阶段再次以幂等方式确认该版本。项目
-虚拟环境不放在 `/workspace/.venv`，而放在：
+虚拟环境不放在 `/workspace/programming-lab/.venv`，而放在：
 
 ```text
 /home/coder/.venvs/programming-lab
@@ -688,9 +690,9 @@ Cargo 的 RsProxy 配置位于 `docker/cargo-config.toml`，只复制到容器�
 ### CMake `configure_file` 报 `Operation not permitted`
 
 Windows bind mount 可能通过 9p/DrvFS 暴露给容器；它支持普通文件读写，但不完整支持 CMake
-生成内部文件时使用的 POSIX 权限操作。仓库因此把 `/workspace/build` 单独放在 Linux 原生
+生成内部文件时使用的 POSIX 权限操作。仓库因此把 `/workspace/programming-lab/build` 单独放在 Linux 原生
 文件系统上：persistent 模式使用 `cmake-build` 命名卷，ephemeral 模式使用 tmpfs。Cargo 的
-`/workspace/target` 同样分别使用 `cargo-target` 命名卷或 tmpfs，避免构建锁文件因 UID 变化而
+`/workspace/programming-lab/target` 同样分别使用 `cargo-target` 命名卷或 tmpfs，避免构建锁文件因 UID 变化而
 不可写。
 
 如果容器是在加入该挂载前创建的，需要按原模式重建。例如：
@@ -701,7 +703,8 @@ bash scripts/container.sh up bind persistent
 bash scripts/container.sh init bind persistent
 ```
 
-不应使用 `sudo cmake` 或 `chmod -R 777 /workspace`；这类操作无法补齐 9p/DrvFS 缺失的文件系统
+不应使用 `sudo cmake` 或 `chmod -R 777 /workspace/programming-lab`；这类操作无法补齐
+9p/DrvFS 缺失的文件系统
 语义，还可能留下 root 所有的构建产物。
 
 ### 源码或缓存目录 Permission denied

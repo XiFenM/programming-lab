@@ -6,4 +6,4 @@ services:
     volumes:
       - type: bind
         source: .
-        target: /workspace
+        target: /workspace/programming-lab

@@ -27,7 +27,8 @@
 - 验证 export 仅接受 copy 模式，并覆盖默认目录、相对路径、绝对路径和含空格路径；
 - 验证基础镜像已经占用 UID/GID 1000 时仍能创建可用的 `coder` 用户；
 - 验证 CRLF checkout 不会破坏 Linux entrypoint；
-- 验证 Windows bind mount 下的 `/workspace/build` 与 `/workspace/target` 分别使用命名卷或
-  tmpfs，并能完成 CMake、Cargo 和 GPU 工具链检查；
+- 验证 Windows bind mount 下的 `/workspace/programming-lab/build` 与
+  `/workspace/programming-lab/target` 分别使用命名卷或 tmpfs，并能完成 CMake、Cargo 和 GPU
+  工具链检查；
 - 最后在容器内运行 `make doctor` 和 `make verify`，记录 Windows、PowerShell、Docker、
   Compose、驱动和 GPU 版本。

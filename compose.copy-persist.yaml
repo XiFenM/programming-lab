@@ -1,7 +1,7 @@
 services:
   dev:
     volumes:
-      - workspace-data:/workspace
+      - workspace-data:/workspace/programming-lab
 
 volumes:
   workspace-data:

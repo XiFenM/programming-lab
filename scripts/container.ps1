@@ -29,13 +29,15 @@ Usage:
   pwsh -File scripts/container.ps1 <action> <workspace> <persistence> [export-dir]
 
 Workspace modes:
-  bind          Bind-mount the host repository to /workspace (two-way sync).
+  bind          Bind-mount the host repository to /workspace/programming-lab
+                (two-way sync).
   copy          Copy a repository snapshot into the image (no host sync).
 
 Persistence modes:
   persistent    Keep CMake/Cargo build trees, tool caches/venvs, and v2rayA
                 configuration in named volumes. In copy mode, also keep
-                /workspace in a named volume seeded once from the image.
+                /workspace/programming-lab in a named volume seeded once from
+                the image.
   ephemeral     Keep CMake/Cargo build trees and v2rayA configuration in
                 tmpfs; other generated environments/caches stay in the
                 container writable layer, and image-baked tools remain in the
@@ -56,8 +58,8 @@ Actions:
   down          Remove the container; named volumes are retained.
   destroy       Remove the container and selected named volumes.
   config        Print the fully merged Compose configuration.
-  export        Copy /workspace from copy mode to export-dir (default:
-                ./container-export).
+  export        Copy /workspace/programming-lab from copy mode to export-dir
+                (default: ./container-export).
 
 Examples:
   powershell -ExecutionPolicy Bypass -File scripts/container.ps1 up bind persistent
@@ -261,7 +263,9 @@ try {
             }
             New-Item -ItemType Directory -Force -Path $ExportDirectory | Out-Null
             Invoke-DockerCommand (
-                $composeArguments + @("cp", "dev:/workspace/.", $ExportDirectory)
+                $composeArguments + @(
+                    "cp", "dev:/workspace/programming-lab/.", $ExportDirectory
+                )
             )
             Write-Output "Workspace exported to: $ExportDirectory"
         }

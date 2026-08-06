@@ -2521,7 +2521,8 @@ gpu/triton 目录级 BasedPyright：1 个既有 vector_add.py constexpr error，
 benchmark source Ruff：7 个 E501；format check：would reformat
 ```
 
-若编辑器仍显示大量 BasedPyright 错误，应确认工作区根目录为 `/workspace`，让语言服务器读取
+若编辑器仍显示大量 BasedPyright 错误，应确认工作区根目录为
+`/workspace/programming-lab`，让语言服务器读取
 根目录 `pyproject.toml` 的 `gpu/triton` execution environment；详细模式中的 `Could not import`
 是解析追踪，最终 `0 errors` 时不属于诊断错误。
 

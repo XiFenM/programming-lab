@@ -132,7 +132,7 @@ RUN set -eux; \
     printf '%s ALL=(root) NOPASSWD:ALL\n' "${USERNAME}" > "/etc/sudoers.d/${USERNAME}"; \
     chmod 0440 "/etc/sudoers.d/${USERNAME}"; \
     mkdir -p \
-        /workspace \
+        /workspace/programming-lab \
         "/home/${USERNAME}/.cache/ccache" \
         "/home/${USERNAME}/.cache/tilelang" \
         "/home/${USERNAME}/.cache/triton" \
@@ -140,7 +140,7 @@ RUN set -eux; \
         "/home/${USERNAME}/.cargo/git" \
         "/home/${USERNAME}/.cargo/registry" \
         "/home/${USERNAME}/.venvs"; \
-    chown -R "${USER_UID}:${USER_GID}" /workspace "/home/${USERNAME}"
+    chown -R "${USER_UID}:${USER_GID}" /workspace/programming-lab "/home/${USERNAME}"
 
 COPY --chown=${USER_UID}:${USER_GID} docker/bashrc /home/${USERNAME}/.bashrc
 COPY --chown=${USER_UID}:${USER_GID} docker/cargo-config.toml /home/${USERNAME}/.cargo/config.toml
@@ -151,7 +151,7 @@ RUN sed -i 's/\r$//' /usr/local/bin/programming-lab-entrypoint \
     && chmod 0755 /usr/local/bin/programming-lab-entrypoint
 
 USER ${USERNAME}
-WORKDIR /workspace
+WORKDIR /workspace/programming-lab
 
 ENV HOME=/home/${USERNAME} \
     UV_PROJECT_ENVIRONMENT=/home/${USERNAME}/.venvs/programming-lab \
@@ -198,8 +198,10 @@ ENV CCACHE_DIR=${HOME}/.cache/ccache \
 # never write permission-sensitive files to a Windows 9p/DrvFS workspace mount.
 # Keep this late in the image to avoid invalidating the expensive tool layers.
 USER root
-RUN mkdir -p /workspace/build /workspace/target \
-    && chown "${USER_UID}:${USER_GID}" /workspace/build /workspace/target
+RUN mkdir -p /workspace/programming-lab/build /workspace/programming-lab/target \
+    && chown "${USER_UID}:${USER_GID}" \
+        /workspace/programming-lab/build \
+        /workspace/programming-lab/target
 USER ${USERNAME}
 
 LABEL org.opencontainers.image.title="programming-lab" \
@@ -213,6 +215,6 @@ CMD ["sleep", "infinity"]
 FROM toolchain AS workspace-copy
 ARG USER_UID=1000
 ARG USER_GID=1000
-COPY --chown=${USER_UID}:${USER_GID} . /workspace
+COPY --chown=${USER_UID}:${USER_GID} . /workspace/programming-lab
 
 FROM toolchain AS runtime

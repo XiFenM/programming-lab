@@ -50,9 +50,9 @@ codex-direct() {
   command codex "$@"
 }
 
-alias proxy-on='source /workspace/scripts/proxy-env.sh on'
-alias proxy-off='source /workspace/scripts/proxy-env.sh off'
-alias proxy-status='source /workspace/scripts/proxy-env.sh status'
+alias proxy-on='source /workspace/programming-lab/scripts/proxy-env.sh on'
+alias proxy-off='source /workspace/programming-lab/scripts/proxy-env.sh off'
+alias proxy-status='source /workspace/programming-lab/scripts/proxy-env.sh status'
 
 alias ll='ls -alF'
 alias gs='git status --short --branch'

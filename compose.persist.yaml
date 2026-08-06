@@ -1,8 +1,8 @@
 services:
   dev:
     volumes:
-      - cmake-build:/workspace/build
-      - cargo-target:/workspace/target
+      - cmake-build:/workspace/programming-lab/build
+      - cargo-target:/workspace/programming-lab/target
       - uv-venvs:/home/coder/.venvs
       - uv-python:/home/coder/.local/share/uv/python
       - uv-cache:/home/coder/.cache/uv

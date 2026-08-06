@@ -22,7 +22,7 @@ services:
     image: ${COMPOSE_PROJECT_NAME:-programming-lab}:dev
     init: true
     restart: unless-stopped
-    working_dir: /workspace
+    working_dir: /workspace/programming-lab
     command: ["sleep", "infinity"]
     tty: true
     stdin_open: true

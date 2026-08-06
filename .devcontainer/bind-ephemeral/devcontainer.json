@@ -8,7 +8,7 @@
   ],
   "runServices": ["dev", "proxy"],
   "service": "dev",
-  "workspaceFolder": "/workspace",
+  "workspaceFolder": "/workspace/programming-lab",
   "remoteUser": "coder",
   "remoteEnv": {
     "HTTP_PROXY": "${containerEnv:V2RAYA_HTTP_PROXY}",
