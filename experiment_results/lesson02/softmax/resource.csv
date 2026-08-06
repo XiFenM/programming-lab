@@ -1,0 +1,4 @@
+size_m,size_n,num_stages,registers_per_thread,shared_bytes_per_program,register_limit,shared_limit,thread_limit,resident_programs_per_sm,grid,theoretical_warp_occupancy
+4096,781,1,32,32,8,5216,8,8,"(864,)",1.0
+4096,781,2,32,4128,8,40,8,8,"(864,)",1.0
+4096,781,4,32,12320,8,13,8,8,"(864,)",1.0

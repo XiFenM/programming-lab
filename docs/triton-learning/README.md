@@ -41,7 +41,9 @@ docs/triton-learning/
 │   ├── 01-vector-add-part3.md         # 第一课可选性能扩展至阶段性暂停
 │   ├── 01-vector-add-part4.md         # 第一课性能扩展工程收尾
 │   ├── 02-fused-softmax.md            # 第二课开课至 P01 实现前暂停
-│   └── 02-fused-softmax-part2.md      # 第二课 P01 实践与三轮评审
+│   ├── 02-fused-softmax-part2.md      # 第二课 P01 实践与三轮评审
+│   ├── 02-fused-softmax-part3.md      # 第二课 Persistent、资源与 Benchmark 至结课
+│   └── 02-fused-softmax-part4.md      # 第二课结课后 Benchmark 解释补充
 ├── lessons/
 │   ├── 01-vector-add.md              # 每个官方案例一份主记录
 │   ├── 02-fused-softmax.md
@@ -63,7 +65,7 @@ docs/triton-learning/
 | 课次 | 官方案例 | 学习记录 | 状态 |
 | --- | --- | --- | --- |
 | 01 | `01-vector-add.py` | [lessons/01-vector-add.md](lessons/01-vector-add.md) | 已完成 |
-| 02 | `02-fused-softmax.py` | [lessons/02-fused-softmax.md](lessons/02-fused-softmax.md) | 实践中 |
+| 02 | `02-fused-softmax.py` | [lessons/02-fused-softmax.md](lessons/02-fused-softmax.md) | 已完成 |
 | 03 | `03-matrix-multiplication.py` | `lessons/03-matrix-multiplication.md` | 未开始 |
 | 04 | `04-low-memory-dropout.py` | `lessons/04-low-memory-dropout.md` | 未开始 |
 | 05 | `05-layer-norm.py` | `lessons/05-layer-norm.md` | 未开始 |
@@ -89,26 +91,25 @@ docs/triton-learning/
 | 01-D | Vector Addition：性能扩展工程收尾 | [dialogues/01-vector-add-part4.md](dialogues/01-vector-add-part4.md) | 18 | 已导出 |
 | 02-A | Fused Softmax：开课至 P01 布置与 Q03 确认 | [dialogues/02-fused-softmax.md](dialogues/02-fused-softmax.md) | 29 | 暂停快照 |
 | 02-B | Fused Softmax：P01 实践与三轮评审 | [dialogues/02-fused-softmax-part2.md](dialogues/02-fused-softmax-part2.md) | 32 | 暂停快照 |
+| 02-C | Fused Softmax：Persistent、资源与 Benchmark 至结课 | [dialogues/02-fused-softmax-part3.md](dialogues/02-fused-softmax-part3.md) | 153 | 已导出 |
+| 02-D | Fused Softmax：结课后 Benchmark 解释 | [dialogues/02-fused-softmax-part4.md](dialogues/02-fused-softmax-part4.md) | 6 | 已导出 |
 
 ## 当前学习断点
 
-最近同步时间：2026-08-04。
+最近同步时间：2026-08-06。
 
-- 最近完成课程：第 01 课 Vector Addition；主课程与可选 block-size 性能扩展均已关闭。
-- 当前课程：第 02 课 Fused Softmax，完整案例讲解和 Q01–Q03 已完成；P01 普通 grid fused
-  softmax 已通过三轮评审并完成，课程状态恢复为实践中。
-- Lesson 02 当前成果：已建立课程主记录，完成 softmax 数学、fusion 流量、行内 reduction、
-  padding 单位元、persistent grid、occupancy、stride/资源边界和 benchmark 指标解析。
-- Lesson 02 实测：官方 `1823×781` 正确性断言与 98 个列宽、3 个 provider 的完整 benchmark
-  已在 A100、PyTorch 2.13.0、Triton 3.7.1 环境运行，进程退出码为 0。
-- 当前边界：P01 最终版在空闲 A100 上 13 个 GPU 测试通过，Ruff、格式和 BasedPyright 全绿，
-  `num_warps=8` 已由 compiled metadata 验证；P01-R01–R08 全部关闭。现暂停在 P01 完成后，
-  P02 persistent softmax 与 stages 实验已解锁但详细实践尚未开始。
-- 对话归档：Lesson 02-A、02-B 两个暂停快照分别为 29、32 条消息；02-B 从恢复课程开始，
-  到 P01 最终复审答复结束。本次暂停/归档元对话被明确排除。
-- Lesson 01 遗留边界：P03 的四项措辞建议和未验收的旧 `strided_1d_vector_add` 仍为非阻塞项，
-  不影响第一课完成或第二课推进。
-- 性能专题边界：profiler、置信区间、cache、完整 baseline 与 autotune 仍留待第二轮性能专题。
+- 最近完成课程：第 02 课 Fused Softmax；第 01、02 课均已关闭。
+- 当前课程：无。下一入口是第 03 课 Matrix Multiplication，尚未开始。
+- Lesson 02 成果：完成普通与 persistent row-wise softmax、stages 1/2/4、默认资源 grid、
+  compiled resources/理论 occupancy 推导，以及 prepared steady-state wrapper-level benchmark。
+- 最终证据：物理 A100 GPU 3 上功能测试 37 passed、benchmark 27 passed；默认 CI 20 passed；
+  Ruff、format、BasedPyright、skill validation 与 `git diff --check` 全绿。
+- 最终实验：三个 shape × 六条 provider/stage 曲线共 18 行；`N=781` 的 stages 1/2/4 均为
+  8 resident programs/SM、100% 理论 occupancy，`N=2049` 则分别为 4/5/3 和 50%/62.5%/37.5%。
+  本次 stage 1 均不慢于更深 stages，因此不把 stage 深度或 occupancy 视为单调性能指标。
+- 对话归档：Lesson 02-A/B/C/D 分别为 29、32、153、6 条；02-D 单独保留结课后的性能解释，
+  没有覆盖已冻结的 02-C。
+- 后续性能专题：profiler、置信区间、cache 与 autotune 仅在它们成为核心问题时开展。
 
 ## 记录原则
 
@@ -117,6 +118,10 @@ docs/triton-learning/
 - **正确性优先于性能**：先覆盖非整块尺寸、不同 shape 和错误输入，再讨论 benchmark。
 - **性能结论必须有边界**：注明 warm-up、重复次数、同步方式和比较基线，避免把 JIT 首次编译
   时间计入稳态执行时间。
+- **Benchmark 测试聚焦性能因素**：优先验证计时边界、warm-up、同步、资源配置、工作量口径和
+  可复现性；除非参数校验本身是核心学习目标，否则不为 benchmark 设置参数错误路径测试。
+- **减少非核心消耗**：文档、测试夹具、格式化和元数据只保留支撑掌握结论所需的最小范围；
+  安全的例行工作由 AI 处理或明确推迟，不扩张学习者任务。
 - **评审意见可追踪**：每条意见有编号、严重程度、处理方式和最终状态。
 - **完成意味着能迁移**：不以“代码跑通”作为唯一标准，还要能解释原因并完成相关变式。
 - **总结与原始材料分层**：主记录可以纠错和提炼，原始对话只按声明的过滤规则生成并保留
