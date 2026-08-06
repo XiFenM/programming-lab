@@ -60,8 +60,13 @@ def test_initializer_creates_rendered_archive_and_refuses_overwrite(
     assert "# Rust async programming learning archive" in index
     assert "The Rust Async Book \\| local examples" in index
     assert "2026-07-21" in index
+    assert "AI agent write the minimal acceptance tests" in index
     assert "{{" not in index
-    assert (archive / "templates" / "lesson-record.md").is_file()
+    lesson_template = archive / "templates" / "lesson-record.md"
+    assert lesson_template.is_file()
+    lesson_text = lesson_template.read_text(encoding="utf-8")
+    assert "Agent-authored acceptance tests or rubric ready" in lesson_text
+    assert "Keep routine test authoring out of the learner task" in lesson_text
     assert (archive / "lessons").is_dir()
     assert (archive / "dialogues").is_dir()
 

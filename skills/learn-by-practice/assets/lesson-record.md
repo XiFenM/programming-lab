@@ -36,6 +36,7 @@ Record only details that can change behavior, compatibility, reproducibility, or
 - [ ] Complete explanation delivered
 - [ ] Current learner questions resolved
 - [ ] Practice contract accepted
+- [ ] Agent-authored acceptance tests or rubric ready
 - [ ] First learner artifact submitted
 - [ ] At least one review completed
 - [ ] Blocking findings verified and closed
@@ -148,7 +149,10 @@ Write the learner's model in their own words rather than copying the explanation
 ### Shared requirements
 
 - Keep the learner artifact in the repository's normal location.
-- Provide an observable validation method or rubric.
+- Have the AI agent create the minimal behavioral acceptance tests or rubric before the learner
+  implements the core artifact.
+- Give the learner the exact validation command and a concise map of the covered behaviors.
+- Keep routine test authoring out of the learner task unless testing itself is an objective.
 - Cover at least one boundary, invalid case, or counterexample when applicable.
 - Preserve failed attempts and the evidence used to correct them.
 - Establish correctness before optional optimization or polish.
@@ -162,6 +166,8 @@ Write the learner's model in their own words rather than copying the explanation
   2. To be defined.
 - **Constraints**:
 - **Representative cases**:
+- **Agent-authored tests or rubric**:
+- **Initial red or validation sanity result**:
 - **Validation method**:
 - **Allowed hints**:
 - **Completion definition**:
@@ -181,7 +187,7 @@ Write the learner's model in their own words rather than copying the explanation
 | Purpose | Path | Current state |
 | --- | --- | --- |
 | Learner work |  | planned / submitted / revised / accepted |
-| Tests or rubric |  |  |
+| Agent-authored tests or rubric |  | planned / red-confirmed / passing / revised |
 | Performance/evaluation |  | not applicable / planned / complete |
 
 ### Learner's initial design
@@ -230,6 +236,11 @@ Record salient output; link bulky output from attachments.
 
 - To be filled by the learner or recorded from their explanation.
 
+#### Agent-owned test changes
+
+- Record acceptance or regression tests added or repaired during this review separately from the
+  learner's production-code revision.
+
 #### Verification result
 
 - Record what was rerun, what changed, and which findings can close.
@@ -246,8 +257,9 @@ Record salient output; link bulky output from attachments.
 
 ### Practical
 
-- [ ] Required artifact works or meets the rubric
+- [ ] Required artifact passes the agent-authored tests or meets the rubric
 - [ ] Boundary/counterexample evidence passes
+- [ ] Learner can explain at least one important validation case
 - [ ] A meaningful variation or transfer task is complete
 - [ ] Blocking review findings are closed
 

@@ -20,12 +20,13 @@ checks, pause checkpoints, and visible dialogue archives.
 1. Orient the lesson and verify prerequisites.
 2. Explain one complete source unit and its mental model.
 3. Resolve and record learner questions.
-4. Assign graduated practice with explicit acceptance criteria.
-5. Let the learner create the artifact.
-6. Review with numbered, evidence-backed findings.
-7. Let the learner revise and verify each finding.
-8. Check conceptual, practical, and transferable mastery.
-9. Close or pause with a recovery checkpoint and post-hoc dialogue archive.
+4. Agree on graduated practice with explicit behavioral acceptance criteria.
+5. Let the AI agent write the minimal acceptance tests or rubric before implementation.
+6. Let the learner create the core artifact using test-driven feedback.
+7. Review with numbered, evidence-backed findings and agent-authored regression tests.
+8. Let the learner revise the core artifact and verify each finding.
+9. Check conceptual, practical, and transferable mastery.
+10. Close or pause with a recovery checkpoint and post-hoc dialogue archive.
 
 ## Directory layout
 
@@ -76,6 +77,7 @@ Use states: `not-started`, `explaining`, `questions`, `practicing`, `reviewing`,
 - Separate source facts, observations, explanations, inferences, and learner understanding.
 - Preserve mistakes, failed experiments, changed assumptions, and review history.
 - Record reproducible evidence before claiming correctness or performance.
+- Keep routine tests or rubrics agent-owned and the core practice artifact learner-owned.
 - Treat “changed,” “verified,” and “closed” as different review states.
 - Keep structured conclusions separate from unedited visible dialogue.
 - Resume from the latest checkpoint instead of reconstructing the course from memory.

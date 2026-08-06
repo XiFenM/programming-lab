@@ -1,13 +1,15 @@
 ---
 name: learn-by-practice
-description: Run structured, repository-aware learning programs that combine source-based explanation, learner questions, graduated practice, artifact review, revision, mastery checks, durable progress records, and post-hoc dialogue archives. Use when a user asks Codex to teach or study a technical or non-technical topic over multiple sessions; learn from tutorials, documentation, examples, papers, or a codebase; assign and review exercises; resume a paused course; maintain a learning journal; or transfer this guided-learning workflow to another subject or repository.
+description: Run structured, repository-aware learning programs that combine source-based explanation, learner questions, agent-authored acceptance tests, test-driven learner practice, artifact review, revision, mastery checks, durable progress records, and post-hoc dialogue archives. Use when a user asks Codex to teach or study a technical or non-technical topic over multiple sessions; learn from tutorials, documentation, examples, papers, or a codebase; assign and review exercises; resume a paused course; maintain a learning journal; or transfer this guided-learning workflow to another subject or repository.
 ---
 
 # Learn by Practice
 
-Build understanding through a repeatable loop: explain, question, practice, review,
-revise, demonstrate mastery, and preserve the evidence. Keep the learner in control of
-the practice work and treat the archive as part of the learning process.
+Build understanding through a repeatable loop: explain, question, define behavior,
+write acceptance tests, let the learner implement, review, revise, demonstrate mastery,
+and preserve the evidence. Keep the learner in control of the core practice artifact.
+For coding exercises, let the agent own routine test authoring so the learner can focus
+on test-driven implementation. Treat the archive as part of the learning process.
 
 ## Choose the operating mode
 
@@ -19,10 +21,12 @@ Infer the narrowest mode that satisfies the request:
   phase without repeating completed material.
 - **Resolve questions**: answer the learner's questions, test the explanation with a
   minimal example when useful, and update the lesson record.
-- **Assign practice**: design exercises that target the concepts just discussed and
-  define observable acceptance criteria.
+- **Assign practice**: design exercises that target the concepts just discussed,
+  define observable acceptance criteria, and author the executable behavioral tests
+  before the learner begins a coding implementation.
 - **Review work**: inspect the learner's artifact, run proportionate checks, record
-  findings, and let the learner revise unless they explicitly ask for implementation.
+  findings, add or repair regression tests when required behavior is uncovered, and
+  let the learner revise the core artifact unless they explicitly ask for implementation.
 - **Pause or close**: write a recovery checkpoint, synchronize evidence, and export the
   visible dialogue when the session source is available.
 
@@ -79,16 +83,39 @@ ongoing study or durable records.
   method, completion definition, and optional extensions.
 - Include at least one boundary or counterexample and one transfer variation when the
   subject permits it.
-- Keep the core implementation for the learner. Supply scaffolding or stronger hints
-  only when requested or when the learner is genuinely blocked.
+- For coding exercises, use a tests-first handoff: agree on the behavioral contract,
+  write the smallest useful acceptance suite in the repository, run it to distinguish
+  an expected red result from a broken test or environment, then give the learner the
+  exact command and a concise case map.
+- Test public behavior, invariants, boundaries, and invalid inputs without encoding or
+  revealing the intended internal implementation. Keep the suite small enough to read
+  and use as feedback rather than turning test construction into the lesson.
+- For benchmark exercises, test the performance factors under study and the validity of
+  the measurement boundary, such as warm-up, synchronization, resource configuration,
+  workload accounting, and reproducibility. Do not add parameter-validation or error-path
+  tests unless validation itself is a learning objective or the learner explicitly asks
+  for them. Keep correctness in a separate functional suite when the benchmark is
+  measurement-only.
+- Keep the core implementation for the learner. Do not assign routine test-case writing,
+  fixture work, or test refactoring to the learner unless testing itself is an explicit
+  learning objective or the learner opts in. Supply stronger implementation hints only
+  when requested or when the learner is genuinely blocked.
+- Minimize work outside the core learning objective. Omit optional scaffolding, metadata,
+  refactors, and evidence that do not affect mastery; let the agent handle small routine
+  support work when safe, or defer it explicitly instead of expanding the learner task.
 
 ### 5. Review the learner's artifact
 
 - Inspect before editing. Run repository-native validation in proportion to the risk.
+- Treat acceptance tests as agent-owned learning infrastructure. If a required behavior
+  lacks coverage or a test is wrong, add or repair the smallest test yourself before
+  handing the production-code revision back to the learner.
 - Lead with correctness and conceptual fidelity; then cover boundaries, error behavior,
   clarity, maintainability, reproducibility, and performance where relevant.
 - Number findings, assign a severity, cite evidence, propose a direction, and track the
   learner's disposition across revisions.
+- Do not create a learner finding merely because routine tests are missing. Record test
+  changes and learner implementation changes separately so authorship remains clear.
 - Distinguish “implemented” from “verified” and “closed.” Do not erase failed attempts
   or superseded findings from the record.
 
@@ -97,6 +124,8 @@ ongoing study or durable records.
 - Ask the learner to restate the central model in their own words.
 - Require an independent variation, prediction, comparison, or application that cannot
   be completed by copying the source mechanically.
+- Require the learner's implementation to pass the agent-authored acceptance tests and
+  ask them to explain at least one important boundary or failure case represented there.
 - Close the lesson only when blocking findings are closed, required evidence passes,
   the explanation is transferable, and the learner agrees to proceed.
 

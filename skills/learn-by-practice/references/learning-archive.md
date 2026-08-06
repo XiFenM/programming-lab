@@ -83,7 +83,8 @@ Keep `README.md` concise and operational. Include:
 - a lesson table with number, source unit, record link, state, and dialogue status;
 - one current checkpoint with active lesson, current phase, evidence, open work, next action,
   and the advancement gate;
-- stable principles such as source/evidence separation and learner ownership.
+- stable principles such as source/evidence separation, agent ownership of routine validation,
+  and learner ownership of the core practice artifact.
 
 Update the index when a lesson is created, its state changes, a dialogue is exported, a pause
 snapshot changes the recovery entry point, or the course plan changes.
@@ -112,10 +113,12 @@ Update the lesson after these events:
 2. **Explanation delivered**: mental model, important mechanisms, constraints, and pitfalls.
 3. **Question resolved**: original question, initial assumption, explanation, minimal example,
    conclusion, status, and derived question.
-4. **Practice assigned**: purpose, requirements, constraints, hints, cases, and completion gate.
-5. **Artifact submitted**: paths, learner design, commands, environment, and first results.
+4. **Practice assigned**: purpose, requirements, constraints, hints, representative cases,
+   agent-authored test or rubric paths, exact commands, initial red/sanity result, and completion gate.
+5. **Artifact submitted**: paths, learner design, commands, environment, and first results against
+   the provided validation.
 6. **Review completed**: numbered findings, severity, evidence, recommendation, disposition,
-   and current status.
+   current status, and any agent-authored regression-test changes.
 7. **Revision verified**: changed behavior, validation output, regressions, and findings closed.
 8. **Pause or completion**: checkpoint, mastery result, dialogue status, and next boundary.
 
@@ -132,7 +135,7 @@ period, or asks for a checkpoint. Include:
 | Position | Active lesson and exact phase |
 | Completed | Concepts, exercises, and reviews already finished |
 | Evidence | Latest reproducible commands and results |
-| Open work | Findings, questions, missing tests, or unverified changes |
+| Open work | Findings, questions, missing validation, or unverified changes, each with an owner |
 | Next actions | Small ordered steps that can be started immediately |
 | Advancement gate | Conditions required before the next lesson |
 | Dialogue | Export file or explicit “not yet exported” state |
@@ -165,6 +168,7 @@ Generalize the workflow, not the knowledge that makes the domain record useful.
 - Separate correctness from performance and exclude warm-up or first-use costs when claiming
   steady-state performance.
 - Give every review finding a durable ID and preserve rejected findings with rationale.
+- Attribute routine test/rubric changes to the agent and core artifact changes to the learner.
 - Prefer relative repository links in generated records.
 - Use the learner's language unless they request otherwise.
 - Keep the structured record readable without the raw dialogue, and keep the raw dialogue
