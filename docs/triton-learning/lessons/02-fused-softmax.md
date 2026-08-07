@@ -1294,6 +1294,7 @@ P02 完成要求：正确性与非法输入测试、唯一覆盖证明、资源�
 | 用途 | 路径 | 说明 |
 | --- | --- | --- |
 | Kernel / wrapper | `gpu/triton/lesson02_fused_softmax.py` | P01、P02-A、P02-B 最终版 |
+| CPU grid helper | `gpu/triton/lesson02_fused_softmax_grid.py` | `Resource`/`compute_grid` 纯 Python 实现；默认 CI 无需 Torch/Triton |
 | GPU tests | `gpu/triton/lesson02_fused_softmax_test.py` | 37 个用例；含默认路径、空 batch、真实资源 helper 与三个 benchmark shape 的独立正确性 |
 | CPU grid tests | `tests/python/test_lesson02_fused_softmax_grid.py` | 6 个用例；进入默认 CI，覆盖三类资源限制、row cap、shared=0 和零 resident |
 | Benchmark tests | `gpu/triton/lesson02_fused_softmax_benchmark_test.py` | AI agent 编写；27 个显式 GPU cases，当前全部通过 |

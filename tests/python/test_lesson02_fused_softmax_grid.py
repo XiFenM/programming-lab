@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from gpu.triton.lesson02_fused_softmax import Resource, compute_grid
+from gpu.triton.lesson02_fused_softmax_grid import Resource, compute_grid
 
 
 @pytest.fixture
