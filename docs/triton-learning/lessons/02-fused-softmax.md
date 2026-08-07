@@ -12,7 +12,7 @@
 | 完成日期 | 2026-08-06 |
 | 实践源码 | [`lesson02_fused_softmax.py`](../../../gpu/triton/lesson02_fused_softmax.py) |
 | 测试代码 | [`lesson02_fused_softmax_test.py`](../../../gpu/triton/lesson02_fused_softmax_test.py)（37 个 GPU cases）；[`lesson02_fused_softmax_benchmark_test.py`](../../../gpu/triton/lesson02_fused_softmax_benchmark_test.py)（27 个 GPU cases） |
-| 原始对话 | [02-A](../dialogues/02-fused-softmax.md)（29 条，暂停）；[02-B](../dialogues/02-fused-softmax-part2.md)（32 条，暂停）；[02-C](../dialogues/02-fused-softmax-part3.md)（153 条，结课段）；[02-D](../dialogues/02-fused-softmax-part4.md)（6 条，结课后性能答疑） |
+| 原始对话 | [02-A](../dialogues/02-fused-softmax.md)（29 条，暂停）；[02-B](../dialogues/02-fused-softmax-part2.md)（32 条，暂停）；[02-C](../dialogues/02-fused-softmax-part3.md)（153 条，结课段）；[02-D](../dialogues/02-fused-softmax-part4.md)（6 条，结课后性能答疑）；[02-E](../dialogues/02-fused-softmax-part5.md)（9 条，Log-softmax 回顾收尾快照） |
 | 补充材料 | [`experiment_results/lesson02/softmax`](../../../experiment_results/lesson02/softmax/)：最终资源、性能 CSV 与 PNG |
 
 ### 环境基线
@@ -911,7 +911,7 @@ benchmark 每次调用还会新建并设置 stream，但不恢复先前 stream�
 | --- | --- | --- | --- |
 | P01 | 普通 grid 的 fused softmax | reduction、padding、接口和边界测试 | **已完成** |
 | P02 | Persistent softmax 与 stages 实验 | 行分配、occupancy、资源和计时证据 | **已完成** |
-| P03 | Row-wise log-softmax 迁移 | 不照搬原式完成相关 reduction 算子 | 本课结课时取消；需要时另开迁移练习 |
+| P03 | Row-wise log-softmax 迁移 | 不照搬原式完成相关 reduction 算子 | 已完成概念过课；取消编码实践 |
 
 核心 kernel、wrapper 和测试均由学习者实现。可以请求分级提示或共同定位失败，但提示默认先解释
 概念和失败证据，不直接给出完整实现。
@@ -1284,7 +1284,8 @@ P02 完成要求：正确性与非法输入测试、唯一覆盖证明、资源�
 
 原计划把 max/sum reduction 迁移到 row-wise log-softmax。学习者在 P02 完成后明确结束 Lesson 02，
 并要求减少核心学习以外的消耗；现有 persistent 调度、资源推导和性能评价已提供足够的变式与迁移
-证据，因此 P03 不再作为本课 gate。以后若专门学习 log-softmax，再建立聚焦的短练习。
+证据，因此 P03 不再作为本课 gate。2026-08-07 补充完成 softmax 与 log-softmax 的
+概念和 kernel 数据流对比，但不新增实现、测试或 benchmark。
 
 ## 8. 实现与实验记录
 
@@ -1992,6 +1993,39 @@ grid = min(4096, 108 * 6) = 648
   Lesson 02 不扩展为 profiler/统计专题。
 - **最终结论**：stage 4 不最快是有效且符合模型的结果。`num_stages` 应当按 kernel、shape 和资源
   实测调优，通常交给 autotune，而不是选择允许值中最大的一个。
+
+#### P03-Q16：Log-softmax 与 softmax 的差异和额外注意点
+
+- **学习者范围选择**：不实现 P03，只快速过一遍数学式、kernel 数据流和工程边界。
+- **稳定公式**：对一行 `x` 取 `m=max(x)`、`z=x-m`、`s=sum(exp(z))`。Softmax 输出
+  `exp(z_i)/s`；log-softmax 输出 `z_i-log(s)`，即 `x_i-logsumexp(x)`。两者共享
+  max reduction、减 max、exp 和 sum reduction；最后一步从“向量除以行和”变成“行和取
+  log 后做向量减法”。
+- **不能写成 `log(softmax(x))`**：极小概率可能先在 softmax 中下溢为 0，再取 log 得到
+  `-inf`。CPU 最小实验中 `x=[0,-1000]` 的 `log(softmax(x))=[0,-inf]`，而稳定
+  `log_softmax(x)=[0,-1000]`。
+- **与现有代码的对应**：ordinary kernel 的 masked load/max 保持第 79–80 行不变；第
+  81–84 行应改为保留 `row_minus_max`，用它的 exp 值求和，再输出
+  `row_minus_max - tl.log(sum_exp)`。Persistent kernel 的第 96–101 行做同样的局部替换；行分配、
+  grid-stride 循环、`BLOCK_SIZE`、mask 和 `num_stages` 模型都不变。
+- **Padding 与空维度**：`other=-inf` 仍是正确 padding；它不影响 max，且在 exp 后贡献
+  0。对至少有一个有限值的非空行，最大元素会贡献 `exp(0)=1`，因而 `s>=1`。`M=0`
+  仍可直接返回；`N=0` 没有有效 max 或该锚点，应继续由 wrapper 拒绝。
+- **正确性不变量**：log-softmax 的每行和不应接近 1。应对照
+  `torch.log_softmax(x, dim=1)`，并检查 `logsumexp(output, dim=1)` 接近 0，或
+  `exp(output).sum(dim=1)` 接近 1。`N=1` 时唯一输出应为 0。
+- **性能和资源**：逻辑全局内存流量仍是每元素一读一写，但指令组合和值的 live range
+  发生变化；需要保留 `row_minus_max` 到行和完成，并新增一次每行 log。编译后 registers、
+  shared memory 和最佳 stages 不保证与 softmax 相同；若使用资源推导 grid，必须针对
+  log-softmax 的实际 specialization 重新读取，不能复用 softmax 的资源记录。
+- **训练边界**：log-softmax 常与 NLL loss 连用；对目标类 `k`，交叉熵是
+  `-log_softmax(x)[k]`。现有 Triton wrapper 只是 forward 教学算子；若用于真实训练，还要提供
+  autograd/backward 集成，不能因 forward 数值正确就直接替换 PyTorch 算子。
+- **学习者复述**：主要差异是计算公式；Triton 代码框架和优化方法与普通 softmax
+  没有太大差别。
+- **评估**：正确。两者共享 row-wise mapping、padding/mask、max/sum reduction、尾端融合、
+  persistent 调度与软件流水模型；但数值不变量、最后计算步骤和编译后资源仍要分别对待。
+- **状态**：Q16 已确认；P03 保持取消编码实践，Lesson 02 状态仍为已完成。
 
 ### 运行命令与结果
 
@@ -3012,9 +3046,9 @@ P02C-R12 的 ASCII label 修改后，Ruff、format、BasedPyright 全绿；P02-C
 | 静态证据 | 四个 Lesson 02 文件 Ruff/format/BasedPyright 全绿；`git diff --check` 通过 |
 | Findings | 所有 blocking/major/minor 均 verified/closed 或 rejected-with-rationale；无开放项 |
 | 掌握证据 | 概念复述、商余唯一覆盖、资源复算、persistent 变式、预测与实测复盘齐全 |
-| P03 范围 | log-softmax 迁移从本课取消；需要时另开聚焦短练习，不阻塞 Lesson 02 完成 |
+| P03 范围 | 已完成 log-softmax 概念回顾；编码迁移仍取消，不阻塞 Lesson 02 完成 |
 | 后续学习规则 | benchmark 测试聚焦性能影响因素与测量有效性，不做参数校验测试；减少非核心工作 |
-| 对话归档 | 02-A 29 条、02-B 32 条、02-C 153 条、02-D 6 条，均含 provenance 并已审核 |
+| 对话归档 | 02-A 29 条、02-B 32 条、02-C 153 条、02-D 6 条、02-E 9 条，均含 provenance 并已审核 |
 
 ### 最重要的三个结论
 
@@ -3044,6 +3078,19 @@ P02C-R12 的 ASCII label 修改后，Ruff、format、BasedPyright 全绿；P02-C
 - [x] 概念和实践验收均已通过
 - [x] 文档中的问题、实验和最终实现已同步
 - [x] 学习者确认结束本课；下一课可在新请求中启动
+
+### P03 快速回顾完成检查点（2026-08-07）
+
+| 项目 | 状态 |
+| --- | --- |
+| 课程状态 | Lesson 02 仍为**已完成**；本段是结课后快速回顾，没有重开课程 |
+| 完成内容 | stable log-softmax 公式、与 softmax kernel 的共用框架、padding/空维度、正确性不变量、资源和训练边界 |
+| 最小证据 | CPU float32：`x=[0,-1000]` 时 `log(softmax(x))=[0,-inf]`，stable log-softmax 为 `[0,-1000]` |
+| 学习者确认 | 正确复述“主要是计算公式差异，Triton 框架与优化方法大体共用” |
+| P03 范围 | 编码实践继续取消；未新增实现、测试或 benchmark |
+| 开放问题 | 无 |
+| 下一入口 | 在学习者提出新请求时开始 Lesson 03 Matrix Multiplication |
+| 对话归档 | 02-E 收尾快照已导出并审核，共 9 条可见消息 |
 
 ## 12. 原始对话与参考资料
 
@@ -3154,6 +3201,34 @@ P02C-R12 的 ASCII label 修改后，Ruff、format、BasedPyright 全绿；P02-C
     --end-before-user '明白了。那么接下来请提交git'
   ```
 
+#### Lesson 02-E：Softmax 与 Log-softmax 快速回顾
+
+- **归档文件**：[02-fused-softmax-part5.md](../dialogues/02-fused-softmax-part5.md)
+- **归档性质**：结课后回顾的收尾快照；只保存 log-softmax 概念过课、学习者复述和
+  明确结束边界，不覆盖已冻结的 02-C/02-D。
+- **Codex session**：`019fb5e8-54c6-77c0-8c7a-b489d135ee40`
+- **包含起点**：用户消息“我看到lesson02 softmax的实践任务中还有P03 row-wise
+  log-softmax……”。
+- **排他终点**：`2026-08-07T01:40:29Z`；包含学习者明确结束小课堂及随后的收尾过程更新。
+- **消息范围**：2026-08-07 01:24:23–01:40:28 UTC，共 9 条；包含 commentary。
+- **哈希**：source snapshot
+  `eb6cbf82dcb41dd6c17bc0d1e816dc9416570f1fada0b67fcbb85149a023cd38`；
+  selected dialogue
+  `bb28d498cadd5f149743364b0d9cdcf17ac7f7f95518b93461e3bb8a23fbb6fd`。
+- **审核结果**：首尾边界正确，3 条用户消息与 6 条助手消息顺序合理；未包含前一段容器
+  配置工作、system/developer/reasoning/tool 事件、凭据、私人 home 路径或附件内容。
+- **导出命令**：
+
+  ```bash
+  uv run --frozen python skills/learn-by-practice/scripts/export_codex_dialogue.py export \
+    <session-jsonl> \
+    docs/triton-learning/dialogues/02-fused-softmax-part5.md \
+    --title '第 02 课：Fused Softmax 与 Log-softmax 快速回顾对话（收尾快照）' \
+    --lesson 02-fused-softmax-part5 \
+    --start-user '我看到lesson02 softmax的实践任务中还有P03 row-wise log-softmax' \
+    --end-time '2026-08-07T01:40:29Z'
+  ```
+
 归档规则见 [`raw-dialogue-export.md`](../references/raw-dialogue-export.md)。
 
 ### 参考资料
@@ -3220,3 +3295,5 @@ P02C-R12 的 ASCII label 修改后，Ruff、format、BasedPyright 全绿；P02-C
 | 2026-08-06 | Lesson 02 完成 | 完成概念、实践、性能复盘与 153 条结课段对话归档；P03 从本课取消，无开放 finding |
 | 2026-08-06 | 学习流程精简 | 后续 benchmark 测试聚焦性能影响因素和测量有效性，不设置参数校验测试；减少非核心学习消耗 |
 | 2026-08-06 | P02-Q15 结课后答疑 | 解释 stage 4 未最优；补充 N=2049 资源/grid，区分默认策略比较与固定-grid 因果比较；另存 6 条 02-D 对话归档 |
+| 2026-08-07 | P03-Q16 概念过课与确认 | 对比 stable softmax/log-softmax 公式、kernel 数据流、padding、不变量、编译资源和训练边界；学习者正确复述共用框架与差异边界，不恢复编码实践 |
+| 2026-08-07 | P03 快速回顾收尾 | 保持 Lesson 02 已完成和 P03 编码实践取消；写入恢复检查点，导出并审核 9 条 02-E 收尾快照 |

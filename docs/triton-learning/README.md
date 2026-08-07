@@ -43,7 +43,8 @@ docs/triton-learning/
 │   ├── 02-fused-softmax.md            # 第二课开课至 P01 实现前暂停
 │   ├── 02-fused-softmax-part2.md      # 第二课 P01 实践与三轮评审
 │   ├── 02-fused-softmax-part3.md      # 第二课 Persistent、资源与 Benchmark 至结课
-│   └── 02-fused-softmax-part4.md      # 第二课结课后 Benchmark 解释补充
+│   ├── 02-fused-softmax-part4.md      # 第二课结课后 Benchmark 解释补充
+│   └── 02-fused-softmax-part5.md      # 第二课 Softmax/Log-softmax 快速回顾
 ├── lessons/
 │   ├── 01-vector-add.md              # 每个官方案例一份主记录
 │   ├── 02-fused-softmax.md
@@ -93,10 +94,11 @@ docs/triton-learning/
 | 02-B | Fused Softmax：P01 实践与三轮评审 | [dialogues/02-fused-softmax-part2.md](dialogues/02-fused-softmax-part2.md) | 32 | 暂停快照 |
 | 02-C | Fused Softmax：Persistent、资源与 Benchmark 至结课 | [dialogues/02-fused-softmax-part3.md](dialogues/02-fused-softmax-part3.md) | 153 | 已导出 |
 | 02-D | Fused Softmax：结课后 Benchmark 解释 | [dialogues/02-fused-softmax-part4.md](dialogues/02-fused-softmax-part4.md) | 6 | 已导出 |
+| 02-E | Fused Softmax：Softmax/Log-softmax 快速回顾 | [dialogues/02-fused-softmax-part5.md](dialogues/02-fused-softmax-part5.md) | 9 | 收尾快照 |
 
 ## 当前学习断点
 
-最近同步时间：2026-08-06。
+最近同步时间：2026-08-07。
 
 - 最近完成课程：第 02 课 Fused Softmax；第 01、02 课均已关闭。
 - 当前课程：无。下一入口是第 03 课 Matrix Multiplication，尚未开始。
@@ -107,8 +109,10 @@ docs/triton-learning/
 - 最终实验：三个 shape × 六条 provider/stage 曲线共 18 行；`N=781` 的 stages 1/2/4 均为
   8 resident programs/SM、100% 理论 occupancy，`N=2049` 则分别为 4/5/3 和 50%/62.5%/37.5%。
   本次 stage 1 均不慢于更深 stages，因此不把 stage 深度或 occupancy 视为单调性能指标。
-- 对话归档：Lesson 02-A/B/C/D 分别为 29、32、153、6 条；02-D 单独保留结课后的性能解释，
-  没有覆盖已冻结的 02-C。
+- 对话归档：Lesson 02-A/B/C/D/E 分别为 29、32、153、6、9 条；02-D/E 分别保留结课后
+  性能解释和 Softmax/Log-softmax 快速回顾，没有覆盖已冻结的 02-C。
+- 结课后补充：已快速过课 row-wise log-softmax 的稳定公式、kernel 差异和边界；
+  P03 编码实践仍取消，不重开 Lesson 02。
 - 后续性能专题：profiler、置信区间、cache 与 autotune 仅在它们成为核心问题时开展。
 
 ## 记录原则
