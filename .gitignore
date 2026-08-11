@@ -56,3 +56,10 @@ Thumbs.db
 
 # Explicit export destination for snapshot-mode containers
 container-export/
+
+# Generated Agent Skill discovery views and synchronization state
+/.agents/skills/
+/.claude/skills/
+/.agent-skills.state.json
+/.agent-skills.state.json.tmp-*
+/.agent-skills.lock

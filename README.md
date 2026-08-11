@@ -55,6 +55,8 @@ Toolkit 和 VS Code。
 ├── compose.persist.yaml             # 构建树与 uv/Cargo/GPU 缓存命名卷
 ├── compose.copy-persist.yaml        # 快照模式的仓库目录持久卷
 ├── .devcontainer/                   # bind/copy × persistent/ephemeral 四套配置
+├── .agent-skills/                   # 中央 Agent Skills 子模块（固定迁移版本）
+├── .agent-skills.json               # 中央 Skill 选择；M2 阶段保持空配置
 ├── .agents/skills/                  # 指向版本化 Skill 源码的仓库级发现链接
 ├── skills/
 │   └── learn-by-practice/           # 讲解、实践、评审、验收与学习归档闭环
@@ -112,6 +114,27 @@ Skill 的唯一源码位于 `skills/<skill-name>/`，可以正常参与 Git 版�
 “完整讲解 → 问题答疑 → 渐进练习 → 学习者实现 → 代码或作品评审 → 修改复审 → 掌握验收 →
 阶段归档”流程抽象为领域无关的 Skill。它可以初始化独立学习档案，也可以接管已有档案并从暂停
 checkpoint 恢复。
+
+### 中央 Skill 管线（M2 空接入）
+
+中央规范源以 [`.agent-skills`](.agent-skills) 子模块固定在
+`b2afd92854d57a375fdf990028c31561118cf8ec`。当前 [`.agent-skills.json`](.agent-skills.json)
+中的 `skills` 为空，因此现有 `skills/learn-by-practice` 与 `.agents/skills/learn-by-practice`
+仍保持原样，M2 不会新增、删除或覆盖任何发现入口。
+
+首次克隆或子模块尚未初始化时运行：
+
+```bash
+git submodule sync --recursive
+git submodule update --init --recursive .agent-skills
+```
+
+在真正切换 Skill 前，可以验证空配置不会产生复制或删除计划：
+
+```bash
+python .agent-skills/tools/materialize_skills.py --repo . --dry-run
+python .agent-skills/tools/materialize_skills.py --repo . --check
+```
 
 ## 宿主机要求
 
