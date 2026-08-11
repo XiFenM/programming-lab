@@ -29,8 +29,8 @@ Toolkit 和 VS Code。
   workspace。
 - 提供 Python/C++/Rust 的 Two Sum 示例和测试、原生 CUDA 与 Triton 向量加法 GPU
   冒烟程序、TileLang 安装探针。
-- Triton 第 01 课已经完成，包含实践 kernel、58 个 GPU 测试、性能实验、课程记录和原始
-  对话归档；第 02 课已完成完整讲解与当前答疑，并在 P01 自主实现前暂停。
+- Triton 第 01、02 课均已完成；既有课程记录与对话保留为 legacy evidence，第 03 课仍只是
+  尚未获启动授权的候选入口。
 - 提供初始化、诊断、格式化、静态检查、测试和全量验收脚本，并由 Makefile 统一入口。
 - 工作区可选宿主机 bind 双向同步或构建时一次性快照复制；CMake/Cargo 构建树、
   Python/编译缓存可选命名卷持久化或随容器删除。
@@ -38,8 +38,8 @@ Toolkit 和 VS Code。
   `privileged`、`NET_ADMIN` 或容器内 iptables。
 - 提供四套 VS Code Dev Container 组合、编辑器设置、推荐插件、任务和调试配置。
 - 提供可选的本地 pre-commit hook，以及不依赖 GPU 的 GitHub Actions 代码质量检查。
-- 仓库级 Codex Skills 的源码统一放在 `skills/<skill-name>/`，并通过
-  `.agents/skills/<skill-name>` 的相对软链接供当前仓库发现。
+- 仓库级 Codex Skills 由 `.agent-skills` 中央子模块固定版本，并根据
+  `.agent-skills.json` 生成到 `.agents/skills/` 供当前仓库发现。
 
 ## 仓库结构
 
@@ -56,10 +56,8 @@ Toolkit 和 VS Code。
 ├── compose.copy-persist.yaml        # 快照模式的仓库目录持久卷
 ├── .devcontainer/                   # bind/copy × persistent/ephemeral 四套配置
 ├── .agent-skills/                   # 中央 Agent Skills 子模块（固定迁移版本）
-├── .agent-skills.json               # 中央 Skill 选择；M2 阶段保持空配置
-├── .agents/skills/                  # 指向版本化 Skill 源码的仓库级发现链接
-├── skills/
-│   └── learn-by-practice/           # 讲解、实践、评审、验收与学习归档闭环
+├── .agent-skills.json               # 中央 Skill 选择；M3 为 Codex 启用两个学习 Skill
+├── .agents/skills/                  # materializer 生成的仓库级 Codex 发现副本
 ├── docker/                          # Bash 环境和容器专用 Cargo 镜像配置
 ├── docs/
 │   ├── cuda-upgrade.md             # CUDA/cuDNN/Ubuntu 基础镜像升级指南
@@ -107,20 +105,15 @@ Toolkit 和 VS Code。
 
 ## 仓库级 Codex Skills
 
-Skill 的唯一源码位于 `skills/<skill-name>/`，可以正常参与 Git 版本控制和跨仓库复制。
-`.agents/skills/` 只保存指向源码目录的相对软链接；不要在软链接路径下维护另一份副本。
-
-当前提供的 [`learn-by-practice`](skills/learn-by-practice/SKILL.md) 将 Triton 学习中形成的
-“完整讲解 → 问题答疑 → 渐进练习 → 学习者实现 → 代码或作品评审 → 修改复审 → 掌握验收 →
-阶段归档”流程抽象为领域无关的 Skill。它可以初始化独立学习档案，也可以接管已有档案并从暂停
-checkpoint 恢复。
-
-### 中央 Skill 管线（M2 空接入）
-
 中央规范源以 [`.agent-skills`](.agent-skills) 子模块固定在
-`b2afd92854d57a375fdf990028c31561118cf8ec`。当前 [`.agent-skills.json`](.agent-skills.json)
-中的 `skills` 为空，因此现有 `skills/learn-by-practice` 与 `.agents/skills/learn-by-practice`
-仍保持原样，M2 不会新增、删除或覆盖任何发现入口。
+`b2afd92854d57a375fdf990028c31561118cf8ec`。[`.agent-skills.json`](.agent-skills.json) 在 M3
+canary 中为 Codex 选择两个学习 Skill：
+
+- `guide-learning`：来源驱动讲解、自适应理解检查、按证据缺口触发的正式练习、Review 与 mastery。
+- `study-log`：按需提炼结构化学习过程，或在单独确认隐私和边界后保存可追溯可见文本对话。
+
+`.agents/skills/` 是 materializer 生成且被 Git 忽略的发现副本，不是第二份源码。不要手工修改、复制
+或提交其中内容；Skill 更新只通过中央子模块版本和消费配置完成。
 
 首次克隆或子模块尚未初始化时运行：
 
@@ -129,10 +122,11 @@ git submodule sync --recursive
 git submodule update --init --recursive .agent-skills
 ```
 
-在真正切换 Skill 前，可以验证空配置不会产生复制或删除计划：
+初始化子模块后，先预览计划，再生成发现副本并检查其与固定中央版本一致：
 
 ```bash
 python .agent-skills/tools/materialize_skills.py --repo . --dry-run
+python .agent-skills/tools/materialize_skills.py --repo .
 python .agent-skills/tools/materialize_skills.py --repo . --check
 ```
 
@@ -518,8 +512,8 @@ uv run --frozen python -m pytest -q gpu/triton/lesson01_vector_ops_test.py
 uv run --frozen python -m gpu.tilelang.check_install
 ```
 
-默认 pytest 只发现 `tests/python/` 和 `skills/learn-by-practice/tests/` 中不依赖 GPU 的测试，
-因此适合本地 CPU 回归和 GitHub Actions。课内 Triton 测试保留在 `gpu/triton/`，必须在可用
+默认 pytest 只发现 `tests/python/` 中不依赖 GPU 的测试，因此适合本地 CPU 回归和 GitHub Actions。
+课内 Triton 测试保留在 `gpu/triton/`，必须在可用
 GPU 环境中使用上面的显式命令运行。
 
 ## 环境验收具体做什么
@@ -652,14 +646,14 @@ clangd 和 Microsoft C/C++ IntelliSense 同时启用会产生重复诊断，因�
 
 命令面板中的 `Tasks: Run Task` 提供初始化、doctor、lint、test、完整 verify、CMake build、
 Triton 和 TileLang 入口。`launch.json` 提供当前 Python 文件、C++ Two Sum 和 Rust 测试的
-调试模板；Python Test Explorer 已指向默认的两个 CPU-only pytest 目录，不会自动收集需要
+调试模板；Python Test Explorer 已指向默认的 CPU-only `tests/python/` 目录，不会自动收集需要
 GPU 的课内 Triton 测试。
 
 ## GitHub Actions
 
 `.github/workflows/quality.yml` 在 push、pull request 或手动触发时运行：
 
-- Python Ruff、BasedPyright，以及算法和 `learn-by-practice` Skill 的 CPU-only pytest；
+- Python Ruff、BasedPyright，以及算法相关的 CPU-only pytest；
 - C++ 格式检查、CPU Two Sum 编译/执行和 ShellCheck；
 - Rust rustfmt、Clippy 和 tests。
 

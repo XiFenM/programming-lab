@@ -1,162 +1,57 @@
-# Codex 学习对话后验归档
+# Study Log 与 legacy 学习对话
 
-本功能用于在一节课结束或阶段性中断后，从 Codex rollout JSONL 中截取该课的原始可见对话，
-生成独立 Markdown 档案。它与单课主记录分工不同：
+第 01、02 课的 `docs/triton-learning/dialogues/*.md` 由旧 exporter 生成，现作为冻结的 legacy evidence
+保留。不要刷新、覆盖、重新格式化或批量替换其中的旧 Skill 名称、旧路径和历史命令。
 
-| 文档 | 作用 | 是否整理观点 |
-| --- | --- | --- |
-| `lessons/<NN>-<topic>.md` | 结构化讲解、结论、实践、评审和下一步 | 是 |
-| `dialogues/<NN>-<topic>.md` | 用户与助手实际可见消息的原始材料 | 否 |
+M3 起，学习对话提取由中央 `study-log` 唯一负责。用户只需用自然语言说明目标，不需要记忆脚本命令。
+Agent 根据意图区分两种按需产物：
 
-导出脚本是 [`scripts/export_codex_dialogue.py`](../../../scripts/export_codex_dialogue.py)，只使用
-Python 标准库，不修改原始 JSONL。
+| 模式 | 适用请求 | 保存内容 | 是否属于 Lesson 状态 |
+| --- | --- | --- | --- |
+| `structured` | 整理学习记录、提取纠错／高价值问答、准备制卡素材 | 原始回答、误解、纠错、关键问题与转折 | 否 |
+| `raw` | 保存原始／逐轮可见文本，用于审计、研究或复盘 | 经过固定过滤的可追溯可见文本 | 否 |
 
-## 导出边界
+用户只说“保存这段对话”时，先确认要精炼过程记录还是隐私风险更高的 raw。陪学暂停或收尾时可以在
+取得同意后生成 structured；绝不自动提议或生成 raw。
 
-默认保留：
+## Structured 边界
 
-- `response_item` 中 role 为 `user` 或 `assistant` 的文本消息。
-- 助手的 `commentary` 过程更新和 `final_answer` 正式回答。
-- 每条消息原有的 Markdown 正文和时间戳。
+- 只使用用户指定或当前任务直接相关的会话；有多个合理会话或主题边界时先确认。
+- 保留学习者的原始回答、误解、纠错、高价值问题和关键转折，不复制完整教学正文、Lesson stage、
+  Checkpoint 或 mastery。
+- 先在仓库外临时提取，再蒸馏到用户授权的位置；完成后删除临时材料。
+- 新记录可直接写入已授权目标；更新既有记录时必须先展示 diff 并取得确认，不得静默覆盖人工编辑。
 
-默认排除：
+## Raw 安全边界
 
-- system、developer 指令。
-- reasoning、工具调用、工具输出和其他内部事件。
-- 独立的 `<environment_context>` 消息。
-- 客户端独立注入的 `<skill>...</skill>` Skill 文档原文；用户显式写出的 Skill 调用请求仍保留。
-- 客户端独立注入的 `<recommended_plugins>...</recommended_plugins>` 推荐插件列表，以及紧随
-  `# AGENTS.md instructions for ...` 的 `<INSTRUCTIONS>...</INSTRUCTIONS>` 仓库指南。
-- IDE 自动注入的 active file、open tabs、附件列表等外壳；只保留
-  `## My request for Codex:` 后面的用户请求。
-- 规范化后相邻且完全相同的重复消息。这类重复可能在 session 恢复或 compaction 后出现。
+raw 的准确名称是“可追溯可见文本对话”，不是完整客户端 Session，也不等于匿名化。写入前必须合并
+展示并确认 provider、会话、source hash、起止消息及首尾预览、消息数、partial／final、隐私风险和
+私有目标位置。
 
-这是一种有明确规则的“原始对话导出”，不是逐字节复制 session。若研究客户端注入信息，可以
-使用 `--keep-client-context --keep-duplicates`；system、developer 和工具事件仍不会进入对话
-档案。当前脚本只导出 `input_text` / `output_text`，不会把图片等非文本内容嵌入 Markdown，原始
-JSONL 始终是最终溯源依据。
+- 默认排除 system、developer、reasoning、工具事件、客户端注入和附件正文。
+- 私有 archive root 没有隐式默认值；缺失时必须停止并询问绝对目录。默认写入 Git 工作树外，
+  本仓库的 `dialogues/` 不再接收新 raw。
+- 凭据默认阻止写入。优先缩小边界或改用 structured；脱敏或原样私存必须由用户明确选择。
+- 公司代码、内部 API、未公开硬件或性能数据等专有内容需要单独确认；所有权不清楚时停止。
+- 普通个人信息必须告警并纳入写入确认。用户坚持写入 Git 工作树时，目标必须未被跟踪且已被 Git
+  忽略；`study-log` 不修改 `.gitignore`。
+- raw 严格解析会话；任何坏行都停止，且原目标保持不变。
+- source 或目标内容在预览后变化时必须停止并重新预览。final 不覆盖；partial 只能在同一 archive 中
+  原位前进，并在每次更新前展示 diff、取得确认。
+- 不手工润色生成的消息正文。边界或隐私处理错误时调整规则并重新生成。
 
-## 推荐的后验流程
+## 内部实现入口
 
-### 1. 找到 session 文件
+materializer 完成后，Agent 使用：
 
-Codex session 通常位于 `/home/coder/.codex/sessions/`。可以列出候选文件：
-
-```bash
-rg --files /home/coder/.codex/sessions -g 'rollout-*.jsonl'
+```text
+.agents/skills/study-log/scripts/study_log.py
 ```
 
-优先根据修改时间、session ID 和消息预览确认来源，不要只凭文件名日期猜测。
+其内部流程固定为 `list → preview → extract`（structured）或 `list → preview → archive`（raw）。
+`extract` 与 `archive` 都带预览所得 source hash；raw 始终需要隐私确认，只有刷新或终结既有 partial
+时还必须同时带稳定 `archive_id` 与审阅过的目标 SHA-256。CLI 是机器接口，具体参数与错误处理以生成 Skill 自带的
+`references/extraction-contract.md` 为准，不把命令记忆负担交给学习者。
 
-### 2. 预览可截取边界
-
-```bash
-uv run --frozen python scripts/export_codex_dialogue.py list \
-  <session.jsonl> \
-  --role user \
-  --preview 180
-```
-
-列表中的文本已经按默认规则移除客户端上下文，可直接选取一条独特的开课用户消息和下一阶段
-用户消息作为边界。
-
-### 3. 导出一节课
-
-```bash
-uv run --frozen python scripts/export_codex_dialogue.py export \
-  <session.jsonl> \
-  docs/triton-learning/dialogues/01-vector-add.md \
-  --title '第 01 课：Vector Addition 原始学习对话' \
-  --lesson 01-vector-add \
-  --start-user '非常好，这就让我们开始第一课时吧。' \
-  --end-before-user '下一阶段第一条用户消息的独特片段'
-```
-
-- `--start-user`：包含第一条匹配的规范化用户消息。
-- `--end-before-user`：在后续第一条匹配的用户消息之前停止，不把它写入本课。
-- 两项都是 substring 匹配；应选择足够独特但不必复制整段的文本。
-- 未提供结束边界时会导出到当前日志末尾，因此 active session 更推荐明确指定结束边界。
-
-也可以按 ISO-8601 时间进一步限制：
-
-```bash
---start-time 2026-07-20T01:44:15Z \
---end-time 2026-07-20T09:15:00Z
-```
-
-开始时间包含，结束时间不包含。文本边界和时间边界同时提供时取交集。
-
-### 4. 审核再归档
-
-至少确认：
-
-1. 第一条和最后一条消息属于目标课程。
-2. `message_count` 与角色标签合理。
-3. 没有意外包含凭据、私人路径、附件内容或下一课对话。
-4. 单课主记录已链接到原始对话文件。
-5. 导出文件的 frontmatter 保留 source/session/hash 和规范化选项。
-
-脚本默认拒绝覆盖已有档案。确认边界和 diff 后才能显式使用 `--overwrite`：
-
-```bash
-uv run --frozen python scripts/export_codex_dialogue.py export \
-  <其余参数> \
-  --overwrite
-```
-
-这可以避免 active session 误选边界时静默破坏先前归档。
-
-## 其他选项
-
-### 只保留正式回答
-
-```bash
---final-only
-```
-
-它会排除助手 commentary，但保留全部用户消息和正式回答。原始材料档案默认不使用该选项，
-因为过程更新也是用户实际看到的对话。
-
-### 保留客户端上下文和重复消息
-
-```bash
---keep-client-context --keep-duplicates
-```
-
-该模式更接近 response item 原文，但会混入环境、IDE 标签和恢复时重复注入的消息。它仍然不会
-导出 system/developer、reasoning 或工具事件。
-
-## 输出格式与可追溯性
-
-每份档案的 frontmatter 包含：
-
-- `source_file` 与 `session_id`。
-- 导出时整个 JSONL 快照的 `source_sha256`。
-- 所选规范化消息序列的 `dialogue_sha256`。
-- 导出时间、首尾消息时间和消息数量。
-- client context、重复消息和 commentary 的处理选项。
-
-正文按顺序标记为“用户”“助手 / 过程更新”“助手 / 正式回答”。脚本不摘要或改写消息正文；
-主记录中的提炼、纠错和最终结论不能反向覆盖原始对话档案。
-
-## 已知限制
-
-- Codex rollout schema 可能随版本变化。当前实现以本仓库 2026-07-20 session 中的
-  `response_item -> payload.type=message` 为依据；schema 变化后应先更新合成测试。
-- 同一节课可能跨多个 session。当前一次 export 接受一个 JSONL；跨 session 时应分别导出后
-  人工建立索引，不能直接拼接并丢失 provenance。
-- substring 边界若不唯一会选择第一处匹配。先使用 `list` 预览，必要时换更独特文本或时间。
-- 非文本输入不会嵌入 Markdown，应保留原 session 和必要附件。
-- session 在 active 对话期间会继续追加；后验导出应明确结束边界并审核最终 diff。
-
-## 验证命令
-
-```bash
-uv run --frozen python -m pytest -q tests/python/test_export_codex_dialogue.py
-uv run --frozen ruff check scripts/export_codex_dialogue.py \
-  tests/python/test_export_codex_dialogue.py
-uv run --frozen ruff format --check scripts/export_codex_dialogue.py \
-  tests/python/test_export_codex_dialogue.py
-uv run --frozen basedpyright scripts/export_codex_dialogue.py \
-  tests/python/test_export_codex_dialogue.py
-```
+Lesson 只链接用户已审阅并批准的产物；structured、raw 和本页都不能成为课程 stage、当前下一动作或
+final mastery 的第二事实源。

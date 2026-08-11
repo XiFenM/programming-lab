@@ -1,365 +1,123 @@
-# 第 NN 课：课程名称
+# 第 NN 课：可独立验收的能力标题
 
 <!--
-复制本文件到 ../lessons/<NN>-<topic>.md 后填写。
-保留仍有价值的错误理解、失败实验和评审过程，不要只保留最终答案。
-不适用的章节注明“不适用”及原因，不要直接删除，以便各课记录结构保持一致。
+仅在学习者明确授权当前 Lesson 后创建。复制“核心记录”，再按实际发生追加条件片段；不要预建空的
+练习、finding、event、Checkpoint 或原始对话章节。第 01、02 课是冻结的 legacy evidence，不迁入本模板。
 -->
 
-## 1. 课程档案
+## 核心记录
 
 | 字段 | 内容 |
 | --- | --- |
-| 课程编号 | `NN` |
-| 官方案例 | `docs/triton-tutorials/official/<file>.py` |
-| 学习状态 | 未开始 / 讲解中 / 答疑中 / 实践中 / 评审中 / 待验收 / 已完成 |
-| 开始日期 | YYYY-MM-DD |
-| 完成日期 | — |
-| 实践源码 | `gpu/triton/<file>.py` |
-| 测试代码 | `路径或待创建` |
-| 原始对话 | `docs/triton-learning/dialogues/<NN>-<topic>.md` 或待导出 |
-| 补充材料 | `docs/triton-learning/attachments/<lesson>/` 或无 |
+| Lesson ID | `triton-NN-<topic>` |
+| Program | [Triton 学习档案](../README.md) |
+| 能力标题 | （一项可独立描述和验收的能力） |
+| 阶段 | `teaching` / `synthesis` / `practice` / `review` / `mastery-gate` / `complete` |
 
-### 环境基线
+### 来源
 
-<!-- 记录实际运行环境；版本变化可能改变 API、数值行为和性能。 -->
-
-| 项目 | 版本或型号 |
-| --- | --- |
-| GPU |  |
-| NVIDIA driver |  |
-| CUDA Toolkit (`nvcc`) |  |
-| Python |  |
-| PyTorch |  |
-| Triton |  |
-| 其他相关依赖 |  |
-
-### 进度检查
-
-- [ ] 已完成课前知识定位
-- [ ] 已阅读完整讲解
-- [ ] 已解决当前问题
-- [ ] 已接受实践任务
-- [ ] 已提交第一版实现
-- [ ] 已完成至少一轮代码评审
-- [ ] 已处理全部阻塞问题
-- [ ] 已通过正确性与边界测试
-- [ ] 已完成知识复述与变式验收
-- [ ] 已总结并关闭本课
-- [ ] 已在课程结束或中断时后验导出原始对话
-
-## 2. 学习目标与前置知识
-
-### 本课目标
-
-完成本课后，我应该能够：
-
-1. （待填写）
-2. （待填写）
-3. （待填写）
-
-### 前置知识检查
-
-| 知识点 | 掌握情况 | 需要补充的内容 |
-| --- | --- | --- |
-|  | 未确认 / 需复习 / 已掌握 |  |
-
-### 课前预测
-
-<!-- 在详细讲解前记录直觉。后面回看哪些预测正确、哪些误解最有价值。 -->
-
-- 我认为这个案例要解决的问题是：
-- 我预计一个 Triton program 会负责：
-- 我最不确定的是：
-
-## 3. 官方案例地图
-
-### 文件组成与执行入口
-
-<!-- 概括 import、kernel、Python wrapper、测试、benchmark 和 main 的关系。 -->
-
-### 输入、输出与约束
-
-| 项目 | shape | dtype | device | 布局/stride | 其他约束 |
-| --- | --- | --- | --- | --- | --- |
-| 输入 1 |  |  |  |  |  |
-| 输出 |  |  |  |  |  |
-
-### 高层执行流程
-
-```text
-输入
-  -> Python wrapper
-  -> 计算 launch grid 与 meta-parameters
-  -> 启动 Triton kernel
-  -> 正确性比较
-  -> benchmark（若有）
-```
-
-## 4. 详细讲解
-
-### 4.1 问题背景与 PyTorch baseline
-
-<!-- 说明算子语义、baseline 做法，以及为什么值得写 Triton kernel。 -->
-
-### 4.2 Triton 编程模型映射
-
-| 层次 | 本案例中的含义 |
-| --- | --- |
-| 整个问题 |  |
-| 一个 program instance |  |
-| 一个 block/tile |  |
-| 一个元素或位置 |  |
-| launch grid |  |
-
-### 4.3 Kernel 签名与参数分类
-
-<!-- 区分运行时参数、指针、stride、shape，以及 tl.constexpr 编译期参数。 -->
-
-| 参数 | 类型/角色 | 何时确定 | 用途 |
+| Locator | 角色 | 版本锚点 | 本课使用范围 |
 | --- | --- | --- | --- |
-|  |  | 运行时 / 编译时 |  |
+| `docs/triton-tutorials/official/<file>.py` | `teaching-spine` | 仓库 commit | 教学顺序与示例 |
+| `docs/triton-tutorials/official/<file>.py` | `implementation-authority` | 仓库 commit | 固定版本实现与控制流 |
 
-### 4.4 Kernel 逐段解析
+### 目标与证据门槛
 
-<!-- 按逻辑段落记录，不必机械复制整份官方源码。必要时引用准确行号。 -->
+<!-- 只保留 2–4 个紧密相关目标；required 维度在激活 Lesson 时声明，扩大门槛须重新授权。 -->
 
-#### Program ID 与索引生成
-
-#### 指针与地址计算
-
-#### Mask 与边界处理
-
-#### Load、计算与 store
-
-#### 编译期常量和编译器可见信息
-
-### 4.5 Python wrapper 与 launch grid
-
-<!-- 解释 grid 如何从问题规模推导，以及 callable grid/meta-parameters 的求值时机。 -->
-
-### 4.6 内存访问、数据布局与并行性
-
-<!-- 记录连续访问、合并访存、stride、tile 形状和 program 之间的工作划分。 -->
-
-### 4.7 正确性验证
-
-<!-- 说明 reference、容差、边界尺寸、异常输入及测试遗漏。 -->
-
-### 4.8 Benchmark 与性能解释
-
-<!-- 说明指标、warm-up、同步、量级、瓶颈假设；没有 benchmark 时写“不适用”。 -->
-
-### 4.9 容易误解或踩坑的地方
-
-1. （待填写）
-2. （待填写）
-3. （待填写）
-
-## 5. 我的理解与知识复述
-
-### 当前心智模型
-
-<!-- 不照抄讲解，用自己的话描述数据如何从输入走到输出。 -->
-
-### 我可以独立解释的问题
-
-- [ ] 为什么 grid 是当前形状？
-- [ ] 一个 program instance 处理哪些数据？
-- [ ] 为什么需要或不需要 mask？
-- [ ] 哪些值在编译期已知？这有什么影响？
-- [ ] 主要内存访问是否连续？
-- [ ] 正确性和性能分别如何验证？
-
-### 尚不牢固的概念
-
-- （待填写）
-
-## 6. 问题与答疑记录
-
-<!-- 每个问题保留独立编号。可复制下面的小节。 -->
-
-### Q01：问题标题
-
-- **日期**：YYYY-MM-DD
-- **我的原始问题**：
-- **提问时的理解/假设**：
-- **讲解与回答**：
-- **最小例子或推导**：
-- **最终结论**：
-- **是否解决**：是 / 否
-- **衍生问题**：无 / Qxx
-
-## 7. 实践任务
-
-### 通用验收要求
-
-- 实现放在 `gpu/triton/`，命名能表达练习目的。
-- 同时提供 PyTorch reference 和自动化正确性断言。
-- 至少覆盖一个不能被 block/tile 整除的尺寸。
-- 明确记录支持的 shape、dtype、device 和 stride；不支持时给出清晰检查或说明。
-- 先通过正确性测试，再进行性能测量。
-- benchmark 必须排除首次 JIT 编译，并记录同步和重复策略。
-
-### 练习 1：名称
-
-- **目的**：
-- **任务描述**：
-- **必须满足**：
-  1. （待填写）
-  2. （待填写）
-- **建议测试用例**：
-- **限制条件**：
-- **允许提示**：
-- **完成定义**：
-- **可选扩展**：
-
-### 练习 2：名称（可选）
-
-- **目的**：
-- **任务描述**：
-- **必须满足**：
-- **完成定义**：
-
-## 8. 实现与实验记录
-
-### 实现文件
-
-| 用途 | 路径 | 说明 |
-| --- | --- | --- |
-| Kernel / wrapper |  |  |
-| Tests |  |  |
-| Benchmark |  |  |
-
-### 第一版设计
-
-- 工作划分：
-- grid 与 block/tile：
-- mask 策略：
-- dtype/shape/stride 支持：
-- 我主动做出的取舍：
-
-### 运行命令与结果
-
-```bash
-# 在此记录可以直接复现的命令
-```
-
-```text
-在此记录关键输出；过长输出放入 attachments 并链接。
-```
-
-### 正确性用例
-
-| Case | shape/stride | dtype | 预期 | 实际 | 状态 |
+| ID | 可观察目标 | conceptual | practical | empirical | 本课 evidence 目标 |
 | --- | --- | --- | --- | --- | --- |
-|  |  |  |  |  | 通过 / 失败 |
+| O1 |  | required / not-required | required / not-required | required / not-required |  |
 
-### 性能实验
+### 当前证据
 
-| 日期 | GPU | 输入 | 配置 | baseline | Triton | 结论 |
+- **综合验收 evidence**：
+- **仍缺 evidence**：无 / 列出目标与维度
+- **权威知识产物引用**：文章、源码说明或其他稳定锚点；不复制教学正文。
+- **Fallback 心智模型**：仅在没有可链接的权威知识产物时写 3–6 行，否则删除本项。
+
+### 核心工件与参考
+
+| 角色 | 路径或引用 | 说明 |
+| --- | --- | --- |
+| learner-owned artifact |  | 仅在实际存在时记录 |
+| Agent-owned evidence |  | 测试、rubric、fixture 或实验记录 |
+| source / knowledge artifact |  | 不复制正文 |
+
+## 条件片段：Session event
+
+<!-- 每个有实质增量的会话段最多一条；无增量时不要添加。 -->
+
+| ID / 日期 | Lesson ref | 覆盖范围 | 完成动作 | Evidence 引用 | 未关闭问题 | Confirmed duration | Marker |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+|  | 本 Lesson ID |  |  |  |  | 仅用户提供时填写 | 无 / `closure` |
+
+## 条件片段：已接受的正式练习
+
+<!-- 只有综合验收仍有 evidence 缺口且学习者接受六块契约后，才追加本节。 -->
+
+- **Practice ID / revision / digest**：
+- **目标、缺失维度与 evidence gap**：
+- **Task**：
+- **Deliverables**：
+
+| Artifact | Learner 必须交付的 outcome |
+| --- | --- |
+|  |  |
+
+- **Acceptance**：
+
+| ID | 可观察标准 | Evidence method |
+| --- | --- | --- |
+| A1 |  |  |
+
+| 边界 | 路径或受限 pattern | 允许操作 |
+| --- | --- | --- |
+| learner-owned |  | read / create / modify / run |
+| agent-owned |  | read / create / modify / run / record |
+| read-only |  | read |
+| excluded |  | 无 |
+
+- **帮助如何影响独立 evidence**：说明 material assistance 只撤销受影响范围，并用无提示同构变式恢复。
+- **非目标与完成门槛**：列出 excluded 能力；required acceptance、映射的 blocking／major finding 与
+  已声明 mastery 维度共同决定完成。
+
+| Optional ID | 可观察 criterion | Evidence method |
+| --- | --- | --- |
+|  |  |  |
+
+| Acceptance event ref | Accepted revision | Accepted digest |
+| --- | --- | --- |
+|  |  |  |
+
+## 条件片段：Material assistance
+
+| 实际最高披露内容 | 受影响目标／acceptance／工件 | Agent 写入 learner core |
+| --- | --- | --- |
+|  |  | true / false |
+
+## 条件片段：Durable findings
+
+<!-- 同一根因只保留一条并原地更新；完整命令输出保留在原工件。 -->
+
+| ID | Maps to | Severity | Owner | Status | Evidence | Next action |
 | --- | --- | --- | --- | --- | --- | --- |
-|  |  |  |  |  |  |  |
+|  | O# / A# | blocking / major / minor / suggestion |  | open / closed / deferred / dismissed | 开启证据；终态验证或理由 | open 时恰好一个动作 |
 
-### 失败尝试与定位过程
+## 条件片段：Mastery gate 与关闭
 
-<!-- 记录症状、假设、验证方式、根因和修复，不要只写“已修复”。 -->
+<!-- 每行只对应一个“目标 × 一个 required 维度”；同一目标有多个 required 维度时分行。 -->
 
-| 编号 | 症状 | 初始假设 | 根因 | 修复/结论 |
-| --- | --- | --- | --- | --- |
-| F01 |  |  |  |  |
+| 目标 | 单一 Required 维度 | 最小 evidence 锚点 | 判断 |
+| --- | --- | --- | --- |
+| O1 | conceptual |  | 充分 / 不足 |
 
-## 9. 代码评审与修改闭环
+- **Required blocking／major 未关闭**：0 / 列出 ID
+- **Assistance 影响是否已恢复**：不适用 / evidence 引用
+- **Nonblocking／optional 余项**：无 / 列出
+- **学习者关闭确认**：日期与确认引用；未确认时不得写 final mastery
+- **Final mastery**：仅在确认关闭后记录每个目标与 required 维度的终态 evidence
 
-### 第 1 轮评审
-
-- **评审日期**：YYYY-MM-DD
-- **评审范围**：
-- **总体结论**：需要修改 / 基本通过 / 通过
-
-| ID | 严重程度 | 发现 | 建议 | 我的处理 | 状态 |
-| --- | --- | --- | --- | --- | --- |
-| R1-01 | 阻塞 / 重要 / 建议 / 提问 |  |  |  | 待处理 / 已修改 / 不采纳 / 已关闭 |
-
-#### 本轮修改摘要
-
-- （待填写）
-
-#### 复审结果
-
-- （待填写）
-
-<!-- 有后续评审时复制本节并依次编号，不能用新一轮覆盖旧一轮。 -->
-
-## 10. 掌握验收
-
-### 概念验收
-
-<!-- 尽量脱离源码回答。 -->
-
-1. 用自己的话描述这个 kernel 的 program、block 和元素之间的映射。
-2. 从输入规模推导 grid，并解释最后一个 program 的边界行为。
-3. 指出哪些参数是 `tl.constexpr`，以及这样设计的理由。
-4. 解释主要访存模式和潜在瓶颈。
-5. 如果输入 shape、dtype 或 stride 改变，哪些部分必须调整？
-
-### 实践验收
-
-- [ ] 官方示例的核心版本可以独立重写，而不是逐行照抄
-- [ ] 非整块尺寸正确
-- [ ] reference 与断言完整
-- [ ] 错误输入行为明确
-- [ ] 代码通过项目格式和静态检查
-- [ ] 性能结论有可复现实验支持，或明确说明本课不要求性能验收
-- [ ] 至少完成一个与原例不同的变式
-
-### 最终遗留问题
-
-- 无 / 列出问题及计划处理的课程
-
-## 11. 本课总结
-
-### 最重要的三个结论
-
-1. （待填写）
-2. （待填写）
-3. （待填写）
-
-### 我曾经的关键误解及修正
-
-- （待填写）
-
-### 可复用到后续课程的模式
-
-- （待填写）
-
-### 进入下一课的条件
-
-- [ ] 所有阻塞评审意见均已关闭
-- [ ] 概念和实践验收均已通过
-- [ ] 文档中的问题、实验和最终实现已同步
-- [ ] 学习者确认可以进入下一课
-
-## 12. 原始对话与参考资料
-
-### 原始对话归档
-
-- **归档文件**：`docs/triton-learning/dialogues/<NN>-<topic>.md`
-- **Codex session**：`rollout-<timestamp>-<session-id>.jsonl`
-- **截取边界**：从“开课用户消息”到“下一阶段用户消息”之前
-- **导出选项**：默认 / `--keep-client-context` / `--final-only` 等
-- **审核结果**：待审核 / 已确认首尾、消息数和敏感信息边界
-- **导出命令**：见 `docs/triton-learning/references/raw-dialogue-export.md`
-
-### 参考资料
-
-- 官方案例：
-- Triton API 文档：
-- PyTorch reference：
-- 其他资料：
-
-## 13. 文档变更记录
-
-| 日期 | 阶段 | 变更摘要 |
-| --- | --- | --- |
-| YYYY-MM-DD | 建档 | 创建课程记录 |
+原始对话或 structured 过程记录由 `study-log` 按需生成，只在本课链接已审阅产物；它们不保存当前阶段、
+Checkpoint 或 final mastery。确有跨会话恢复任务时，另在已披露且获授权的唯一位置保存可覆盖
+Checkpoint，不在本 Lesson 累积暂停快照。

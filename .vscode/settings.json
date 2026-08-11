@@ -22,10 +22,7 @@
   "python.defaultInterpreterPath": "/home/coder/.venvs/programming-lab/bin/python",
   "python.terminal.activateEnvironment": false,
   "python.testing.pytestEnabled": true,
-  "python.testing.pytestArgs": [
-    "tests/python",
-    "skills/learn-by-practice/tests"
-  ],
+  "python.testing.pytestArgs": ["tests/python"],
   "python.testing.unittestEnabled": false,
   "basedpyright.analysis.typeCheckingMode": "strict",
   "ruff.nativeServer": "on",

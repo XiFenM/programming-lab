@@ -33,7 +33,13 @@ default = true
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-extend-exclude = ["build", "target", "docs/triton-tutorials/official"]
+extend-exclude = [
+  ".agent-skills",
+  ".agents",
+  "build",
+  "target",
+  "docs/triton-tutorials/official",
+]
 
 [tool.ruff.lint]
 select = [
@@ -59,7 +65,7 @@ line-ending = "lf"
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"
-testpaths = ["tests/python", "skills/learn-by-practice/tests"]
+testpaths = ["tests/python"]
 
 [tool.basedpyright]
 include = ["leetcode/python", "tests/python"]

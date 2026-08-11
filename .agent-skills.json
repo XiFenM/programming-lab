@@ -1,5 +1,12 @@
 {
   "version": 1,
   "source": ".agent-skills",
-  "skills": {}
+  "skills": {
+    "guide-learning": [
+      "codex"
+    ],
+    "study-log": [
+      "codex"
+    ]
+  }
 }
