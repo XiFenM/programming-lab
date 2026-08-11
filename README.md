@@ -55,8 +55,8 @@ Toolkit 和 VS Code。
 ├── compose.persist.yaml             # 构建树与 uv/Cargo/GPU 缓存命名卷
 ├── compose.copy-persist.yaml        # 快照模式的仓库目录持久卷
 ├── .devcontainer/                   # bind/copy × persistent/ephemeral 四套配置
-├── .agent-skills/                   # 中央 Agent Skills 子模块（固定迁移版本）
-├── .agent-skills.json               # 中央 Skill 选择；M3 为 Codex 启用两个学习 Skill
+├── .agent-skills/                   # 中央 Agent Skills 子模块（固定中央版本）
+├── .agent-skills.json               # 中央 Skill 选择；当前为 Codex 启用两个学习 Skill
 ├── .agents/skills/                  # materializer 生成的仓库级 Codex 发现副本
 ├── docker/                          # Bash 环境和容器专用 Cargo 镜像配置
 ├── docs/
@@ -106,8 +106,8 @@ Toolkit 和 VS Code。
 ## 仓库级 Codex Skills
 
 中央规范源以 [`.agent-skills`](.agent-skills) 子模块固定在
-`b2afd92854d57a375fdf990028c31561118cf8ec`。[`.agent-skills.json`](.agent-skills.json) 在 M3
-canary 中为 Codex 选择两个学习 Skill：
+`4ce419ced337b15937af03a93f26468c0ea2ddeb`。[`.agent-skills.json`](.agent-skills.json) 当前为 Codex
+选择两个学习 Skill：
 
 - `guide-learning`：来源驱动讲解、自适应理解检查、按证据缺口触发的正式练习、Review 与 mastery。
 - `study-log`：按需提炼结构化学习过程，或在单独确认隐私和边界后保存可追溯可见文本对话。
