@@ -107,7 +107,7 @@ Toolkit 和 VS Code。
 ## 仓库级 Codex Skills
 
 中央规范源以 [`.agent-skills`](.agent-skills) 子模块固定在
-`f69403037443058518adce61e17f2983b99f38b8`。[`.agent-skills.json`](.agent-skills.json) 当前使用统一
+`c3ae66a5e3722664fb10ff4b69145262d3f51b20`。[`.agent-skills.json`](.agent-skills.json) 当前使用统一
 version 2 消费索引，并为 Codex
 选择两个学习 Skill：
 
