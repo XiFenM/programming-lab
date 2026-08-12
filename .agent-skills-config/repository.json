@@ -1,0 +1,20 @@
+{
+  "schema": "agent-skills.repository/v1",
+  "repository_id": "programming-lab",
+  "language": "zh-CN",
+  "timezone": "Asia/Shanghai",
+  "facts": {
+    "repository-guidelines": {
+      "path": "AGENTS.md",
+      "description": "Repository instructions, validation commands, and security boundaries."
+    },
+    "triton-tutorial-provenance": {
+      "path": "docs/triton-tutorials/SOURCE.md",
+      "description": "Pinned provenance for the local Triton tutorial snapshot."
+    },
+    "triton-tutorial-sources": {
+      "path": "docs/triton-tutorials/official",
+      "description": "Tracked local Triton tutorial source snapshot used as the teaching spine."
+    }
+  }
+}

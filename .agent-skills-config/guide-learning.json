@@ -1,0 +1,37 @@
+{
+  "schema": "agent-skills.guide-learning/v1",
+  "skill": "guide-learning",
+  "repository_fact_refs": [
+    {
+      "fact_id": "repository-guidelines",
+      "role": "repository-instructions",
+      "kind": "file"
+    },
+    {
+      "fact_id": "triton-tutorial-provenance",
+      "role": "source-catalog",
+      "kind": "file"
+    },
+    {
+      "fact_id": "triton-tutorial-sources",
+      "role": "knowledge-artifacts",
+      "kind": "collection"
+    }
+  ],
+  "record_mappings": {
+    "program": {
+      "path": "docs/triton-learning/README.md",
+      "kind": "file",
+      "section": "当前 Program 状态"
+    },
+    "checkpoint": {
+      "path": "docs/triton-learning/README.md",
+      "kind": "file",
+      "section": "Checkpoint"
+    },
+    "lesson": {
+      "path": "docs/triton-learning/lessons",
+      "kind": "collection"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "schema": "agent-skills.study-log/v1",
+  "skill": "study-log",
+  "structured_targets": [
+    {
+      "id": "triton-study-log",
+      "path": "docs/triton-learning/logs"
+    }
+  ]
+}

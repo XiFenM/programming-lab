@@ -32,6 +32,10 @@
   门槛和必要引用，不累积历史快照。
 - 文章、结构化过程记录、卡片和原始对话均为按需产物，不是 Program、Lesson 或 Checkpoint 的事实源。
 
+version 2 受管配置把本页的“当前 Program 状态”和“Checkpoint”两个章节分别映射为 Program 与唯一
+恢复游标，把 `lessons/` 映射为 Lesson 候选命名空间。这些映射只是 locator 和机械写入上限；不会启动
+第 03 课，也不会授权修改冻结的第 01、02 课记录。
+
 ## 目录约定
 
 ```text
@@ -43,6 +47,7 @@ docs/triton-learning/
 │   ├── pytest-gpu-kernel-tests.md     # Triton GPU 正确性测试参考
 │   └── raw-dialogue-export.md         # study-log 现行规则与 legacy 说明
 ├── dialogues/                        # 冻结的第 01、02 课 legacy 对话
+├── logs/                             # 按需生成的 structured 学习过程记录（首次写入时创建）
 ├── lessons/
 │   ├── 01-vector-add.md              # 冻结的旧结构 Lesson 记录
 │   ├── 02-fused-softmax.md
@@ -56,6 +61,8 @@ docs/triton-learning/
 - 少量实验结果可以写入 Lesson；过大或需要机器读取的内容放入 `attachments/` 并链接。
 - 官方教程快照保持原样，不在 `docs/triton-tutorials/official/` 中写笔记或修改代码。
 - `dialogues/` 不再接收新 raw 归档；其中旧名称、旧路径和历史命令保持原样。
+- `logs/` 是 `study-log` 配置的 structured target；不预建空目录，只有用户为本次记录指定精确文件后
+  才创建。raw archive 仍默认位于 Git 工作树外，不能从该 target 推导。
 
 ## 课程索引
 

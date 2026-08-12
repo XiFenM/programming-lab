@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "source": ".agent-skills",
   "skills": {
     "guide-learning": [
@@ -8,5 +8,12 @@
     "study-log": [
       "codex"
     ]
+  },
+  "config": {
+    "repository": ".agent-skills-config/repository.json",
+    "skills": {
+      "guide-learning": ".agent-skills-config/guide-learning.json",
+      "study-log": ".agent-skills-config/study-log.json"
+    }
   }
 }
