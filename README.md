@@ -56,8 +56,8 @@ Toolkit 和 VS Code。
 ├── compose.copy-persist.yaml        # 快照模式的仓库目录持久卷
 ├── .devcontainer/                   # bind/copy × persistent/ephemeral 四套配置
 ├── .agent-skills/                   # 中央 Agent Skills 子模块（固定中央版本）
-├── .agent-skills.json               # 中央 Skill 选择；当前为 Codex 启用两个学习 Skill
-├── .agent-skills-config/            # 两个学习 Skill 的仓库事实与受管位置配置
+├── .agent-skills.json               # 中央 Skill 选择；当前为 Codex 启用四个学习 Skill
+├── .agent-skills-config/            # 四个学习 Skill 的仓库事实与受管位置配置
 ├── .agents/skills/                  # materializer 生成的仓库级 Codex 发现副本
 ├── docker/                          # Bash 环境和容器专用 Cargo 镜像配置
 ├── docs/
@@ -107,17 +107,20 @@ Toolkit 和 VS Code。
 ## 仓库级 Codex Skills
 
 中央规范源以 [`.agent-skills`](.agent-skills) 子模块固定在
-`c3ae66a5e3722664fb10ff4b69145262d3f51b20`。[`.agent-skills.json`](.agent-skills.json) 当前使用统一
+`3f187b818b3614de63c3081272fb6f7273985752`。[`.agent-skills.json`](.agent-skills.json) 当前使用统一
 version 2 消费索引，并为 Codex
-选择两个学习 Skill：
+选择四个学习 Skill：
 
 - `guide-learning`：来源驱动讲解、自适应理解检查、按证据缺口触发的正式练习、Review 与 mastery。
 - `study-log`：按需提炼结构化学习过程，或在单独确认隐私和边界后保存可追溯可见文本对话。
+- `english-coach`：只在实际使用英语或明确要求时提供技术英语反馈；默认零写入。
+- `memo-cards`：只在明确要求时从受管 structured log 预览或生成 Markji 暂存卡片。
 
 受 Git 跟踪的 [`.agent-skills-config/`](.agent-skills-config) 只提供公共 repository facts、学习状态
-locator 和 structured log target。它不保存当前课程状态，不授予开课、写入、练习、mastery 或 raw
-归档权限；具体操作仍以仓库事实和用户当轮授权为准。`study-log` 的 raw 私有位置、会话和消息边界不会
-进入这些公共配置。
+locator、structured log target 以及英语反馈／卡片的窄 collection。它不保存当前课程状态，不授予
+开课、读取 raw、写入、制卡、练习、mastery 或归档权限；具体操作仍以仓库事实和用户当轮授权为准。
+`study-log` 的 raw 私有位置、会话和消息边界不会进入这些公共配置。冻结的 legacy 对话、Lesson、模板
+与参考资料均不属于 `english-coach` 或 `memo-cards` 的允许来源。
 
 `.agents/skills/` 是 materializer 生成且被 Git 忽略的发现副本，不是第二份源码。不要手工修改、复制
 或提交其中内容；Skill 更新只通过中央子模块版本和消费配置完成。

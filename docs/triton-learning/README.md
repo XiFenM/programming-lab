@@ -47,7 +47,8 @@ docs/triton-learning/
 │   ├── pytest-gpu-kernel-tests.md     # Triton GPU 正确性测试参考
 │   └── raw-dialogue-export.md         # study-log 现行规则与 legacy 说明
 ├── dialogues/                        # 冻结的第 01、02 课 legacy 对话
-├── logs/                             # 按需生成的 structured 学习过程记录（首次写入时创建）
+├── logs/                             # 按需生成的 structured 学习过程记录
+├── cards/                            # 按需生成的受管 Markji 暂存卡片
 ├── lessons/
 │   ├── 01-vector-add.md              # 冻结的旧结构 Lesson 记录
 │   ├── 02-fused-softmax.md
@@ -61,8 +62,11 @@ docs/triton-learning/
 - 少量实验结果可以写入 Lesson；过大或需要机器读取的内容放入 `attachments/` 并链接。
 - 官方教程快照保持原样，不在 `docs/triton-tutorials/official/` 中写笔记或修改代码。
 - `dialogues/` 不再接收新 raw 归档；其中旧名称、旧路径和历史命令保持原样。
-- `logs/` 是 `study-log` 配置的 structured target；不预建空目录，只有用户为本次记录指定精确文件后
-  才创建。raw archive 仍默认位于 Git 工作树外，不能从该 target 推导。
+- `logs/` 是 `study-log` 的 structured target，也是 `english-coach` 与 `memo-cards` 唯一共享的学习记录
+  collection；目录中的技术占位文件不属于素材，只有用户为本次记录指定并授权的精确 Markdown 才是记录。
+- `cards/` 是 `memo-cards` 的候选输出 collection；只有 `triton-*.md` 进入受管 inventory。静态目录与
+  配置都不授权制卡或发布，legacy 对话与 Lesson 也不会被隐式读取。
+- raw archive 仍默认位于 Git 工作树外，不能从 structured target 推导。
 
 ## 课程索引
 

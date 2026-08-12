@@ -1,0 +1,29 @@
+{
+  "schema": "agent-skills.memo-cards/v1",
+  "skill": "memo-cards",
+  "adapter": {
+    "id": "markji",
+    "client_version": "3.8.00",
+    "profile": "programming-lab-markji"
+  },
+  "input_collections": [
+    {
+      "id": "triton-study-logs",
+      "kind": "structured-log",
+      "patterns": [
+        "docs/triton-learning/logs/*.md"
+      ]
+    }
+  ],
+  "output_collections": [
+    {
+      "id": "triton-cards",
+      "patterns": [
+        "docs/triton-learning/cards/triton-*.md"
+      ],
+      "inventory_patterns": [
+        "docs/triton-learning/cards/triton-*.md"
+      ]
+    }
+  ]
+}

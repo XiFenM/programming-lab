@@ -2,7 +2,13 @@
   "version": 2,
   "source": ".agent-skills",
   "skills": {
+    "english-coach": [
+      "codex"
+    ],
     "guide-learning": [
+      "codex"
+    ],
+    "memo-cards": [
       "codex"
     ],
     "study-log": [
@@ -12,7 +18,9 @@
   "config": {
     "repository": ".agent-skills-config/repository.json",
     "skills": {
+      "english-coach": ".agent-skills-config/english-coach.json",
       "guide-learning": ".agent-skills-config/guide-learning.json",
+      "memo-cards": ".agent-skills-config/memo-cards.json",
       "study-log": ".agent-skills-config/study-log.json"
     }
   }

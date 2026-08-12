@@ -1,0 +1,27 @@
+{
+  "schema": "agent-skills.english-coach/v1",
+  "skill": "english-coach",
+  "learner": {
+    "first_language": "zh-CN"
+  },
+  "target_registers": [
+    "interview",
+    "technical"
+  ],
+  "feedback_focus": [
+    "collocation",
+    "precision",
+    "technical-clarity"
+  ],
+  "repository_fact_refs": [],
+  "record_files": [],
+  "record_collections": [
+    {
+      "id": "triton-study-logs",
+      "record_type": "structured-study-log",
+      "path": "docs/triton-learning/logs",
+      "format": "markdown"
+    }
+  ],
+  "save_targets": []
+}
