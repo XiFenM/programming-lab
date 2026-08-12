@@ -4,6 +4,10 @@
   "language": "zh-CN",
   "timezone": "Asia/Shanghai",
   "facts": {
+    "algorithm-interview-course": {
+      "path": "docs/algorithm-interview-course",
+      "description": "Imported textual algorithm-interview course used as a read-only knowledge source for later LeetCode study and practice."
+    },
     "repository-guidelines": {
       "path": "AGENTS.md",
       "description": "Repository instructions, validation commands, and security boundaries."

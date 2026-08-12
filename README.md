@@ -31,6 +31,8 @@ Toolkit 和 VS Code。
   冒烟程序、TileLang 安装探针。
 - Triton 第 01、02 课均已完成；既有课程记录与对话保留为 legacy evidence，第 03 课仍只是
   尚未获启动授权的候选入口。
+- 提供一套从既有算法面试视频课程归纳而来的完整文字课程：70 篇单课笔记、11 篇章节综述、全课程
+  综合、概念词表和关系图，作为后续 LeetCode 学习实践的只读知识材料。
 - 提供初始化、诊断、格式化、静态检查、测试和全量验收脚本，并由 Makefile 统一入口。
 - 工作区可选宿主机 bind 双向同步或构建时一次性快照复制；CMake/Cargo 构建树、
   Python/编译缓存可选命名卷持久化或随容器删除。
@@ -61,6 +63,7 @@ Toolkit 和 VS Code。
 ├── .agents/skills/                  # materializer 生成的仓库级 Codex 发现副本
 ├── docker/                          # Bash 环境和容器专用 Cargo 镜像配置
 ├── docs/
+│   ├── algorithm-interview-course/ # 算法面试文字课程、知识图谱与复习路线
 │   ├── cuda-upgrade.md             # CUDA/cuDNN/Ubuntu 基础镜像升级指南
 │   ├── proxy-configuration.md      # v2rayA Lite 与 Codex CLI 代理配置指南
 │   ├── triton-learning/            # Triton 课程记录、评审、附件与原始对话

@@ -3,6 +3,11 @@
   "skill": "guide-learning",
   "repository_fact_refs": [
     {
+      "fact_id": "algorithm-interview-course",
+      "role": "knowledge-artifacts",
+      "kind": "collection"
+    },
+    {
       "fact_id": "repository-guidelines",
       "role": "repository-instructions",
       "kind": "file"

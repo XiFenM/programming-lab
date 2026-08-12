@@ -15,6 +15,13 @@ The repository selects `guide-learning`, `study-log`, `english-coach`, and `memo
 English feedback is zero-write, and card inputs are limited to tracked structured logs; frozen
 legacy dialogues and Lessons are never implicit English-review or card sources.
 
+`docs/algorithm-interview-course/` is an imported, read-only textual course snapshot for future
+LeetCode study. Use its overview, chapter summaries, lesson notes, and knowledge graph as source
+material, but do not infer an active Lesson, mastery, or practice authorization from the course
+order. Put implementations and tests in the existing `leetcode/` and `tests/` trees rather than
+editing the imported course in bulk. Its original media and production records remain outside this
+repository.
+
 ## Build, Test, and Development Commands
 
 Run commands inside the development container.

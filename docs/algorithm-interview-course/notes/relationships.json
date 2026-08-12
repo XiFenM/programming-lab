@@ -1,0 +1,3072 @@
+{
+  "schemaVersion": 1,
+  "allowedTypes": [
+    "prerequisite_of",
+    "recommended_before",
+    "extends",
+    "revisits",
+    "applies",
+    "contrasts_with",
+    "alternative_to",
+    "same_pattern_as",
+    "same_problem_family_as",
+    "uses_data_structure",
+    "implements_algorithm",
+    "solves_problem",
+    "addresses_pitfall"
+  ],
+  "edges": [
+    {
+      "id": "edge:outline:01-01:01-02",
+      "from": "lesson:01-01",
+      "to": "lesson:01-02",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "01-01 先澄清算法面试不等于答对每题或完整技术面试，01-02 开头明确回顾并把讨论扩展到技术面试和整体招聘评价。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "01-01",
+          "assetId": "asset:video-01-01",
+          "startMs": 175000,
+          "endMs": 326000,
+          "locator": "ev-003 · 02:55-05:26"
+        },
+        {
+          "lessonId": "01-02",
+          "assetId": "asset:video-01-02",
+          "startMs": 0,
+          "endMs": 223000,
+          "locator": "ev-001 · 00:00-03:43"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-01-review-v1"
+    },
+    {
+      "id": "edge:outline:01-02:01-03",
+      "from": "lesson:01-02",
+      "to": "lesson:01-03",
+      "type": "recommended_before",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "01-02 结尾从面试全貌过渡到算法准备；01-03 开头明确承接上一小节，先区分“准备面试”与“准备算法面试”，再给出准备范围。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "01-02",
+          "assetId": "asset:video-01-02",
+          "startMs": 877000,
+          "endMs": 891760,
+          "locator": "ev-005 · 14:37-14:51"
+        },
+        {
+          "lessonId": "01-03",
+          "assetId": "asset:video-01-03",
+          "startMs": 0,
+          "endMs": 39000,
+          "locator": "ev-001 · 00:00-00:39"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-01-review-v1"
+    },
+    {
+      "id": "edge:outline:01-03:01-04",
+      "from": "lesson:01-03",
+      "to": "lesson:01-04",
+      "type": "recommended_before",
+      "strength": "medium",
+      "status": "provisional",
+      "rationale": "从面试前准备进入面试现场的回答方法。",
+      "confidence": 0.86,
+      "evidence": [],
+      "createdBy": "outline-analysis-v1"
+    },
+    {
+      "id": "edge:video:01-03:01-01",
+      "from": "lesson:01-03",
+      "to": "lesson:01-01",
+      "type": "revisits",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "01-01 以“不必啃完《算法导论》”帮助学习者降低畏惧；01-03 再次回到这一点，并用具体内容说明算法面试准备不需要完整掌握该书。",
+      "confidence": 0.93,
+      "evidence": [
+        {
+          "lessonId": "01-01",
+          "assetId": "asset:video-01-01",
+          "startMs": 46000,
+          "endMs": 175000,
+          "locator": "ev-002 · 00:46-02:55"
+        },
+        {
+          "lessonId": "01-03",
+          "assetId": "asset:video-01-03",
+          "startMs": 39000,
+          "endMs": 235000,
+          "locator": "ev-002 · 00:39-03:55"
+        }
+      ],
+      "createdBy": "chapter-01-review-v1"
+    },
+    {
+      "id": "edge:video:01-04:02-01",
+      "from": "lesson:01-04",
+      "to": "lesson:02-01",
+      "type": "recommended_before",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "01-04 结尾明确预告下一章将系统介绍算法的时间复杂度，形成从面试回答框架到 Big O 分析工具的课程过渡。",
+      "confidence": 0.97,
+      "evidence": [
+        {
+          "lessonId": "01-04",
+          "assetId": "asset:video-01-04",
+          "startMs": 749000,
+          "endMs": 824440,
+          "locator": "ev-008 · 12:29-13:40（片尾至实测 13:44.44）"
+        },
+        {
+          "lessonId": "02-01",
+          "assetId": "asset:video-02-01",
+          "startMs": 0,
+          "endMs": 109000,
+          "locator": "ev-001–ev-002 · 00:00-01:49"
+        }
+      ],
+      "createdBy": "chapter-01-review-v1; evidence-audited-by chapter-07-review-v1"
+    },
+    {
+      "id": "edge:video-outline:01-04:02-02",
+      "from": "lesson:01-04",
+      "to": "lesson:02-02",
+      "type": "extends",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "01-04 已用 n≈10000、n=100 与 O(n²)/O(n³) 做规模可行性判断；02-02 将这种判断系统化为 1 秒时间预算下不同复杂度可处理的数据数量级。",
+      "confidence": 0.96,
+      "evidence": [
+        {
+          "lessonId": "01-04",
+          "assetId": "asset:video-01-04",
+          "startMs": 25000,
+          "endMs": 383000,
+          "locator": "ev-002–ev-004 · 00:25-06:23"
+        },
+        {
+          "lessonId": "02-02",
+          "assetId": "asset:video-02-02",
+          "startMs": 266000,
+          "endMs": 523000,
+          "locator": "ev-003 · 04:26-08:43"
+        }
+      ],
+      "createdBy": "chapter-02-preflight-v1; verified-by chapter-02-review-v1"
+    },
+    {
+      "id": "edge:video-outline:01-04:02-03",
+      "from": "lesson:01-04",
+      "to": "lesson:02-03",
+      "type": "extends",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "01-04 用 LeetCode 3 的 O(n³) 暴力法示范规模判断和瓶颈定位；02-03 进一步用顺序、固定次数、嵌套和按比例缩小等代码结构系统化复杂度推导。",
+      "confidence": 0.94,
+      "evidence": [
+        {
+          "lessonId": "01-04",
+          "assetId": "asset:video-01-04",
+          "startMs": 205000,
+          "endMs": 623000,
+          "locator": "ev-004–ev-005 · 03:25-10:23"
+        },
+        {
+          "lessonId": "02-03",
+          "assetId": "asset:video-02-03",
+          "startMs": 30000,
+          "endMs": 391000,
+          "locator": "ev-002–ev-004 · 00:30-06:31"
+        }
+      ],
+      "createdBy": "chapter-02-preflight-v1; verified-by chapter-02-review-v1"
+    },
+    {
+      "id": "edge:video-outline:01-04:03-08",
+      "from": "lesson:01-04",
+      "to": "lesson:03-08",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "01-04 以 LeetCode 3 的 O(n³) 暴力法建立可行基线；03-08 回到同一题，使用滑动窗口和 freq[256] 完成线性扫描解法，形成从宏观优化方法到完整实现的明确延伸。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "01-04",
+          "assetId": "asset:video-01-04",
+          "startMs": 205000,
+          "endMs": 383000,
+          "locator": "ev-004 · 03:25-06:23"
+        },
+        {
+          "lessonId": "03-08",
+          "assetId": "asset:video-03-08",
+          "startMs": 0,
+          "endMs": 586000,
+          "locator": "ev-001–ev-003 · 00:00-09:46"
+        }
+      ],
+      "createdBy": "chapter-01-review-v1; verified-by chapter-03-review-v1"
+    },
+    {
+      "id": "edge:video-outline:03-05:01-01",
+      "from": "lesson:03-05",
+      "to": "lesson:01-01",
+      "type": "revisits",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "01-01 用重复元素等数据特征说明排序算法应由约束驱动选择；03-05 具体应用三路快排 partition 处理只有 0、1、2 三种取值的 Sort Colors，回访并落实这一选型思想。",
+      "confidence": 0.96,
+      "evidence": [
+        {
+          "lessonId": "01-01",
+          "assetId": "asset:video-01-01",
+          "startMs": 326000,
+          "endMs": 1010000,
+          "locator": "ev-004 · 05:26-16:50"
+        },
+        {
+          "lessonId": "03-05",
+          "assetId": "asset:video-03-05",
+          "startMs": 27000,
+          "endMs": 816000,
+          "locator": "ev-001–ev-006 · 00:27-13:36"
+        }
+      ],
+      "createdBy": "chapter-01-review-v1; verified-by chapter-03-review-v1"
+    },
+    {
+      "id": "edge:outline:07-03:01-01",
+      "from": "lesson:07-03",
+      "to": "lesson:01-01",
+      "type": "revisits",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "01-01 把“正确回答”扩展到思路表达、优化、代码质量和容错；07-03 再次强调面试不是只判答案对错，还会观察共同讨论与解决问题的体验。两课共同否定只看最终答案的单一评价，但 07-03 的工程与用户价值讨论不等同于 01-01 的算法作答框架。",
+      "confidence": 0.96,
+      "evidence": [
+        {
+          "lessonId": "07-03",
+          "assetId": "asset:text-07-03",
+          "startMs": null,
+          "endMs": null,
+          "locator": "ev-002 · 第 8–11 段"
+        },
+        {
+          "lessonId": "01-01",
+          "assetId": "asset:video-01-01",
+          "startMs": 1010000,
+          "endMs": 1180280,
+          "locator": "ev-005 · 16:50-19:40"
+        }
+      ],
+      "createdBy": "text-inventory-v1; verified-by chapter-07-review-v1"
+    },
+    {
+      "id": "edge:outline:07-03:01-02",
+      "from": "lesson:07-03",
+      "to": "lesson:01-02",
+      "type": "revisits",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "01-02 明确说明算法面试只是技术面试的一部分，并列出项目和多类工程能力；07-03 从争议故事重新并置算法知识、软件工程才能、创造力与合作体验，重访多维评价主题而不声称这些维度能互相替代。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "07-03",
+          "assetId": "asset:text-07-03",
+          "startMs": null,
+          "endMs": null,
+          "locator": "ev-002 · 第 8–11 段"
+        },
+        {
+          "lessonId": "07-03",
+          "assetId": "asset:text-07-03",
+          "startMs": null,
+          "endMs": null,
+          "locator": "ev-008–ev-009 · 第 54–69 段"
+        },
+        {
+          "lessonId": "01-02",
+          "assetId": "asset:video-01-02",
+          "startMs": 0,
+          "endMs": 223000,
+          "locator": "ev-001 · 00:00-03:43"
+        }
+      ],
+      "createdBy": "text-inventory-v1; verified-by chapter-07-review-v1"
+    },
+    {
+      "id": "edge:outline:02-01:02-02",
+      "from": "lesson:02-01",
+      "to": "lesson:02-02",
+      "type": "recommended_before",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "02-01 建立 Big O 与增长量级的含义；02-02 开头明确回顾该概念，再把它用于可处理数据规模和空间成本判断。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "02-01",
+          "assetId": "asset:video-02-01",
+          "startMs": 38000,
+          "endMs": 109000,
+          "locator": "ev-002 · 00:38-01:49"
+        },
+        {
+          "lessonId": "02-02",
+          "assetId": "asset:video-02-02",
+          "startMs": 0,
+          "endMs": 61000,
+          "locator": "ev-001 · 00:00-01:01"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-02-review-v1"
+    },
+    {
+      "id": "edge:outline:02-02:02-03",
+      "from": "lesson:02-02",
+      "to": "lesson:02-03",
+      "type": "recommended_before",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "02-02 建立数据规模、时间预算和空间复杂度概念；02-03 随即把这些概念落实到常见代码结构的逐例分析。",
+      "confidence": 0.97,
+      "evidence": [
+        {
+          "lessonId": "02-02",
+          "assetId": "asset:video-02-02",
+          "startMs": 266000,
+          "endMs": 523000,
+          "locator": "ev-003 · 04:26-08:43"
+        },
+        {
+          "lessonId": "02-03",
+          "assetId": "asset:video-02-03",
+          "startMs": 0,
+          "endMs": 30000,
+          "locator": "ev-001 · 00:00-00:30"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-02-review-v1"
+    },
+    {
+      "id": "edge:outline:02-01:02-03",
+      "from": "lesson:02-01",
+      "to": "lesson:02-03",
+      "type": "recommended_before",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "02-01 给出 Big O 的语义、常数省略和增长阶；02-03 直接使用这些规则分析 O(1)、O(n)、O(n²)、O(log n)、O(n log n) 与 O(√n) 代码模式。",
+      "confidence": 0.96,
+      "evidence": [
+        {
+          "lessonId": "02-01",
+          "assetId": "asset:video-02-01",
+          "startMs": 38000,
+          "endMs": 767000,
+          "locator": "ev-002–ev-007 · 00:38-12:47"
+        },
+        {
+          "lessonId": "02-03",
+          "assetId": "asset:video-02-03",
+          "startMs": 0,
+          "endMs": 1160560,
+          "locator": "ev-001–ev-009 · 00:00-19:20"
+        }
+      ],
+      "createdBy": "chapter-02-preflight-v1; verified-by chapter-02-review-v1"
+    },
+    {
+      "id": "edge:outline:02-03:02-04",
+      "from": "lesson:02-03",
+      "to": "lesson:02-04",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "把静态复杂度分析应用到运行时间实验，检查观测增长趋势是否与理论预期一致。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "02-03",
+          "assetId": "asset:video-02-03",
+          "startMs": 0,
+          "endMs": 1160560,
+          "locator": "ev-001–ev-009 · 00:00-19:20"
+        },
+        {
+          "lessonId": "02-04",
+          "assetId": "asset:video-02-04",
+          "startMs": 0,
+          "endMs": 144000,
+          "locator": "ev-001–ev-002 · 00:00-02:24"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; refined-by chapter-02-preflight-v1; verified-by chapter-02-review-v1"
+    },
+    {
+      "id": "edge:outline:02-03:02-05",
+      "from": "lesson:02-03",
+      "to": "lesson:02-05",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "02-03 分析普通循环与顺序代码；02-05 开头明确继续深入时间复杂度，并扩展到必须结合递归深度或递归树计算总成本的递归算法。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "02-03",
+          "assetId": "asset:video-02-03",
+          "startMs": 0,
+          "endMs": 1160560,
+          "locator": "ev-001–ev-009 · 00:00-19:20"
+        },
+        {
+          "lessonId": "02-05",
+          "assetId": "asset:video-02-05",
+          "startMs": 0,
+          "endMs": 45000,
+          "locator": "ev-001 · 00:00-00:45"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-02-review-v1"
+    },
+    {
+      "id": "edge:outline:02-03:02-06",
+      "from": "lesson:02-03",
+      "to": "lesson:02-06",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "02-03 针对一次算法执行分析复杂度；02-06 开头明确将分析单位扩展为一串操作，把偶发的 O(n) 扩容成本均摊到多次 O(1) 插入中。",
+      "confidence": 0.97,
+      "evidence": [
+        {
+          "lessonId": "02-03",
+          "assetId": "asset:video-02-03",
+          "startMs": 0,
+          "endMs": 132000,
+          "locator": "ev-001–ev-002 · 00:00-02:12"
+        },
+        {
+          "lessonId": "02-06",
+          "assetId": "asset:video-02-06",
+          "startMs": 0,
+          "endMs": 44000,
+          "locator": "ev-001 · 00:00-00:44"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-02-review-v1"
+    },
+    {
+      "id": "edge:outline:02-06:02-07",
+      "from": "lesson:02-06",
+      "to": "lesson:02-07",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "02-06 证明 2 倍扩容下 push_back 的均摊 O(1)，并在结尾抛出缩容问题；02-07 随即分析临界点扩缩容震荡，并用延迟缩容恢复均摊 O(1)。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "02-06",
+          "assetId": "asset:video-02-06",
+          "startMs": 600000,
+          "endMs": 916280,
+          "locator": "ev-006–ev-008 · 10:00-15:16"
+        },
+        {
+          "lessonId": "02-07",
+          "assetId": "asset:video-02-07",
+          "startMs": 133000,
+          "endMs": 416000,
+          "locator": "ev-002–ev-005 · 02:13-06:56"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; refined-by chapter-02-preflight-v1; verified-by chapter-02-review-v1"
+    },
+    {
+      "id": "edge:outline:02-03:03-01",
+      "from": "lesson:02-03",
+      "to": "lesson:03-01",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "02-03 用“每轮排除一半”推导二分查找 O(log n)；03-01 将同一算法落实为闭区间状态、循环条件和边界更新的完整实现。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "02-03",
+          "assetId": "asset:video-02-03",
+          "startMs": 391000,
+          "endMs": 541000,
+          "locator": "ev-005 · 06:31-09:01"
+        },
+        {
+          "lessonId": "03-01",
+          "assetId": "asset:video-03-01",
+          "startMs": 210000,
+          "endMs": 820000,
+          "locator": "ev-004–ev-005 · 03:30-13:40"
+        }
+      ],
+      "createdBy": "chapter-02-preflight-v1; verified-by chapter-03-review-v1"
+    },
+    {
+      "id": "edge:outline:02-05:06-02",
+      "from": "lesson:02-05",
+      "to": "lesson:06-02",
+      "type": "recommended_before",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "02-05 从递归深度和递归树分析调用展开的成本；06-02 转向运行机制，用系统栈保存递归前序遍历的调用现场。前者是理解后者的推荐分析背景，而不是硬性前置要求。",
+      "confidence": 0.94,
+      "evidence": [
+        {
+          "lessonId": "02-05",
+          "assetId": "asset:video-02-05",
+          "startMs": 45000,
+          "endMs": 201000,
+          "locator": "ev-002 · 00:45-03:21"
+        },
+        {
+          "lessonId": "02-05",
+          "assetId": "asset:video-02-05",
+          "startMs": 409000,
+          "endMs": 657000,
+          "locator": "ev-005 · 06:49-10:57"
+        },
+        {
+          "lessonId": "06-02",
+          "assetId": "asset:video-06-02",
+          "startMs": 0,
+          "endMs": 135000,
+          "locator": "ev-001 · 00:00-02:15"
+        },
+        {
+          "lessonId": "06-02",
+          "assetId": "asset:video-06-02",
+          "startMs": 558000,
+          "endMs": 922000,
+          "locator": "ev-005 · 09:18-15:22"
+        }
+      ],
+      "createdBy": "chapter-02-preflight-v1; reviewed-by chapter-02-review-v1; verified-by chapter-06-review-v1"
+    },
+    {
+      "id": "edge:outline:03-01:03-02",
+      "from": "lesson:03-01",
+      "to": "lesson:03-02",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "03-01 用闭区间 [l,r] 建立二分查找不变量并预告把 r 改为 n；03-02 明确改用半开区间 [l,r)，同步推导 r=n、l<r 与 r=mid。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "03-01",
+          "assetId": "asset:video-03-01",
+          "startMs": 900000,
+          "endMs": 927000,
+          "locator": "ev-007 · 15:00-15:27"
+        },
+        {
+          "lessonId": "03-02",
+          "assetId": "asset:video-03-02",
+          "startMs": 0,
+          "endMs": 233000,
+          "locator": "ev-001–ev-002 · 00:00-03:53"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-03-review-v1"
+    },
+    {
+      "id": "edge:outline:03-03:03-04",
+      "from": "lesson:03-03",
+      "to": "lesson:03-04",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "03-03 给出 Move Zeros 的 O(n) 辅助向量基线并明确提出下一课优化；03-04 开头直接回顾该方案，再把空间降到 O(1) 并继续减少补零和自交换操作。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "03-03",
+          "assetId": "asset:video-03-03",
+          "startMs": 742000,
+          "endMs": 807520,
+          "locator": "ev-010 · 12:22-13:27"
+        },
+        {
+          "lessonId": "03-04",
+          "assetId": "asset:video-03-04",
+          "startMs": 0,
+          "endMs": 560000,
+          "locator": "ev-001–ev-005 · 00:00-09:20"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-03-review-v1"
+    },
+    {
+      "id": "edge:outline:03-04:03-05",
+      "from": "lesson:03-04",
+      "to": "lesson:03-05",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "03-04 通过 k 划分“已处理非零前缀”和待处理区间，并在总结中回指快排特殊情形；03-05 把这种区间不变量扩展成 zero、i、two 三个边界的三路 partition。",
+      "confidence": 0.96,
+      "evidence": [
+        {
+          "lessonId": "03-04",
+          "assetId": "asset:video-03-04",
+          "startMs": 0,
+          "endMs": 159000,
+          "locator": "ev-001 · 00:00-02:39"
+        },
+        {
+          "lessonId": "03-04",
+          "assetId": "asset:video-03-04",
+          "startMs": 560000,
+          "endMs": 670000,
+          "locator": "ev-006 · 09:20-11:10"
+        },
+        {
+          "lessonId": "03-05",
+          "assetId": "asset:video-03-05",
+          "startMs": 545000,
+          "endMs": 1163000,
+          "locator": "ev-005–ev-007 · 09:05-19:23"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-03-review-v1"
+    },
+    {
+      "id": "edge:outline:03-06:04-04",
+      "from": "lesson:03-06",
+      "to": "lesson:04-04",
+      "type": "contrasts_with",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "03-06 解决有序数组 Two Sum II，利用单调性以对撞指针线性排除端点；04-04 明确对比上一章的有序版本，面对无序数组改用动态 unordered_map 保存“值到此前索引”，同一题族由输入顺序条件导向两种不同方案。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "03-06",
+          "assetId": "asset:video-03-06",
+          "startMs": 0,
+          "endMs": 179000,
+          "locator": "ev-001 · 00:00-02:59"
+        },
+        {
+          "lessonId": "03-06",
+          "assetId": "asset:video-03-06",
+          "startMs": 419000,
+          "endMs": 720000,
+          "locator": "ev-004–ev-006 · 06:59-12:00"
+        },
+        {
+          "lessonId": "04-04",
+          "assetId": "asset:video-04-04",
+          "startMs": 80000,
+          "endMs": 131000,
+          "locator": "ev-002 · 01:20-02:11"
+        },
+        {
+          "lessonId": "04-04",
+          "assetId": "asset:video-04-04",
+          "startMs": 242000,
+          "endMs": 757000,
+          "locator": "ev-005–ev-009 · 04:02-12:37"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-04-review-v1"
+    },
+    {
+      "id": "edge:outline:03-07:03-08",
+      "from": "lesson:03-07",
+      "to": "lesson:03-08",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "03-07 建立左右边界、扩张与收缩的基础滑动窗口并明确预告下一例；03-08 延续窗口框架，新增 freq[256] 记录窗口字符频次以维持“无重复”约束。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "03-07",
+          "assetId": "asset:video-03-07",
+          "startMs": 794000,
+          "endMs": 849920,
+          "locator": "ev-007 · 13:14-14:09"
+        },
+        {
+          "lessonId": "03-08",
+          "assetId": "asset:video-03-08",
+          "startMs": 154000,
+          "endMs": 586000,
+          "locator": "ev-002–ev-003 · 02:34-09:46"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-03-review-v1"
+    },
+    {
+      "id": "edge:video:01-03:03-03",
+      "from": "lesson:01-03",
+      "to": "lesson:03-03",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "01-03 推荐使用面试题导向的 LeetCode 进行专项练习；03-03 将这一准备建议落实为课程第一次完整的题目查找、语言模板、本地实现、在线运行和提交。",
+      "confidence": 0.97,
+      "evidence": [
+        {
+          "lessonId": "01-03",
+          "assetId": "asset:video-01-03",
+          "startMs": 634000,
+          "endMs": 814000,
+          "locator": "ev-007–ev-008 · 10:34-13:34"
+        },
+        {
+          "lessonId": "03-03",
+          "assetId": "asset:video-03-03",
+          "startMs": 0,
+          "endMs": 45000,
+          "locator": "ev-001 · 00:00-00:45"
+        },
+        {
+          "lessonId": "03-03",
+          "assetId": "asset:video-03-03",
+          "startMs": 200000,
+          "endMs": 678000,
+          "locator": "ev-003–ev-008 · 03:20-11:18"
+        }
+      ],
+      "createdBy": "chapter-03-review-v1"
+    },
+    {
+      "id": "edge:video:03-02:03-04",
+      "from": "lesson:03-02",
+      "to": "lesson:03-04",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "03-02 总结先定义变量和区间语义、再维护循环不变量；03-04 把该方法用于 Move Zeros，以 k 定义已处理非零前缀 [0,k)，并据此推导覆写、交换和自交换优化。",
+      "confidence": 0.97,
+      "evidence": [
+        {
+          "lessonId": "03-02",
+          "assetId": "asset:video-03-02",
+          "startMs": 0,
+          "endMs": 323000,
+          "locator": "ev-001–ev-003 · 00:00-05:23"
+        },
+        {
+          "lessonId": "03-02",
+          "assetId": "asset:video-03-02",
+          "startMs": 499000,
+          "endMs": 726480,
+          "locator": "ev-006 · 08:19-12:06"
+        },
+        {
+          "lessonId": "03-04",
+          "assetId": "asset:video-03-04",
+          "startMs": 0,
+          "endMs": 560000,
+          "locator": "ev-001–ev-005 · 00:00-09:20"
+        }
+      ],
+      "createdBy": "chapter-03-review-v1"
+    },
+    {
+      "id": "edge:video:01-04:03-06",
+      "from": "lesson:01-04",
+      "to": "lesson:03-06",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "01-04 提出从题目条件读取算法暗示、以暴力法为起点并针对瓶颈优化；03-06 在有序 Two Sum 中完整应用该流程，从 O(n²) 暴力，经 O(n log n) 二分，优化到 O(n) 对撞指针。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "01-04",
+          "assetId": "asset:video-01-04",
+          "startMs": 25000,
+          "endMs": 623000,
+          "locator": "ev-002–ev-005 · 00:25-10:23"
+        },
+        {
+          "lessonId": "03-06",
+          "assetId": "asset:video-03-06",
+          "startMs": 0,
+          "endMs": 576000,
+          "locator": "ev-001–ev-004 · 00:00-09:36"
+        }
+      ],
+      "createdBy": "chapter-03-review-v1"
+    },
+    {
+      "id": "edge:video:03-01:03-06",
+      "from": "lesson:03-01",
+      "to": "lesson:03-06",
+      "type": "applies",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "03-01 建立有序数组上的二分查找实现；03-06 把它作为 Two Sum II 的中间优化，为每个 numbers[i] 在后续有序区间查找 target-numbers[i]。",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "lessonId": "03-01",
+          "assetId": "asset:video-03-01",
+          "startMs": 210000,
+          "endMs": 820000,
+          "locator": "ev-004–ev-005 · 03:30-13:40"
+        },
+        {
+          "lessonId": "03-06",
+          "assetId": "asset:video-03-06",
+          "startMs": 276000,
+          "endMs": 418000,
+          "locator": "ev-003 · 04:36-06:58"
+        }
+      ],
+      "createdBy": "chapter-03-review-v1"
+    },
+    {
+      "id": "edge:video:03-05:03-06",
+      "from": "lesson:03-05",
+      "to": "lesson:03-06",
+      "type": "same_pattern_as",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "03-05 用 zero、i、two 维护并收缩多个数组区域；03-06 明确指出对撞指针与两路、三路快排 partition 有思路联系。两者共享“边界定义驱动的原地分区/淘汰”模式，但状态和目标不同。",
+      "confidence": 0.97,
+      "evidence": [
+        {
+          "lessonId": "03-05",
+          "assetId": "asset:video-03-05",
+          "startMs": 545000,
+          "endMs": 1163000,
+          "locator": "ev-005–ev-007 · 09:05-19:23"
+        },
+        {
+          "lessonId": "03-06",
+          "assetId": "asset:video-03-06",
+          "startMs": 828000,
+          "endMs": 871000,
+          "locator": "ev-008 · 13:48-14:31"
+        }
+      ],
+      "createdBy": "chapter-03-review-v1"
+    },
+    {
+      "id": "edge:video:03-06:03-07",
+      "from": "lesson:03-06",
+      "to": "lesson:03-07",
+      "type": "extends",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "03-06 引入从两端向中间收缩的对撞指针；03-07 以“Two Pointer / 滑动窗口”开场，把双索引技术扩展为维护连续区间并按窗口和动态扩张、收缩。",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "lessonId": "03-06",
+          "assetId": "asset:video-03-06",
+          "startMs": 419000,
+          "endMs": 576000,
+          "locator": "ev-004 · 06:59-09:36"
+        },
+        {
+          "lessonId": "03-06",
+          "assetId": "asset:video-03-06",
+          "startMs": 828000,
+          "endMs": 871000,
+          "locator": "ev-008 · 13:48-14:31"
+        },
+        {
+          "lessonId": "03-07",
+          "assetId": "asset:video-03-07",
+          "startMs": 0,
+          "endMs": 43000,
+          "locator": "ev-001 · 00:00-00:43"
+        },
+        {
+          "lessonId": "03-07",
+          "assetId": "asset:video-03-07",
+          "startMs": 339000,
+          "endMs": 476000,
+          "locator": "ev-005 · 05:39-07:56"
+        }
+      ],
+      "createdBy": "chapter-03-review-v1"
+    },
+    {
+      "id": "edge:outline:03-08:04-07",
+      "from": "lesson:03-08",
+      "to": "lesson:04-07",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "03-08 在滑动窗口内用 freq[256] 同步记录字符成员状态；04-07 把同一“窗口 + 查找状态”框架应用到固定最大长度 k+1 的索引窗口，以 unordered_set 维护成员并显式回顾 03-08 的可变长度窗口作为对照。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "03-08",
+          "assetId": "asset:video-03-08",
+          "startMs": 154000,
+          "endMs": 586000,
+          "locator": "ev-002–ev-003 · 02:34-09:46"
+        },
+        {
+          "lessonId": "04-07",
+          "assetId": "asset:video-04-07",
+          "startMs": 53000,
+          "endMs": 577000,
+          "locator": "ev-003–ev-005 · 00:53-09:37"
+        },
+        {
+          "lessonId": "04-07",
+          "assetId": "asset:video-04-07",
+          "startMs": 577000,
+          "endMs": 626000,
+          "locator": "ev-006 · 09:37-10:26"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-04-review-v1"
+    },
+    {
+      "id": "edge:outline:04-07:04-08",
+      "from": "lesson:04-07",
+      "to": "lesson:04-08",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "04-07 在长度至多 k+1 的窗口中用 unordered_set 判断精确重复，并在结尾预告下一课需要有序查找表；04-08 保留索引窗口约束，新增数值差不超过 t 的范围条件，改用 set 的 lower_bound 在 [v-t,v+t] 中查询候选。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "04-07",
+          "assetId": "asset:video-04-07",
+          "startMs": 53000,
+          "endMs": 577000,
+          "locator": "ev-003–ev-005 · 00:53-09:37"
+        },
+        {
+          "lessonId": "04-07",
+          "assetId": "asset:video-04-07",
+          "startMs": 626000,
+          "endMs": 680484,
+          "locator": "ev-007 · 10:26-11:20"
+        },
+        {
+          "lessonId": "04-08",
+          "assetId": "asset:video-04-08",
+          "startMs": 0,
+          "endMs": 408000,
+          "locator": "ev-001–ev-003 · 00:00-06:48"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-04-review-v1"
+    },
+    {
+      "id": "edge:outline:04-01:04-02",
+      "from": "lesson:04-01",
+      "to": "lesson:04-02",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "04-01 用 set 记录成员存在性并让交集结果去重；04-02 面对需要保留重复次数的 Intersection of Two Arrays II，扩展为 map<int,int> 频次表，命中一次便递减一次。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "04-01",
+          "assetId": "asset:video-04-01",
+          "startMs": 0,
+          "endMs": 111000,
+          "locator": "ev-001 · 00:00-01:51"
+        },
+        {
+          "lessonId": "04-01",
+          "assetId": "asset:video-04-01",
+          "startMs": 228000,
+          "endMs": 675283,
+          "locator": "ev-003–ev-005 · 03:48-11:12"
+        },
+        {
+          "lessonId": "04-02",
+          "assetId": "asset:video-04-02",
+          "startMs": 0,
+          "endMs": 227000,
+          "locator": "ev-001–ev-002 · 00:00-03:47"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-04-review-v1"
+    },
+    {
+      "id": "edge:outline:04-02:04-03",
+      "from": "lesson:04-02",
+      "to": "lesson:04-03",
+      "type": "extends",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "04-02 先用 map 频次解决交集 II，并在结尾明确预告下一课分析复杂度和底层实现；04-03 随即回看 set/map 两题的 O(n log n) 成本，比较平衡二叉搜索树与哈希表、顺序性，并重构为 unordered 容器。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "04-02",
+          "assetId": "asset:video-04-02",
+          "startMs": 80000,
+          "endMs": 227000,
+          "locator": "ev-002 · 01:20-03:47"
+        },
+        {
+          "lessonId": "04-02",
+          "assetId": "asset:video-04-02",
+          "startMs": 716000,
+          "endMs": 785960,
+          "locator": "ev-006 · 11:56-13:05"
+        },
+        {
+          "lessonId": "04-03",
+          "assetId": "asset:video-04-03",
+          "startMs": 0,
+          "endMs": 335000,
+          "locator": "ev-001–ev-003 · 00:00-05:35"
+        },
+        {
+          "lessonId": "04-03",
+          "assetId": "asset:video-04-03",
+          "startMs": 336000,
+          "endMs": 726000,
+          "locator": "ev-004–ev-008 · 05:36-12:06"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-04-review-v1"
+    },
+    {
+      "id": "edge:outline:04-04:04-05",
+      "from": "lesson:04-04",
+      "to": "lesson:04-05",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "04-04 为每个数组值查询 target-v，并用动态 map 保存此前值到索引；04-05 把补数查找扩展到四数组计数，将 C+D 的组合和作为键、索引对频次作为值，再为每个 A+B 查询相反数并累加频次。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "04-04",
+          "assetId": "asset:video-04-04",
+          "startMs": 242000,
+          "endMs": 757000,
+          "locator": "ev-005–ev-009 · 04:02-12:37"
+        },
+        {
+          "lessonId": "04-05",
+          "assetId": "asset:video-04-05",
+          "startMs": 0,
+          "endMs": 77000,
+          "locator": "ev-001 · 00:00-01:17"
+        },
+        {
+          "lessonId": "04-05",
+          "assetId": "asset:video-04-05",
+          "startMs": 180000,
+          "endMs": 545000,
+          "locator": "ev-004–ev-005 · 03:00-09:05"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-04-review-v1"
+    },
+    {
+      "id": "edge:outline:04-05:04-06",
+      "from": "lesson:04-05",
+      "to": "lesson:04-06",
+      "type": "same_pattern_as",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "04-05 把 C+D 的组合和映射到出现频次，并按补数聚合计数；04-06 对每个枢纽点把距离平方映射到其他点的频次，再按 k*(k-1) 聚合。两课都把派生量而非原始元素设计为键，但组合对象和计数公式不同。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "04-05",
+          "assetId": "asset:video-04-05",
+          "startMs": 180000,
+          "endMs": 663000,
+          "locator": "ev-004–ev-006 · 03:00-11:03"
+        },
+        {
+          "lessonId": "04-06",
+          "assetId": "asset:video-04-06",
+          "startMs": 93000,
+          "endMs": 731000,
+          "locator": "ev-002–ev-004 · 01:33-12:11"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-04-review-v1"
+    },
+    {
+      "id": "edge:video:04-03:04-08",
+      "from": "lesson:04-03",
+      "to": "lesson:04-08",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "04-03 说明哈希表失去最大最小、前驱后继、floor/ceil 等顺序能力，并把 set/map 归入平衡二叉搜索树实现；04-08 直接应用这一顺序性，将 unordered_set 改为 set，通过 lower_bound(v-t) 查询窗口内是否存在不大于 v+t 的候选。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "04-03",
+          "assetId": "asset:video-04-03",
+          "startMs": 0,
+          "endMs": 168000,
+          "locator": "ev-001 · 00:00-02:48"
+        },
+        {
+          "lessonId": "04-03",
+          "assetId": "asset:video-04-03",
+          "startMs": 376000,
+          "endMs": 525000,
+          "locator": "ev-005–ev-006 · 06:16-08:45"
+        },
+        {
+          "lessonId": "04-08",
+          "assetId": "asset:video-04-08",
+          "startMs": 64000,
+          "endMs": 408000,
+          "locator": "ev-002–ev-003 · 01:04-06:48"
+        }
+      ],
+      "createdBy": "chapter-04-review-v1"
+    },
+    {
+      "id": "edge:video:04-01:04-07",
+      "from": "lesson:04-01",
+      "to": "lesson:04-07",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "04-01 建立 set 的唯一键、成员查询与 insert/find/erase 用法，并用它完成数组交集；04-07 把这些操作应用到固定长度滑动窗口，以 unordered_set 实时查询重复、插入新值并删除离窗值。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "04-01",
+          "assetId": "asset:video-04-01",
+          "startMs": 0,
+          "endMs": 111000,
+          "locator": "ev-001 · 00:00-01:51"
+        },
+        {
+          "lessonId": "04-01",
+          "assetId": "asset:video-04-01",
+          "startMs": 322000,
+          "endMs": 558000,
+          "locator": "ev-004 · 05:22-09:18"
+        },
+        {
+          "lessonId": "04-07",
+          "assetId": "asset:video-04-07",
+          "startMs": 53000,
+          "endMs": 577000,
+          "locator": "ev-003–ev-005 · 00:53-09:37"
+        }
+      ],
+      "createdBy": "chapter-04-review-v1"
+    },
+    {
+      "id": "edge:video:04-02:04-05",
+      "from": "lesson:04-02",
+      "to": "lesson:04-05",
+      "type": "applies",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "04-02 用 map 记录单个数组值的剩余频次，命中后递减以保留重复次数；04-05 将同一“键到频次”状态应用到派生键 C+D，必须保存每个组合和的出现次数并在补数命中时累加全部频次。",
+      "confidence": 0.97,
+      "evidence": [
+        {
+          "lessonId": "04-02",
+          "assetId": "asset:video-04-02",
+          "startMs": 0,
+          "endMs": 227000,
+          "locator": "ev-001–ev-002 · 00:00-03:47"
+        },
+        {
+          "lessonId": "04-05",
+          "assetId": "asset:video-04-05",
+          "startMs": 180000,
+          "endMs": 545000,
+          "locator": "ev-004–ev-005 · 03:00-09:05"
+        }
+      ],
+      "createdBy": "chapter-04-review-v1"
+    },
+    {
+      "id": "edge:video:04-02:04-06",
+      "from": "lesson:04-02",
+      "to": "lesson:04-06",
+      "type": "applies",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "04-02 用 map 维护元素频次并按频次控制答案重数；04-06 将频次映射迁移到每个枢纽点的距离平方键，对同距点数量 k 计算 k*(k-1)，体现频次表从值计数到派生几何量计数的应用。",
+      "confidence": 0.96,
+      "evidence": [
+        {
+          "lessonId": "04-02",
+          "assetId": "asset:video-04-02",
+          "startMs": 80000,
+          "endMs": 227000,
+          "locator": "ev-002 · 01:20-03:47"
+        },
+        {
+          "lessonId": "04-06",
+          "assetId": "asset:video-04-06",
+          "startMs": 93000,
+          "endMs": 731000,
+          "locator": "ev-002–ev-004 · 01:33-12:11"
+        }
+      ],
+      "createdBy": "chapter-04-review-v1"
+    },
+    {
+      "id": "edge:video:05-01:05-02",
+      "from": "lesson:05-01",
+      "to": "lesson:05-02",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "05-01 在 LeetCode 提交并通过 reverseList；05-02 开场明确要为“上节课编写的 reverseList”补充本地构建、打印和释放工具，并实际调用该函数打印反转前后结果，因此后者直接把算法实现扩展为可观察的本地测试流程。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "05-01",
+          "assetId": "asset:video-05-01",
+          "startMs": 525000,
+          "endMs": 830000,
+          "locator": "ev-005 · 08:45-13:50"
+        },
+        {
+          "lessonId": "05-02",
+          "assetId": "asset:video-05-02",
+          "startMs": 0,
+          "endMs": 40000,
+          "locator": "ev-001 · 00:00-00:40"
+        },
+        {
+          "lessonId": "05-02",
+          "assetId": "asset:video-05-02",
+          "startMs": 316000,
+          "endMs": 464000,
+          "locator": "ev-004 · 05:16-07:44"
+        }
+      ],
+      "createdBy": "chapter-05-review-v1"
+    },
+    {
+      "id": "edge:outline:05-01:05-03",
+      "from": "lesson:05-01",
+      "to": "lesson:05-03",
+      "type": "recommended_before",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "05-01 通过保存后继再改写 next 建立防断链的基本指针重连语义；05-03 先用同类前驱—待删节点重连完成普通删除，再引入 dummyHead 统一头结点删除。两课内容构成从基础改链到边界统一的明确学习递进。",
+      "confidence": 0.96,
+      "evidence": [
+        {
+          "lessonId": "05-01",
+          "assetId": "asset:video-05-01",
+          "startMs": 178000,
+          "endMs": 524000,
+          "locator": "ev-003–ev-004 · 02:58-08:44"
+        },
+        {
+          "lessonId": "05-03",
+          "assetId": "asset:video-05-03",
+          "startMs": 75000,
+          "endMs": 223000,
+          "locator": "ev-003 · 01:15-03:43"
+        },
+        {
+          "lessonId": "05-03",
+          "assetId": "asset:video-05-03",
+          "startMs": 723000,
+          "endMs": 792000,
+          "locator": "ev-006 · 12:03-13:12"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-05-review-v1"
+    },
+    {
+      "id": "edge:outline:05-03:05-04",
+      "from": "lesson:05-03",
+      "to": "lesson:05-04",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "05-03 建立 dummyHead 并让遍历指针从它开始，以统一原头结点和普通节点的改链；05-04 直接复用 dummyHead，在其后维护 p、node1、node2、next 完成相邻节点成对交换，把同一技巧扩展到更复杂的局部重排。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "05-03",
+          "assetId": "asset:video-05-03",
+          "startMs": 723000,
+          "endMs": 919000,
+          "locator": "ev-006–ev-007 · 12:03-15:19"
+        },
+        {
+          "lessonId": "05-04",
+          "assetId": "asset:video-05-04",
+          "startMs": 58000,
+          "endMs": 530000,
+          "locator": "ev-002–ev-003 · 00:58-08:50"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-05-review-v1"
+    },
+    {
+      "id": "edge:video:05-03:05-05",
+      "from": "lesson:05-03",
+      "to": "lesson:05-05",
+      "type": "contrasts_with",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "05-03 的常规删除依赖前驱指针把 cur->next 越过待删节点；05-05 的接口只给待删节点、无法取得前驱，于是改为复制后继值并物理删除后继。两课直接对照了“有前驱时重连”与“无前驱时改变值语义”的不同删除策略。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "05-03",
+          "assetId": "asset:video-05-03",
+          "startMs": 75000,
+          "endMs": 223000,
+          "locator": "ev-003 · 01:15-03:43"
+        },
+        {
+          "lessonId": "05-05",
+          "assetId": "asset:video-05-05",
+          "startMs": 0,
+          "endMs": 338000,
+          "locator": "ev-001–ev-004 · 00:00-05:38"
+        }
+      ],
+      "createdBy": "chapter-05-review-v1"
+    },
+    {
+      "id": "edge:video:05-03:05-06",
+      "from": "lesson:05-03",
+      "to": "lesson:05-06",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "05-03 解释 dummyHead 通过为原 head 补出前驱来统一删除；05-06 在删除倒数第 n 个节点时应用同一结构，让固定间距双指针最终定位到待删节点的前驱，并覆盖待删节点恰为头结点的情况。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "05-03",
+          "assetId": "asset:video-05-03",
+          "startMs": 723000,
+          "endMs": 919000,
+          "locator": "ev-006–ev-007 · 12:03-15:19"
+        },
+        {
+          "lessonId": "05-06",
+          "assetId": "asset:video-05-06",
+          "startMs": 225000,
+          "endMs": 716000,
+          "locator": "ev-004–ev-005 · 03:45-11:56"
+        }
+      ],
+      "createdBy": "chapter-05-review-v1"
+    },
+    {
+      "id": "edge:outline:03-06:05-06",
+      "from": "lesson:03-06",
+      "to": "lesson:05-06",
+      "type": "same_pattern_as",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "03-06 在有序数组两端维护指针并向中间对撞；05-06 明确把双指针技术迁移到链表，让两个指针保持 n+1 的固定间距并同步前进。两课同属双指针模式，但状态机分别是端点淘汰与相对位置定位。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "03-06",
+          "assetId": "asset:video-03-06",
+          "startMs": 419000,
+          "endMs": 714000,
+          "locator": "ev-004–ev-005 · 06:59-11:54"
+        },
+        {
+          "lessonId": "05-06",
+          "assetId": "asset:video-05-06",
+          "startMs": 0,
+          "endMs": 48000,
+          "locator": "ev-001 · 00:00-00:48"
+        },
+        {
+          "lessonId": "05-06",
+          "assetId": "asset:video-05-06",
+          "startMs": 225000,
+          "endMs": 386000,
+          "locator": "ev-004 · 03:45-06:26"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-05-review-v1"
+    },
+    {
+      "id": "edge:video:06-01:06-02",
+      "from": "lesson:06-01",
+      "to": "lesson:06-02",
+      "type": "extends",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "06-01 用括号匹配建立栈的后进先出操作模型；06-02 把同一数据结构扩展到递归运行机制，解释系统栈如何保存调用现场。这是根据两课内容复核得到的课程递进关系，不表示讲师在两课间作了直接引用。",
+      "confidence": 0.96,
+      "evidence": [
+        {
+          "lessonId": "06-01",
+          "assetId": "asset:video-06-01",
+          "startMs": 106000,
+          "endMs": 687000,
+          "locator": "ev-003–ev-004 · 01:46-11:27"
+        },
+        {
+          "lessonId": "06-02",
+          "assetId": "asset:video-06-02",
+          "startMs": 0,
+          "endMs": 135000,
+          "locator": "ev-001 · 00:00-02:15"
+        },
+        {
+          "lessonId": "06-02",
+          "assetId": "asset:video-06-02",
+          "startMs": 558000,
+          "endMs": 922000,
+          "locator": "ev-005 · 09:18-15:22"
+        }
+      ],
+      "createdBy": "chapter-06-review-v1"
+    },
+    {
+      "id": "edge:outline:06-02:06-03",
+      "from": "lesson:06-02",
+      "to": "lesson:06-03",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "06-02 在结尾明确预告下一节用栈模拟系统栈、实现非递归遍历；06-03 随即用 Command 栈统一实现前序、中序和后序遍历，并完成代码验证。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "06-02",
+          "assetId": "asset:video-06-02",
+          "startMs": 922000,
+          "endMs": 963680,
+          "locator": "ev-006 · 15:22-16:03.680"
+        },
+        {
+          "lessonId": "06-03",
+          "assetId": "asset:video-06-03",
+          "startMs": 0,
+          "endMs": 865000,
+          "locator": "ev-001–ev-004 · 00:00-14:25"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-06-review-v1"
+    },
+    {
+      "id": "edge:outline:06-04:06-05",
+      "from": "lesson:06-04",
+      "to": "lesson:06-05",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "06-04 在讲树的层序遍历时指出 BFS 还能求无权图最短路，并在结尾预告下一节；06-05 开头回顾层序遍历，再把完全平方数问题建模为隐式图上的最短路径。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "06-04",
+          "assetId": "asset:video-06-04",
+          "startMs": 0,
+          "endMs": 62000,
+          "locator": "ev-001 · 00:00-01:02"
+        },
+        {
+          "lessonId": "06-04",
+          "assetId": "asset:video-06-04",
+          "startMs": 570000,
+          "endMs": 626320,
+          "locator": "ev-006 · 09:30-10:26.320"
+        },
+        {
+          "lessonId": "06-05",
+          "assetId": "asset:video-06-05",
+          "startMs": 0,
+          "endMs": 85000,
+          "locator": "ev-001 · 00:00-01:25"
+        },
+        {
+          "lessonId": "06-05",
+          "assetId": "asset:video-06-05",
+          "startMs": 320000,
+          "endMs": 488000,
+          "locator": "ev-004 · 05:20-08:08"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-06-review-v1"
+    },
+    {
+      "id": "edge:video:06-04:06-06",
+      "from": "lesson:06-04",
+      "to": "lesson:06-06",
+      "type": "contrasts_with",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "06-04 的 BFS 队列按发现顺序推进；06-06 明确把优先队列与普通队列区分开，出队依据是最大或最小优先级而不是入队先后。这是根据两课内容复核得到的结构对照，不是讲师的跨课直接引用。",
+      "confidence": 0.94,
+      "evidence": [
+        {
+          "lessonId": "06-04",
+          "assetId": "asset:video-06-04",
+          "startMs": 121000,
+          "endMs": 489000,
+          "locator": "ev-003 · 02:01-08:09"
+        },
+        {
+          "lessonId": "06-06",
+          "assetId": "asset:video-06-06",
+          "startMs": 0,
+          "endMs": 58000,
+          "locator": "ev-001 · 00:00-00:58"
+        },
+        {
+          "lessonId": "06-06",
+          "assetId": "asset:video-06-06",
+          "startMs": 182000,
+          "endMs": 462000,
+          "locator": "ev-004–ev-005 · 03:02-07:42"
+        }
+      ],
+      "createdBy": "chapter-06-review-v1"
+    },
+    {
+      "id": "edge:outline:06-06:06-07",
+      "from": "lesson:06-06",
+      "to": "lesson:06-07",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "06-06 讲解优先队列的最大堆、最小堆与自定义比较器，并明确预告下一节应用；06-07 用大小为 k 的最小优先队列保存频次最高的元素，落实为 Top K Frequent Elements 的 O(n log k) 解法。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "06-06",
+          "assetId": "asset:video-06-06",
+          "startMs": 0,
+          "endMs": 118000,
+          "locator": "ev-001–ev-002 · 00:00-01:58"
+        },
+        {
+          "lessonId": "06-06",
+          "assetId": "asset:video-06-06",
+          "startMs": 182000,
+          "endMs": 669040,
+          "locator": "ev-004–ev-007 · 03:02-11:09.040"
+        },
+        {
+          "lessonId": "06-07",
+          "assetId": "asset:video-06-07",
+          "startMs": 165000,
+          "endMs": 747000,
+          "locator": "ev-003–ev-004 · 02:45-12:27"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-06-review-v1"
+    },
+    {
+      "id": "edge:video:04-02:06-07",
+      "from": "lesson:04-02",
+      "to": "lesson:06-07",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "04-02 用 map 统计交集问题中的元素频次；06-07 把同一频次表作为 Top K 解法的第一阶段，再用优先队列筛选频次最高的 k 个元素。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "04-02",
+          "assetId": "asset:video-04-02",
+          "startMs": 80000,
+          "endMs": 227000,
+          "locator": "ev-002 · 01:20-03:47"
+        },
+        {
+          "lessonId": "06-07",
+          "assetId": "asset:video-06-07",
+          "startMs": 68000,
+          "endMs": 165000,
+          "locator": "ev-002 · 01:08-02:45"
+        },
+        {
+          "lessonId": "06-07",
+          "assetId": "asset:video-06-07",
+          "startMs": 255000,
+          "endMs": 747000,
+          "locator": "ev-004 · 04:15-12:27"
+        }
+      ],
+      "createdBy": "chapter-06-review-v1"
+    },
+    {
+      "id": "edge:video:03-05:06-08",
+      "from": "lesson:03-05",
+      "to": "lesson:06-08",
+      "type": "revisits",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "03-05 已把快速排序 partition 的枢轴定位性质迁移到 LeetCode 215；06-08 文本再次以该题说明 Top K 的 partition 路线，并将它与优先队列路线并列比较，但没有展开实现、证明或边界分析。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "03-05",
+          "assetId": "asset:video-03-05",
+          "startMs": 1221000,
+          "endMs": 1346640,
+          "locator": "ev-009 · 20:21-22:26.640"
+        },
+        {
+          "lessonId": "06-08",
+          "assetId": "asset:text-06-08",
+          "startMs": null,
+          "endMs": null,
+          "locator": "ev-002 · 第 2–3 段"
+        },
+        {
+          "lessonId": "06-08",
+          "assetId": "asset:text-06-08",
+          "startMs": null,
+          "endMs": null,
+          "locator": "ev-004 · 第 5 段"
+        }
+      ],
+      "createdBy": "chapter-06-review-v1"
+    },
+    {
+      "id": "edge:outline:06-07:06-08",
+      "from": "lesson:06-07",
+      "to": "lesson:06-08",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "06-07 围绕 LeetCode 347 比较全量排序、大小为 k 的最小堆和大小为 n-k 的替代堆；06-08 文本先复述优先队列 Top K 路线，再扩展到 LeetCode 215、面试题 17.14 与 partition 路线。verified 表示两侧材料均已复核，不表示讲师作了直接回指。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "06-07",
+          "assetId": "asset:video-06-07",
+          "startMs": 0,
+          "endMs": 836000,
+          "locator": "ev-001–ev-005 · 00:00-13:56"
+        },
+        {
+          "lessonId": "06-08",
+          "assetId": "asset:text-06-08",
+          "startMs": null,
+          "endMs": null,
+          "locator": "ev-001 · 标题后第 1 段"
+        },
+        {
+          "lessonId": "06-08",
+          "assetId": "asset:text-06-08",
+          "startMs": null,
+          "endMs": null,
+          "locator": "ev-003 · 第 4 段"
+        },
+        {
+          "lessonId": "06-08",
+          "assetId": "asset:text-06-08",
+          "startMs": null,
+          "endMs": null,
+          "locator": "ev-004 · 第 5 段"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-06-review-v1"
+    },
+    {
+      "id": "edge:outline:06-02:07-01",
+      "from": "lesson:06-02",
+      "to": "lesson:07-01",
+      "type": "recommended_before",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "06-02 用递归二叉树遍历和系统栈解释递归如何运行；07-01 转向二叉树的递归定义与函数语义。前者为后者提供运行机制背景，但两课没有稳定课次 ID 的直接互指，因此仅作为经双侧内容复核的编辑性学习桥梁，不是硬性先修。",
+      "confidence": 0.92,
+      "evidence": [
+        {
+          "lessonId": "06-02",
+          "assetId": "asset:video-06-02",
+          "startMs": 0,
+          "endMs": 188000,
+          "locator": "ev-001–ev-003 · 00:00-03:08"
+        },
+        {
+          "lessonId": "07-01",
+          "assetId": "asset:video-07-01",
+          "startMs": 3000,
+          "endMs": 272000,
+          "locator": "ev-001–ev-003 · 00:03-04:32"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-07-review-v1"
+    },
+    {
+      "id": "edge:outline:07-04:07-05",
+      "from": "lesson:07-04",
+      "to": "lesson:07-05",
+      "type": "extends",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "07-04 为根到叶路径建立“空指针不等于叶节点”的正确终止条件；07-05 保留同一根到叶契约，并进一步让递归函数返回全部子树路径后向上组合。两课构成从布尔判定与基例校准到返回集合与结果构造的编辑性递进。",
+      "confidence": 0.97,
+      "evidence": [
+        {
+          "lessonId": "07-04",
+          "assetId": "asset:video-07-04",
+          "startMs": 21000,
+          "endMs": 51000,
+          "locator": "ev-002 · 00:21-00:51"
+        },
+        {
+          "lessonId": "07-04",
+          "assetId": "asset:video-07-04",
+          "startMs": 373000,
+          "endMs": 585000,
+          "locator": "ev-007–ev-008 · 06:13-09:45"
+        },
+        {
+          "lessonId": "07-05",
+          "assetId": "asset:video-07-05",
+          "startMs": 0,
+          "endMs": 155000,
+          "locator": "ev-001–ev-002 · 00:00-02:35"
+        },
+        {
+          "lessonId": "07-05",
+          "assetId": "asset:video-07-05",
+          "startMs": 385000,
+          "endMs": 694000,
+          "locator": "ev-004 · 06:25-11:34"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-07-review-v1"
+    },
+    {
+      "id": "edge:outline:07-05:07-06",
+      "from": "lesson:07-05",
+      "to": "lesson:07-06",
+      "type": "extends",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "07-05 定义从给定根出发、在叶节点结束的全部路径返回契约；07-06 放宽为任意起点和任意终点的向下路径，并增加外层递归枚举起点、内层递归统计固定起点路径。后者实质扩展了路径范围和递归职责，但课程没有直接点名上一课。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "07-05",
+          "assetId": "asset:video-07-05",
+          "startMs": 61000,
+          "endMs": 155000,
+          "locator": "ev-002 · 01:01-02:35"
+        },
+        {
+          "lessonId": "07-05",
+          "assetId": "asset:video-07-05",
+          "startMs": 385000,
+          "endMs": 694000,
+          "locator": "ev-004 · 06:25-11:34"
+        },
+        {
+          "lessonId": "07-06",
+          "assetId": "asset:video-07-06",
+          "startMs": 0,
+          "endMs": 65000,
+          "locator": "ev-001 · 00:00-01:05"
+        },
+        {
+          "lessonId": "07-06",
+          "assetId": "asset:video-07-06",
+          "startMs": 127000,
+          "endMs": 851160,
+          "locator": "ev-003–ev-005 · 02:07-14:11"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-07-review-v1"
+    },
+    {
+      "id": "edge:video:07-01:07-02",
+      "from": "lesson:07-01",
+      "to": "lesson:07-02",
+      "type": "applies",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "07-01 建立二叉树递归结构、函数语义、终止条件与递归过程；07-02 把这套方法直接用于 Invert Binary Tree：空树返回，递归翻转两棵子树，再交换当前节点的左右孩子。关系由双侧内容验证，但不是课程显式互指。",
+      "confidence": 0.97,
+      "evidence": [
+        {
+          "lessonId": "07-01",
+          "assetId": "asset:video-07-01",
+          "startMs": 77000,
+          "endMs": 339000,
+          "locator": "ev-002–ev-004 · 01:17-05:39"
+        },
+        {
+          "lessonId": "07-02",
+          "assetId": "asset:video-07-02",
+          "startMs": 188000,
+          "endMs": 312000,
+          "locator": "ev-004 · 03:08-05:12"
+        }
+      ],
+      "createdBy": "chapter-07-review-v1"
+    },
+    {
+      "id": "edge:text-video:07-03:07-02",
+      "from": "lesson:07-03",
+      "to": "lesson:07-02",
+      "type": "revisits",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "07-02 先讲 Invert Binary Tree 并转述 Max Howell 的面试轶事；07-03 明确重开同一人物与“翻转二叉树”争议，但把重点转向事实边界、面试协作、工程能力和用户价值。标题关联与主题转向均有双侧证据。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "07-03",
+          "assetId": "asset:text-07-03",
+          "startMs": null,
+          "endMs": null,
+          "locator": "ev-001–ev-002 · 标题后第 1–11 段"
+        },
+        {
+          "lessonId": "07-03",
+          "assetId": "asset:text-07-03",
+          "startMs": null,
+          "endMs": null,
+          "locator": "ev-008 · 第 54–61 段"
+        },
+        {
+          "lessonId": "07-02",
+          "assetId": "asset:video-07-02",
+          "startMs": 36000,
+          "endMs": 188000,
+          "locator": "ev-002–ev-003 · 00:36-03:07"
+        }
+      ],
+      "createdBy": "chapter-07-review-v1"
+    },
+    {
+      "id": "edge:video:07-04:07-06",
+      "from": "lesson:07-04",
+      "to": "lesson:07-06",
+      "type": "contrasts_with",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "07-04 的 Path Sum 只接受从整棵树根开始、在叶节点结束的路径，并把叶节点条件作为核心正确性边界；07-06 的 Path Sum III 明确允许任意起点与任意终点，但仍要求向下，因此必须额外枚举起点。两课直接形成路径契约对照。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "07-04",
+          "assetId": "asset:video-07-04",
+          "startMs": 21000,
+          "endMs": 51000,
+          "locator": "ev-002 · 00:21-00:51"
+        },
+        {
+          "lessonId": "07-04",
+          "assetId": "asset:video-07-04",
+          "startMs": 373000,
+          "endMs": 461000,
+          "locator": "ev-007 · 06:13-07:41"
+        },
+        {
+          "lessonId": "07-06",
+          "assetId": "asset:video-07-06",
+          "startMs": 0,
+          "endMs": 65000,
+          "locator": "ev-001 · 00:00-01:05"
+        }
+      ],
+      "createdBy": "chapter-07-review-v1"
+    },
+    {
+      "id": "edge:video:03-02:07-05",
+      "from": "lesson:03-02",
+      "to": "lesson:07-05",
+      "type": "same_pattern_as",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "03-02 先定义候选区间和变量含义，再让初始化、循环条件与更新服从该语义；07-05 先定义递归函数应返回当前子树的全部根到叶路径，再组织基例、子调用与组合。两课共享“先定语义契约，再写控制逻辑”的正确性模式，但分别用于循环与递归。",
+      "confidence": 0.94,
+      "evidence": [
+        {
+          "lessonId": "03-02",
+          "assetId": "asset:video-03-02",
+          "startMs": 0,
+          "endMs": 233000,
+          "locator": "ev-001–ev-002 · 00:00-03:53"
+        },
+        {
+          "lessonId": "03-02",
+          "assetId": "asset:video-03-02",
+          "startMs": 499000,
+          "endMs": 726480,
+          "locator": "ev-006 · 08:19-12:06"
+        },
+        {
+          "lessonId": "07-05",
+          "assetId": "asset:video-07-05",
+          "startMs": 0,
+          "endMs": 61000,
+          "locator": "ev-001 · 00:00-01:01"
+        },
+        {
+          "lessonId": "07-05",
+          "assetId": "asset:video-07-05",
+          "startMs": 385000,
+          "endMs": 694000,
+          "locator": "ev-004 · 06:25-11:34"
+        }
+      ],
+      "createdBy": "chapter-07-review-v1"
+    },
+    {
+      "id": "edge:video:07-07:04-03",
+      "from": "lesson:07-07",
+      "to": "lesson:04-03",
+      "type": "revisits",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "04-03 从 set/map 的底层实现说明平衡二叉搜索树如何保留顺序并支持最值、前驱后继等操作；07-07 回到 BST 的全子树顺序性，并把它用于 LCA 的单侧定向搜索。后者重访有序树思想，但不把普通 BST 与标准库平衡容器视为同一实现。",
+      "confidence": 0.97,
+      "evidence": [
+        {
+          "lessonId": "07-07",
+          "assetId": "asset:video-07-07",
+          "startMs": 0,
+          "endMs": 278000,
+          "locator": "ev-001–ev-002 · 00:00-04:38"
+        },
+        {
+          "lessonId": "07-07",
+          "assetId": "asset:video-07-07",
+          "startMs": 374000,
+          "endMs": 530000,
+          "locator": "ev-004 · 06:14-08:50"
+        },
+        {
+          "lessonId": "04-03",
+          "assetId": "asset:video-04-03",
+          "startMs": 0,
+          "endMs": 168000,
+          "locator": "ev-001 · 00:00-02:48"
+        },
+        {
+          "lessonId": "04-03",
+          "assetId": "asset:video-04-03",
+          "startMs": 376000,
+          "endMs": 525000,
+          "locator": "ev-005–ev-006 · 06:16-08:45"
+        }
+      ],
+      "createdBy": "chapter-07-review-v1"
+    },
+    {
+      "id": "edge:video-outline:07-07:08-01",
+      "from": "lesson:07-07",
+      "to": "lesson:08-01",
+      "type": "recommended_before",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "07-07 章末从“输入本身是二叉树”的递归问题预告下一章将讨论不依赖树结构的递归；08-01 开头明确承接上一章，并把“输入不是树、求解过程展开成树”的树形问题作为章节入口。两侧共同构成从数据结构递归到搜索空间树的课程桥梁。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "07-07",
+          "assetId": "asset:video-07-07",
+          "startMs": 1032000,
+          "endMs": 1070440,
+          "locator": "ev-007 · 17:12-17:50.440"
+        },
+        {
+          "lessonId": "08-01",
+          "assetId": "asset:video-08-01",
+          "startMs": 3000,
+          "endMs": 36000,
+          "locator": "ev-001 · 00:03-00:36"
+        },
+        {
+          "lessonId": "08-01",
+          "assetId": "asset:video-08-01",
+          "startMs": 36000,
+          "endMs": 60000,
+          "locator": "ev-002 · 00:36-01:00"
+        }
+      ],
+      "createdBy": "chapter-07-review-v1; verified-by chapter-08-review-v1"
+    },
+    {
+      "id": "edge:outline:08-01:08-02",
+      "from": "lesson:08-01",
+      "to": "lesson:08-02",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "08-01 用电话号码字母组合建立逐位分支的搜索空间树与 findCombination 代码；08-02 直接在同一函数上增加日志并运行，随后把“递归探底、返回父层、继续兄弟分支”抽象为回溯。因此后课是在同一问题和代码上的机制解释，而不是新的平行题解。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "08-01",
+          "assetId": "asset:video-08-01",
+          "startMs": 241000,
+          "endMs": 360000,
+          "locator": "ev-005 · 04:01-06:00"
+        },
+        {
+          "lessonId": "08-01",
+          "assetId": "asset:video-08-01",
+          "startMs": 490000,
+          "endMs": 1089000,
+          "locator": "ev-007 · 08:10-18:09"
+        },
+        {
+          "lessonId": "08-02",
+          "assetId": "asset:video-08-02",
+          "startMs": 0,
+          "endMs": 218000,
+          "locator": "ev-001 · 00:00-03:38"
+        },
+        {
+          "lessonId": "08-02",
+          "assetId": "asset:video-08-02",
+          "startMs": 596000,
+          "endMs": 682000,
+          "locator": "ev-004 · 09:56-11:22"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-08-review-v1"
+    },
+    {
+      "id": "edge:outline:08-04:08-05",
+      "from": "lesson:08-04",
+      "to": "lesson:08-05",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "08-04 为 LeetCode 77 建立 start、i+1 与 push/recurse/pop 的未剪枝组合搜索；08-05 开头直接回顾并提交该基线，再从剩余空位推导 i <= n-(k-c.size())+1，替换循环上界并提交优化版。两课是同一实现的明确基线—剪枝延伸。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "08-04",
+          "assetId": "asset:video-08-04",
+          "startMs": 93000,
+          "endMs": 332000,
+          "locator": "ev-002 · 01:33-05:32"
+        },
+        {
+          "lessonId": "08-04",
+          "assetId": "asset:video-08-04",
+          "startMs": 332000,
+          "endMs": 867840,
+          "locator": "ev-003 · 05:32-14:27.840"
+        },
+        {
+          "lessonId": "08-05",
+          "assetId": "asset:video-08-05",
+          "startMs": 0,
+          "endMs": 116000,
+          "locator": "ev-001 · 00:00-01:56"
+        },
+        {
+          "lessonId": "08-05",
+          "assetId": "asset:video-08-05",
+          "startMs": 116000,
+          "endMs": 226000,
+          "locator": "ev-002 · 01:56-03:46"
+        },
+        {
+          "lessonId": "08-05",
+          "assetId": "asset:video-08-05",
+          "startMs": 226000,
+          "endMs": 458000,
+          "locator": "ev-003 · 03:47-07:38"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-08-review-v1"
+    },
+    {
+      "id": "edge:outline:08-06:08-07",
+      "from": "lesson:08-06",
+      "to": "lesson:08-07",
+      "type": "contrasts_with",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "两课都使用二维网格、四方向偏移、边界检查、DFS 与 visited，但状态生命周期相反：08-06 的 visited 只表示当前候选单词路径，失败后必须恢复；08-07 的 visited 表示陆地已归入某个连通分量，返回后必须永久保留。该差异比笼统的“同一模式”更能决定代码正确性。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "08-06",
+          "assetId": "asset:video-08-06",
+          "startMs": 705000,
+          "endMs": 933000,
+          "locator": "ev-006 · 11:45-15:33"
+        },
+        {
+          "lessonId": "08-06",
+          "assetId": "asset:video-08-06",
+          "startMs": 1070000,
+          "endMs": 1200000,
+          "locator": "ev-008 · 17:50-20:00"
+        },
+        {
+          "lessonId": "08-07",
+          "assetId": "asset:video-08-07",
+          "startMs": 473000,
+          "endMs": 768000,
+          "locator": "ev-005 · 07:53-12:48"
+        },
+        {
+          "lessonId": "08-07",
+          "assetId": "asset:video-08-07",
+          "startMs": 990000,
+          "endMs": 1072000,
+          "locator": "ev-008 · 16:30-17:52"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-08-review-v1"
+    },
+    {
+      "id": "edge:video:08-07:06-05",
+      "from": "lesson:08-07",
+      "to": "lesson:06-05",
+      "type": "revisits",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "08-07 用 DFS/flood fill 回访 06-05 已建立的“搜索生成邻居 + visited 去重”框架：前课用 visited 修复状态图 BFS 的重复入队，后课用 visited 永久标记四连通陆地分量。两课解决的目标契约不同，因此不是同一问题的可替代方案。",
+      "confidence": 0.96,
+      "evidence": [
+        {
+          "lessonId": "06-05",
+          "assetId": "asset:video-06-05",
+          "startMs": 320000,
+          "endMs": 488000,
+          "locator": "ev-004 · 05:20-08:08"
+        },
+        {
+          "lessonId": "06-05",
+          "assetId": "asset:video-06-05",
+          "startMs": 488000,
+          "endMs": 1054000,
+          "locator": "ev-005–ev-006 · 08:08-17:34"
+        },
+        {
+          "lessonId": "08-07",
+          "assetId": "asset:video-08-07",
+          "startMs": 135000,
+          "endMs": 378000,
+          "locator": "ev-003 · 02:15-06:18"
+        },
+        {
+          "lessonId": "08-07",
+          "assetId": "asset:video-08-07",
+          "startMs": 1020000,
+          "endMs": 1072000,
+          "locator": "ev-007 · 17:00-17:52"
+        },
+        {
+          "lessonId": "08-07",
+          "assetId": "asset:video-08-07",
+          "startMs": 990000,
+          "endMs": 1072000,
+          "locator": "ev-008 · 16:30-17:52"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; redirected-and-verified-by chapter-08-review-v1"
+    },
+    {
+      "id": "edge:video:08-02:08-03",
+      "from": "lesson:08-02",
+      "to": "lesson:08-03",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "08-02 用电话号码组合的返回轨迹定义回溯，并说明值语义使字符串状态自然恢复；08-03 把这一控制流应用到共享可变的排列状态，明确要求递归后同时执行 p.pop_back() 和 used[i]=false。后课把“返回上层”落实为显式状态恢复。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "08-02",
+          "assetId": "asset:video-08-02",
+          "startMs": 596000,
+          "endMs": 682000,
+          "locator": "ev-004 · 09:56-11:22"
+        },
+        {
+          "lessonId": "08-03",
+          "assetId": "asset:video-08-03",
+          "startMs": 359000,
+          "endMs": 905000,
+          "locator": "ev-004 · 05:59-15:05"
+        },
+        {
+          "lessonId": "08-03",
+          "assetId": "asset:video-08-03",
+          "startMs": 905000,
+          "endMs": 1016000,
+          "locator": "ev-005 · 15:05-16:56"
+        }
+      ],
+      "createdBy": "chapter-08-review-v1"
+    },
+    {
+      "id": "edge:video:08-03:08-04",
+      "from": "lesson:08-03",
+      "to": "lesson:08-04",
+      "type": "contrasts_with",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "08-03 的排列把不同选择顺序视为不同答案，因此每层从全部未使用下标中选候选；08-04 明确指出组合不关心顺序，并用 start 与 i+1 只生成严格递增路径。两课共享回溯骨架，但答案等价关系直接改变候选域。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "08-03",
+          "assetId": "asset:video-08-03",
+          "startMs": 19000,
+          "endMs": 85000,
+          "locator": "ev-001 · 00:19-01:25"
+        },
+        {
+          "lessonId": "08-03",
+          "assetId": "asset:video-08-03",
+          "startMs": 255000,
+          "endMs": 359000,
+          "locator": "ev-003 · 04:15-05:59"
+        },
+        {
+          "lessonId": "08-04",
+          "assetId": "asset:video-08-04",
+          "startMs": 0,
+          "endMs": 93000,
+          "locator": "ev-001 · 00:00-01:33"
+        },
+        {
+          "lessonId": "08-04",
+          "assetId": "asset:video-08-04",
+          "startMs": 93000,
+          "endMs": 332000,
+          "locator": "ev-002 · 01:33-05:32"
+        }
+      ],
+      "createdBy": "chapter-08-review-v1"
+    },
+    {
+      "id": "edge:video:08-02:08-06",
+      "from": "lesson:08-02",
+      "to": "lesson:08-06",
+      "type": "applies",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "08-02 把回溯概括为沿选择路径递归、返回后继续其他分支；08-06 明确把这一方法从一维候选扩展到二维网格，以四方向搜索和失败后恢复路径 visited 实现 Word Search。",
+      "confidence": 0.96,
+      "evidence": [
+        {
+          "lessonId": "08-02",
+          "assetId": "asset:video-08-02",
+          "startMs": 596000,
+          "endMs": 682000,
+          "locator": "ev-004 · 09:56-11:22"
+        },
+        {
+          "lessonId": "08-02",
+          "assetId": "asset:video-08-02",
+          "startMs": 834000,
+          "endMs": 949000,
+          "locator": "ev-006 · 13:54-15:49"
+        },
+        {
+          "lessonId": "08-06",
+          "assetId": "asset:video-08-06",
+          "startMs": 0,
+          "endMs": 30000,
+          "locator": "ev-001 · 00:00-00:30"
+        },
+        {
+          "lessonId": "08-06",
+          "assetId": "asset:video-08-06",
+          "startMs": 1070000,
+          "endMs": 1200000,
+          "locator": "ev-008 · 17:50-20:00"
+        }
+      ],
+      "createdBy": "chapter-08-review-v1"
+    },
+    {
+      "id": "edge:video:08-07:08-08",
+      "from": "lesson:08-07",
+      "to": "lesson:08-08",
+      "type": "contrasts_with",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "08-07 的 visited 表示陆地已经永久归入一个连通分量，递归返回后不恢复；08-08 的 col、dia1、dia2 与 row 只描述当前部分棋盘，探索完一个列候选后必须全部撤销。两课直接说明状态是否回退取决于语义，而不是是否使用 DFS。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "08-07",
+          "assetId": "asset:video-08-07",
+          "startMs": 990000,
+          "endMs": 1072000,
+          "locator": "ev-008 · 16:30-17:52"
+        },
+        {
+          "lessonId": "08-08",
+          "assetId": "asset:video-08-08",
+          "startMs": 683000,
+          "endMs": 1245000,
+          "locator": "ev-005 · 11:23-20:45"
+        }
+      ],
+      "createdBy": "chapter-08-review-v1"
+    },
+    {
+      "id": "edge:video:08-02:08-08",
+      "from": "lesson:08-02",
+      "to": "lesson:08-08",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "08-02 把回溯抽象为沿搜索树试探、返回并继续其他分支，同时指出可用剪枝避免无效搜索；08-08 把这套框架完整应用到 N Queens，按行尝试列、用列和两类对角线冲突剪枝，并在递归返回后撤销全部占用状态。这是方法应用关系，不把 N Queens 等同于排列。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "08-02",
+          "assetId": "asset:video-08-02",
+          "startMs": 596000,
+          "endMs": 682000,
+          "locator": "ev-004 · 09:56-11:22"
+        },
+        {
+          "lessonId": "08-02",
+          "assetId": "asset:video-08-02",
+          "startMs": 834000,
+          "endMs": 949000,
+          "locator": "ev-006 · 13:54-15:49"
+        },
+        {
+          "lessonId": "08-08",
+          "assetId": "asset:video-08-08",
+          "startMs": 170000,
+          "endMs": 393000,
+          "locator": "ev-003 · 02:50-06:33"
+        },
+        {
+          "lessonId": "08-08",
+          "assetId": "asset:video-08-08",
+          "startMs": 393000,
+          "endMs": 683000,
+          "locator": "ev-004 · 06:33-11:23"
+        },
+        {
+          "lessonId": "08-08",
+          "assetId": "asset:video-08-08",
+          "startMs": 683000,
+          "endMs": 1245000,
+          "locator": "ev-005 · 11:23-20:45"
+        }
+      ],
+      "createdBy": "chapter-08-review-v1"
+    },
+    {
+      "id": "edge:outline:02-05:09-01",
+      "from": "lesson:02-05",
+      "to": "lesson:09-01",
+      "type": "recommended_before",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "02-05 用递归树统计双分支调用并指出动态规划可避免指数级成本；09-01 用 Fibonacci 的实测、调用树和重复节点进入记忆化与自底向上方法，目标侧证据现已补齐。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "02-05",
+          "assetId": "asset:video-02-05",
+          "startMs": 409000,
+          "endMs": 657000,
+          "locator": "ev-005 · 06:49-10:57"
+        },
+        {
+          "lessonId": "09-01",
+          "assetId": "asset:video-09-01",
+          "startMs": 257000,
+          "endMs": 457000,
+          "locator": "ev-005–ev-006 · 04:17-07:37"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; downgraded-by chapter-07-review-v1; verified-by chapter-09-review-v1"
+    },
+    {
+      "id": "edge:outline:09-01:09-02",
+      "from": "lesson:09-01",
+      "to": "lesson:09-02",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "09-01 总结递归问题出现重叠子问题后可选择记忆化或自底向上动态规划；09-02 随即把同一三阶段方法应用到 Climbing Stairs。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "09-01",
+          "assetId": "asset:video-09-01",
+          "startMs": 1100000,
+          "endMs": 1230960,
+          "locator": "ev-016 · 18:20-20:30.960"
+        },
+        {
+          "lessonId": "09-02",
+          "assetId": "asset:video-09-02",
+          "startMs": 0,
+          "endMs": 626000,
+          "locator": "ev-001–ev-006 · 00:00-10:26"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-09-review-v1"
+    },
+    {
+      "id": "edge:outline:09-02:09-03",
+      "from": "lesson:09-02",
+      "to": "lesson:09-03",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "09-02 用 Fibonacci 型计数问题建立重叠子问题、记忆化与填表；09-03 扩展到 Integer Break 最优化问题，并加入最优子结构及“停止拆分/继续拆分”两个候选。",
+      "confidence": 0.97,
+      "evidence": [
+        {
+          "lessonId": "09-02",
+          "assetId": "asset:video-09-02",
+          "startMs": 351000,
+          "endMs": 626000,
+          "locator": "ev-004–ev-006 · 05:51-10:26"
+        },
+        {
+          "lessonId": "09-03",
+          "assetId": "asset:video-09-03",
+          "startMs": 158000,
+          "endMs": 537000,
+          "locator": "ev-003–ev-004 · 02:38-08:57"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-09-review-v1"
+    },
+    {
+      "id": "edge:outline:09-03:09-04",
+      "from": "lesson:09-03",
+      "to": "lesson:09-04",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "09-03 结尾明确预告下一节讨论状态和状态转移；09-04 随即用 House Robber 区分“状态定义说明函数做什么”和“转移说明函数怎么做”。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "09-03",
+          "assetId": "asset:video-09-03",
+          "startMs": 1295000,
+          "endMs": 1511000,
+          "locator": "ev-007 · 21:35-25:11"
+        },
+        {
+          "lessonId": "09-04",
+          "assetId": "asset:video-09-04",
+          "startMs": 422000,
+          "endMs": 738000,
+          "locator": "ev-004 · 07:02-12:18"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-09-review-v1"
+    },
+    {
+      "id": "edge:outline:09-04:09-05",
+      "from": "lesson:09-04",
+      "to": "lesson:09-05",
+      "type": "recommended_before",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "09-04 系统解释一维状态语义与转移；09-05 把同一建模方法扩展为“物品前缀 + 容量”二维状态，是理解 0-1 背包前的强推荐基础。",
+      "confidence": 0.97,
+      "evidence": [
+        {
+          "lessonId": "09-04",
+          "assetId": "asset:video-09-04",
+          "startMs": 422000,
+          "endMs": 738000,
+          "locator": "ev-004 · 07:02-12:18"
+        },
+        {
+          "lessonId": "09-05",
+          "assetId": "asset:video-09-05",
+          "startMs": 389000,
+          "endMs": 626000,
+          "locator": "ev-005 · 06:29-10:26"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-09-review-v1"
+    },
+    {
+      "id": "edge:outline:09-05:09-06",
+      "from": "lesson:09-05",
+      "to": "lesson:09-06",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "09-05 建立完整二维 0-1 背包表；09-06 开头直接回顾其 O(nC) 时间/空间和上一行依赖，再压缩为两行与一行并介绍变种。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "09-05",
+          "assetId": "asset:video-09-05",
+          "startMs": 1095000,
+          "endMs": 1957920,
+          "locator": "ev-007–ev-008 · 18:15-32:37.920"
+        },
+        {
+          "lessonId": "09-06",
+          "assetId": "asset:video-09-06",
+          "startMs": 0,
+          "endMs": 125000,
+          "locator": "ev-001–ev-002 · 00:00-02:05"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-09-review-v1"
+    },
+    {
+      "id": "edge:outline:09-06:09-07",
+      "from": "lesson:09-06",
+      "to": "lesson:09-07",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "09-06 结尾明确预告下一节把 0-1 背包用于 LeetCode 面试题；09-07 把等和子集转成容量 sum/2 的布尔背包，并复用一维倒序更新。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "09-06",
+          "assetId": "asset:video-09-06",
+          "startMs": 1103000,
+          "endMs": 1218360,
+          "locator": "ev-011 · 18:23-20:18.360"
+        },
+        {
+          "lessonId": "09-07",
+          "assetId": "asset:video-09-07",
+          "startMs": 0,
+          "endMs": 374000,
+          "locator": "ev-001–ev-002 · 00:00-06:14"
+        },
+        {
+          "lessonId": "09-07",
+          "assetId": "asset:video-09-07",
+          "startMs": 944000,
+          "endMs": 1198000,
+          "locator": "ev-005 · 15:44-19:58"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-09-review-v1"
+    },
+    {
+      "id": "edge:outline:09-04:09-08",
+      "from": "lesson:09-04",
+      "to": "lesson:09-08",
+      "type": "applies",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "09-04 把状态定义与状态转移拆开讲解；09-08 将这一方法用于序列问题，定义 LIS(i) 为以 nums[i] 结尾的最优长度再枚举合法前驱。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "09-04",
+          "assetId": "asset:video-09-04",
+          "startMs": 422000,
+          "endMs": 738000,
+          "locator": "ev-004 · 07:02-12:18"
+        },
+        {
+          "lessonId": "09-08",
+          "assetId": "asset:video-09-08",
+          "startMs": 293000,
+          "endMs": 524000,
+          "locator": "ev-003 · 04:53-08:44"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-09-review-v1"
+    },
+    {
+      "id": "edge:outline:09-08:09-09",
+      "from": "lesson:09-08",
+      "to": "lesson:09-09",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "09-08 完成 LIS 状态与表格；09-09 不仅扩展到 LCS 和最短路，还直接重用 LIS 状态数组演示如何从最大值位置反向恢复一条具体序列。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "09-08",
+          "assetId": "asset:video-09-08",
+          "startMs": 293000,
+          "endMs": 1383000,
+          "locator": "ev-003–ev-006 · 04:53-23:03"
+        },
+        {
+          "lessonId": "09-09",
+          "assetId": "asset:video-09-09",
+          "startMs": 707000,
+          "endMs": 888000,
+          "locator": "ev-007 · 11:47-14:48"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-09-review-v1"
+    },
+    {
+      "id": "edge:video:09-05:10-03",
+      "from": "lesson:09-05",
+      "to": "lesson:10-03",
+      "type": "revisits",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "09-05 首次用容量 5 的反例说明单位价值最高优先不能保证一般 0-1 背包最优；10-03 原样回访价值 16 对 22 的同一反例，把它用于主动否定错误贪心规则。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "09-05",
+          "assetId": "asset:video-09-05",
+          "startMs": 211000,
+          "endMs": 389000,
+          "locator": "ev-004 · 03:31-06:29"
+        },
+        {
+          "lessonId": "10-03",
+          "assetId": "asset:video-10-03",
+          "startMs": 65000,
+          "endMs": 125000,
+          "locator": "ev-002 · 01:05-02:05"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; redirected-by chapter-09-review-v1; verified-and-retargeted-by chapter-10-review-v1"
+    },
+    {
+      "id": "edge:video:08-08:09-01",
+      "from": "lesson:08-08",
+      "to": "lesson:09-01",
+      "type": "recommended_before",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "08-08 结尾在回溯章节总结后明确预告下一章动态规划；09-01 开头进入动态规划概念并以 Fibonacci 建立新章方法。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "08-08",
+          "assetId": "asset:video-08-08",
+          "startMs": 1374000,
+          "endMs": 1521960,
+          "locator": "ev-008 · 22:54-25:21.960"
+        },
+        {
+          "lessonId": "09-01",
+          "assetId": "asset:video-09-01",
+          "startMs": 0,
+          "endMs": 52000,
+          "locator": "ev-001 · 00:00-00:52"
+        }
+      ],
+      "createdBy": "chapter-09-review-v1"
+    },
+    {
+      "id": "edge:video:06-05:09-09",
+      "from": "lesson:06-05",
+      "to": "lesson:09-09",
+      "type": "extends",
+      "strength": "medium",
+      "status": "verified",
+      "rationale": "06-05 把 Perfect Squares 建模为无权图最短路径并用 BFS 分层求解；09-09 延伸到带边权记号的候选前驱松弛式。两课连接的是最短路建模范围，不表示 BFS 与 Dijkstra 是同一算法或互相替代。",
+      "confidence": 0.94,
+      "evidence": [
+        {
+          "lessonId": "06-05",
+          "assetId": "asset:video-06-05",
+          "startMs": 0,
+          "endMs": 85000,
+          "locator": "ev-001 · 00:00-01:25"
+        },
+        {
+          "lessonId": "06-05",
+          "assetId": "asset:video-06-05",
+          "startMs": 320000,
+          "endMs": 488000,
+          "locator": "ev-004 · 05:20-08:08"
+        },
+        {
+          "lessonId": "09-09",
+          "assetId": "asset:video-09-09",
+          "startMs": 571000,
+          "endMs": 707000,
+          "locator": "ev-006 · 09:31-11:47"
+        }
+      ],
+      "createdBy": "chapter-09-review-v1"
+    },
+    {
+      "id": "edge:video:09-09:09-05",
+      "from": "lesson:09-09",
+      "to": "lesson:09-05",
+      "type": "revisits",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "09-05 建立并填充完整 0-1 背包二维表；09-09 重新使用同类二维表，从右下角反向判断物品选择，把只求最优值扩展到恢复具体解。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "09-09",
+          "assetId": "asset:video-09-09",
+          "startMs": 888000,
+          "endMs": 1112000,
+          "locator": "ev-008 · 14:48-18:32"
+        },
+        {
+          "lessonId": "09-05",
+          "assetId": "asset:video-09-05",
+          "startMs": 1095000,
+          "endMs": 1957920,
+          "locator": "ev-007–ev-008 · 18:15-32:37.920"
+        }
+      ],
+      "createdBy": "chapter-09-review-v1"
+    },
+    {
+      "id": "edge:video:09-09:09-06",
+      "from": "lesson:09-09",
+      "to": "lesson:09-06",
+      "type": "revisits",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "09-06 把二维背包压缩成两行和一行；09-09 回访这一优化并指出只保留一维值数组、没有额外轨迹时会失去按物品层反向恢复具体方案所需的信息。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "09-09",
+          "assetId": "asset:video-09-09",
+          "startMs": 888000,
+          "endMs": 1112000,
+          "locator": "ev-008 · 14:48-18:32"
+        },
+        {
+          "lessonId": "09-06",
+          "assetId": "asset:video-09-06",
+          "startMs": 45000,
+          "endMs": 912000,
+          "locator": "ev-002–ev-007 · 00:45-15:12"
+        }
+      ],
+      "createdBy": "chapter-09-review-v1"
+    },
+    {
+      "id": "edge:text-video:09-10:09-07",
+      "from": "lesson:09-10",
+      "to": "lesson:09-07",
+      "type": "revisits",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "09-10 的章末清单再次列出“分割等和子集”；09-07 已完整讲解同名问题的 0-1 背包建模。关系只表示题名级重访，不把 09-07 的题解倒灌为文本课内容。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "09-10",
+          "assetId": "asset:text-09-10",
+          "startMs": null,
+          "endMs": null,
+          "locator": "ev-009 · 标题后第 9 段"
+        },
+        {
+          "lessonId": "09-07",
+          "assetId": "asset:video-09-07",
+          "startMs": 0,
+          "endMs": 374000,
+          "locator": "ev-001–ev-002 · 00:00-06:14"
+        }
+      ],
+      "createdBy": "chapter-09-review-v1"
+    },
+    {
+      "id": "edge:text-video:09-10:09-08",
+      "from": "lesson:09-10",
+      "to": "lesson:09-08",
+      "type": "revisits",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "09-10 的章末清单再次列出“最长递增子序列”；09-08 已讲解 LIS 的定义、状态、转移和实现。关系只确认题名重访，文本课本身仍没有题解。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "09-10",
+          "assetId": "asset:text-09-10",
+          "startMs": null,
+          "endMs": null,
+          "locator": "ev-008 · 标题后第 8 段"
+        },
+        {
+          "lessonId": "09-08",
+          "assetId": "asset:video-09-08",
+          "startMs": 0,
+          "endMs": 1383000,
+          "locator": "ev-001–ev-006 · 00:00-23:03"
+        }
+      ],
+      "createdBy": "chapter-09-review-v1"
+    },
+    {
+      "id": "edge:text-video:09-10:09-09",
+      "from": "lesson:09-10",
+      "to": "lesson:09-09",
+      "type": "revisits",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "09-10 的章末清单再次列出“最长公共子序列”；09-09 已展示 LCS 定义、二维状态和转移。关系只确认题名重访，不声称文本清单重述了这些细节。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "09-10",
+          "assetId": "asset:text-09-10",
+          "startMs": null,
+          "endMs": null,
+          "locator": "ev-006 · 标题后第 6 段"
+        },
+        {
+          "lessonId": "09-09",
+          "assetId": "asset:video-09-09",
+          "startMs": 37000,
+          "endMs": 360000,
+          "locator": "ev-002–ev-003 · 00:37-06:00"
+        }
+      ],
+      "createdBy": "chapter-09-review-v1"
+    },
+    {
+      "id": "edge:outline:10-01:10-02",
+      "from": "lesson:10-01",
+      "to": "lesson:10-02",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "10-01 结尾明确预告下一节讲贪心与动态规划的关系；10-02 开头承接这一主题，并从基础分配题推进到同一问题的 DP 与贪心对照。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "10-01",
+          "assetId": "asset:video-10-01",
+          "startMs": 640000,
+          "endMs": 735440,
+          "locator": "ev-006 · 10:40-12:15.440"
+        },
+        {
+          "lessonId": "10-02",
+          "assetId": "asset:video-10-02",
+          "startMs": 0,
+          "endMs": 16000,
+          "locator": "ev-001 · 00:00-00:16"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-10-review-v1"
+    },
+    {
+      "id": "edge:outline:10-02:10-03",
+      "from": "lesson:10-02",
+      "to": "lesson:10-03",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "10-02 结尾明确预告下一节证明贪心选择性质；10-03 从该性质进入反例与区间替换论证，实际完成所预告的证明主题。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "10-02",
+          "assetId": "asset:video-10-02",
+          "startMs": 1030000,
+          "endMs": 1078680,
+          "locator": "ev-009 · 17:10-17:58.680"
+        },
+        {
+          "lessonId": "10-03",
+          "assetId": "asset:video-10-03",
+          "startMs": 380000,
+          "endMs": 769000,
+          "locator": "ev-005–ev-009 · 06:20-12:49"
+        }
+      ],
+      "createdBy": "outline-analysis-v1; verified-by chapter-10-review-v1"
+    },
+    {
+      "id": "edge:video:09-08:10-02",
+      "from": "lesson:09-08",
+      "to": "lesson:10-02",
+      "type": "same_pattern_as",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "09-08 定义 LIS(i) 为以 nums[i] 结尾的最优长度；10-02 的区间 DP 实际也把 memo[i] 定义为以 intervals[i] 结尾的最长兼容序列，二者都枚举合法前驱并从全表取最大值。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "09-08",
+          "assetId": "asset:video-09-08",
+          "startMs": 293000,
+          "endMs": 524000,
+          "locator": "ev-003 · 04:53-08:44"
+        },
+        {
+          "lessonId": "10-02",
+          "assetId": "asset:video-10-02",
+          "startMs": 239000,
+          "endMs": 732000,
+          "locator": "ev-004–ev-005 · 03:59-12:12"
+        }
+      ],
+      "createdBy": "chapter-10-review-v1"
+    },
+    {
+      "id": "edge:video:06-05:10-03",
+      "from": "lesson:06-05",
+      "to": "lesson:10-03",
+      "type": "contrasts_with",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "06-05 用 BFS 分层求 Perfect Squares 的最少项数；10-03 用 n=12 说明每次取最大平方数会得到 4 项而最优只需 3 项，直接对照了系统搜索与未经证明的单路径贪心。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "06-05",
+          "assetId": "asset:video-06-05",
+          "startMs": 320000,
+          "endMs": 488000,
+          "locator": "ev-004 · 05:20-08:08"
+        },
+        {
+          "lessonId": "10-03",
+          "assetId": "asset:video-10-03",
+          "startMs": 125000,
+          "endMs": 190000,
+          "locator": "ev-003 · 02:05-03:10"
+        }
+      ],
+      "createdBy": "chapter-10-review-v1"
+    },
+    {
+      "id": "edge:video:11-01:01-03",
+      "from": "lesson:11-01",
+      "to": "lesson:01-03",
+      "type": "revisits",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "01-03 建立基础优先、使用 LeetCode 并平衡学习与做题的准备框架；11-01 在结语中依次回访基础、LeetCode、超越 Accepted 和题目分类思考，形成课程首尾闭环。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "01-03",
+          "assetId": "asset:video-01-03",
+          "startMs": 347000,
+          "endMs": 435000,
+          "locator": "ev-005 · 05:47-07:15"
+        },
+        {
+          "lessonId": "01-03",
+          "assetId": "asset:video-01-03",
+          "startMs": 738000,
+          "endMs": 814000,
+          "locator": "ev-008 · 12:18-13:34"
+        },
+        {
+          "lessonId": "01-03",
+          "assetId": "asset:video-01-03",
+          "startMs": 966000,
+          "endMs": 1058400,
+          "locator": "ev-010 · 16:06-17:38"
+        },
+        {
+          "lessonId": "11-01",
+          "assetId": "asset:video-11-01",
+          "startMs": 0,
+          "endMs": 150000,
+          "locator": "ev-001–ev-004 · 00:00-02:30"
+        }
+      ],
+      "createdBy": "chapter-11-review-v1"
+    },
+    {
+      "id": "edge:video:11-01:01-04",
+      "from": "lesson:11-01",
+      "to": "lesson:01-04",
+      "type": "revisits",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "01-04 把算法作答展开为建立可解释起点、设计与优化方案、实际实现和工程边界；11-01 用“设计—实现—继续优化”压缩回访同一解题流程。",
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "lessonId": "01-04",
+          "assetId": "asset:video-01-04",
+          "startMs": 383000,
+          "endMs": 623000,
+          "locator": "ev-005 · 06:23-10:23"
+        },
+        {
+          "lessonId": "01-04",
+          "assetId": "asset:video-01-04",
+          "startMs": 623000,
+          "endMs": 702000,
+          "locator": "ev-006 · 10:23-11:42"
+        },
+        {
+          "lessonId": "11-01",
+          "assetId": "asset:video-11-01",
+          "startMs": 86000,
+          "endMs": 113000,
+          "locator": "ev-003 · 01:26-01:53"
+        }
+      ],
+      "createdBy": "chapter-11-review-v1"
+    },
+    {
+      "id": "edge:video:03-03:11-01",
+      "from": "lesson:03-03",
+      "to": "lesson:11-01",
+      "type": "extends",
+      "strength": "strong",
+      "status": "verified",
+      "rationale": "03-03 完整演示 LeetCode 的 Run、Submit 和 Accepted；11-01 明确补充 Accepted 不是学习终点，还应继续审视算法设计、具体实现与优化空间。",
+      "confidence": 0.99,
+      "evidence": [
+        {
+          "lessonId": "03-03",
+          "assetId": "asset:video-03-03",
+          "startMs": 579000,
+          "endMs": 678000,
+          "locator": "ev-007–ev-008 · 09:39-11:18"
+        },
+        {
+          "lessonId": "11-01",
+          "assetId": "asset:video-11-01",
+          "startMs": 41000,
+          "endMs": 113000,
+          "locator": "ev-002–ev-003 · 00:41-01:53"
+        }
+      ],
+      "createdBy": "chapter-11-review-v1"
+    }
+  ]
+}
