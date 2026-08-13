@@ -32,7 +32,8 @@ iptables-legacy: not found
 
 ## Sidecar 部署结构
 
-`compose.yaml` 定义两个独立容器：
+`compose.yaml` 定义公共开发容器，`compose.proxy.yaml` 在选择 `proxy` 网络模式时增加
+sidecar。合并后的配置包含两个独立容器：
 
 ```text
 Compose project
@@ -59,8 +60,8 @@ docker image inspect mzz2017/v2raya:latest >/dev/null
 随后使用仓库脚本启动：
 
 ```bash
-bash scripts/container.sh up bind persistent
-bash scripts/container.sh status bind persistent
+bash scripts/container.sh up bind persistent proxy
+bash scripts/container.sh status bind persistent proxy
 ```
 
 `up` 会同时启动 `dev` 和 `proxy`，它们都设置了 `restart: unless-stopped`。只要
@@ -75,7 +76,7 @@ Docker daemon 恢复运行且容器没有被手动 stop/down，两个服务就�
 查看 sidecar 日志：
 
 ```bash
-bash scripts/container.sh logs bind persistent
+bash scripts/container.sh logs bind persistent proxy
 ```
 
 按 `Ctrl-C` 只会停止日志跟随，不会停止后台容器。
@@ -117,7 +118,7 @@ HTTP 代理:   http://127.0.0.1:20171
 SOCKS5 代理: socks5h://127.0.0.1:20170
 ```
 
-`127.0.0.1` 指向共享网络命名空间。这是本仓库 `dev` + `proxy` 的默认方式，
+`127.0.0.1` 指向共享网络命名空间。这是本仓库选择 `proxy` 时使用的方式，
 不需要发布 `20170` 或 `20171` 到宿主机。
 
 ### Codex 位于宿主机，v2rayA 位于容器
@@ -216,9 +217,12 @@ proxy-off
 
 ## VS Code Server 与扩展市场
 
-四种版本化的 Dev Container 配置均通过 `remoteEnv` 将同一组代理变量传递给
+四种以 `+ proxy` 结尾的 Dev Container 配置均通过 `remoteEnv` 将同一组代理变量传递给
 VS Code Server 及其集成终端、任务和调试进程。因此扩展市场下载会使用 sidecar，
 无需在工作区 `.vscode/settings.json` 中配置 `http.proxy`。
+
+选择以 `+ direct` 结尾的配置时，只启动 `dev` 服务，不设置 `remoteEnv` 代理变量，也不会
+尝试访问 `127.0.0.1:20170/20171`。
 
 配置变更后，使用 **Dev Containers: Rebuild and Reopen in Container** 重新创建环境。
 可在容器中的 VS Code 终端确认：
@@ -238,17 +242,18 @@ env | rg '(^|_)(HTTP|HTTPS|ALL|NO)_PROXY='
 codex
 ```
 
-该 `codex` shell 函数会调用 `codex-proxy`，只为 Codex 进程注入：
+在代理模式中，该 `codex` shell 函数会调用 `codex-proxy`，只为 Codex 进程注入：
 
 ```text
 HTTP_PROXY  = http://127.0.0.1:20171
 HTTPS_PROXY = http://127.0.0.1:20171
 ALL_PROXY   = socks5h://127.0.0.1:20170
-NO_PROXY    = localhost,127.0.0.1
+NO_PROXY    = localhost,127.0.0.1,::1
 ```
 
-因为没有在整个容器中全局 export 这些标准变量，uv、apt、Git 和其他命令不会
-仅因为启动交互式 shell 就被强制使用代理。
+通过命令行脚本进入容器时，没有在整个容器中全局 export 这些标准变量，uv、apt、Git 和其他
+命令不会仅因为启动交互式 shell 就被强制使用代理。代理版 Dev Container 则通过 `remoteEnv`
+让 VS Code 进程、终端和初始化命令统一使用代理。
 
 也可以显式调用同一个代理函数：
 
@@ -271,29 +276,14 @@ CODEX_SOCKS_PROXY=
 CODEX_NO_PROXY=
 ```
 
-函数的实际定义为：
+函数的关键行为为：
 
-```bash
-codex-proxy() {
-  local http_proxy="${CODEX_HTTP_PROXY:-${V2RAYA_HTTP_PROXY:-http://127.0.0.1:20171}}"
-  local socks_proxy="${CODEX_SOCKS_PROXY:-${V2RAYA_SOCKS_PROXY:-socks5h://127.0.0.1:20170}}"
-  local no_proxy="${CODEX_NO_PROXY:-${V2RAYA_NO_PROXY:-localhost,127.0.0.1}}"
-
-  HTTP_PROXY="${http_proxy}" \
-  HTTPS_PROXY="${http_proxy}" \
-  ALL_PROXY="${socks_proxy}" \
-  NO_PROXY="${no_proxy}" \
-    command codex "$@"
-}
-
-codex() {
-  codex-proxy "$@"
-}
-
-codex-direct() {
-  command codex "$@"
-}
+```text
+proxy 模式：codex -> codex-proxy -> 同时设置大小写两套标准代理变量 -> Codex
+direct 模式：codex -> codex-direct -> 清除大小写两套标准代理变量 -> Codex
 ```
+
+`codex-proxy` 在直连模式下会直接报错，不会回退到固定的 `127.0.0.1` 地址。
 
 这些函数只由交互式 Bash 加载。脚本、IDE 任务或其他不读取 `~/.bashrc` 的进程需要
 显式设置标准代理变量。

@@ -62,27 +62,39 @@ proxy_env_status() {
   fi
 }
 
+proxy_mode="${PROGRAMMING_LAB_PROXY_MODE:-direct}"
+
 proxy_action="${1:-status}"
 proxy_error=0
 
 case "${proxy_action}" in
   on | enable)
-    proxy_http_url="${V2RAYA_HTTP_PROXY:-http://127.0.0.1:20171}"
-    proxy_socks_url="${V2RAYA_SOCKS_PROXY:-socks5h://127.0.0.1:20170}"
-    proxy_no_proxy="${V2RAYA_NO_PROXY:-localhost,127.0.0.1}"
+    if [[ "${proxy_mode}" != "proxy" ]]; then
+      echo "Proxy mode is disabled for this development container." >&2
+      proxy_error=2
+    else
+      proxy_http_url="${V2RAYA_HTTP_PROXY:-}"
+      proxy_socks_url="${V2RAYA_SOCKS_PROXY:-}"
+      proxy_no_proxy="${V2RAYA_NO_PROXY:-}"
 
-    export HTTP_PROXY="${proxy_http_url}"
-    export HTTPS_PROXY="${proxy_http_url}"
-    export ALL_PROXY="${proxy_socks_url}"
-    export NO_PROXY="${proxy_no_proxy}"
-    export http_proxy="${proxy_http_url}"
-    export https_proxy="${proxy_http_url}"
-    export all_proxy="${proxy_socks_url}"
-    export no_proxy="${proxy_no_proxy}"
+      if [[ -z "${proxy_http_url}" || -z "${proxy_socks_url}" ]]; then
+        echo "Proxy mode is enabled, but its HTTP or SOCKS5 endpoint is missing." >&2
+        proxy_error=2
+      else
+        export HTTP_PROXY="${proxy_http_url}"
+        export HTTPS_PROXY="${proxy_http_url}"
+        export ALL_PROXY="${proxy_socks_url}"
+        export NO_PROXY="${proxy_no_proxy}"
+        export http_proxy="${proxy_http_url}"
+        export https_proxy="${proxy_http_url}"
+        export all_proxy="${proxy_socks_url}"
+        export no_proxy="${proxy_no_proxy}"
 
-    unset proxy_http_url proxy_socks_url proxy_no_proxy
-    echo "v2rayA proxy environment enabled."
-    proxy_env_status
+        echo "v2rayA proxy environment enabled."
+        proxy_env_status
+      fi
+      unset proxy_http_url proxy_socks_url proxy_no_proxy
+    fi
     ;;
   off | disable)
     unset HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY
@@ -90,6 +102,7 @@ case "${proxy_action}" in
     echo "v2rayA proxy environment disabled."
     ;;
   status)
+    printf 'Container network: %s\n' "${proxy_mode}"
     proxy_env_status
     ;;
   help | -h | --help)
@@ -103,6 +116,7 @@ case "${proxy_action}" in
 esac
 
 unset proxy_action
+unset proxy_mode
 unset -f proxy_env_usage redact_proxy_url proxy_env_status
 
 if ((proxy_error != 0)); then

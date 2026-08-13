@@ -36,9 +36,9 @@ Toolkit 和 VS Code。
 - 提供初始化、诊断、格式化、静态检查、测试和全量验收脚本，并由 Makefile 统一入口。
 - 工作区可选宿主机 bind 双向同步或构建时一次性快照复制；CMake/Cargo 构建树、
   Python/编译缓存可选命名卷持久化或随容器删除。
-- v2rayA Lite 作为独立 Compose sidecar 自动启动，与开发容器共享网络，但不使用
-  `privileged`、`NET_ADMIN` 或容器内 iptables。
-- 提供四套 VS Code Dev Container 组合、编辑器设置、推荐插件、任务和调试配置。
+- 可选的 v2rayA Lite 作为独立 Compose sidecar，与开发容器共享网络，但不使用
+  `privileged`、`NET_ADMIN` 或容器内 iptables；直连模式完全不启动它。
+- 提供八套 VS Code Dev Container 组合、编辑器设置、推荐插件、任务和调试配置。
 - 提供可选的本地 pre-commit hook，以及不依赖 GPU 的 GitHub Actions 代码质量检查。
 - 仓库级 Codex Skills 由 `.agent-skills` 中央子模块固定版本，并根据
   `.agent-skills.json` 生成到 `.agents/skills/` 供当前仓库发现。
@@ -53,10 +53,13 @@ Toolkit 和 VS Code。
 ├── compose.gpu-legacy.yaml          # Compose 2.27–2.29 的 GPU 兼容覆盖配置
 ├── compose.bind.yaml                # 宿主机源码 bind 双向同步
 ├── compose.copy.yaml                # 构建时把源码快照复制进镜像
-├── compose.ephemeral.yaml           # CMake/Cargo 构建树与 v2rayA 配置 tmpfs
+├── compose.ephemeral.yaml           # CMake/Cargo 构建树 tmpfs
 ├── compose.persist.yaml             # 构建树与 uv/Cargo/GPU 缓存命名卷
 ├── compose.copy-persist.yaml        # 快照模式的仓库目录持久卷
-├── .devcontainer/                   # bind/copy × persistent/ephemeral 四套配置
+├── compose.proxy.yaml               # v2rayA sidecar 与代理环境
+├── compose.direct.yaml              # 不启动 sidecar 的显式直连环境
+├── compose.proxy-*.yaml             # v2rayA 配置持久化/临时存储覆盖层
+├── .devcontainer/                   # 工作区 × 持久化 × 网络模式八套配置
 ├── .agent-skills/                   # 中央 Agent Skills 子模块（固定中央版本）
 ├── .agent-skills.json               # 中央 Skill 选择；当前为 Codex 启用四个学习 Skill
 ├── .agent-skills-config/            # 四个学习 Skill 的仓库事实与受管位置配置
@@ -94,7 +97,7 @@ Toolkit 和 VS Code。
 │   └── cpp/
 ├── scripts/
 │   ├── init-env.sh                  # uv 初始化与可选 Git hook
-│   ├── container.sh                 # 显式选择工作区和持久化模式
+│   ├── container.sh                 # 显式选择工作区、持久化和网络模式
 │   ├── doctor.sh                    # 工具链、uv Python 和 NVIDIA 运行时诊断
 │   ├── lint.sh                      # 全语言静态质量检查
 │   ├── format.sh                    # 全语言格式化
@@ -198,23 +201,31 @@ cp .env.example .env
 
 如需让 Codex CLI 通过容器内 v2rayA Lite 访问网络，参见
 [Codex CLI 代理配置指南](docs/proxy-configuration.md)。显式 HTTP/SOCKS5 代理不需要为开发容器
-授予 iptables 或 `NET_ADMIN` 权限。开发镜像的交互式 Bash 已将 `codex` 封装为代理
-启动函数；需要绕过代理时使用 `codex-direct`。其他工具可使用 `proxy-on`、
+授予 iptables 或 `NET_ADMIN` 权限。开发镜像的交互式 Bash 会根据所选网络模式让 `codex`
+走 sidecar 或直连；在代理模式中需要临时绕过时使用 `codex-direct`。其他工具可使用 `proxy-on`、
 `proxy-off` 与 `proxy-status` 切换当前 shell 的标准代理环境变量。
 
 UID/GID 会在构建镜像时用于创建 `coder`。如果先构建后再修改，需要重新构建镜像；如果还
 复用了旧的命名卷，参见“常见问题”中的权限处理。
 
-### 2. 选择工作区与持久化模式
+### 2. 选择工作区、持久化与网络模式
 
-启动时必须在两个维度上作出选择，`scripts/container.sh` 不会静默替你决定：
+启动时必须在三个维度上作出选择，`scripts/container.sh` 不会静默替你决定：
 
 | 工作区 | 持久化 | 行为 |
 | --- | --- | --- |
-| `bind` | `persistent` | 宿主机与容器双向实时同步；CMake/Cargo 构建树、uv、编译缓存与 v2rayA 配置使用命名卷。适合日常开发 |
-| `bind` | `ephemeral` | 源码仍双向同步；CMake/Cargo 构建树和 v2rayA 配置使用 tmpfs，其他环境与缓存位于容器可写层 |
-| `copy` | `persistent` | 构建时复制源码快照，不与宿主机同步；`/workspace/programming-lab`、CMake/Cargo 构建树、缓存和 v2rayA 配置放入命名卷 |
-| `copy` | `ephemeral` | 构建时复制源码快照，不同步、不使用命名卷；CMake/Cargo 构建树和 v2rayA 配置使用 tmpfs |
+| `bind` | `persistent` | 宿主机与容器双向实时同步；CMake/Cargo 构建树、uv 与编译缓存使用命名卷。适合日常开发 |
+| `bind` | `ephemeral` | 源码仍双向同步；CMake/Cargo 构建树使用 tmpfs，其他环境与缓存位于容器可写层 |
+| `copy` | `persistent` | 构建时复制源码快照，不与宿主机同步；`/workspace/programming-lab`、构建树和缓存放入命名卷 |
+| `copy` | `ephemeral` | 构建时复制源码快照，不同步、不使用命名卷；CMake/Cargo 构建树使用 tmpfs |
+
+网络模式必须另外选择：
+
+- `proxy`：启动 v2rayA Lite sidecar，并为 VS Code、Codex 和可选的当前 shell 提供代理；
+- `direct`：只启动开发容器，显式清空标准代理变量，不访问 `127.0.0.1:20170/20171`。
+
+选择 `proxy + persistent` 时 v2rayA 配置使用命名卷；选择 `proxy + ephemeral` 时使用 tmpfs。
+`direct` 模式不创建或挂载 v2rayA 配置。
 
 `bind` 模式最直观，但容器内任何源码修改会立刻修改宿主机。`copy` 模式通过 Dockerfile 的
 `workspace-copy` target 在构建时执行一次 `COPY`，`.git`、`.env`、构建产物等由
@@ -226,16 +237,15 @@ UID/GID 会在构建镜像时用于创建 `coder`。如果先构建后再修改�
 新的宿主机快照，需要先导出需要保留的内容，再显式删除旧卷并重建。
 
 这里的 `ephemeral` 指“不使用命名卷”：执行 stop/restart 时开发容器可写层仍存在；
-CMake/Cargo 构建树与 v2rayA 配置位于 tmpfs，相关容器停止后便不再保留。
+CMake/Cargo 构建树以及代理模式下的 v2rayA 配置位于 tmpfs，相关容器停止后便不再保留。
 
 ### 3. VS Code Dev Container
 
 1. 用 VS Code 打开仓库。
 2. 执行命令面板中的 `Dev Containers: Reopen in Container`。
-3. VS Code 会列出四套配置：`bind + persistent`、`bind + ephemeral`、
-   `copy + persistent`、`copy + ephemeral`，选择符合本次工作的组合。
-4. VS Code 会合并公共 Compose 文件与对应覆盖文件，构建并启动 `dev` 与
-   `proxy` 服务，随后执行
+3. VS Code 会列出工作区、持久化和 `proxy/direct` 组成的八套配置，选择符合本次工作的组合。
+4. VS Code 会合并公共 Compose 文件与对应覆盖文件；代理模式启动 `dev` 与 `proxy`，直连模式
+   只启动 `dev`，随后执行
    `bash scripts/init-env.sh`。
 5. 初始化脚本会让 uv 下载/确认 CPython 3.12，创建
    `/home/coder/.venvs/programming-lab`，并按照仓库已提交的 `uv.lock` 同步 GPU 与开发依赖；
@@ -259,31 +269,32 @@ Windows 可直接使用功能等价的 PowerShell 脚本，无需安装 Bash。W
 替换为 `pwsh`：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/container.ps1 build bind persistent
-powershell -ExecutionPolicy Bypass -File scripts/container.ps1 up bind persistent
-powershell -ExecutionPolicy Bypass -File scripts/container.ps1 init bind persistent
-powershell -ExecutionPolicy Bypass -File scripts/container.ps1 shell bind persistent
+powershell -ExecutionPolicy Bypass -File scripts/container.ps1 build bind persistent direct
+powershell -ExecutionPolicy Bypass -File scripts/container.ps1 up bind persistent direct
+powershell -ExecutionPolicy Bypass -File scripts/container.ps1 init bind persistent direct
+powershell -ExecutionPolicy Bypass -File scripts/container.ps1 shell bind persistent direct
 ```
 
 两个入口已经完成代码级行为对照，但尚未在 Windows PowerShell、Docker Desktop、WSL2 和 GPU
 环境中进行实际运行。待验证的环境矩阵与操作清单见
 [Windows 容器工作流验证清单](docs/windows-container-validation.md)。
 
-脚本要求显式给出工作区和持久化模式。例如，使用同步源码与持久缓存：
+脚本要求显式给出工作区、持久化和网络模式。例如，使用同步源码、持久缓存和直连网络：
 
 ```bash
-bash scripts/container.sh build bind persistent
-bash scripts/container.sh up bind persistent
-bash scripts/container.sh init bind persistent
-bash scripts/container.sh shell bind persistent
+bash scripts/container.sh build bind persistent direct
+bash scripts/container.sh up bind persistent direct
+bash scripts/container.sh init bind persistent direct
+bash scripts/container.sh shell bind persistent direct
 ```
 
-`up` 会同时启动开发容器和 v2rayA Lite sidecar。Web UI 默认位于
+需要代理时，把最后一个参数改为 `proxy`。此时 `up` 会同时启动开发容器和 v2rayA Lite
+sidecar，Web UI 默认位于
 `http://127.0.0.1:2017`；可用下面的命令确认状态或跟踪日志：
 
 ```bash
-bash scripts/container.sh status bind persistent
-bash scripts/container.sh logs bind persistent
+bash scripts/container.sh status bind persistent proxy
+bash scripts/container.sh logs bind persistent proxy
 ```
 
 进入容器后：
@@ -297,41 +308,43 @@ make verify
 使用不与宿主机同步、也不保留命名卷的快照容器：
 
 ```bash
-bash scripts/container.sh up copy ephemeral
-bash scripts/container.sh init copy ephemeral
+bash scripts/container.sh up copy ephemeral direct
+bash scripts/container.sh init copy ephemeral direct
 ```
 
 从 copy 模式导出容器工作区：
 
 ```bash
-bash scripts/container.sh export copy persistent ./container-export
+bash scripts/container.sh export copy persistent direct ./container-export
 ```
 
 生命周期操作也必须带相同模式，以便脚本合并相同的 Compose 文件：
 
 ```bash
-bash scripts/container.sh stop bind persistent
-bash scripts/container.sh down bind persistent
+bash scripts/container.sh stop bind persistent direct
+bash scripts/container.sh down bind persistent direct
 ```
 
 `down` 删除容器但保留已声明的命名卷；显式的 `destroy` 会执行带 volumes 的清理，删除当前
-组合声明的 uv Python、虚拟环境、源码快照、编译缓存与 v2rayA 配置。copy 模式下应先 export，
-再使用
+组合声明的 uv Python、虚拟环境、源码快照和编译缓存。只有 `proxy + persistent` 组合会同时
+声明并删除 v2rayA 配置卷；在 `direct` 模式下执行 `destroy` 不会删除之前保留的代理配置。
+copy 模式下应先 export，再使用
 `down`（ephemeral）或 `destroy`（persistent）。
 
-四种组合共用同一个 Compose project 和 `dev` 服务，目的是一次只运行一种模式。切换组合时
-Compose 可能重建现有容器；若当前是 copy + ephemeral，必须在切换前导出修改，否则容器可写层
-会随重建消失。
+所有组合共用同一个 Compose project 和 `dev` 服务，目的是一次只运行一种模式。`up` 会清理
+上一种模式遗留的服务，因此切换到 `direct` 后不会残留 `proxy` sidecar。切换组合可能重建现有
+容器；若当前是 copy + ephemeral，必须在切换前导出修改，否则容器可写层会随重建消失。
 
 `compose.yaml` 只是公共基底，故意不自行决定 GPU 请求和工作区挂载方式。推荐通过
 `container.sh`（Linux/macOS/WSL）或 `container.ps1`（Windows）使用；需要直接调用 Compose 时，
 必须叠加 `compose.gpu.yaml`（Compose
 2.30+）或 `compose.gpu-legacy.yaml`（Compose 2.27–2.29），再叠加 `compose.bind.yaml`
-或 `compose.copy.yaml`，最后按需叠加持久化文件。容器入口还会检查
+或 `compose.copy.yaml`，再叠加持久化文件，最后必须选择 `compose.proxy.yaml` 及其存储覆盖层，
+或选择 `compose.direct.yaml`。容器入口还会检查
 `/workspace/programming-lab/pyproject.toml`，若只启动公共基底，会给出模式选择提示并退出，而不是
 运行一个空工作区。
 
-VS Code Dev Container 不经过 `container.sh`，因此四套配置固定引用在所有受支持版本上
+VS Code Dev Container 不经过 `container.sh`，因此八套配置固定引用在所有受支持版本上
 都可用的 `compose.gpu-legacy.yaml`；Compose 2.30+ 同样能正常解析该文件。
 
 ## 容器设计说明
@@ -372,14 +385,15 @@ Compose 做了以下设置：
 - `shm_size: 8gb` 避免深度学习/GPU 测试过早耗尽默认共享内存。
 - `SYS_PTRACE` 与 `seccomp=unconfined` 用于容器内 GDB/LLDB 调试。这个配置降低了默认
   seccomp 限制，只应把该容器用于可信的本地开发代码。
-- `proxy` 使用 `mzz2017/v2raya` 镜像以 Lite 模式运行，通过
+- `compose.proxy.yaml` 使用 `mzz2017/v2raya` 镜像以 Lite 模式运行，通过
   `network_mode: service:dev` 与开发容器共享 loopback；sidecar 丢弃全部 Linux
   capabilities，并设置 `no-new-privileges`。
 - `compose.bind.yaml` 与 `compose.copy.yaml` 决定工作区是双向挂载还是镜像快照。
-- `compose.persist.yaml` 可选地挂载 CMake/Cargo 构建树、uv、Cargo、ccache、Triton、
-  TileLang 和 v2rayA 命名卷。
-- `compose.ephemeral.yaml` 用 tmpfs 承载 CMake/Cargo 构建树和 v2rayA 配置，既让构建产物
-  使用完整的 Linux 文件系统语义，也避免镜像声明的配置目录产生无法复用的匿名卷。
+- `compose.persist.yaml` 可选地挂载 CMake/Cargo 构建树、uv、Cargo、ccache、Triton 和
+  TileLang 命名卷；`compose.proxy-persist.yaml` 只在代理模式持久化 v2rayA 配置。
+- `compose.ephemeral.yaml` 用 tmpfs 承载 CMake/Cargo 构建树；`compose.proxy-ephemeral.yaml`
+  只在代理模式用 tmpfs 承载 v2rayA 配置。
+- `compose.direct.yaml` 不定义 sidecar，并显式清空标准代理环境变量。
 - `compose.copy-persist.yaml` 只用于 copy + persistent，为
   `/workspace/programming-lab` 添加快照持久卷。
 
@@ -636,10 +650,10 @@ workspace = true
 
 ## VS Code 配置
 
-`.devcontainer/` 下有四个子配置。执行 `Dev Containers: Reopen in Container` 时按本次需求
-选择 bind/copy 与 persistent/ephemeral 组合。四套配置共享相同的 GPU、用户、初始化脚本和
-插件清单，只在 Compose 覆盖文件上不同。copy 模式中 VS Code 编辑的是容器快照，不会改动
-宿主机；关闭前需要自行 export 希望保留的内容。
+`.devcontainer/` 下有八个子配置。执行 `Dev Containers: Reopen in Container` 时按本次需求
+选择 bind/copy、persistent/ephemeral 与 proxy/direct 组合。八套配置共享相同的 GPU、用户、
+初始化脚本和插件清单，只在 Compose 覆盖文件和代理环境上不同。copy 模式中 VS Code 编辑的是
+容器快照，不会改动宿主机；关闭前需要自行 export 希望保留的内容。
 
 `.vscode/extensions.json` 推荐了：
 
@@ -728,9 +742,9 @@ Windows bind mount 可能通过 9p/DrvFS 暴露给容器；它支持普通文件
 如果容器是在加入该挂载前创建的，需要按原模式重建。例如：
 
 ```bash
-bash scripts/container.sh down bind persistent
-bash scripts/container.sh up bind persistent
-bash scripts/container.sh init bind persistent
+bash scripts/container.sh down bind persistent direct
+bash scripts/container.sh up bind persistent direct
+bash scripts/container.sh init bind persistent direct
 ```
 
 不应使用 `sudo cmake` 或 `chmod -R 777 /workspace/programming-lab`；这类操作无法补齐
@@ -743,7 +757,7 @@ bash scripts/container.sh init bind persistent
 不需要保留缓存时，可以先备份重要内容，再对当前组合执行：
 
 ```bash
-bash scripts/container.sh destroy bind persistent
+bash scripts/container.sh destroy bind persistent direct
 ```
 
 该操作会永久删除此 Compose 组合声明的命名卷。copy + persistent 还会删除容器工作区，必须

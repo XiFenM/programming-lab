@@ -15,7 +15,7 @@
 
 - Windows PowerShell 5.1 与 PowerShell 7；
 - Docker Compose 2.27–2.29 的 legacy GPU 配置与 2.30+ 的 `gpus: all` 配置；
-- `bind/copy` × `persistent/ephemeral` 四种组合；
+- `bind/copy` × `persistent/ephemeral` × `proxy/direct` 八种组合；
 - Windows Docker Desktop 的 WSL2 后端和 NVIDIA GPU 转发。
 
 ## 后续验证项目

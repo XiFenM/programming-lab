@@ -1,10 +1,12 @@
 {
-  "name": "Programming Lab: copy + ephemeral",
+  "name": "Programming Lab: copy + ephemeral + proxy",
   "dockerComposeFile": [
     "../../compose.yaml",
     "../../compose.gpu-legacy.yaml",
     "../../compose.copy.yaml",
-    "../../compose.ephemeral.yaml"
+    "../../compose.ephemeral.yaml",
+    "../../compose.proxy.yaml",
+    "../../compose.proxy-ephemeral.yaml"
   ],
   "runServices": ["dev", "proxy"],
   "service": "dev",

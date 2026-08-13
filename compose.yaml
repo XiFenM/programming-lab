@@ -1,6 +1,6 @@
-# Common dev and v2rayA Lite sidecar definitions. Select one GPU override, one
-# workspace override (bind/copy), and one persistence override; the container
-# script assembles them safely.
+# Common development-container definition. Select one GPU override, one
+# workspace override (bind/copy), one persistence override, and one network
+# override (proxy/direct); the container script assembles them safely.
 name: ${COMPOSE_PROJECT_NAME:-programming-lab}
 
 services:
@@ -31,8 +31,6 @@ services:
       - SYS_PTRACE
     security_opt:
       - seccomp=unconfined
-    ports:
-      - "${V2RAYA_WEB_BIND_ADDRESS:-127.0.0.1}:${V2RAYA_WEB_PORT:-2017}:2017"
     environment:
       NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-all}
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
@@ -49,31 +47,3 @@ services:
       CCACHE_DIR: /home/coder/.cache/ccache
       TRITON_CACHE_DIR: /home/coder/.cache/triton
       TILELANG_CACHE_DIR: /home/coder/.cache/tilelang
-      V2RAYA_HTTP_PROXY: ${V2RAYA_HTTP_PROXY:-http://127.0.0.1:20171}
-      V2RAYA_SOCKS_PROXY: ${V2RAYA_SOCKS_PROXY:-socks5h://127.0.0.1:20170}
-      V2RAYA_NO_PROXY: ${V2RAYA_NO_PROXY:-localhost,127.0.0.1}
-      CODEX_HTTP_PROXY: ${CODEX_HTTP_PROXY:-}
-      CODEX_SOCKS_PROXY: ${CODEX_SOCKS_PROXY:-}
-      CODEX_NO_PROXY: ${CODEX_NO_PROXY:-}
-
-  # v2rayA runs as an isolated Lite-mode sidecar but shares dev's network
-  # namespace. Processes in dev can therefore use 127.0.0.1:20170/20171
-  # without granting either container NET_ADMIN or privileged mode.
-  proxy:
-    image: ${V2RAYA_IMAGE:-mzz2017/v2raya:latest}
-    init: true
-    restart: unless-stopped
-    network_mode: service:dev
-    depends_on:
-      dev:
-        condition: service_started
-    command:
-      - --lite
-      - --config
-      - /etc/v2raya
-      - --log-level
-      - ${V2RAYA_LOG_LEVEL:-info}
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true

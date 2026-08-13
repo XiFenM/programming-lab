@@ -1,0 +1,7 @@
+services:
+  proxy:
+    volumes:
+      - v2raya-data:/etc/v2raya
+
+volumes:
+  v2raya-data:

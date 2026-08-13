@@ -122,10 +122,10 @@ rg 'CUDA 13|cu13' README.md pyproject.toml uv.lock docs
 以下示例沿用 bind 工作区和 persistent 缓存模式：
 
 ```bash
-bash scripts/container.sh down bind persistent
-bash scripts/container.sh up bind persistent
-bash scripts/container.sh init bind persistent
-bash scripts/container.sh shell bind persistent
+bash scripts/container.sh down bind persistent direct
+bash scripts/container.sh up bind persistent direct
+bash scripts/container.sh init bind persistent direct
+bash scripts/container.sh shell bind persistent direct
 ```
 
 `up` 操作包含 `docker compose up -d --build`，Dockerfile 的 `FROM` 发生变化后会基于新基础
@@ -137,9 +137,9 @@ bash scripts/container.sh shell bind persistent
 升级；只有在确实需要完全重新初始化时才执行对应配置的 `destroy`，因为它会删除所选命名卷：
 
 ```bash
-bash scripts/container.sh destroy bind persistent
-bash scripts/container.sh up bind persistent
-bash scripts/container.sh init bind persistent
+bash scripts/container.sh destroy bind persistent direct
+bash scripts/container.sh up bind persistent direct
+bash scripts/container.sh init bind persistent direct
 ```
 
 ### 4. 让 CMake 重新识别 nvcc
