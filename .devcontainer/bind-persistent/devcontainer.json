@@ -1,10 +1,12 @@
 {
-  "name": "Programming Lab: bind + persistent",
+  "name": "Programming Lab: bind + persistent + proxy",
   "dockerComposeFile": [
     "../../compose.yaml",
     "../../compose.gpu-legacy.yaml",
     "../../compose.bind.yaml",
-    "../../compose.persist.yaml"
+    "../../compose.persist.yaml",
+    "../../compose.proxy.yaml",
+    "../../compose.proxy-persist.yaml"
   ],
   "runServices": ["dev", "proxy"],
   "service": "dev",

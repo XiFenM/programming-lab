@@ -11,9 +11,12 @@ param(
     [string] $PersistenceMode,
 
     [Parameter(Position = 3)]
-    [string] $ExportDirectory = "container-export",
+    [string] $NetworkMode,
 
     [Parameter(Position = 4, ValueFromRemainingArguments = $true)]
+    [string] $ExportDirectory = "container-export",
+
+    [Parameter(Position = 5, ValueFromRemainingArguments = $true)]
     [string[]] $RemainingArguments
 )
 
@@ -25,8 +28,8 @@ $script:RequestedExitCode = 0
 function Get-Usage {
     @'
 Usage:
-  powershell -ExecutionPolicy Bypass -File scripts/container.ps1 <action> <workspace> <persistence> [export-dir]
-  pwsh -File scripts/container.ps1 <action> <workspace> <persistence> [export-dir]
+  powershell -ExecutionPolicy Bypass -File scripts/container.ps1 <action> <workspace> <persistence> <network> [export-dir]
+  pwsh -File scripts/container.ps1 <action> <workspace> <persistence> <network> [export-dir]
 
 Workspace modes:
   bind          Bind-mount the host repository to /workspace/programming-lab
@@ -34,14 +37,19 @@ Workspace modes:
   copy          Copy a repository snapshot into the image (no host sync).
 
 Persistence modes:
-  persistent    Keep CMake/Cargo build trees, tool caches/venvs, and v2rayA
-                configuration in named volumes. In copy mode, also keep
-                /workspace/programming-lab in a named volume seeded once from
-                the image.
-  ephemeral     Keep CMake/Cargo build trees and v2rayA configuration in
-                tmpfs; other generated environments/caches stay in the
-                container writable layer, and image-baked tools remain in the
-                image.
+  persistent    Keep CMake/Cargo build trees and tool caches/venvs in named
+                volumes. In copy mode, also keep /workspace/programming-lab in
+                a named volume seeded once from the image. Proxy mode also
+                persists v2rayA configuration.
+  ephemeral     Keep CMake/Cargo build trees in tmpfs; other generated
+                environments/caches stay in the container writable layer, and
+                image-baked tools remain in the image. Proxy mode also keeps
+                v2rayA configuration in tmpfs.
+
+Network modes:
+  proxy         Start the v2rayA Lite sidecar and configure development tools
+                to use its HTTP/SOCKS5 endpoints.
+  direct        Do not start the sidecar or inject proxy environment variables.
 
 Compose versions:
   2.30+         Add compose.gpu.yaml with its gpus: all declaration.
@@ -51,7 +59,7 @@ Actions:
   build         Build the selected image target.
   up            Build if needed and start in the background.
   status        Show service status.
-  logs          Follow recent dev and proxy service logs.
+  logs          Follow recent logs for the selected services.
   shell         Open an interactive Bash shell in the running container.
   init          Run scripts/init-env.sh in the running container.
   stop          Stop without removing the container.
@@ -62,9 +70,9 @@ Actions:
                 (default: ./container-export).
 
 Examples:
-  powershell -ExecutionPolicy Bypass -File scripts/container.ps1 up bind persistent
-  powershell -ExecutionPolicy Bypass -File scripts/container.ps1 up copy ephemeral
-  powershell -ExecutionPolicy Bypass -File scripts/container.ps1 export copy persistent ./container-export
+  powershell -ExecutionPolicy Bypass -File scripts/container.ps1 up bind persistent proxy
+  powershell -ExecutionPolicy Bypass -File scripts/container.ps1 up bind persistent direct
+  powershell -ExecutionPolicy Bypass -File scripts/container.ps1 export copy persistent direct ./container-export
 '@
 }
 
@@ -150,6 +158,10 @@ if (@("persistent", "ephemeral") -cnotcontains $PersistenceMode) {
     [Console]::Error.WriteLine($usage)
     exit 2
 }
+if (@("proxy", "direct") -cnotcontains $NetworkMode) {
+    [Console]::Error.WriteLine($usage)
+    exit 2
+}
 if ([string]::IsNullOrEmpty($ExportDirectory)) {
     $ExportDirectory = "container-export"
 }
@@ -207,6 +219,17 @@ try {
         $composeArguments += @("-f", "compose.ephemeral.yaml")
     }
 
+    if ($NetworkMode -ceq "proxy") {
+        $composeArguments += @("-f", "compose.proxy.yaml")
+        if ($PersistenceMode -ceq "persistent") {
+            $composeArguments += @("-f", "compose.proxy-persist.yaml")
+        } else {
+            $composeArguments += @("-f", "compose.proxy-ephemeral.yaml")
+        }
+    } else {
+        $composeArguments += @("-f", "compose.direct.yaml")
+    }
+
     switch -CaseSensitive ($Action) {
         "build" {
             Invoke-DockerCommand ($composeArguments + @("build"))
@@ -215,7 +238,7 @@ try {
             if ($WorkspaceMode -ceq "copy" -and $PersistenceMode -ceq "persistent") {
                 Write-Output "Note: an existing workspace-data volume is not overwritten by a rebuilt image."
             }
-            Invoke-DockerCommand ($composeArguments + @("up", "-d", "--build"))
+            Invoke-DockerCommand ($composeArguments + @("up", "-d", "--build", "--remove-orphans"))
         }
         "status" {
             Invoke-DockerCommand ($composeArguments + @("ps"))

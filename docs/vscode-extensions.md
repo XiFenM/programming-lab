@@ -1,7 +1,7 @@
 # VS Code 推荐扩展说明
 
 本仓库在 [`.vscode/extensions.json`](../.vscode/extensions.json) 中推荐 20 个扩展，用于覆盖
-开发容器、Python、C++/CUDA、Rust、配置文件和文档编辑。四套 Dev Container 配置还会自动
+开发容器、Python、C++/CUDA、Rust、配置文件和文档编辑。八套 Dev Container 配置还会自动
 安装其中 13 个核心开发扩展；仅出现在工作区推荐列表中的扩展，需要在 VS Code 提示后手动
 安装。
 
@@ -12,7 +12,7 @@
 
 | 扩展 | Dev Container 自动安装 | 在本仓库中的用途 |
 | --- | --- | --- |
-| [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) | 否，安装在宿主机 | 构建并进入 `.devcontainer/` 定义的四套开发环境，是推荐开发方式的入口。 |
+| [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) | 否，安装在宿主机 | 构建并进入 `.devcontainer/` 定义的八套开发环境，是推荐开发方式的入口。 |
 | [Docker](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker) | 否 | 查看容器、镜像、网络和 Compose 资源，辅助排查开发容器与 v2rayA sidecar。 |
 | [EditorConfig](https://marketplace.visualstudio.com/items?itemName=EditorConfig.EditorConfig) | 是 | 读取 `.editorconfig`，统一缩进、换行、文件末尾换行和尾随空白规则。 |
 | [Error Lens](https://marketplace.visualstudio.com/items?itemName=usernamehw.errorlens) | 否 | 把诊断信息直接显示在相关代码行旁，便于及时发现类型、lint 和编译问题。 |

@@ -8,7 +8,7 @@ cd "${repo_root}"
 usage() {
   cat <<'EOF'
 Usage:
-  bash scripts/container.sh <action> <workspace> <persistence> [export-dir]
+  bash scripts/container.sh <action> <workspace> <persistence> <network> [export-dir]
 
 Workspace modes:
   bind          Bind-mount the host repository to /workspace/programming-lab
@@ -16,14 +16,19 @@ Workspace modes:
   copy          Copy a repository snapshot into the image (no host sync).
 
 Persistence modes:
-  persistent    Keep CMake/Cargo build trees, tool caches/venvs, and v2rayA
-                configuration in named volumes. In copy mode, also keep
-                /workspace/programming-lab in a named volume seeded once from
-                the image.
-  ephemeral     Keep CMake/Cargo build trees and v2rayA configuration in
-                tmpfs; other generated environments/caches stay in the
-                container writable layer, and image-baked tools remain in the
-                image.
+  persistent    Keep CMake/Cargo build trees and tool caches/venvs in named
+                volumes. In copy mode, also keep /workspace/programming-lab in
+                a named volume seeded once from the image. Proxy mode also
+                persists v2rayA configuration.
+  ephemeral     Keep CMake/Cargo build trees in tmpfs; other generated
+                environments/caches stay in the container writable layer, and
+                image-baked tools remain in the image. Proxy mode also keeps
+                v2rayA configuration in tmpfs.
+
+Network modes:
+  proxy         Start the v2rayA Lite sidecar and configure development tools
+                to use its HTTP/SOCKS5 endpoints.
+  direct        Do not start the sidecar or inject proxy environment variables.
 
 Compose versions:
   2.30+         Add compose.gpu.yaml with its gpus: all declaration.
@@ -33,7 +38,7 @@ Actions:
   build         Build the selected image target.
   up            Build if needed and start in the background.
   status        Show service status.
-  logs          Follow recent dev and proxy service logs.
+  logs          Follow recent logs for the selected services.
   shell         Open an interactive Bash shell in the running container.
   init          Run scripts/init-env.sh in the running container.
   stop          Stop without removing the container.
@@ -44,18 +49,19 @@ Actions:
                 (default: ./container-export).
 
 Examples:
-  bash scripts/container.sh up bind persistent
-  bash scripts/container.sh up copy ephemeral
-  bash scripts/container.sh export copy persistent ./container-export
+  bash scripts/container.sh up bind persistent proxy
+  bash scripts/container.sh up bind persistent direct
+  bash scripts/container.sh export copy persistent direct ./container-export
 EOF
 }
 
 action="${1:-}"
 workspace_mode="${2:-}"
 persistence_mode="${3:-}"
-export_directory="${4:-container-export}"
+network_mode="${4:-}"
+export_directory="${5:-container-export}"
 
-if (($# > 4)); then
+if (($# > 5)); then
   usage >&2
   exit 2
 fi
@@ -83,6 +89,14 @@ esac
 
 case "${persistence_mode}" in
   persistent | ephemeral) ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
+
+case "${network_mode}" in
+  proxy | direct) ;;
   *)
     usage >&2
     exit 2
@@ -170,6 +184,17 @@ else
   compose_files+=(-f compose.ephemeral.yaml)
 fi
 
+if [[ "${network_mode}" == "proxy" ]]; then
+  compose_files+=(-f compose.proxy.yaml)
+  if [[ "${persistence_mode}" == "persistent" ]]; then
+    compose_files+=(-f compose.proxy-persist.yaml)
+  else
+    compose_files+=(-f compose.proxy-ephemeral.yaml)
+  fi
+else
+  compose_files+=(-f compose.direct.yaml)
+fi
+
 compose=(docker compose "${compose_files[@]}")
 
 case "${action}" in
@@ -180,7 +205,7 @@ case "${action}" in
     if [[ "${workspace_mode}" == "copy" && "${persistence_mode}" == "persistent" ]]; then
       echo "Note: an existing workspace-data volume is not overwritten by a rebuilt image."
     fi
-    "${compose[@]}" up -d --build
+    "${compose[@]}" up -d --build --remove-orphans
     ;;
   status)
     "${compose[@]}" ps

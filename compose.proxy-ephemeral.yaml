@@ -1,0 +1,6 @@
+# Prevent the v2rayA image's declared /etc/v2raya volume from creating an
+# orphaned anonymous volume when proxy configuration persistence is disabled.
+services:
+  proxy:
+    tmpfs:
+      - /etc/v2raya
