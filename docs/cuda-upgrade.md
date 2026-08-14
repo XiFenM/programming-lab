@@ -212,7 +212,7 @@ rebase 冲突、升级分支出现多个独有提交、升级提交变成 merge 
 
 ```bash
 uv lock --upgrade
-uv sync --locked --group dev
+uv sync --locked --extra gpu --group dev
 make verify
 ```
 

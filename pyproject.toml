@@ -4,7 +4,10 @@ version = "0.1.0"
 description = "LeetCode, CUDA, Triton and TileLang programming exercises"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
-dependencies = [
+dependencies = []
+
+[project.optional-dependencies]
+gpu = [
   "matplotlib>=3.11.0",
   "numpy",
   "pandas>=3.0.3",

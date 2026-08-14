@@ -1,10 +1,11 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help init hooks doctor configure build test lint format pathnote-check verify
+.PHONY: help init hooks doctor configure build test lint format pathnote-check verify \
+	host-init host-doctor host-build host-test host-lint host-verify host-shell
 
 help: ## Show the available repository commands.
-	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 init: ## Create/sync the uv environment inside the container.
 	bash scripts/init-env.sh
@@ -35,3 +36,24 @@ pathnote-check: ## Validate staged PathNote publication packages.
 
 verify: ## Run complete toolchain, lint, test, CUDA, Triton, and TileLang checks.
 	bash scripts/verify-env.sh
+
+host-init: ## Initialize the repository-local CPU-only host environment.
+	bash scripts/host-cpu.sh init
+
+host-doctor: ## Diagnose the CPU-only host environment and its isolation.
+	bash scripts/host-cpu.sh doctor
+
+host-build: ## Configure and build the host CPU-only C++ target.
+	bash scripts/host-cpu.sh build
+
+host-test: ## Run CPU-only LeetCode tests for Python, C++, and Rust.
+	bash scripts/host-cpu.sh test
+
+host-lint: ## Run CPU-only LeetCode format, lint, and type checks.
+	bash scripts/host-cpu.sh lint
+
+host-verify: ## Run complete diagnostics, lint, and tests for the host CPU route.
+	bash scripts/host-cpu.sh verify
+
+host-shell: ## Open an isolated interactive shell for host CPU practice.
+	bash scripts/host-cpu.sh shell

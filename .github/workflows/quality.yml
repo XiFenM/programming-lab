@@ -40,17 +40,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install native quality tools
-        run: sudo apt-get update && sudo apt-get install -y clang-format shellcheck
+        run: sudo apt-get update && sudo apt-get install -y clang-format cmake ninja-build shellcheck
       - name: clang-format
         run: |
           mapfile -t files < <(rg --files -g '*.cpp' -g '*.hpp' -g '*.cu' -g '*.cuh')
           clang-format --dry-run --Werror "${files[@]}"
       - name: Compile and run the CPU C++ example
         run: |
-          g++ -std=c++20 -Wall -Wextra -Wpedantic -Wconversion -Wshadow \
-            -I. leetcode/cpp/two_sum.cpp tests/cpp/test_two_sum.cpp \
-            -o /tmp/cpp-two-sum
-          /tmp/cpp-two-sum
+          cmake --preset host-cpu --fresh
+          cmake --build --preset host-cpu --parallel 2
+          ctest --preset host-cpu --no-tests=error
       - name: ShellCheck
         run: |
           mapfile -t files < <(rg --files scripts docker -g '*.sh')

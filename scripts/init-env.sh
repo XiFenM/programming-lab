@@ -28,7 +28,7 @@ echo "Installing uv-managed CPython ${python_version} if it is not cached..."
 uv python install "${python_version}"
 
 echo "Resolving and syncing Python, CUDA Python, and development dependencies..."
-sync_arguments=(sync --python "${python_version}" --group dev)
+sync_arguments=(sync --python "${python_version}" --extra gpu --group dev)
 if [[ -f uv.lock ]]; then
   sync_arguments+=(--locked)
 fi

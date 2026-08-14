@@ -12,6 +12,7 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
+        "BUILD_TESTING": "ON",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
@@ -20,7 +21,8 @@
       "displayName": "Debug (CUDA native architecture)",
       "inherits": "base",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "PROGRAMMING_LAB_ENABLE_CUDA": "ON"
       }
     },
     {
@@ -28,7 +30,17 @@
       "displayName": "Release (CUDA native architecture)",
       "inherits": "base",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "PROGRAMMING_LAB_ENABLE_CUDA": "ON"
+      }
+    },
+    {
+      "name": "host-cpu",
+      "displayName": "Host CPU-only Debug",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "PROGRAMMING_LAB_ENABLE_CUDA": "OFF"
       }
     }
   ],
@@ -40,6 +52,10 @@
     {
       "name": "release",
       "configurePreset": "release"
+    },
+    {
+      "name": "host-cpu",
+      "configurePreset": "host-cpu"
     }
   ],
   "testPresets": [
@@ -53,6 +69,13 @@
     {
       "name": "release",
       "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "host-cpu",
+      "configurePreset": "host-cpu",
       "output": {
         "outputOnFailure": true
       }

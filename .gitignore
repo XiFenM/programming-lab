@@ -4,6 +4,7 @@
 !.env.example
 .direnv/
 .venv/
+.pixi/
 venv/
 
 # Python
