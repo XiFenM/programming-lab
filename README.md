@@ -117,14 +117,14 @@ x86_64 宿主机上初始化仓库局部的 Python、C++ 和 Rust CPU 环境，�
 ## 仓库级 Codex Skills
 
 中央规范源以 [`.agent-skills`](.agent-skills) 子模块固定在
-`3f187b818b3614de63c3081272fb6f7273985752`。[`.agent-skills.json`](.agent-skills.json) 当前使用统一
+`b762cb44c191383f23c6d9b6bbab56439333f11e`。[`.agent-skills.json`](.agent-skills.json) 当前使用统一
 version 2 消费索引，并为 Codex
 选择四个学习 Skill：
 
 - `guide-learning`：来源驱动讲解、自适应理解检查、按证据缺口触发的正式练习、Review 与 mastery。
 - `study-log`：按需提炼结构化学习过程，或在单独确认隐私和边界后保存可追溯可见文本对话。
 - `english-coach`：只在实际使用英语或明确要求时提供技术英语反馈；默认零写入。
-- `memo-cards`：只在明确要求时从受管 structured log 预览或生成 Markji 暂存卡片。
+- `memo-cards`：只在明确要求时从受管 structured log 预览或生成受管 Markdown 与按模板拆分的 Markji XLSX。
 
 受 Git 跟踪的 [`.agent-skills-config/`](.agent-skills-config) 只提供公共 repository facts、学习状态
 locator、structured log target 以及英语反馈／卡片的窄 collection。它不保存当前课程状态，不授予

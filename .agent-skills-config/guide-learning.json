@@ -13,6 +13,16 @@
       "kind": "file"
     },
     {
+      "fact_id": "triton-learning-control-plane",
+      "role": "progress-source",
+      "kind": "file"
+    },
+    {
+      "fact_id": "triton-learning-lessons",
+      "role": "evidence-artifacts",
+      "kind": "collection"
+    },
+    {
       "fact_id": "triton-tutorial-provenance",
       "role": "source-catalog",
       "kind": "file"
@@ -25,17 +35,17 @@
   ],
   "record_mappings": {
     "program": {
-      "path": "docs/triton-learning/README.md",
+      "path": "docs/algorithm-interview-learning/README.md",
       "kind": "file",
       "section": "当前 Program 状态"
     },
     "checkpoint": {
-      "path": "docs/triton-learning/README.md",
+      "path": "docs/algorithm-interview-learning/README.md",
       "kind": "file",
       "section": "Checkpoint"
     },
     "lesson": {
-      "path": "docs/triton-learning/lessons",
+      "path": "docs/algorithm-interview-learning/lessons",
       "kind": "collection"
     }
   }

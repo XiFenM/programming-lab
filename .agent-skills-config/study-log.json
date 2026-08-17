@@ -3,6 +3,10 @@
   "skill": "study-log",
   "structured_targets": [
     {
+      "id": "algorithm-interview-study-log",
+      "path": "docs/algorithm-interview-learning/logs"
+    },
+    {
       "id": "triton-study-log",
       "path": "docs/triton-learning/logs"
     }

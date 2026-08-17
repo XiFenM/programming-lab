@@ -12,6 +12,14 @@
       "path": "AGENTS.md",
       "description": "Repository instructions, validation commands, and security boundaries."
     },
+    "triton-learning-control-plane": {
+      "path": "docs/triton-learning/README.md",
+      "description": "Existing Triton Program and Checkpoint fact source while another course is foregrounded."
+    },
+    "triton-learning-lessons": {
+      "path": "docs/triton-learning/lessons",
+      "description": "Existing Triton Lesson evidence ledgers while another course is foregrounded."
+    },
     "triton-tutorial-provenance": {
       "path": "docs/triton-tutorials/SOURCE.md",
       "description": "Pinned provenance for the local Triton tutorial snapshot."
