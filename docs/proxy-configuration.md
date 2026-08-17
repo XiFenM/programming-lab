@@ -182,8 +182,9 @@ SOCKS5 URL 中使用 `socks5h`，让域名通过代理端解析，避免容器�
 
 ## 为当前 shell 开启或关闭代理
 
-需要让 curl、Git、uv 等多个命令共同使用 sidecar 时，必须把脚本 source 到当前
-shell；直接执行子进程无法修改父 shell 的环境变量。
+代理模式已经让容器进程默认继承 sidecar 环境。若在当前 shell 中执行过 `proxy-off`，或者需要
+恢复 Compose 提供的代理值，必须把脚本 source 到当前 shell；直接执行子进程无法修改父 shell
+的环境变量。
 
 开启：
 
@@ -217,12 +218,13 @@ proxy-off
 
 ## VS Code Server 与扩展市场
 
-四种以 `+ proxy` 结尾的 Dev Container 配置均通过 `remoteEnv` 将同一组代理变量传递给
-VS Code Server 及其集成终端、任务和调试进程。因此扩展市场下载会使用 sidecar，
-无需在工作区 `.vscode/settings.json` 中配置 `http.proxy`。
+`compose.proxy.yaml` 把大小写两套标准代理变量直接注入开发容器。VS Code Server、扩展宿主、
+集成终端、任务和调试进程都会继承这些变量，因此扩展市场下载会使用 sidecar，无需在工作区
+`.vscode/settings.json` 中配置 `http.proxy`。这一行为同时适用于 Dev Containers 创建容器和
+**Attach to Running Container** 连接由 `scripts/container.sh` 创建的容器。
 
-选择以 `+ direct` 结尾的配置时，只启动 `dev` 服务，不设置 `remoteEnv` 代理变量，也不会
-尝试访问 `127.0.0.1:20170/20171`。
+选择以 `+ direct` 结尾的配置时，只启动 `dev` 服务，并显式清空标准代理变量，不会尝试访问
+`127.0.0.1:20170/20171`。
 
 配置变更后，使用 **Dev Containers: Rebuild and Reopen in Container** 重新创建环境。
 可在容器中的 VS Code 终端确认：
@@ -231,8 +233,7 @@ VS Code Server 及其集成终端、任务和调试进程。因此扩展市场�
 env | rg '(^|_)(HTTP|HTTPS|ALL|NO)_PROXY='
 ```
 
-`remoteEnv` 只应用于通过 Dev Container 客户端启动的远端工具。若需要从容器外部
-启动的独立进程也使用代理，仍可在其 shell 中执行 `proxy-on`。
+切换网络模式后必须重新创建开发容器；单纯重启 VS Code 不会改变已有容器的 Compose 环境。
 
 ## 启动 Codex CLI
 
@@ -242,7 +243,7 @@ env | rg '(^|_)(HTTP|HTTPS|ALL|NO)_PROXY='
 codex
 ```
 
-在代理模式中，该 `codex` shell 函数会调用 `codex-proxy`，只为 Codex 进程注入：
+在代理模式中，该 `codex` shell 函数会调用 `codex-proxy`，并为 Codex 进程确认或应用：
 
 ```text
 HTTP_PROXY  = http://127.0.0.1:20171
@@ -251,9 +252,9 @@ ALL_PROXY   = socks5h://127.0.0.1:20170
 NO_PROXY    = localhost,127.0.0.1,::1
 ```
 
-通过命令行脚本进入容器时，没有在整个容器中全局 export 这些标准变量，uv、apt、Git 和其他
-命令不会仅因为启动交互式 shell 就被强制使用代理。代理版 Dev Container 则通过 `remoteEnv`
-让 VS Code 进程、终端和初始化命令统一使用代理。
+代理模式在开发容器级别设置这些标准变量，因此通过命令行脚本、VS Code 或 Attach 启动的
+uv、Git、Codex 和其他网络工具都会默认使用 sidecar。`apt` 通常通过 `sudo` 运行，是否保留
+调用者环境仍取决于 sudo 的环境策略。
 
 也可以显式调用同一个代理函数：
 

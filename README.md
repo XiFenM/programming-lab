@@ -252,7 +252,7 @@ cp .env.example .env
 - `V2RAYA_WEB_BIND_ADDRESS` / `V2RAYA_WEB_PORT`：Web UI 的宿主机绑定，默认
   `127.0.0.1:2017`；
 - `V2RAYA_LOG_LEVEL`：sidecar 日志级别，默认 `info`。
-- `V2RAYA_HTTP_PROXY` / `V2RAYA_SOCKS_PROXY` / `V2RAYA_NO_PROXY`：当前 shell 与 Codex
+- `V2RAYA_HTTP_PROXY` / `V2RAYA_SOCKS_PROXY` / `V2RAYA_NO_PROXY`：代理模式下开发容器
   默认使用的 sidecar 代理参数；
 - `CODEX_HTTP_PROXY` / `CODEX_SOCKS_PROXY` / `CODEX_NO_PROXY`：可选的 Codex 专用
   覆盖，空值会继承对应的 `V2RAYA_*` 默认值。
@@ -260,8 +260,8 @@ cp .env.example .env
 如需让 Codex CLI 通过容器内 v2rayA Lite 访问网络，参见
 [Codex CLI 代理配置指南](docs/proxy-configuration.md)。显式 HTTP/SOCKS5 代理不需要为开发容器
 授予 iptables 或 `NET_ADMIN` 权限。开发镜像的交互式 Bash 会根据所选网络模式让 `codex`
-走 sidecar 或直连；在代理模式中需要临时绕过时使用 `codex-direct`。其他工具可使用 `proxy-on`、
-`proxy-off` 与 `proxy-status` 切换当前 shell 的标准代理环境变量。
+走 sidecar 或直连；在代理模式中需要临时绕过时使用 `codex-direct`。所有容器进程默认继承
+标准代理变量，当前 shell 可使用 `proxy-on`、`proxy-off` 与 `proxy-status` 临时切换。
 
 UID/GID 会在构建镜像时用于创建 `coder`。如果先构建后再修改，需要重新构建镜像；如果还
 复用了旧的命名卷，参见“常见问题”中的权限处理。
@@ -279,7 +279,7 @@ UID/GID 会在构建镜像时用于创建 `coder`。如果先构建后再修改�
 
 网络模式必须另外选择：
 
-- `proxy`：启动 v2rayA Lite sidecar，并为 VS Code、Codex 和可选的当前 shell 提供代理；
+- `proxy`：启动 v2rayA Lite sidecar，并为开发容器、VS Code 与 Codex 默认启用代理；
 - `direct`：只启动开发容器，显式清空标准代理变量，不访问 `127.0.0.1:20170/20171`。
 
 选择 `proxy + persistent` 时 v2rayA 配置使用命名卷；选择 `proxy + ephemeral` 时使用 tmpfs。
@@ -445,7 +445,8 @@ Compose 做了以下设置：
   seccomp 限制，只应把该容器用于可信的本地开发代码。
 - `compose.proxy.yaml` 使用 `mzz2017/v2raya` 镜像以 Lite 模式运行，通过
   `network_mode: service:dev` 与开发容器共享 loopback；sidecar 丢弃全部 Linux
-  capabilities，并设置 `no-new-privileges`。
+  capabilities，并设置 `no-new-privileges`。该覆盖文件同时向开发容器注入大小写两套标准
+  代理变量，因此 Dev Containers 与 Attach to Running Container 都能继承代理。
 - `compose.bind.yaml` 与 `compose.copy.yaml` 决定工作区是双向挂载还是镜像快照。
 - `compose.persist.yaml` 可选地挂载 CMake/Cargo 构建树、uv、Cargo、ccache、Triton 和
   TileLang 命名卷；`compose.proxy-persist.yaml` 只在代理模式持久化 v2rayA 配置。

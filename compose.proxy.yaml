@@ -12,6 +12,14 @@ services:
       CODEX_HTTP_PROXY: ${CODEX_HTTP_PROXY:-}
       CODEX_SOCKS_PROXY: ${CODEX_SOCKS_PROXY:-}
       CODEX_NO_PROXY: ${CODEX_NO_PROXY:-}
+      HTTP_PROXY: ${V2RAYA_HTTP_PROXY:-http://127.0.0.1:20171}
+      HTTPS_PROXY: ${V2RAYA_HTTP_PROXY:-http://127.0.0.1:20171}
+      ALL_PROXY: ${V2RAYA_SOCKS_PROXY:-socks5h://127.0.0.1:20170}
+      NO_PROXY: ${V2RAYA_NO_PROXY:-localhost,127.0.0.1,::1}
+      http_proxy: ${V2RAYA_HTTP_PROXY:-http://127.0.0.1:20171}
+      https_proxy: ${V2RAYA_HTTP_PROXY:-http://127.0.0.1:20171}
+      all_proxy: ${V2RAYA_SOCKS_PROXY:-socks5h://127.0.0.1:20170}
+      no_proxy: ${V2RAYA_NO_PROXY:-localhost,127.0.0.1,::1}
 
   # v2rayA runs as an isolated Lite-mode sidecar but shares dev's network
   # namespace. Processes in dev can therefore use 127.0.0.1:20170/20171

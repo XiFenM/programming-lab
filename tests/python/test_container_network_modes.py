@@ -131,6 +131,18 @@ def test_proxy_mode_includes_sidecar_and_endpoints(persistence: str) -> None:
     assert environment["PROGRAMMING_LAB_PROXY_MODE"] == "proxy"
     assert environment["V2RAYA_HTTP_PROXY"] == "http://127.0.0.1:20171"
     assert environment["V2RAYA_SOCKS_PROXY"] == "socks5h://127.0.0.1:20170"
+    expected_proxy_environment = {
+        "HTTP_PROXY": "http://127.0.0.1:20171",
+        "HTTPS_PROXY": "http://127.0.0.1:20171",
+        "ALL_PROXY": "socks5h://127.0.0.1:20170",
+        "NO_PROXY": "localhost,127.0.0.1,::1",
+        "http_proxy": "http://127.0.0.1:20171",
+        "https_proxy": "http://127.0.0.1:20171",
+        "all_proxy": "socks5h://127.0.0.1:20170",
+        "no_proxy": "localhost,127.0.0.1,::1",
+    }
+    for name, expected in expected_proxy_environment.items():
+        assert environment[name] == expected
 
 
 def test_devcontainer_network_variants_are_explicit() -> None:
@@ -153,4 +165,4 @@ def test_devcontainer_network_variants_are_explicit() -> None:
             assert name.endswith(" + proxy")
             assert "../../compose.proxy.yaml" in files
             assert services == ["dev", "proxy"]
-            assert "remoteEnv" in value
+            assert "remoteEnv" not in value
