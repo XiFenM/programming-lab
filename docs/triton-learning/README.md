@@ -4,6 +4,10 @@
 形成，现作为冻结的 legacy evidence 保留；从第 03 课起，新会话采用中央 `guide-learning` 的自适应
 教学、证据门槛和稀疏状态规则。
 
+本 Program 与 [`leetcode-algorithm-interview`](../algorithm-interview-learning/README.md#当前-program-状态)
+并行保持 `active`。两条课程分别维护自己的 Program、Lesson 与 Checkpoint；一次具体学习上下文只选择
+一条课程的前台 Lesson，切换课程不会冻结、关闭或自动推进另一条课程。
+
 ## 活动学习流程
 
 结构化主题先给一张很短的全局图，再围绕每个关键节点循环：
@@ -32,9 +36,9 @@
   门槛和必要引用，不累积历史快照。
 - 文章、结构化过程记录、卡片和原始对话均为按需产物，不是 Program、Lesson 或 Checkpoint 的事实源。
 
-version 2 受管配置把本页的“当前 Program 状态”和“Checkpoint”两个章节分别映射为 Program 与唯一
-恢复游标，把 `lessons/` 映射为 Lesson 候选命名空间。这些映射只是 locator 和机械写入上限；不会启动
-第 03 课，也不会授权修改冻结的第 01、02 课记录。
+version 2 受管配置把本页和 `lessons/` 分别登记为并行 Program 的 progress source 与 evidence
+artifacts。受管 locator 只帮助发现事实源；Program 是否 `active` 仍由本页裁决，也不会因此启动第 03
+课或授权修改冻结的第 01、02 课记录。
 
 ## 目录约定
 
@@ -117,6 +121,7 @@ docs/triton-learning/
 | --- | --- |
 | Program ID / 标题 | `triton-official-tutorials` / Triton 官方教程学习 |
 | State | `active` |
+| Parallel Program ref | [`leetcode-algorithm-interview`](../algorithm-interview-learning/README.md#当前-program-状态)（`active`） |
 | Objective | 理解、实现并验证本仓库固定版本的 Triton 官方教程 |
 | Included | 官方案例的概念、实现、正确性与目标明确时的实证验证 |
 | Excluded | 未获授权的独立性能研究、optional extension 与下一 Lesson 执行 |

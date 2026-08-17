@@ -15,8 +15,17 @@ For new CPU-only LeetCode exercises, follow `docs/leetcode-practice-conventions.
 canonical naming, test-discovery, CMake/Cargo registration, and focused-validation guide.
 
 The repository selects `guide-learning`, `study-log`, `english-coach`, and `memo-cards` for Codex.
-English feedback is zero-write, and card inputs are limited to tracked structured logs; frozen
-legacy dialogues and Lessons are never implicit English-review or card sources.
+The algorithm-interview and Triton Programs are parallel active learning tracks with independent
+control planes and Checkpoints. Route each learning session by its topic and keep at most one
+foreground active Lesson in that session; switching tracks does not freeze, close, or advance the
+other Program. The single `guide-learning` `record_mappings` profile is only the current foreground
+persistence locator, not Program state. Before a durable state write on the other track, retarget
+its Program, Checkpoint, and Lesson paths exactly and re-materialize; never broaden the mapped
+paths to cover both trees. English feedback is zero-write. `english-coach` may use tracked,
+unmodified structured logs from both `docs/algorithm-interview-learning/logs/` and
+`docs/triton-learning/logs/` when its review rules match the request. Frozen legacy dialogues,
+raw archives, and Lessons are never implicit English-review or card sources; card inputs remain
+limited to tracked structured logs.
 
 `docs/algorithm-interview-course/` is an imported, read-only textual course snapshot for future
 LeetCode study. Use its overview, chapter summaries, lesson notes, and knowledge graph as source

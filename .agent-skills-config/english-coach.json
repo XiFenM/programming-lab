@@ -17,6 +17,12 @@
   "record_files": [],
   "record_collections": [
     {
+      "id": "algorithm-interview-study-logs",
+      "record_type": "structured-study-log",
+      "path": "docs/algorithm-interview-learning/logs",
+      "format": "markdown"
+    },
+    {
       "id": "triton-study-logs",
       "record_type": "structured-study-log",
       "path": "docs/triton-learning/logs",

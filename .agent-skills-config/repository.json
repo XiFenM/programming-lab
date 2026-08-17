@@ -14,11 +14,11 @@
     },
     "triton-learning-control-plane": {
       "path": "docs/triton-learning/README.md",
-      "description": "Existing Triton Program and Checkpoint fact source while another course is foregrounded."
+      "description": "Triton Program and Checkpoint fact source for the parallel learning track."
     },
     "triton-learning-lessons": {
       "path": "docs/triton-learning/lessons",
-      "description": "Existing Triton Lesson evidence ledgers while another course is foregrounded."
+      "description": "Triton Lesson evidence ledgers for the parallel learning track."
     },
     "triton-tutorial-provenance": {
       "path": "docs/triton-tutorials/SOURCE.md",

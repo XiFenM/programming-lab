@@ -126,6 +126,11 @@ version 2 消费索引，并为 Codex
 - `english-coach`：只在实际使用英语或明确要求时提供技术英语反馈；默认零写入。
 - `memo-cards`：只在明确要求时从受管 structured log 预览或生成受管 Markdown 与按模板拆分的 Markji XLSX。
 
+算法面试与 Triton 是两个并行保持 `active` 的长期 Program，各自拥有独立控制面、Lesson evidence
+ledger 与 Checkpoint。一次具体学习会话只选择一个前台 Lesson；切换主题不会冻结、关闭或自动推进
+另一条课程。`english-coach` 的受管读取范围覆盖这两条课程全部由 Git 跟踪且未修改的 structured
+学习日志，但不包含 raw 私有归档、冻结的 legacy dialogues 或 Lesson evidence。
+
 受 Git 跟踪的 [`.agent-skills-config/`](.agent-skills-config) 只提供公共 repository facts、学习状态
 locator、structured log target 以及英语反馈／卡片的窄 collection。它不保存当前课程状态，不授予
 开课、读取 raw、写入、制卡、练习、mastery 或归档权限；具体操作仍以仓库事实和用户当轮授权为准。
