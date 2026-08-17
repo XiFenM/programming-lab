@@ -8,6 +8,13 @@
   },
   "input_collections": [
     {
+      "id": "algorithm-interview-study-logs",
+      "kind": "structured-log",
+      "patterns": [
+        "docs/algorithm-interview-learning/logs/*.md"
+      ]
+    },
+    {
       "id": "triton-study-logs",
       "kind": "structured-log",
       "patterns": [
@@ -16,6 +23,15 @@
     }
   ],
   "output_collections": [
+    {
+      "id": "algorithm-interview-cards",
+      "patterns": [
+        "docs/algorithm-interview-learning/cards/algorithm-interview-*.md"
+      ],
+      "inventory_patterns": [
+        "docs/algorithm-interview-learning/cards/algorithm-interview-*.md"
+      ]
+    },
     {
       "id": "triton-cards",
       "patterns": [
