@@ -82,7 +82,7 @@ docs/triton-learning/
 | --- | --- | --- | --- |
 | 01 | `01-vector-add.py` | [lessons/01-vector-add.md](lessons/01-vector-add.md) | 已完成（legacy） |
 | 02 | `02-fused-softmax.py` | [lessons/02-fused-softmax.md](lessons/02-fused-softmax.md) | 已完成（legacy） |
-| 03 | `03-matrix-multiplication.py` | `lessons/03-matrix-multiplication.md` | 候选（未授权） |
+| 03 | `03-matrix-multiplication.py` | [lessons/03-matrix-multiplication.md](lessons/03-matrix-multiplication.md) | 进行中（`synthesis`） |
 | 04 | `04-low-memory-dropout.py` | `lessons/04-low-memory-dropout.md` | 候选（未授权） |
 | 05 | `05-layer-norm.py` | `lessons/05-layer-norm.md` | 候选（未授权） |
 | 06 | `06-fused-attention.py` | `lessons/06-fused-attention.md` | 候选（未授权） |
@@ -115,7 +115,7 @@ docs/triton-learning/
 
 ## 当前 Program 状态
 
-最近迁移核对：2026-08-11。
+最近状态更新：2026-08-17。
 
 | 字段 | 当前值 |
 | --- | --- |
@@ -125,26 +125,26 @@ docs/triton-learning/
 | Objective | 理解、实现并验证本仓库固定版本的 Triton 官方教程 |
 | Included | 官方案例的概念、实现、正确性与目标明确时的实证验证 |
 | Excluded | 未获授权的独立性能研究、optional extension 与下一 Lesson 执行 |
-| Authorized Lesson refs | `lessons/01-vector-add.md`、`lessons/02-fused-softmax.md`（均为已关闭 legacy） |
-| Active Lesson ref | 无 |
+| Authorized Lesson refs | `lessons/01-vector-add.md`、`lessons/02-fused-softmax.md`（均为已关闭 legacy）、`lessons/03-matrix-multiplication.md` |
+| Active Lesson ref | [`lessons/03-matrix-multiplication.md`](lessons/03-matrix-multiplication.md)（`synthesis`） |
 | Checkpoint ref | [下方唯一 Checkpoint](#checkpoint) |
 
-- 第 01、02 课均已关闭；当前没有 active Lesson。
-- 第 03 课 Matrix Multiplication 是下一候选入口，但尚未获得启动授权。
+- 第 01、02 课均已关闭；第 03 课 Matrix Multiplication 是当前 active Lesson。
 - Lesson 02 的历史 evidence 只由[冻结记录](lessons/02-fused-softmax.md)承担，本 Program 不复制。
-- profiler、置信区间、cache 与 autotune 只有在成为新的核心目标并取得授权后，才进入后续 Lesson。
+- 本课 O4 只要求一次围绕 grouped ordering 或 autotune config 的受控测量；profiler、置信区间、cache
+  机制深挖与穷举调参仍在核心范围之外。
 
 ### Checkpoint
 
 | 字段 | 当前值 |
 | --- | --- |
-| Foreground context | `triton-official-tutorials` Program |
-| Semantic position | Lesson 02 已关闭；停在下一 Lesson 授权边界 |
-| Next action | 等待学习者明确授权启动一个候选 Lesson |
-| Forward gate | 学习者确认目标、范围与 required mastery 维度 |
+| Foreground context | `triton-03-matrix-multiplication` Lesson |
+| Semantic position | `synthesis`：四个概念节点已完成节点级检查；暂停在跨节点综合验收 S1 尚未作答处 |
+| Next action | 学习者回答 S1：完整推导给定新 shape 的 grid、尾组映射、有效 lane 与边界正确性 |
+| Forward gate | S1 完整迁移与 S2 受控实验预测通过后，提出补齐 O3 practical 与 O4 empirical 的最小正式实践契约 |
 | Blockers | 无 |
-| Latest evidence ref | `lessons/02-fused-softmax.md` |
-| As of | 2026-08-11；随本次 M3 语义迁移更新 |
+| Latest evidence ref | [`triton-03-session-2026-08-17-a`](lessons/03-matrix-multiplication.md#条件片段session-event) |
+| As of | 2026-08-17；学习者主动暂停，等待从综合验收 S1 恢复 |
 
 ## 记录原则
 
