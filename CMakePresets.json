@@ -13,7 +13,8 @@
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "BUILD_TESTING": "ON",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_CXX_SCAN_FOR_MODULES": "OFF"
       }
     },
     {
@@ -42,6 +43,15 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "PROGRAMMING_LAB_ENABLE_CUDA": "OFF"
       }
+    },
+    {
+      "name": "host-gpu",
+      "displayName": "Host CPU+GPU Debug (locked CUDA native architecture)",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "PROGRAMMING_LAB_ENABLE_CUDA": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -56,6 +66,10 @@
     {
       "name": "host-cpu",
       "configurePreset": "host-cpu"
+    },
+    {
+      "name": "host-gpu",
+      "configurePreset": "host-gpu"
     }
   ],
   "testPresets": [
@@ -76,6 +90,13 @@
     {
       "name": "host-cpu",
       "configurePreset": "host-cpu",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "host-gpu",
+      "configurePreset": "host-gpu",
       "output": {
         "outputOnFailure": true
       }

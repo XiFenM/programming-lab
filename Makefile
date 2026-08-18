@@ -2,7 +2,9 @@ SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
 .PHONY: help init hooks doctor configure build test lint format pathnote-check verify \
-	host-init host-doctor host-build host-test host-lint host-verify host-shell
+	host-init host-doctor host-build host-test host-lint host-verify host-shell \
+	host-gpu-init host-gpu-doctor host-gpu-build host-gpu-test host-gpu-lint \
+	host-gpu-verify host-gpu-shell
 
 help: ## Show the available repository commands.
 	@awk 'BEGIN {FS = ":.*## "; printf "Usage: make <target>\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -57,3 +59,24 @@ host-verify: ## Run complete diagnostics, lint, and tests for the host CPU route
 
 host-shell: ## Open an isolated interactive shell for host CPU practice.
 	bash scripts/host-cpu.sh shell
+
+host-gpu-init: ## Initialize the repository-local full CPU+GPU host environment.
+	bash scripts/host-gpu.sh init
+
+host-gpu-doctor: ## Diagnose the host GPU driver and locked CPU+GPU environment.
+	bash scripts/host-gpu.sh doctor
+
+host-gpu-build: ## Configure and build the host C++ and native CUDA targets.
+	bash scripts/host-gpu.sh build
+
+host-gpu-test: ## Run host Python, Rust, C++, and native CUDA tests.
+	bash scripts/host-gpu.sh test
+
+host-gpu-lint: ## Run full host CPU+GPU format, lint, and type checks.
+	bash scripts/host-gpu.sh lint
+
+host-gpu-verify: ## Verify the full host environment and real GPU execution.
+	bash scripts/host-gpu.sh verify
+
+host-gpu-shell: ## Open an isolated interactive shell for CPU+GPU practice.
+	bash scripts/host-gpu.sh shell

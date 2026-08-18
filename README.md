@@ -1,8 +1,8 @@
 # Programming Lab
 
-一个用于 LeetCode、CUDA、Triton 和 TileLang 的编程练习仓库。仓库提供两条互不混用的路线：
-CUDA/Triton/TileLang 使用 NVIDIA GPU 开发容器；只练习 LeetCode 时，可以直接在 Linux
-x86_64 宿主机上初始化仓库局部的 Python、C++ 和 Rust CPU 环境，不需要 Docker 或 GPU。
+一个用于 LeetCode、CUDA、Triton 和 TileLang 的编程练习仓库。仓库提供三条互不混用的路线：
+完整 GPU 开发可使用 NVIDIA 容器，或在 Linux x86_64 宿主机上直接初始化仓库局部的
+CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 CPU-only 环境。
 
 > 当前验证基线（2026-07-31）：开发容器和依赖环境已经初始化，`uv.lock` 已生成并提交；
 > `make doctor`、默认 Python/Rust/C++/CUDA 测试、Python GPU 栈检查和 Triton 第 01 课的
@@ -35,6 +35,8 @@ x86_64 宿主机上初始化仓库局部的 Python、C++ 和 Rust CPU 环境，�
 - 提供初始化、诊断、格式化、静态检查、测试和全量验收脚本，并由 Makefile 统一入口。
 - 提供 `host-cpu.sh` 一键宿主机路线；Pixi、Python 虚拟环境、Rust、缓存和构建产物均保存在
   仓库的 Git 忽略目录中，不修改 shell 启动文件或全局语言环境。
+- 提供独立的 `host-gpu.sh` 完整宿主机路线；除 NVIDIA 内核驱动外，CUDA Toolkit、cuDNN、
+  Python GPU 栈、Node、C++ 和 Rust 工具均由锁文件安装到仓库局部目录，不依赖 Docker。
 - 工作区可选宿主机 bind 双向同步或构建时一次性快照复制；CMake/Cargo 构建树、
   Python/编译缓存可选命名卷持久化或随容器删除。
 - 可选的 v2rayA Lite 作为独立 Compose sidecar，与开发容器共享网络，但不使用
@@ -69,13 +71,14 @@ x86_64 宿主机上初始化仓库局部的 Python、C++ 和 Rust CPU 环境，�
 ├── docs/
 │   ├── algorithm-interview-course/ # 算法面试文字课程、知识图谱与复习路线
 │   ├── cuda-upgrade.md             # CUDA/cuDNN/Ubuntu 基础镜像升级指南
+│   ├── host-gpu-environment.md     # Linux 宿主机完整 CPU+GPU 路线
 │   ├── leetcode-practice-conventions.md # LeetCode 目录、命名、测试与验证约定
 │   ├── proxy-configuration.md      # v2rayA Lite 与 Codex CLI 代理配置指南
 │   ├── triton-learning/            # Triton 课程记录、评审、附件与原始对话
 │   └── triton-tutorials/           # Triton 官方教程快照与学习路线
 ├── experiment_results/             # 可复现的 Triton benchmark 数据、图表与 HTML
 ├── pyproject.toml                   # Python/GPU 依赖及 Ruff/Pyright/pytest 配置
-├── pixi.toml / pixi.lock            # Linux x86_64 宿主机 CPU 工具链及锁文件
+├── pixi.toml / pixi.lock            # Linux x86_64 宿主机 CPU 与 CPU+GPU 工具链
 ├── .python-version                  # uv 管理的 CPython 3.12
 ├── .nvmrc                           # nvm 使用的 Node.js 24 主版本
 ├── CMakeLists.txt                   # C++ 与 CUDA 示例目标
@@ -101,6 +104,7 @@ x86_64 宿主机上初始化仓库局部的 Python、C++ 和 Rust CPU 环境，�
 ├── scripts/
 │   ├── init-env.sh                  # uv 初始化与可选 Git hook
 │   ├── host-cpu.sh                  # 宿主机 CPU-only 初始化、诊断、构建与测试
+│   ├── host-gpu.sh                  # 宿主机 CPU+GPU 初始化、诊断、构建与测试
 │   ├── container.sh                 # 显式选择工作区、持久化和网络模式
 │   ├── doctor.sh                    # 工具链、uv Python 和 NVIDIA 运行时诊断
 │   ├── lint.sh                      # 全语言静态质量检查
@@ -155,7 +159,9 @@ python .agent-skills/tools/materialize_skills.py --repo .
 python .agent-skills/tools/materialize_skills.py --repo . --check
 ```
 
-## 宿主机要求
+## 环境路线与宿主机要求
+
+### NVIDIA GPU 容器路线
 
 推荐 Linux；Windows 建议使用带 GPU 支持的 WSL2。macOS 不能运行这个 NVIDIA CUDA
 容器。
@@ -173,6 +179,24 @@ python .agent-skills/tools/materialize_skills.py --repo . --check
 Container Toolkit 文档先验证一个带 `--gpus all` 的 CUDA 容器；仓库内部配置无法修复宿主机
 驱动或 Docker runtime 的问题。
 
+### 有 GPU：直接使用宿主机 CPU+GPU 路线
+
+Docker 不可用但宿主机可以执行 `nvidia-smi` 时，可以直接初始化完整环境：
+
+```bash
+bash scripts/host-gpu.sh init
+bash scripts/host-gpu.sh verify
+```
+
+这条路线当前支持 Linux x86_64，不要求系统预装 CUDA Toolkit 或 cuDNN。Pixi 的独立 `gpu`
+environment 按 `pixi.lock` 提供 CUDA 13.0.3、cuDNN 9.20、GCC/Clang、CMake、Node 24 和
+基础 Python；独立的 `.venv-host-gpu` 再按 `uv.lock` 安装 PyTorch、Triton、TileLang 和开发
+依赖。Rust、缓存与 CMake/Cargo 构建树也与 CPU-only 路线分离。
+
+系统侧唯一不可仓库局部化的组件是 NVIDIA 内核驱动。脚本不执行 `sudo`、不修改 shell 启动文件，
+也不会使用系统 `pip`。完整的目录边界、命令语义、资源需求和故障处理见
+[Linux 宿主机 CPU+GPU 环境](docs/host-gpu-environment.md)。
+
 ### 无 GPU：直接使用宿主机 CPU 路线
 
 只练习 LeetCode 时不需要满足上面的 GPU、Docker 和 VS Code Dev Containers 要求。当前锁文件
@@ -186,7 +210,8 @@ bash scripts/host-cpu.sh init
 脚本会校验并下载固定版本的 Pixi，然后按 `pixi.lock` 安装 Python 3.12、GCC、CMake、Ninja、
 ccache、clang-format、ShellCheck、uv 等 CPU 工具，并用固定的 rustup 1.29.0 安装 Rust
 1.97.1。Python 只同步 `dev` 依赖组；PyTorch、Triton、TileLang、`cuda-*` 和 `nvidia-*` 包
-不会安装。
+不会安装。宿主机 CPU/GPU 路线默认使用 Rust 官方源；需要镜像时可用对应的
+`HOST_CPU_RUSTUP_*` 或 `HOST_GPU_RUSTUP_*` 变量临时覆盖。
 Pixi/uv 下载与 C++/Rust 编译默认最多使用两个并发任务。当前主机首次初始化并运行测试后的实测
 占用约 2.9 GiB，适合本仓库当前这类资源有限且无 GPU 的宿主机。
 
@@ -220,7 +245,7 @@ bash scripts/host-cpu.sh run -- python -m pytest -q tests/python/leetcode/test_t
 
 `host-test` 会构建 CMake 中登记的 CPU C++ 测试目标、运行 `tests/python/leetcode/` 下的测试，
 并运行整个 Rust workspace；它不会把 `leetcode/cpp/` 中未登记的 LeetCode 平台片段当作可独立
-编译的目标。完整 clang-tidy 仍属于容器路线，而且会遇到文首记录的既有题解告警。进入
+编译的目标。完整 clang-tidy 属于容器或 `host-gpu` 路线，而且会遇到文首记录的既有题解告警。进入
 `host-cpu.sh shell` 后也可
 使用 Makefile 中对应的 `host-doctor`、`host-build`、`host-test`、`host-lint` 和 `host-verify`
 快捷目标。这是一套 CLI 工具链；仓库默认 VS Code 设置仍面向 GPU 容器。若自行适配宿主机
@@ -566,8 +591,9 @@ edition 2024 workspace，会自动包含 `leetcode/rust/*` 下的 crate，并统
 
 ## 常用命令
 
-下表是 GPU 容器路线，应在容器内执行。宿主机 CPU 路线使用前文的
-`bash scripts/host-cpu.sh <command>`，不要交叉调用两套 doctor/test/verify 脚本。
+下表是 GPU 容器路线，应在容器内执行。宿主机路线分别使用
+`bash scripts/host-cpu.sh <command>` 或 `bash scripts/host-gpu.sh <command>`；不要交叉调用三套
+doctor/test/verify 脚本。
 
 | 命令 | 作用 | 是否修改源码/状态 |
 | --- | --- | --- |

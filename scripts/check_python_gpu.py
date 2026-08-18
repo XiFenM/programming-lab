@@ -29,7 +29,7 @@ def main() -> None:
     if not torch.cuda.is_available():
         raise RuntimeError(
             "torch.cuda.is_available() is false; check the host driver, "
-            "NVIDIA Container Toolkit, and Compose GPU configuration"
+            "then check either the host CUDA environment or the container GPU configuration"
         )
 
     device = torch.device("cuda:0")

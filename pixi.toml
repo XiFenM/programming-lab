@@ -1,8 +1,8 @@
 [workspace]
-name = "programming-lab-host-cpu"
+name = "programming-lab-host"
 version = "0.1.0"
-description = "Repository-local CPU-only toolchain for LeetCode practice"
-channels = ["conda-forge"]
+description = "Repository-local CPU and CUDA toolchains for programming practice"
+channels = ["nvidia", "conda-forge"]
 platforms = ["linux-64"]
 
 [dependencies]
@@ -16,3 +16,15 @@ clang-format = "18.*"
 shellcheck = ">=0.10,<1"
 ripgrep = ">=14,<16"
 make = ">=4.4,<5"
+
+[feature.gpu.dependencies]
+cuda-toolkit = "13.0.3.*"
+cudnn = "==9.20.0.48"
+clang = "18.*"
+clang-tools = "18.*"
+gdb = ">=16,<18"
+lldb = "19.1.7.*"
+nodejs = "24.*"
+
+[environments]
+gpu = ["gpu"]

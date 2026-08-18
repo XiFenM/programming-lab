@@ -36,9 +36,10 @@ repository.
 
 ## Build, Test, and Development Commands
 
-GPU/CUDA commands run inside the development container. For CPU-only LeetCode work on a Linux
-x86_64 host, use the repository-local host route instead; it is the explicit exception to the
-container rule and must not call the GPU/container scripts.
+GPU/CUDA work can use either the development container or the repository-local `host-gpu.sh`
+route on a Linux x86_64 machine with a working NVIDIA driver. For CPU-only LeetCode work, use the
+lighter `host-cpu.sh` route. Keep the three control scripts separate; host routes must not call the
+container scripts, and the CPU-only route must not acquire GPU dependencies.
 
 - `make init`: create or synchronize the uv-managed Python environment.
 - `make doctor`: verify compilers, Python tools, and NVIDIA runtime availability.
@@ -50,11 +51,15 @@ container rule and must not call the GPU/container scripts.
 - `bash scripts/host-cpu.sh init`: initialize the isolated host CPU toolchains without Docker.
 - `bash scripts/host-cpu.sh test`: run focused Python/C++/Rust LeetCode tests on the host.
 - `bash scripts/host-cpu.sh verify`: diagnose, lint, build, and test the host CPU route.
+- `bash scripts/host-gpu.sh init`: initialize the isolated full CPU+GPU host toolchains.
+- `bash scripts/host-gpu.sh test`: run Python/Rust/C++ and native CUDA tests on the host.
+- `bash scripts/host-gpu.sh verify`: run full lint, native CUDA, and Python GPU validation.
 
 Use focused commands while iterating. In the container, for example, run
 `uv run --frozen python -m pytest -q tests/python/leetcode/test_two_sum.py`. On the host, run
 `bash scripts/host-cpu.sh run -- python -m pytest -q tests/python/leetcode/test_two_sum.py`; the
 wrapper forces repository-local paths, and its built-in test/lint actions disable uv synchronization.
+Use the equivalent `host-gpu.sh run -- ...` entry for GPU exercises.
 
 ## Coding Style & Naming Conventions
 
