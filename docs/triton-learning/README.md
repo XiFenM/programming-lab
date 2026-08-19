@@ -82,7 +82,7 @@ docs/triton-learning/
 | --- | --- | --- | --- |
 | 01 | `01-vector-add.py` | [lessons/01-vector-add.md](lessons/01-vector-add.md) | 已完成（legacy） |
 | 02 | `02-fused-softmax.py` | [lessons/02-fused-softmax.md](lessons/02-fused-softmax.md) | 已完成（legacy） |
-| 03 | `03-matrix-multiplication.py` | [lessons/03-matrix-multiplication.md](lessons/03-matrix-multiplication.md) | 进行中（`synthesis`） |
+| 03 | `03-matrix-multiplication.py` | [lessons/03-matrix-multiplication.md](lessons/03-matrix-multiplication.md) | 已完成（`complete`） |
 | 04 | `04-low-memory-dropout.py` | `lessons/04-low-memory-dropout.md` | 候选（未授权） |
 | 05 | `05-layer-norm.py` | `lessons/05-layer-norm.md` | 候选（未授权） |
 | 06 | `06-fused-attention.py` | `lessons/06-fused-attention.md` | 候选（未授权） |
@@ -115,7 +115,7 @@ docs/triton-learning/
 
 ## 当前 Program 状态
 
-最近状态更新：2026-08-17。
+最近状态更新：2026-08-19。
 
 | 字段 | 当前值 |
 | --- | --- |
@@ -126,25 +126,25 @@ docs/triton-learning/
 | Included | 官方案例的概念、实现、正确性与目标明确时的实证验证 |
 | Excluded | 未获授权的独立性能研究、optional extension 与下一 Lesson 执行 |
 | Authorized Lesson refs | `lessons/01-vector-add.md`、`lessons/02-fused-softmax.md`（均为已关闭 legacy）、`lessons/03-matrix-multiplication.md` |
-| Active Lesson ref | [`lessons/03-matrix-multiplication.md`](lessons/03-matrix-multiplication.md)（`synthesis`） |
+| Active Lesson ref | 无（Lesson 03 已关闭；下一 Lesson 尚未授权） |
 | Checkpoint ref | [下方唯一 Checkpoint](#checkpoint) |
 
-- 第 01、02 课均已关闭；第 03 课 Matrix Multiplication 是当前 active Lesson。
+- 第 01–03 课均已关闭；当前没有 active Lesson，Program 等待学习者授权下一课。
 - Lesson 02 的历史 evidence 只由[冻结记录](lessons/02-fused-softmax.md)承担，本 Program 不复制。
-- 本课 O4 只要求一次围绕 grouped ordering 或 autotune config 的受控测量；profiler、置信区间、cache
-  机制深挖与穷举调参仍在核心范围之外。
+- Lesson 03 的 O4 仅完成了约定的一次 grouped ordering 受控测量；profiler、置信区间、cache 机制深挖
+  与穷举调参不属于已关闭 Lesson 的核心范围。
 
 ### Checkpoint
 
 | 字段 | 当前值 |
 | --- | --- |
-| Foreground context | `triton-03-matrix-multiplication` Lesson |
-| Semantic position | `synthesis`：四个概念节点已完成节点级检查；暂停在跨节点综合验收 S1 尚未作答处 |
-| Next action | 学习者回答 S1：完整推导给定新 shape 的 grid、尾组映射、有效 lane 与边界正确性 |
-| Forward gate | S1 完整迁移与 S2 受控实验预测通过后，提出补齐 O3 practical 与 O4 empirical 的最小正式实践契约 |
+| Foreground context | `triton-official-tutorials` Program（Lesson 边界） |
+| Semantic position | Lesson 03 已完成并关闭；当前没有 active Lesson |
+| Next action | 等待学习者明确授权启动 Lesson 04 或其他候选 Lesson |
+| Forward gate | 只有获得新 Lesson 授权后才创建或激活对应记录；不会按候选顺序自动推进 |
 | Blockers | 无 |
-| Latest evidence ref | [`triton-03-session-2026-08-17-a`](lessons/03-matrix-multiplication.md#条件片段session-event) |
-| As of | 2026-08-17；学习者主动暂停，等待从综合验收 S1 恢复 |
+| Latest evidence ref | [Lesson 03 Final mastery](lessons/03-matrix-multiplication.md#final-mastery) |
+| As of | 2026-08-19；Lesson 03 已确认关闭，等待下一 Lesson 授权 |
 
 ## 记录原则
 

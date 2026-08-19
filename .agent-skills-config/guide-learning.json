@@ -24,6 +24,10 @@
     }
   ],
   "record_mappings": {
+    "practice-artifacts": {
+      "path": "gpu/triton",
+      "kind": "collection"
+    },
     "program": {
       "path": "docs/triton-learning/README.md",
       "kind": "file",
