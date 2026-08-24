@@ -83,7 +83,7 @@ docs/triton-learning/
 | 01 | `01-vector-add.py` | [lessons/01-vector-add.md](lessons/01-vector-add.md) | 已完成（legacy） |
 | 02 | `02-fused-softmax.py` | [lessons/02-fused-softmax.md](lessons/02-fused-softmax.md) | 已完成（legacy） |
 | 03 | `03-matrix-multiplication.py` | [lessons/03-matrix-multiplication.md](lessons/03-matrix-multiplication.md) | 已完成（`complete`） |
-| 04 | `04-low-memory-dropout.py` | `lessons/04-low-memory-dropout.md` | 候选（未授权） |
+| 04 | `04-low-memory-dropout.py` | [lessons/04-low-memory-dropout.md](lessons/04-low-memory-dropout.md) | 已完成（`complete`） |
 | 05 | `05-layer-norm.py` | `lessons/05-layer-norm.md` | 候选（未授权） |
 | 06 | `06-fused-attention.py` | `lessons/06-fused-attention.md` | 候选（未授权） |
 | 07 | `07-extern-functions.py` | `lessons/07-extern-functions.md` | 候选（未授权） |
@@ -115,7 +115,7 @@ docs/triton-learning/
 
 ## 当前 Program 状态
 
-最近状态更新：2026-08-19。
+最近状态更新：2026-08-24。
 
 | 字段 | 当前值 |
 | --- | --- |
@@ -125,11 +125,11 @@ docs/triton-learning/
 | Objective | 理解、实现并验证本仓库固定版本的 Triton 官方教程 |
 | Included | 官方案例的概念、实现、正确性与目标明确时的实证验证 |
 | Excluded | 未获授权的独立性能研究、optional extension 与下一 Lesson 执行 |
-| Authorized Lesson refs | `lessons/01-vector-add.md`、`lessons/02-fused-softmax.md`（均为已关闭 legacy）、`lessons/03-matrix-multiplication.md` |
-| Active Lesson ref | 无（Lesson 03 已关闭；下一 Lesson 尚未授权） |
+| Authorized Lesson refs | `lessons/01-vector-add.md`、`lessons/02-fused-softmax.md`（均为已关闭 legacy）、`lessons/03-matrix-multiplication.md`、`lessons/04-low-memory-dropout.md` |
+| Active Lesson ref | 无（Lesson 04 已关闭；下一 Lesson 尚未授权） |
 | Checkpoint ref | [下方唯一 Checkpoint](#checkpoint) |
 
-- 第 01–03 课均已关闭；当前没有 active Lesson，Program 等待学习者授权下一课。
+- 第 01–04 课均已关闭；当前没有 active Lesson，Program 等待学习者授权下一课。
 - Lesson 02 的历史 evidence 只由[冻结记录](lessons/02-fused-softmax.md)承担，本 Program 不复制。
 - Lesson 03 的 O4 仅完成了约定的一次 grouped ordering 受控测量；profiler、置信区间、cache 机制深挖
   与穷举调参不属于已关闭 Lesson 的核心范围。
@@ -139,12 +139,12 @@ docs/triton-learning/
 | 字段 | 当前值 |
 | --- | --- |
 | Foreground context | `triton-official-tutorials` Program（Lesson 边界） |
-| Semantic position | Lesson 03 已完成并关闭；当前没有 active Lesson |
-| Next action | 等待学习者明确授权启动 Lesson 04 或其他候选 Lesson |
+| Semantic position | Lesson 04 已完成并关闭；当前没有 active Lesson |
+| Next action | 等待学习者明确授权启动 Lesson 05 或其他候选 Lesson |
 | Forward gate | 只有获得新 Lesson 授权后才创建或激活对应记录；不会按候选顺序自动推进 |
 | Blockers | 无 |
-| Latest evidence ref | [Lesson 03 Final mastery](lessons/03-matrix-multiplication.md#final-mastery) |
-| As of | 2026-08-19；Lesson 03 已确认关闭，等待下一 Lesson 授权 |
+| Latest evidence ref | [Lesson 04 Final mastery](lessons/04-low-memory-dropout.md#final-mastery) |
+| As of | 2026-08-24；Lesson 04 已确认关闭，等待下一 Lesson 授权 |
 
 ## 记录原则
 
