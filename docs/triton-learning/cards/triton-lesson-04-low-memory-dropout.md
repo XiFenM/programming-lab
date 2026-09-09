@@ -5,11 +5,11 @@
     "id": "markji",
     "profile": "programming-lab-markji"
   },
-  "artifact_set_sha256": "c056319a4fac26080be23af9acc2084e751be250ba3823df22c43b4acdd84cb2",
-  "candidate_sha256": "15ac6f9fc15f0f95fe12a6bebb8e0dc881f5b35ce47a32078e672b413209adc4",
+  "artifact_set_sha256": "7b836ca1dba099717e3e6a5ecf2782bb18552d043324d6b130f25a0d3cec53f5",
+  "candidate_sha256": "b810cbb621545bc48e7a0a330c33b00abf8cee6cabdca9dfc4fbd4fc378a1f10",
   "cards": [
     {
-      "content_sha256": "2ab7f8cf8c2a858aedd99d35758aaeb385044696f470e4df2ff74f9e241348ad",
+      "content_sha256": "823cb749d91f816d98744e0590a8182cb72d7c85aa2bfea175b84575dada21ca",
       "content_summary": "inverted dropout 通过逆 keep-probability 缩放保持输出期望",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -33,10 +33,37 @@
       ],
       "successor_to": null,
       "template_id": "technical-qa",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "content_sha256": "a57ef376fde6e76921eb15908bb8b67ccaee0f11c5a5491ab2426de8a96147f4",
+      "content_sha256": "6d19c78a9c0c3a844c3363e57da0db98d91c0da3d652e6b395c38f374a8aab95",
+      "content_summary": "纠正把 p=0.5 时的保留值 2x 写成输出期望",
+      "dependency_content_sha256": {},
+      "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "discrimination",
+        "domain": "dropout-math",
+        "fact_scope": {
+          "kind": "evergreen"
+        },
+        "recall_target": "纠正把 dropout 保留分支的实现值误当作输出期望"
+      },
+      "layer": "atomic",
+      "lifecycle": "active",
+      "logical_id": "mc-a221d1ca9b2a0baea78a067c",
+      "misconception_of": null,
+      "priority": 5,
+      "quality": "A",
+      "source_ids": [
+        "lesson-04-study-log"
+      ],
+      "successor_to": null,
+      "template_id": "correction",
+      "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "011b6ab4f7163c7594b894d55cef98da3dcd703c9d60a7d17fba39864535e0b4",
       "content_summary": "区分访存边界 mask 与随机 keep mask",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -60,10 +87,10 @@
       ],
       "successor_to": null,
       "template_id": "technical-qa",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "content_sha256": "1bde638a4f8d7a6ddab9c2017e96ee044f327504be89cf87cf33652c472adfd5",
+      "content_sha256": "1c73d33b5bd8df599030695798624a187f111afd6e2e22b58d664f7b9ebfe2a8",
       "content_summary": "global offset 防止不同 program 重复 local-offset 随机模式",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -89,11 +116,11 @@
       ],
       "successor_to": null,
       "template_id": "technical-qa",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "content_sha256": "34228a2bcdd14d6bce4983a0994dd0a27725a7c06009bcdc15e2f43b29174659",
-      "content_summary": "seeded dropout 精确复现依赖 offset 映射和完整数值条件",
+      "content_sha256": "808069c951114c9d52587c1c10641e526d68522ef908d36bdf2d8567290e6434",
+      "content_summary": "分清随机数、keep/drop决策和最终输出的复现条件，明确 p 决定阈值",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -118,10 +145,37 @@
       ],
       "successor_to": null,
       "template_id": "technical-qa",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "content_sha256": "dd0197be13b30bda8c0639e8690ca4c115d2b3260e6e6972e28f880d7bc5ab98",
+      "content_sha256": "60024a0a0220cab885c79f1a3a766bbb52837aee7df42734edd65d6175430ffc",
+      "content_summary": "相同 mask 可把不同输入的差异同时清零，阻止从输入不同推出输出必不同",
+      "dependency_content_sha256": {},
+      "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "discrimination",
+        "domain": "dropout-math",
+        "fact_scope": {
+          "kind": "evergreen"
+        },
+        "recall_target": "纠正相同 dropout mask 下不同输入必然产生不同输出的判断"
+      },
+      "layer": "atomic",
+      "lifecycle": "active",
+      "logical_id": "mc-3e5086b8fec794eec0a47fc9",
+      "misconception_of": null,
+      "priority": 5,
+      "quality": "A",
+      "source_ids": [
+        "lesson-04-study-log"
+      ],
+      "successor_to": null,
+      "template_id": "correction",
+      "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "4533ad7e13f84972267159cf1ef1e2b3668e31f7d8e554a21867efe99d0d5b07",
       "content_summary": "seeded dropout 以现场随机计算换取 mask 状态和流量减少",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -145,13 +199,46 @@
       ],
       "successor_to": null,
       "template_id": "technical-qa",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "content_sha256": "8c578a6b680b88e994487bebd03db5360ffa43eb0d2249930ba8e63ce4f9526e",
-      "content_summary": "尾部 lane 的半开区间、访存 mask 与数量守恒",
+      "content_sha256": "d4e12695282f75eb8ef26c2e0ae712f194b88a60e0e687f3bc1e721b6b23db00",
+      "content_summary": "通过真实 off-by-one 错误强化尾部有效与无效 lane 的数量守恒",
       "dependency_content_sha256": {},
       "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "discrimination",
+        "domain": "triton-dropout",
+        "fact_scope": {
+          "kind": "evergreen"
+        },
+        "recall_target": "纠正把尾部无效 lane 数多算一个而破坏数量守恒的错误"
+      },
+      "layer": "atomic",
+      "lifecycle": "active",
+      "logical_id": "mc-e72b538ae95230c44696bca8",
+      "misconception_of": null,
+      "priority": 4,
+      "quality": "B",
+      "source_ids": [
+        "lesson-04-study-log"
+      ],
+      "successor_to": null,
+      "template_id": "correction",
+      "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "1563cb8ce153f4afe612d15185d033d09d9c9c4cf805c1777d0601c0c783937b",
+      "content_summary": "将原尾部复合目标明确组织为区间、数量与访存保护的机制链",
+      "dependency_content_sha256": {
+        "mc-11065b73e0b9651d13129eb5": "011b6ab4f7163c7594b894d55cef98da3dcd703c9d60a7d17fba39864535e0b4",
+        "mc-e72b538ae95230c44696bca8": "d4e12695282f75eb8ef26c2e0ae712f194b88a60e0e687f3bc1e721b6b23db00"
+      },
+      "depends_on": [
+        "mc-11065b73e0b9651d13129eb5",
+        "mc-e72b538ae95230c44696bca8"
+      ],
       "fact_status": "verified",
       "identity": {
         "assessment": "discrimination",
@@ -163,55 +250,31 @@
         },
         "recall_target": "判断 seeded dropout 尾部 program 的半开区间、mask 操作与 lane 守恒"
       },
-      "layer": "atomic",
+      "layer": "mechanism",
       "lifecycle": "active",
       "logical_id": "mc-46554d25559bf0e0f688b0e8",
       "misconception_of": null,
       "priority": 5,
       "quality": "A",
+      "review_resolution": {
+        "summary": "已依据两类 mask 的职责与真实 lane 计数纠错复核区间、数量守恒和访存保护链，确认 n=2057 的 9/1015 推导及 tl.rand/load/store 边界一致。"
+      },
       "source_ids": [
         "lesson-04-study-log"
       ],
       "successor_to": null,
       "template_id": "technical-qa",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "content_sha256": "10b28a3e0c1ee55ef4265c3f075eded7205e31963d1f1a08e3cedc6dc528441f",
-      "content_summary": "纠正把 p=0.5 时的保留值 2x 写成输出期望",
-      "dependency_content_sha256": {},
-      "depends_on": [],
-      "fact_status": "verified",
-      "identity": {
-        "assessment": "discrimination",
-        "domain": "dropout-math",
-        "fact_scope": {
-          "kind": "evergreen"
-        },
-        "recall_target": "纠正把 dropout 保留分支的实现值误当作输出期望"
-      },
-      "layer": "atomic",
-      "lifecycle": "active",
-      "logical_id": "mc-a221d1ca9b2a0baea78a067c",
-      "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
-      "source_ids": [
-        "lesson-04-study-log"
-      ],
-      "successor_to": null,
-      "template_id": "correction",
-      "template_version": "1.0.0"
-    },
-    {
-      "content_sha256": "0a3d4c3904e43edf9cab84383dbda2143dbe7d1630479854f6119d8c1bd3cdd4",
+      "content_sha256": "56e29352346caa59b9ce2d92b10a48464e36303308d4999f3c53bb102506069d",
       "content_summary": "综合口述 seeded dropout 的期望、随机身份、复现、内存取舍和尾部边界",
       "dependency_content_sha256": {
-        "mc-1452241f4974fe80e44e9626": "1bde638a4f8d7a6ddab9c2017e96ee044f327504be89cf87cf33652c472adfd5",
-        "mc-46554d25559bf0e0f688b0e8": "8c578a6b680b88e994487bebd03db5360ffa43eb0d2249930ba8e63ce4f9526e",
-        "mc-711b7d4e6e47ad5dabe798e3": "2ab7f8cf8c2a858aedd99d35758aaeb385044696f470e4df2ff74f9e241348ad",
-        "mc-7208dde569c097b5430c14b0": "dd0197be13b30bda8c0639e8690ca4c115d2b3260e6e6972e28f880d7bc5ab98",
-        "mc-aa126e51b7b710faebd12184": "34228a2bcdd14d6bce4983a0994dd0a27725a7c06009bcdc15e2f43b29174659"
+        "mc-1452241f4974fe80e44e9626": "1c73d33b5bd8df599030695798624a187f111afd6e2e22b58d664f7b9ebfe2a8",
+        "mc-46554d25559bf0e0f688b0e8": "1563cb8ce153f4afe612d15185d033d09d9c9c4cf805c1777d0601c0c783937b",
+        "mc-711b7d4e6e47ad5dabe798e3": "823cb749d91f816d98744e0590a8182cb72d7c85aa2bfea175b84575dada21ca",
+        "mc-7208dde569c097b5430c14b0": "4533ad7e13f84972267159cf1ef1e2b3668e31f7d8e554a21867efe99d0d5b07",
+        "mc-aa126e51b7b710faebd12184": "808069c951114c9d52587c1c10641e526d68522ef908d36bdf2d8567290e6434"
       },
       "depends_on": [
         "mc-1452241f4974fe80e44e9626",
@@ -237,20 +300,23 @@
       "misconception_of": null,
       "priority": 5,
       "quality": "A",
+      "review_resolution": {
+        "summary": "已复核期望、global offset、包含 p 的决策复现条件、内存取舍及尾部机制五张子卡；口述覆盖相同边界且未新增未经子卡核验的结论。"
+      },
       "source_ids": [
         "lesson-04-study-log"
       ],
       "successor_to": null,
       "template_id": "oral",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     }
   ],
-  "managed_body_sha256": "ef4ee9d5bab6485dff52ef6479f896f00c8af1ec3ff9b32c182aacc270d0f44d",
-  "manifest_payload_sha256": "abf1946ad72be829e1cb2947407d128599af9b640781d2d6010226c2e33f3b36",
+  "managed_body_sha256": "d5fadfbb973d0ffd7854862d868077a3460beae66d13a9dfce8525855450fb90",
+  "manifest_payload_sha256": "513bb3090274242ad9e300ec00a0d607ef30f2d9e96f80fc9d43064d79ca7580",
   "schema": "memo-cards.artifact/v2",
   "sidecars": [
     {
-      "byte_size": 3215,
+      "byte_size": 5009,
       "columns": [
         "意图",
         "场景",
@@ -260,22 +326,32 @@
       ],
       "kind": "markji-import-xlsx",
       "path": "docs/triton-learning/cards/triton-lesson-04-low-memory-dropout-correction.xlsx",
-      "row_count": 1,
+      "row_count": 3,
       "rows": [
         {
-          "content_sha256": "10b28a3e0c1ee55ef4265c3f075eded7205e31963d1f1a08e3cedc6dc528441f",
+          "content_sha256": "6d19c78a9c0c3a844c3363e57da0db98d91c0da3d652e6b395c38f374a8aab95",
           "logical_id": "mc-a221d1ca9b2a0baea78a067c",
-          "row_sha256": "10766b4022f822a7f526e7ee6b82ea06e0803de34dc8029f01eeed896c640116"
+          "row_sha256": "7df9f8cecc218bdd9fa6c10a10007165fe101fba9c2f043860fd827d28908565"
+        },
+        {
+          "content_sha256": "60024a0a0220cab885c79f1a3a766bbb52837aee7df42734edd65d6175430ffc",
+          "logical_id": "mc-3e5086b8fec794eec0a47fc9",
+          "row_sha256": "715f7d30ba3f22b4b3046f4bfd186c9ff968cbd89a68c9e8bf9d0e38483d51f0"
+        },
+        {
+          "content_sha256": "d4e12695282f75eb8ef26c2e0ae712f194b88a60e0e687f3bc1e721b6b23db00",
+          "logical_id": "mc-e72b538ae95230c44696bca8",
+          "row_sha256": "4c66cc28be69cbd16ff4c17f3cf60cb7ae9c0244d112be54bd5323b55c8fd7ab"
         }
       ],
-      "sha256": "55cf11ec668284935f2bfeaca3239a6c1c9bbb6318d6a4bbf0a279005ec80425",
+      "sha256": "42423d2cf9550ef339ba5eaef8e1c28a4bcba088c5ae2bac1af0ea80af96e9d6",
       "sheet_name": "cards",
-      "table_sha256": "62b6dca69930201004f4a57b88f0e8d1baa5dcec7f35c16748f5b86cd32d83c4",
+      "table_sha256": "7f49b6680a4195a0e037c3b52e5150c4a6362faa80f66bb7a8b04d547434053a",
       "template_id": "correction",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "byte_size": 7675,
+      "byte_size": 7689,
       "columns": [
         "问题",
         "答案",
@@ -287,44 +363,44 @@
       "row_count": 6,
       "rows": [
         {
-          "content_sha256": "2ab7f8cf8c2a858aedd99d35758aaeb385044696f470e4df2ff74f9e241348ad",
+          "content_sha256": "823cb749d91f816d98744e0590a8182cb72d7c85aa2bfea175b84575dada21ca",
           "logical_id": "mc-711b7d4e6e47ad5dabe798e3",
-          "row_sha256": "3d0926f2cc4c18909e7cf004c43e1227a0f3fad383a2da8c018b6b967b0ecbdd"
+          "row_sha256": "d6c6fee396194a9f46f35aa487faf551d81a86ff55b59731db4855a7e9b3c034"
         },
         {
-          "content_sha256": "a57ef376fde6e76921eb15908bb8b67ccaee0f11c5a5491ab2426de8a96147f4",
+          "content_sha256": "011b6ab4f7163c7594b894d55cef98da3dcd703c9d60a7d17fba39864535e0b4",
           "logical_id": "mc-11065b73e0b9651d13129eb5",
-          "row_sha256": "661c96979b9ec8f358c4299d0e370ef4c984847b2b33239c8720ad8afdc3b4e9"
+          "row_sha256": "72bacb9fd7166b18fcc2584bb21a1d515258c18d4ad986ae919261b132e07293"
         },
         {
-          "content_sha256": "1bde638a4f8d7a6ddab9c2017e96ee044f327504be89cf87cf33652c472adfd5",
+          "content_sha256": "1c73d33b5bd8df599030695798624a187f111afd6e2e22b58d664f7b9ebfe2a8",
           "logical_id": "mc-1452241f4974fe80e44e9626",
-          "row_sha256": "5bd1f48bbde08f61204fac977eacb78f8d2e98c8c0faf7a56e29d5b8ad6ad1dc"
+          "row_sha256": "eac0b1a57412ab2599e7c3e614a05b063d54bce17bd169fd907b1c413127ba47"
         },
         {
-          "content_sha256": "34228a2bcdd14d6bce4983a0994dd0a27725a7c06009bcdc15e2f43b29174659",
+          "content_sha256": "808069c951114c9d52587c1c10641e526d68522ef908d36bdf2d8567290e6434",
           "logical_id": "mc-aa126e51b7b710faebd12184",
-          "row_sha256": "ebfc722964d07b7fb271ab7524d1297cafb406e33cc581b48e43dcf4c642199a"
+          "row_sha256": "831d1aa6a198a322aa255e4d9cbf9ea55e762fe3e950c12300b3c19d11a36f06"
         },
         {
-          "content_sha256": "dd0197be13b30bda8c0639e8690ca4c115d2b3260e6e6972e28f880d7bc5ab98",
+          "content_sha256": "4533ad7e13f84972267159cf1ef1e2b3668e31f7d8e554a21867efe99d0d5b07",
           "logical_id": "mc-7208dde569c097b5430c14b0",
-          "row_sha256": "a2d07ed9a28ca629ea0a0d6e84b0178dfed7de9a1901f08aaf569f08ffb73184"
+          "row_sha256": "8231495d767042d15ce1e0c35a91156d0b46538a77a6939e6227df6e9b0d90fc"
         },
         {
-          "content_sha256": "8c578a6b680b88e994487bebd03db5360ffa43eb0d2249930ba8e63ce4f9526e",
+          "content_sha256": "1563cb8ce153f4afe612d15185d033d09d9c9c4cf805c1777d0601c0c783937b",
           "logical_id": "mc-46554d25559bf0e0f688b0e8",
-          "row_sha256": "050a609b50b285d3e2ccf3c79cfe758ef01ce48cda0bcef1e2361fda625126bd"
+          "row_sha256": "d2d2e27db376fc5449dd3bee52042dbfb61c4e30d9e40fb78d440577e73aef7c"
         }
       ],
-      "sha256": "549e883cdbdc16502491bd079db0abd39a1c3285fbb9b59e0a3d8e0d17cbfbc4",
+      "sha256": "0738295e327ccae0d7b6a2be343bbef4b178642c0321e5a21687190d181dd48b",
       "sheet_name": "cards",
-      "table_sha256": "4899f944f0cb3507198af6cad156bda22a319f404fbfb401ce42f90c5c2230c8",
+      "table_sha256": "9c4a26bb72089e195e4720fc82c3f13fd5255e39c33e8de07200a5c29b806be5",
       "template_id": "technical-qa",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "byte_size": 3952,
+      "byte_size": 3905,
       "columns": [
         "问题",
         "参考回答",
@@ -336,16 +412,16 @@
       "row_count": 1,
       "rows": [
         {
-          "content_sha256": "0a3d4c3904e43edf9cab84383dbda2143dbe7d1630479854f6119d8c1bd3cdd4",
+          "content_sha256": "56e29352346caa59b9ce2d92b10a48464e36303308d4999f3c53bb102506069d",
           "logical_id": "mc-058b865b1ac9de96b3131943",
-          "row_sha256": "3bef31947129527bc545b436ebb637e590f8a016da925febc1d004945390f641"
+          "row_sha256": "200ba90080707989ec75327d86138967c1b30b55a34079855e6ac1573fc1a5df"
         }
       ],
-      "sha256": "1310eeddad9ca8a1d8d0843f0893c9ea979c303576e54be5e10f640c413676f0",
+      "sha256": "8175809a6f8b6541132aa4a7b0a23ae711f7d2dc6d11629a56556cdaa38617a8",
       "sheet_name": "cards",
-      "table_sha256": "e9498f8725829220ee68caed4ce9a853a64b37ebd292d7785aebd467c6ee2ec1",
+      "table_sha256": "2d7a3f1730263bc6e14594ea293519766dcc2d38e35a5b0f7c6ebfa19f898b7e",
       "template_id": "oral",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     }
   ],
   "source_fingerprint": "b301d3a596e09a1017cff996f272f873c502269c1a4f6ccec440af91545d4be9",
@@ -359,8 +435,8 @@
     }
   ],
   "target_collection": "triton-cards",
-  "template_registry_sha256": "d6cdcd90c996ca6922a06f02a44b06800468a557bec6ad5c433511d7b57761d7",
-  "template_registry_version": "1.0.0"
+  "template_registry_sha256": "358d0b6e1ee30ee06c0ae9636266ddafad6f2e81494f6d8975d68448e190996c",
+  "template_registry_version": "1.1.0"
 }
 ---
 # Markji 表格导入卡片
@@ -369,7 +445,7 @@
 
 ## 真实错误纠错卡
 
-模板 `correction@1.0.0`：
+模板 `correction@1.1.0`：
 
 ```text
 [P#H1#{{意图}}]
@@ -380,11 +456,11 @@
 {{说明}}
 ```
 
-导入文件：[triton-lesson-04-low-memory-dropout-correction.xlsx](triton-lesson-04-low-memory-dropout-correction.xlsx)（1 张卡）
+导入文件：[triton-lesson-04-low-memory-dropout-correction.xlsx](triton-lesson-04-low-memory-dropout-correction.xlsx)（3 张卡）
 
 ## 技术问答卡
 
-模板 `technical-qa@1.0.0`：
+模板 `technical-qa@1.1.0`：
 
 ```text
 [P#H1#{{问题}}]
@@ -398,7 +474,7 @@
 
 ## 综合口述卡
 
-模板 `oral@1.0.0`：
+模板 `oral@1.1.0`：
 
 ```text
 [P#H1#{{问题}}]

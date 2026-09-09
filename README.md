@@ -4,11 +4,15 @@
 完整 GPU 开发可使用 NVIDIA 容器，或在 Linux x86_64 宿主机上直接初始化仓库局部的
 CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 CPU-only 环境。
 
-> 当前验证基线（2026-07-31）：开发容器和依赖环境已经初始化，`uv.lock` 已生成并提交；
-> `make doctor`、默认 Python/Rust/C++/CUDA 测试、Python GPU 栈检查和 Triton 第 01 课的
-> 58 个 GPU 测试均已通过。GitHub Actions 只运行不依赖 GPU 的检查。完整 `make lint` /
-> `make verify` 目前会被 `leetcode/cpp/46.permutations.cpp` 中两个已知的 clang-tidy 问题
-> 阻断，这部分留待后续算法学习时处理。
+> 宿主机 GPU 环境检查（2026-09-09）：`bash scripts/host-gpu.sh doctor` 通过，工具路径、锁文件、
+> 已安装依赖及 PyTorch GPU 可见性检查正常。实机为 RTX 5090、驱动 595.71.05、Python 3.12.13、
+> PyTorch 2.13.0、Triton 3.7.1 和 TileLang 0.1.12；完整测试与 lint 的历史验证边界见
+> [宿主机 CPU+GPU 环境](docs/host-gpu-environment.md)。该环境检查未重跑完整测试与 lint。
+>
+> 容器历史验证（2026-07-31）：`make doctor`、默认 Python/Rust/C++/CUDA 测试、Python GPU 栈检查
+> 和 Triton 第 01 课的 58 个 GPU 测试均通过；当时完整 `make lint` / `make verify` 被
+> `leetcode/cpp/46.permutations.cpp` 中两个 clang-tidy 问题阻断。GitHub Actions 只运行不依赖 GPU
+> 的检查。
 
 ## 已配置的内容
 
@@ -28,10 +32,13 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
   workspace。
 - 提供 Python/C++/Rust 的 Two Sum 示例和测试、原生 CUDA 与 Triton 向量加法 GPU
   冒烟程序、TileLang 安装探针。
-- Triton 第 01、02 课均已完成；既有课程记录与对话保留为 legacy evidence，第 03 课仍只是
-  尚未获启动授权的候选入口。
+- Triton 第 01–04 课已完成；第 01、02 课记录与对话保留为 frozen legacy evidence，第 03、04 课
+  使用 `guide-learning` 流程。当前位于 Lesson 边界，下一课由学习者选择并授权；实时状态见
+  [Triton Program 与 Checkpoint](docs/triton-learning/README.md#当前-program-状态)。
 - 提供一套从既有算法面试视频课程归纳而来的完整文字课程：70 篇单课笔记、11 篇章节综述、全课程
   综合、概念词表和关系图，作为后续 LeetCode 学习实践的只读知识材料。
+- 算法面试课程第 01 课“约束驱动的算法选择与可观察表达”已完成；课程范围、候选 Lesson 与恢复位置
+  见[算法面试 Program 与 Checkpoint](docs/algorithm-interview-learning/README.md#当前-program-状态)。
 - 提供初始化、诊断、格式化、静态检查、测试和全量验收脚本，并由 Makefile 统一入口。
 - 提供 `host-cpu.sh` 一键宿主机路线；Pixi、Python 虚拟环境、Rust、缓存和构建产物均保存在
   仓库的 Git 忽略目录中，不修改 shell 启动文件或全局语言环境。
@@ -70,11 +77,12 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
 ├── docker/                          # Bash 环境和容器专用 Cargo 镜像配置
 ├── docs/
 │   ├── algorithm-interview-course/ # 算法面试文字课程、知识图谱与复习路线
+│   ├── algorithm-interview-learning/ # 算法面试 Program、Lesson 证据、日志与卡片
 │   ├── cuda-upgrade.md             # CUDA/cuDNN/Ubuntu 基础镜像升级指南
 │   ├── host-gpu-environment.md     # Linux 宿主机完整 CPU+GPU 路线
 │   ├── leetcode-practice-conventions.md # LeetCode 目录、命名、测试与验证约定
 │   ├── proxy-configuration.md      # v2rayA Lite 与 Codex CLI 代理配置指南
-│   ├── triton-learning/            # Triton 课程记录、评审、附件与原始对话
+│   ├── triton-learning/            # Triton Program、Lesson 证据、日志、卡片与 legacy 对话
 │   └── triton-tutorials/           # Triton 官方教程快照与学习路线
 ├── experiment_results/             # 可复现的 Triton benchmark 数据、图表与 HTML
 ├── pyproject.toml                   # Python/GPU 依赖及 Ruff/Pyright/pytest 配置
@@ -94,9 +102,7 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
 │   └── rust/                        # 每题一个 Rust crate
 ├── gpu/
 │   ├── cuda/vector_add.cu           # 原生 CUDA 编译/运行测试
-│   ├── triton/vector_add.py         # Triton JIT 编译/运行测试
-│   ├── triton/lesson01_vector_ops.py # 第 01 课实践 kernel
-│   ├── triton/lesson01_vector_ops_test.py # 需要 GPU 的课内测试
+│   ├── triton/                     # 向量操作、Softmax、Matmul、Dropout 实现与课内验收
 │   └── tilelang/                    # TileLang 版本探针和练习说明
 ├── tests/
 │   ├── python/
@@ -120,20 +126,26 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
 
 ## 仓库级 Codex Skills
 
-中央规范源以 [`.agent-skills`](.agent-skills) 子模块固定在
-`b762cb44c191383f23c6d9b6bbab56439333f11e`。[`.agent-skills.json`](.agent-skills.json) 当前使用统一
-version 2 消费索引，并为 Codex
-选择四个学习 Skill：
+中央规范源以 [`.agent-skills`](.agent-skills) 子模块按主仓库记录的提交固定版本；具体提交可用
+`git submodule status .agent-skills` 查看。[`.agent-skills.json`](.agent-skills.json) 当前使用统一
+version 2 消费索引，并为 Codex 选择四个学习 Skill：
 
 - `guide-learning`：来源驱动讲解、自适应理解检查、按证据缺口触发的正式练习、Review 与 mastery。
 - `study-log`：按需提炼结构化学习过程，或在单独确认隐私和边界后保存可追溯可见文本对话。
 - `english-coach`：只在实际使用英语或明确要求时提供技术英语反馈；默认零写入。
 - `memo-cards`：只在明确要求时从受管 structured log 预览或生成受管 Markdown 与按模板拆分的 Markji XLSX。
 
+已完成课程的结构化日志、可追溯对话、卡片及来源缺口统一见
+[学习复盘材料索引](docs/learning-review-materials.md)。
+
 算法面试与 Triton 是两个并行保持 `active` 的长期 Program，各自拥有独立控制面、Lesson evidence
 ledger 与 Checkpoint。一次具体学习会话只选择一个前台 Lesson；切换主题不会冻结、关闭或自动推进
 另一条课程。`english-coach` 的受管读取范围覆盖这两条课程全部由 Git 跟踪且未修改的 structured
 学习日志，但不包含 raw 私有归档、冻结的 legacy dialogues 或 Lesson evidence。
+
+`guide-learning` 的单组 `record_mappings` 只定位前台课程的持久化位置。向另一条课程写入状态前，
+需要精确切换 Program、Checkpoint、Lesson 与练习工件映射并重新 materialize；不要把映射扩大到
+同时覆盖两条课程。课程是否 active、是否已结课仍以各自的 Program 与 Lesson 记录为准。
 
 受 Git 跟踪的 [`.agent-skills-config/`](.agent-skills-config) 只提供公共 repository facts、学习状态
 locator、structured log target 以及英语反馈／卡片的窄 collection。它不保存当前课程状态，不授予

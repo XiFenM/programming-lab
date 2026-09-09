@@ -5,11 +5,11 @@
     "id": "markji",
     "profile": "programming-lab-markji"
   },
-  "artifact_set_sha256": "55a1540f20c63efcdff73be8fd0455d478883f8912c9ba3e16c5a9dd8eae5d67",
-  "candidate_sha256": "5baca5967148e9f3483fc5c41a619809e6976698de141b1e1fc7ae42fb6ed39a",
+  "artifact_set_sha256": "85882935029f52403b27138510f11e7ad25693e0337e31dc125facc55a890976",
+  "candidate_sha256": "046210f3312938aedf89f672a4ea6219320a716882ff5f85c97f769da4e4a40d",
   "cards": [
     {
-      "content_sha256": "9cdc82f97d4bc13d40e528f070b900a456d82c5d28eda9fa24cb087e0a1814ef",
+      "content_sha256": "eb9643af8d79817e5e09fc1d70fc4a3fdd878f7b6ef0eca2bd07ffb2a5d1d856",
       "content_summary": "四类约束及其与候选方案变化的映射",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -33,10 +33,10 @@
       ],
       "successor_to": null,
       "template_id": "technical-qa",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "content_sha256": "52d575856a5fe20b025ed83cf626510eef12264507e99690d225d19fd1650121",
+      "content_sha256": "3f4a87ffbbcbd7be87def579fd2fae6571182028ce79cc3de3c5f08ebdb0d188",
       "content_summary": "Two Sum 双层枚举的完整性、成本与瓶颈",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -60,10 +60,10 @@
       ],
       "successor_to": null,
       "template_id": "correction",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "content_sha256": "07ffa4ebeeba5e4f42d4688c092be509395d777001ea2915b01aef3f36184340",
+      "content_sha256": "85f79079a322cc37b48d0988aa89af08754b359e59c4046c6ad12733e953a2be",
       "content_summary": "有限候选受阻与全局下界证明的边界",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -87,10 +87,10 @@
       ],
       "successor_to": null,
       "template_id": "correction",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "content_sha256": "c0e44a796320bd74a976487d069fcb61337846c311bb7334e31b2bcca13538d9",
+      "content_sha256": "f3e94efddd77948b18d64f50845fc6240ffe944955433208f7706afb6560c1d2",
       "content_summary": "访问模型变化时先验证既有基线是否可执行",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -113,11 +113,11 @@
         "lesson-01-study-log"
       ],
       "successor_to": null,
-      "template_id": "correction",
-      "template_version": "1.0.0"
+      "template_id": "technical-qa",
+      "template_version": "1.1.0"
     },
     {
-      "content_sha256": "0ace7fe0608a3844388fa862086df7d95851456529078d001b1b984a4774c6f2",
+      "content_sha256": "cf860c60f17cf9b2e6e470f152375813d067ada0ebb389113e5511bdc50dc8d2",
       "content_summary": "非递减单遍流的相邻判重机制与边界",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -141,10 +141,10 @@
       ],
       "successor_to": null,
       "template_id": "technical-qa",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "content_sha256": "e4a432f77f1f0f4d91fe5466c6611879c7e36cca6a77e9976acac93400596c30",
+      "content_sha256": "2122403cbf26a289c9ed325ff655807e1097bdde3bab61a45dd35326142a0c3c",
       "content_summary": "元素值域、可达和值与 target 合法范围的前提",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -168,10 +168,10 @@
       ],
       "successor_to": null,
       "template_id": "correction",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "content_sha256": "f08ffdcedb694c0a264b293584bbc110da4b309223a933ff1e079da02046356a",
+      "content_sha256": "699dd67244e05101f524ac30c8ffa375cf65ee74b8e799c022c3faab62da66c8",
       "content_summary": "固定三值域下的有限状态 Two Sum 方案",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -195,10 +195,10 @@
       ],
       "successor_to": null,
       "template_id": "technical-qa",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "content_sha256": "ac04cd054e4ace3e3d8b5bf6fd08d455d9f601c62a399fdd5b86f132508e69f6",
+      "content_sha256": "e9505a4044eaf6c724450625befffe86aa93e90640fcc4569f71a3545fa2c553",
       "content_summary": "以已观察和未观察证据约束面试评价",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -222,15 +222,15 @@
       ],
       "successor_to": null,
       "template_id": "technical-qa",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "content_sha256": "899289d17970b6fd062969e2c8dfd10c97cc7cd8294c9b582d2c31d4592036a6",
+      "content_sha256": "9640c9aa39fadc6baa64171051195bec532447d0db121c39f21556e027f31885",
       "content_summary": "约束驱动算法选择的 45–90 秒面试式口述",
       "dependency_content_sha256": {
-        "mc-4f0190168427ee5f36908a24": "9cdc82f97d4bc13d40e528f070b900a456d82c5d28eda9fa24cb087e0a1814ef",
-        "mc-9a2ca0475b56586028b01f47": "07ffa4ebeeba5e4f42d4688c092be509395d777001ea2915b01aef3f36184340",
-        "mc-df1ae68b936de0326cba0825": "52d575856a5fe20b025ed83cf626510eef12264507e99690d225d19fd1650121"
+        "mc-4f0190168427ee5f36908a24": "eb9643af8d79817e5e09fc1d70fc4a3fdd878f7b6ef0eca2bd07ffb2a5d1d856",
+        "mc-9a2ca0475b56586028b01f47": "85f79079a322cc37b48d0988aa89af08754b359e59c4046c6ad12733e953a2be",
+        "mc-df1ae68b936de0326cba0825": "3f4a87ffbbcbd7be87def579fd2fae6571182028ce79cc3de3c5f08ebdb0d188"
       },
       "depends_on": [
         "mc-4f0190168427ee5f36908a24",
@@ -252,20 +252,23 @@
       "misconception_of": null,
       "priority": 5,
       "quality": "A",
+      "review_resolution": {
+        "summary": "已依据更新后的约束澄清、基线完整性/成本与候选边界三张子卡，复核口述的四个评分锚点；不将单题表现或候选受阻扩大为未经证明的结论。"
+      },
       "source_ids": [
         "lesson-01-study-log"
       ],
       "successor_to": null,
       "template_id": "oral",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     }
   ],
-  "managed_body_sha256": "7884006398be0b4909b92c33fd61e2760ea13469042f287f675f32335445b55f",
-  "manifest_payload_sha256": "9c2cac8536ed7c2e8388caf4a3e6aeccf34307aceb4581320e84b03524a034fa",
+  "managed_body_sha256": "ff3b694e290d6842073febe1d4872d57387087f2295269472bdcf0fb314c85b0",
+  "manifest_payload_sha256": "bc586cb4afcd4d0a18e12101ccead1b5dd4f1b98a99d2784ab0ab25b79ba0852",
   "schema": "memo-cards.artifact/v2",
   "sidecars": [
     {
-      "byte_size": 6337,
+      "byte_size": 5292,
       "columns": [
         "意图",
         "场景",
@@ -275,37 +278,32 @@
       ],
       "kind": "markji-import-xlsx",
       "path": "docs/algorithm-interview-learning/cards/algorithm-interview-lesson-01-constraint-driven-selection-correction.xlsx",
-      "row_count": 4,
+      "row_count": 3,
       "rows": [
         {
-          "content_sha256": "52d575856a5fe20b025ed83cf626510eef12264507e99690d225d19fd1650121",
+          "content_sha256": "3f4a87ffbbcbd7be87def579fd2fae6571182028ce79cc3de3c5f08ebdb0d188",
           "logical_id": "mc-df1ae68b936de0326cba0825",
-          "row_sha256": "e2f6b975a4a457f0f82523d5b9813ce0f7a91053d6d0f1db2e066198a4578162"
+          "row_sha256": "af31728425b0a5c5f95882a8a16849df14668652ab18231e0bea81b088104c85"
         },
         {
-          "content_sha256": "07ffa4ebeeba5e4f42d4688c092be509395d777001ea2915b01aef3f36184340",
+          "content_sha256": "85f79079a322cc37b48d0988aa89af08754b359e59c4046c6ad12733e953a2be",
           "logical_id": "mc-9a2ca0475b56586028b01f47",
-          "row_sha256": "82ab59ed8c10e754fc4147aeb0f0cf14c06cb3d12bad173e9e462d9c0c79d2d0"
+          "row_sha256": "6fba3623a73f127cb46db94c2b5326ee5bba77781259c69747edcb6075340fd8"
         },
         {
-          "content_sha256": "c0e44a796320bd74a976487d069fcb61337846c311bb7334e31b2bcca13538d9",
-          "logical_id": "mc-fb9f50860ce8cb63ab2680a0",
-          "row_sha256": "d9cdddcfb3ff72440d85d67e2d574f7cf23ed6bfe4e5d99697ebf29a69a465f7"
-        },
-        {
-          "content_sha256": "e4a432f77f1f0f4d91fe5466c6611879c7e36cca6a77e9976acac93400596c30",
+          "content_sha256": "2122403cbf26a289c9ed325ff655807e1097bdde3bab61a45dd35326142a0c3c",
           "logical_id": "mc-1a48039f55d300c7fd6f3de8",
-          "row_sha256": "6919440d4651682558a6c64b0412338132d0b4b64679cbac3e5a9ac871d1c94e"
+          "row_sha256": "7338bc6706718169df03a1006d24f83969c66f43f96cfd8248bbf4a549f5b233"
         }
       ],
-      "sha256": "5fba85f601a67a3ade1ff26acc546d509dcea40790b915a9f65a5ca2708c9824",
+      "sha256": "073639aa7737c3ab9c41d35a84aa7e2801a7f01f16b679b2fb6d27b0542fd486",
       "sheet_name": "cards",
-      "table_sha256": "6114fe53764e617ca4b56de1da417e3911dd4fe134ca3d0f2e5d65600f9a8bf6",
+      "table_sha256": "b4313c0974da29b5b542fec8a9be9faf854518d26e42257e08dfde1bbfee8860",
       "template_id": "correction",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "byte_size": 6204,
+      "byte_size": 6567,
       "columns": [
         "问题",
         "答案",
@@ -314,37 +312,42 @@
       ],
       "kind": "markji-import-xlsx",
       "path": "docs/algorithm-interview-learning/cards/algorithm-interview-lesson-01-constraint-driven-selection-technical-qa.xlsx",
-      "row_count": 4,
+      "row_count": 5,
       "rows": [
         {
-          "content_sha256": "9cdc82f97d4bc13d40e528f070b900a456d82c5d28eda9fa24cb087e0a1814ef",
+          "content_sha256": "eb9643af8d79817e5e09fc1d70fc4a3fdd878f7b6ef0eca2bd07ffb2a5d1d856",
           "logical_id": "mc-4f0190168427ee5f36908a24",
-          "row_sha256": "f104bb3288fb7181ac11ab242888800ba51f3b2a2df06758b04140c00b90712a"
+          "row_sha256": "0ae8c0734d66cb47cac10dd1759fbbdfc4b9936f702d32136e666853839d3e4c"
         },
         {
-          "content_sha256": "0ace7fe0608a3844388fa862086df7d95851456529078d001b1b984a4774c6f2",
+          "content_sha256": "f3e94efddd77948b18d64f50845fc6240ffe944955433208f7706afb6560c1d2",
+          "logical_id": "mc-fb9f50860ce8cb63ab2680a0",
+          "row_sha256": "aae78ac56c3b21618e9a95168a54fe6e56a6289cb90638ded5e23eacfd31b446"
+        },
+        {
+          "content_sha256": "cf860c60f17cf9b2e6e470f152375813d067ada0ebb389113e5511bdc50dc8d2",
           "logical_id": "mc-7ecf051e0b5c2a7f2d685e80",
-          "row_sha256": "d60300a2933aeecdfb0a546de6c96ff4abbb9ba9e3c69255cf84bed11c84ded1"
+          "row_sha256": "0baf52536f0564326347b5fdc1bf09aa4ce7470a938f16c3cf4df0a03959679f"
         },
         {
-          "content_sha256": "f08ffdcedb694c0a264b293584bbc110da4b309223a933ff1e079da02046356a",
+          "content_sha256": "699dd67244e05101f524ac30c8ffa375cf65ee74b8e799c022c3faab62da66c8",
           "logical_id": "mc-d6bf5b8ac24ed65ff2044c4c",
-          "row_sha256": "8a666700c076e9191b614341607c2be9dcc26071b708f40cd7c6767cea52c1b9"
+          "row_sha256": "8f740bcfeeeed7b5a25b65189b6263e41e3972f568ce76b9969f1bceb581aace"
         },
         {
-          "content_sha256": "ac04cd054e4ace3e3d8b5bf6fd08d455d9f601c62a399fdd5b86f132508e69f6",
+          "content_sha256": "e9505a4044eaf6c724450625befffe86aa93e90640fcc4569f71a3545fa2c553",
           "logical_id": "mc-49862043dfc59100d0b75900",
-          "row_sha256": "8b81ee42c9d9e2feb43a04130532372fd0930844d711100edcbc720e612700f0"
+          "row_sha256": "fc7164419e02bee3bc8ef3a2f9e497cd8936d8446168472dff3b8c403d843d73"
         }
       ],
-      "sha256": "5aadaffdd947af5ca6fb989190e2380c4958ee544574c83a79c860717b7df214",
+      "sha256": "9813365a39d37a011269ad9221e4f48778382a6c833309c35f9ac68eeff75036",
       "sheet_name": "cards",
-      "table_sha256": "cd0ef55752eb9138d16a1fba1358331330533e03e0bde4deaa13386173d3281b",
+      "table_sha256": "014e9369d2d8fcf209e9748dfd4013a1761aeffbe2bbee14d964331c6c408b77",
       "template_id": "technical-qa",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     },
     {
-      "byte_size": 3736,
+      "byte_size": 3491,
       "columns": [
         "问题",
         "参考回答",
@@ -356,16 +359,16 @@
       "row_count": 1,
       "rows": [
         {
-          "content_sha256": "899289d17970b6fd062969e2c8dfd10c97cc7cd8294c9b582d2c31d4592036a6",
+          "content_sha256": "9640c9aa39fadc6baa64171051195bec532447d0db121c39f21556e027f31885",
           "logical_id": "mc-9fa38a858c2f964aaeb624e8",
-          "row_sha256": "8305bd0ac74c07254c5866c6e18e10c5342b033e941b43c5693b56e4e0cc3520"
+          "row_sha256": "3d1331bc07bd5f2c0dff8250ede39ebfca79945ea91132b4ac4875fba66e672c"
         }
       ],
-      "sha256": "9c1c79d7d38553b638665adb4f3f80752745bf08a82b0a9d6165f5e245c2e8ef",
+      "sha256": "c29ab902d1a43dff13059fd0a745913f80ad0853165ef175d7eaba242ff30e42",
       "sheet_name": "cards",
-      "table_sha256": "9d815ab69a561421aa8b77ed471e13c00026e01e33026569ffac0f3dec5a5af4",
+      "table_sha256": "0e0791632743762514e968191173b8c0c2354078569c6407758c4d8ab3fbde30",
       "template_id": "oral",
-      "template_version": "1.0.0"
+      "template_version": "1.1.0"
     }
   ],
   "source_fingerprint": "1bd3a222b9fed41ec55cca9c7186eab4241b0889243f23de59da9b24dd4469f6",
@@ -379,8 +382,8 @@
     }
   ],
   "target_collection": "algorithm-interview-cards",
-  "template_registry_sha256": "d6cdcd90c996ca6922a06f02a44b06800468a557bec6ad5c433511d7b57761d7",
-  "template_registry_version": "1.0.0"
+  "template_registry_sha256": "358d0b6e1ee30ee06c0ae9636266ddafad6f2e81494f6d8975d68448e190996c",
+  "template_registry_version": "1.1.0"
 }
 ---
 # Markji 表格导入卡片
@@ -389,7 +392,7 @@
 
 ## 真实错误纠错卡
 
-模板 `correction@1.0.0`：
+模板 `correction@1.1.0`：
 
 ```text
 [P#H1#{{意图}}]
@@ -400,11 +403,11 @@
 {{说明}}
 ```
 
-导入文件：[algorithm-interview-lesson-01-constraint-driven-selection-correction.xlsx](algorithm-interview-lesson-01-constraint-driven-selection-correction.xlsx)（4 张卡）
+导入文件：[algorithm-interview-lesson-01-constraint-driven-selection-correction.xlsx](algorithm-interview-lesson-01-constraint-driven-selection-correction.xlsx)（3 张卡）
 
 ## 技术问答卡
 
-模板 `technical-qa@1.0.0`：
+模板 `technical-qa@1.1.0`：
 
 ```text
 [P#H1#{{问题}}]
@@ -414,11 +417,11 @@
 📍 [T#!939393#{{来源}}]
 ```
 
-导入文件：[algorithm-interview-lesson-01-constraint-driven-selection-technical-qa.xlsx](algorithm-interview-lesson-01-constraint-driven-selection-technical-qa.xlsx)（4 张卡）
+导入文件：[algorithm-interview-lesson-01-constraint-driven-selection-technical-qa.xlsx](algorithm-interview-lesson-01-constraint-driven-selection-technical-qa.xlsx)（5 张卡）
 
 ## 综合口述卡
 
-模板 `oral@1.0.0`：
+模板 `oral@1.1.0`：
 
 ```text
 [P#H1#{{问题}}]
