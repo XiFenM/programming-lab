@@ -1,6 +1,6 @@
 # 学习复盘材料索引
 
-整理与核对日期：2026-09-09。本页索引已经完成课程的复盘材料及可恢复来源，
+整理与核对日期：2026-09-14。本页索引已经完成课程的复盘材料及可恢复来源，
 不裁决课程进度或掌握程度；课程状态仍以各轨道的 Program 和 Lesson 为准。
 
 ## 材料覆盖
@@ -12,6 +12,7 @@
 | Triton 02：Fused Softmax | [7 月 31 日–8 月 7 日，补整理](triton-learning/logs/2026-08-07-fused-softmax.md) | 5 段 frozen legacy，共 229 条，见下方索引 | [17 张，3 个 XLSX](triton-learning/cards/triton-lesson-02-fused-softmax.md) |
 | Triton 03：矩阵乘法 | [8 月 17 日概念学习](triton-learning/logs/2026-08-17-matrix-multiplication.md)、[8 月 18–19 日综合验收与实践](triton-learning/logs/2026-08-19-matrix-multiplication.md) | 本机恢复 8 月 18 日 14 条与 8 月 19 日 37 条；8 月 17 日全文未找到 | [12 张，3 个 XLSX](triton-learning/cards/triton-lesson-03-matrix-multiplication.md)，覆盖两份日志 |
 | Triton 04：Low-Memory Dropout | [8 月 24 日](triton-learning/logs/2026-08-24-low-memory-dropout.md) | 本机恢复开课到关闭的 62 条可见消息 | [10 张，3 个 XLSX](triton-learning/cards/triton-lesson-04-low-memory-dropout.md) |
+| Triton 05：LayerNorm | [9 月 9–14 日](triton-learning/logs/2026-09-14-layer-norm.md) | [学习与实践 111 条](triton-learning/transcripts/2026-09-09-layer-norm-learning.md)、[复验与结课 14 条](triton-learning/transcripts/2026-09-14-layer-norm-review-and-closure.md) | [16 张，3 个 XLSX](triton-learning/cards/triton-lesson-05-layer-norm.md) |
 
 新增两份结构化日志从已保存的课程对话蒸馏，保留真实回答、误解、纠错、关键问题与转折，
 并标注补整理日期及原有消息位置。现有日志中的历史遗留按当时语境阅读；例如 8 月 17 日
@@ -33,18 +34,23 @@
 | Triton 03：综合验收与实践范围校准 | [2026-08-18](triton-learning/transcripts/2026-08-18-matrix-multiplication-synthesis.md) | 14 |
 | Triton 03：编程实践、实验解释与结课 | [2026-08-19](triton-learning/transcripts/2026-08-19-matrix-multiplication-practice.md) | 37 |
 | Triton 04：开课至关闭 | [2026-08-24](triton-learning/transcripts/2026-08-24-low-memory-dropout.md) | 62 |
+| Triton 05：学习、概念、实现与首轮 Review | [2026-09-09](triton-learning/transcripts/2026-09-09-layer-norm-learning.md) | 111 |
+| Triton 05：精度解释、最终复验与结课确认 | [2026-09-14](triton-learning/transcripts/2026-09-14-layer-norm-review-and-closure.md) | 14 |
 
 第 01、02 课的九段旧对话保持原样。已核对消息计数、编号、时间顺序和分段边界；
 它们使用旧格式，不将其解释为现行 raw schema，也不单凭分段连续性声明原会话没有遗漏。
 
-三个新文件由官方 `study_log.py archive` 在仓库外生成，再按学习者本次明确授权逐字节导入
-`transcripts/` 并加入 Git 跟踪。它们分别是所选课程片段的 `final` 快照，含 source SHA-256、
-可见内容摘要、稳定消息 ID、起止边界和归档身份；`final` 表示该片段已定稿，不代表缺失的
-早期会话已经恢复。中间独立进行的 Skill/Git 维护不属于课程片段。
+日期命名的归档均由官方 `study_log.py archive` 在仓库外生成，再按学习者对具体边界与风险的明确
+授权逐字节导入 `transcripts/` 并加入 Git 跟踪。它们是所选课程片段的 `final` 快照，含 source
+SHA-256、可见内容摘要、稳定消息 ID、起止边界和归档身份；`final` 表示该片段已定稿，不代表未选
+边界或其他机器上的内容已经恢复。第 05 课在客户端续接处重复出现的同一回答只保留后段副本。
 
 可见对话含用户与助手的过程更新和正式回答；没有收录 system、developer、隐藏推理、工具事件
 或附件正文。原有本机路径、容器名和附件描述仍可见。该批次入库是本次明确授权的结果，
 不更改 `study-log` 对未来归档的默认位置与范围规则。
+
+第 05 课两段全文扫描未发现凭据或个人标识；`proprietary` 类别命中分别为 30 和 2，均来自本仓库
+练习代码块及本机路径。归档按确认保留这些内容，未做手工润色或脱敏。
 
 归档正文保留原消息的 Markdown 行尾换行空格和终端输出空格；`.gitattributes` 仅对日期命名的
 这些全文快照关闭行尾空格告警，正文与可见内容摘要仍按原样核对。
@@ -94,3 +100,19 @@
 
 上传使用从同账号既有正常卡片核实的 `grammar_version=3`。恢复与去重回执由上传器保存在
 仓库外；本仓库不保存凭据或私有回执。API 读回校验不包含客户端视觉渲染检查。
+
+## 2026-09-14 LayerNorm 记录与卡片
+
+第 05 课结构化日志从上述两个已确认的可见对话片段蒸馏，保留 21 条真实回答、误解、纠错、
+高价值问题、转折与验证边界，并以 56 个稳定消息 ID 回查提取材料。临时提取正文在蒸馏后删除。
+
+根据该受管日志精选 16 张卡片：13 张技术问答、2 张真实纠错、1 张综合口述。覆盖逐行映射、
+padding、前后向梯度、共享分组、CAS／barrier／release-acquire、wrapper 契约和数值精度；一张固定
+版本的生产实现策略卡标为 B，其余为 A。跨既有 inventory 未发现重复、冲突、依赖漂移或暂缓项。
+Markdown 与 3 个 XLSX 以相同 request 复核为 `no-op`、`would_write=false`。本次只生成本地卡片，
+随后按学习者明确请求，通过墨墨官方 API 上传到私有牌库 `Triton` 的 `Triton 05` 章节。
+
+上传预览确认空章节中 16 张均为 `create`，使用从既有正常卡片核实的 `grammar_version=3`；实际结果为
+新增 16 张、跳过 0 张。每张卡均完成完整内容、语法版本和章节归属的独立读回验证，最终章节包含
+16 张卡且仅出现语法版本 3。恢复回执保存在仓库外，不含 token 或卡片全文；API 验证不代替客户端
+视觉渲染检查。
