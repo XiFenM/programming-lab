@@ -100,6 +100,7 @@ def test_forward_matches_torch(
 
     _assert_metadata(o, expected_o)
     _assert_metadata(m, expected_m)
+    assert m.is_contiguous(), "M must be contiguous"
     torch.testing.assert_close(o, expected_o, atol=1e-2, rtol=1e-2)
     torch.testing.assert_close(m, expected_m, atol=1e-3, rtol=1e-3)
     for name, tensor in inputs.items():

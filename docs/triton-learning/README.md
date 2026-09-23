@@ -85,7 +85,7 @@ docs/triton-learning/
 | 03 | `03-matrix-multiplication.py` | [lessons/03-matrix-multiplication.md](lessons/03-matrix-multiplication.md) | 已完成（`complete`） |
 | 04 | `04-low-memory-dropout.py` | [lessons/04-low-memory-dropout.md](lessons/04-low-memory-dropout.md) | 已完成（`complete`） |
 | 05 | `05-layer-norm.py` | [lessons/05-layer-norm.md](lessons/05-layer-norm.md) | 已完成（`complete`） |
-| 06 | `06-fused-attention.py` | [lessons/06-fused-attention.md](lessons/06-fused-attention.md) | 进行中（`practice`） |
+| 06 | `06-fused-attention.py` | [lessons/06-fused-attention.md](lessons/06-fused-attention.md) | 进行中（`review`，静态缺陷已修，待 GPU 验收） |
 | 07 | `07-extern-functions.py` | `lessons/07-extern-functions.md` | 候选（未授权） |
 | 08 | `08-grouped-gemm.py` | `lessons/08-grouped-gemm.md` | 候选（未授权） |
 | 09 | `09-persistent-matmul.py` | `lessons/09-persistent-matmul.md` | 候选（未授权） |
@@ -115,7 +115,7 @@ docs/triton-learning/
 
 ## 当前 Program 状态
 
-最近状态更新：2026-09-19。
+最近状态更新：2026-09-23。
 
 | 字段 | 当前值 |
 | --- | --- |
@@ -126,7 +126,7 @@ docs/triton-learning/
 | Included | 官方案例的概念、实现、正确性与目标明确时的实证验证 |
 | Excluded | 未获授权的独立性能研究、optional extension 与下一 Lesson 执行 |
 | Authorized Lesson refs | `lessons/01-vector-add.md`、`lessons/02-fused-softmax.md`（均为已关闭 legacy）、`lessons/03-matrix-multiplication.md`、`lessons/04-low-memory-dropout.md`、`lessons/05-layer-norm.md`、`lessons/06-fused-attention.md` |
-| Active Lesson ref | [Lesson 06：Fused Attention 的在线 Softmax 与分块数据流](lessons/06-fused-attention.md)（`practice`） |
+| Active Lesson ref | [Lesson 06：Fused Attention 的在线 Softmax 与分块数据流](lessons/06-fused-attention.md)（`review`，修订后待 GPU 验收） |
 | Checkpoint ref | [下方唯一 Checkpoint](#checkpoint) |
 
 - 第 01–05 课均已关闭；学习者于 2026-09-14 明确启动 Lesson 06，当前前台为该课。
@@ -138,12 +138,12 @@ docs/triton-learning/
 
 | 字段 | 当前值 |
 | --- | --- |
-| Foreground context | `triton-06-fused-attention` Lesson（`practice`） |
-| Semantic position | 计划内中断于 Lesson 06 实践起点；revision 1 已接受，44 项验收与可信 expected red 就绪，核心保持 learner-owned 且尚未提交 |
-| Next action | 学习者有时间时创建 `gpu/triton/lesson06_fused_attention.py`，从已提供的前向测试 red 推进到 green |
-| Forward gate | 学习者提交实现后复验 P06-A1–A3，再完成 A4 独立变式与解释，方可进入 mastery gate |
-| Latest evidence ref | [Lesson 06 E-04](lessons/06-fused-attention.md#e-04) |
-| As of | 2026-09-19；验收准备完成，等待 learner-owned 实现 |
+| Foreground context | `triton-06-fused-attention` Lesson（`review`） |
+| Semantic position | 学习者修订后，上一轮 9 项静态 finding 已复核关闭；32×16 分块的索引集合核对通过，规范余项仍在，GPU 尚未测试 |
+| Next action | 学习者稍后在 GPU 机器运行 `gpu/triton/lesson06_fused_attention_test.py` 并提供结果及环境版本 |
+| Forward gate | 在 GPU 环境验证 P06-A1–A3，再完成 A4 独立变式与解释；静态 finding 关闭不等于 JIT 或数值已通过 |
+| Latest evidence ref | [Lesson 06 E-09](lessons/06-fused-attention.md#e-09) |
+| As of | 2026-09-23；待 GPU 验收，Agent 未修改 learner-owned 实现，Skill 优化仍在实践完成之后 |
 
 ## 记录原则
 

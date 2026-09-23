@@ -7,7 +7,7 @@
 | Lesson ID | `triton-06-fused-attention` |
 | Program | [Triton 学习档案](../README.md) |
 | 能力标题 | 独立解释 FlashAttention 的精确分块计算，并实现、验证一个 Triton FP16 前向 |
-| 阶段 | `practice` |
+| 阶段 | `review`（上一轮静态缺陷已修复；GPU 编译与数值验证待进行） |
 | 启动授权 | 2026-09-14，学习者在 Lesson 05 关闭并推送后明确提出“接下来，我想开启triton下一课。” |
 
 ### 来源
@@ -16,6 +16,8 @@
 | --- | --- | --- | --- |
 | `docs/triton-tutorials/official/06-fused-attention.py` | `teaching-spine` | 上游 commit `35de6d6dcdd3e885a45bce6ba9d1b5e6da191a7c`；本地 SHA-256 `5b16be48b7b781ef018931c789b191f3390886ac479bb5df8a3418e5612ab317` | 在线 softmax、前向分块、因果阶段与反向数据流的教学顺序 |
 | `docs/triton-tutorials/official/06-fused-attention.py` | `implementation-authority` | Git blob `b1283e8ef99cb01a1acc3df0accf2caeba38e506` | 固定源码的 grid、descriptor、kernel 控制流、测试与边界 |
+| [上游 FP8 V descriptor 修复源码](https://github.com/triton-lang/triton/blob/dc3101b3a6fe03f20fa7384c4d312ee17f160415/python/tutorials/06-fused-attention.py) | `implementation-authority`（窄范围补充） | commit `dc3101b3a6fe03f20fa7384c4d312ee17f160415`，2026-09-19；文件 SHA-256 `36eb1f04b8ae795a554c69529e8c930edc5727a43322b39e87f916c535d7ba63` | 仅裁决 FP8 V 的 descriptor shape、坐标及专用回归；不替换本地 teaching spine，见 OBS-06-FP8-01 |
+| [Triton v3.7.1 实现](https://github.com/triton-lang/triton/tree/v3.7.1) | `implementation-authority`（静态 Review） | tag `v3.7.1`，与 `uv.lock` 一致；核对于 2026-09-23 | `tools/tensor_descriptor.py`、`language/{core,math,semantic}.py`、`_utils.py` 与 NVIDIA backend 的构造器、静态 shape、log／dot 类型和最小 dot 维度规则 |
 | [FlashAttention](https://arxiv.org/abs/2205.14135) | `method-authority` | arXiv `2205.14135`，2022 | IO-aware exact attention、分块与避免二次中间量物化的算法依据 |
 | [FlashAttention-2](https://arxiv.org/abs/2307.08691) | `method-authority` | arXiv `2307.08691`，2023 | 更好的 block／warp 工作划分；本课只采用与固定教程核心数据流相关的范围 |
 | `docs/triton-tutorials/SOURCE.md` | `explanatory-support` | `tutorials_python.zip` SHA-256 `2d838ed48281a3bcf901e230ab9abc29b042e4ddf899eef8347676612259ed04`，下载于 2026-07-15 | 上游来源、许可与本地快照边界 |
@@ -38,7 +40,7 @@ optional extension 另行授权。所有 empirical 维度均为 `not-required`�
 - **已确认前置**：Lesson 02 已验证逐行 stable softmax、padding 与归约；Lesson 03 已验证分块矩阵乘法、
   `tl.dot` 与二维 program 映射；Lesson 05 已验证跨块统计量、FP32 累加、反向归约与同步边界。这些只
   决定本课可以从注意力整体数据流开始，不直接证明 Fused Attention mastery。
-- **来源与环境核对**：固定源码与来源记录均通过 UTF-8 和路径安全检查。当前环境为 RTX 5090
+- **来源与环境核对（2026-09-14—19 历史）**：固定源码与来源记录均通过 UTF-8 和路径安全检查。当时环境为 RTX 5090
   （compute capability 12.0）、PyTorch `2.13.0+cu130`、Triton `3.7.1`、CUDA build `13.0`。
 
 <a id="e-01"></a>
@@ -64,18 +66,20 @@ optional extension 另行授权。所有 empirical 维度均为 `not-required`�
   的 key 范围；最初混淆 `Delta` 的归约轴与前向保存量／反向输出，补差后能对新形状独立说出
   `Delta` 沿特征维 D 求和、形状 `[B,H,N]`，并区分前向保存的 Q/K/V/O/M、反向临时 Delta 和
   反向输出 dQ/dK/dV。综合模型、关键边界与条件变式 evidence 已充分。
-- **综合验收结论**：O1–O4 的 `conceptual` 已具最低充分证据；这不等同于 O2／O3 practical 或
-  final mastery。
+- **2026-09-19 综合验收结论**：当轮判断 O1–O4 的 `conceptual` 已具最低充分证据；这不等同于
+  O2／O3 practical 或 final mastery。2026-09-20 学习者反馈整体数据流仍不清晰，后续以 E-05
+  补充需求为准；保留已发生的局部与变式证据，不据此跳过全流程讲解。
 - **仍缺 evidence**：O2／O3 practical。学习者已接受以下 revision 1 契约，且于 2026-09-19
-  澄清核心 kernel 将由本人在有时间时编写；Agent 只维护测试和记录。当前未提交核心实现，课程按
-  学习者请求暂时中断在实践起点，Lesson 阶段仍为 `practice`，不写 `paused` 或 final mastery。
+  澄清核心 kernel 由本人编写；Agent 维护验收和记录，并进行 Review。经过 E-05–07 补充讲解，
+  学习者于 2026-09-23 提交首次实现并完成一轮修订；E-08 的 9 项静态缺陷经 E-09 复核关闭，
+  GPU 验证尚未进行。
 
 <a id="e-03"></a>
 
-- **E-03（P06-A1–A3 验收准备）**：Agent-owned 公开测试收集 44 项，覆盖 FP16 合法数值与
+- **E-03（2026-09-19，P06-A1–A3 验收准备）**：Agent-owned 公开测试收集 44 项，覆盖 FP16 合法数值与
   base-2 `M` 对照 8 组、接口与输入不变性、形状／dtype／device／连续性／scale／causal 负例；
   单 GPU 下跨 CUDA 设备的 3 项将在实现存在后跳过。参考计算、Ruff check、格式检查和
-  BasedPyright 均通过。当前完整命令的 expected red 为 `1 failed / 43 skipped`，唯一失败是
+  BasedPyright 均通过。当时完整命令的 expected red 为 `1 failed / 43 skipped`，唯一失败是
   learner-owned 实现文件尚不存在；其余按设计因同一缺口跳过，不把跳过当作正确性通过。
   P06-A3 的 descriptor／在线状态／不物化完整矩阵仍需实现提交后的源码 Review；P06-A4 未提前
   写入公开测试。Agent 未创建或修改核心实现。
@@ -87,6 +91,85 @@ optional extension 另行授权。所有 empirical 维度均为 `not-required`�
   learner-owned 核心实现、A1–A4 验收和独立证据门槛均不变；此轮不将缺失实现记为 learner finding，
   后续从已验证的 expected red 继续。暂停不是本课完成，亦不启动下一课。
 - **权威知识产物引用**：固定教程源码、FlashAttention／FlashAttention-2 论文及上方来源记录。
+
+<a id="e-05"></a>
+
+- **E-05（2026-09-20，学习者反馈与补充范围）**：学习者明确指出，虽然已完成局部学习与综合题，
+  仍未形成清晰的算子全流程；输入输出的 dtype／shape／含义、未分块数学与中间精度、分块与 program
+  输出所有权、kernel 间参数传递、前向统计量的反向用途，需要先连贯讲解，再逐点展开。另需补足
+  TensorDescriptor 的用法、适用条件与取舍，以及 `float8e5` 和固定源码相关分支。该反馈不撤销
+  E-01／02 中已发生的独立回答，但限制其“整体模型已充分建立”的解释；补充理解尚待后续交流确认。
+- **补充路线与边界**：先建立全流程和课程路线，再按输入输出与精度、分块与在线状态、descriptor、
+  前向源码、反向与统计量、FP8／硬件分支及测试与 benchmark 组织逐点阅读固定教程；导师先完成
+  串联讲解，再进行与已讲内容相称的检查。revision 1 实践契约与核心实现所有权保留，不新增 FP8、
+  反向实现或性能实证的实践门槛。学习者要求在理解原始教学代码并完成实践后，再基于本轮问题优化
+  `guide-learning`；本轮先补课，不修改 Skill。
+- **讲解顺序偏好**：学习者要求默认先定义符号与各轴含义，推导通用公式并标注 shape，再映射源码；
+  数字例子用于必要的补充解释，避免 `BLOCK_M=D` 等数值重合掩盖维度语义。
+
+<a id="e-06"></a>
+
+- **E-06（2026-09-21，补充理解与来源核验）**：学习者已明确反馈算子全貌清晰，并在后续交流中
+  独立解释 descriptor 块形状与起点、Delta 的 query 归属与广播、分块梯度所需的跨贡献归约、
+  dQ 的 `ln2` 补偿及 FP8 E5M2 相对 FP16 的间距比。当时 FP8 V 布局和硬件分支仍在阅读中；这些是
+  补充概念证据，不替代尚未提交的 learner-owned 实现或 final mastery。
+- **OBS-06-FP8-01（来源 observation）**：固定快照为 FP8 V 声明 `shape=[D,B*H*N]`、
+  `strides=[N,1]`，却用列坐标 `(b*H+h)*N*D+start_n` 加载；多 head 时坐标会越过所声明列界。
+  上游提交 `dc3101b3a6fe03f20fa7384c4d312ee17f160415`（PR #11461）明确修复这一点，改为
+  `shape=[B*H*D,N]`、`load([(b*H+h)*D,start_n])`，并添加 `test_fp8_v_batch_head_descriptor`。
+  本次纯 Python 坐标检查在 `B=H=2,N=128,D=64` 下确认旧列坐标从第二个 head 起越界，修订后的
+  坐标均在界内且地址公式匹配。当前环境无 GPU，未运行原版或修订版 FP8 kernel；不推断具体设备
+  上的报错或输出表现。本地只读快照保持原样，教学以明确区分版本的修订片段补足这一处；不扩大
+  revision 1 的 FP16 实践门槛，不建立 learner finding。
+
+<a id="e-07"></a>
+
+- **E-07（2026-09-21，补充阅读收束与返回实践）**：学习者继续独立说明了互逆 permute 与存储布局、
+  `acc` 特征半块的索引、grid 与 `num_warps` 的职责、反向对照须使用同一 dO，以及计算量估算不能
+  直接预测耗时。结合 E-01／02／06，O1–O4 的概念证据足以恢复已接受的 revision 1 实践；
+  源码教学不替代 learner-owned 实现、P06-A4 独立变式或 final mastery。当前仍缺 O2／O3 practical。
+- **实践环境安排**：学习者明确选择先在当前仓库编写，稍后到 GPU 机器验证；Agent 可先进行源码
+  Review 与可运行的静态检查，GPU 数值结果到对应环境实际运行后再记录。
+- **验收维护**：核对发现 P06-A1 已要求连续 FP32 M，但原数值测试缺少连续性断言，Agent 已在
+  `test_forward_matches_torch` 补入 `m.is_contiguous()`；required gate 和契约 revision／digest
+  不变。测试语法、Ruff check 与格式检查通过。当前会话无 NVIDIA 设备、GPU 虚拟环境和 PyTorch，
+  未重跑 GPU 测试；E-03 的 expected red 是历史结果，不作为本轮复验。该修复不属于 learner finding。
+- **OBS-06-BENCH-01（非 gate 的源码阅读边界）**：本地 benchmark 只在 `mode=fwd` 时转换 FP8，
+  所以 `triton-fp8` 的 bwd 标签实际仍走 FP16 输入。`2.5` 是反向 FLOP 的约定估算系数；该实现的
+  dQ 与 dK/dV 路径分别重算 score／dP，报告数字不等于实际指令工作量或耗时倍数。
+
+<a id="e-08"></a>
+
+- **E-08（2026-09-23，首次核心提交与静态 Review）**：学习者提交
+  `gpu/triton/lesson06_fused_attention.py`，明确尚未进行 GPU 测试，请求先检查代码。本次审查版本
+  SHA-256 为 `8ba2daa28c645dc133e169f04d8c12ff68921fb957b1f7c2a42d20a977b3dea5`；revision 1
+  契约与 digest 核验一致。AST 语法解析通过；源码与 Triton v3.7.1 规则核对发现下方 9 个 required
+  finding。Q 常驻、全局行坐标的一致性、causal 过去／对角区间和未物化完整 score 矩阵的结构方向
+  未发现同类缺陷，但不能据此认定数值通过。核心文件未由 Agent 修改。
+- **本轮验证边界**：`bash scripts/host-cpu.sh run -- ruff check gpu/triton/lesson06_fused_attention.py --output-format concise`
+  报告 10 项规范问题；`bash scripts/host-cpu.sh run -- ruff format --check gpu/triton/lesson06_fused_attention.py`
+  报告需要格式化。命名、导入顺序、空白与类型比较形式属于非数值阻断的规范余项。当前无 GPU
+  虚拟环境或 NVIDIA 设备，未执行 Triton JIT 或 GPU pytest；类型／shape 结论来自定版源码规则，
+  不是设备错误日志。1D M descriptor 在 v3.7.1 的维数检查范围内，未据旧网页的 2–5 维描述列为错误。
+
+<a id="e-09"></a>
+
+- **E-09（2026-09-23，修订实现的静态复核）**：学习者修订后的核心文件 SHA-256 为
+  `02e77c9f285f745001403b1de97db90dee692310cd93a3cfda8f4f5dc7e0f242`。按原 finding 的具体
+  失效条件逐项复核，F-P06-01–09 均已修正；关闭只针对这些静态根因，不表示 Triton 编译或数值通过。
+  Python 语法及契约 digest 核验通过，Agent 未修改核心文件。
+- **索引与状态核对**：三次 helper 调用的实参映射正确，均接收并接续 `(acc,l,score_max)`；
+  `D` 标记为 `tl.constexpr`，初值为负无穷，换底使用浮点常量；分母在 FP32 权重转为 FP16 之前
+  归约。新分块 `BLOCK_M=32,BLOCK_N=16` 满足已核对的 dot 维度规则。一次纯 Python 坐标检查
+  提取源码的扫描边界与 mask 表达式，覆盖 16 个契约内形状／causal 组合、216 个 program 和
+  6912 个 query 行：key 集合与数学预期完全一致，未跨 head 或重复写输出行，每 program 最少
+  两轮 K/V。该检查未执行 Triton 算术、descriptor 或 GPU 指令，不替代 GPU 验收。
+- **验证余项**：同 E-08 的 Ruff 命令仍报告 13 项规范问题，格式检查仍需整理；内容集中于导入、
+  `l` 命名、空白和类型比较形式。当前仍无 GPU 验证结果，P06-A1–A3 的设备验收与 A4 未完成。
+- **OBS-06-ALIGN-01（输入覆盖边界）**：wrapper 检查连续性，但仍依赖 descriptor 要求的 16 字节
+  基址对齐；连续的偏移视图不一定满足这一条件。现有公开数值用例使用新分配的张量，未覆盖这类
+  视图。保留为支持范围／覆盖边界观察，不静默修改 revision 1 或新增 required gate，也不宣称
+  当前实现已支持所有连续视图。
 
 <a id="practice-01"></a>
 
@@ -179,8 +262,26 @@ optional extension 另行授权。所有 empirical 维度均为 `not-required`�
 ### Agent-owned 验收工件
 
 - 目标：[lesson06_fused_attention_test.py](../../../gpu/triton/lesson06_fused_attention_test.py)。
-  已由 Agent 建立并预检；44 项收集成功，`1 failed / 43 skipped` 的唯一 red 为核心文件缺失。
+  2026-09-19 已由 Agent 建立并预检；44 项收集成功，当时 `1 failed / 43 skipped` 的唯一 red
+  为核心文件缺失。2026-09-21 补齐既有数值用例中的 M 连续性检查，静态验证通过，GPU 复验待完成。
   命令：`bash scripts/host-gpu.sh run -- python -m pytest -q --tb=short gpu/triton/lesson06_fused_attention_test.py`。
+
+### Review findings
+
+Opened 行号对应 E-08，Terminal 行号对应 E-09。上一轮 9 项静态 finding 已逐项复核关闭；
+当前没有激活的源码修复动作，下一步是 GPU 编译与原契约验收。
+
+| ID | Maps to | Severity | Owner | Status | Evidence | Next action |
+| --- | --- | --- | --- | --- | --- | --- |
+| F-P06-01 | O3 / P06-A1 | blocking | learner | closed | Opened：E-08 五处构造器使用 `stride=`。Terminal：E-09 L140／146／152／158／164 均改为正确的 `strides=`，与 v3.7.1 签名一致 | |
+| F-P06-02 | O2／O3 / P06-A2–A3 | blocking | learner | closed | Opened：E-08 的缩放值与状态实参错位。Terminal：E-09 L76／83／91 三次调用的 `score_max,l,acc,sm_scale` 映射经 AST 核对均正确 | |
+| F-P06-03 | O2 / P06-A2–A3 | blocking | learner | closed | Opened：E-08 丢弃内层返回状态。Terminal：E-09 L76／83／91 均接收 `(acc,l,score_max)`，causal 第二段与最终写回使用接续状态 | |
+| F-P06-04 | O2 / P06-A2 | major | learner | closed | Opened：E-08 运行最大值初始为正无穷。Terminal：E-09 L72 改为零加负无穷，初值符合首次有效更新的不变量 | |
+| F-P06-05 | O3 / P06-A3 | blocking | learner | closed | Opened：E-08 运行时 D 参与静态 shape。Terminal：E-09 L60 的 D 具有 `tl.constexpr` 注解，L74 累加器形状具备编译期维度 | |
+| F-P06-06 | O2 / P06-A2 | blocking | learner | closed | Opened：E-08 将整数 2 传入浮点 log。Terminal：E-09 L71 使用浮点常量 `2.0`，符合已核对的类型规则 | |
+| F-P06-07 | O2／O3 / P06-A2–A3 | blocking | learner | closed | Opened：E-08 的 PV dot 混用 FP32／FP16。Terminal：E-09 L45 在 FP32 分母归约之后转换权重为 FP16，L46 两个 dot 操作数同 dtype，累加器保持 FP32 | |
+| F-P06-08 | O3 / P06-A3 | blocking | learner | closed | Opened：E-08 的 PV 归约维为 8。Terminal：E-09 L135–136 改为 32×16，dot 归约维满足下限，坐标穷举确认每 program 至少两轮 K/V | |
+| F-P06-09 | O3 / P06-A1 | major | learner | closed | Opened：E-08 仅校验设备相等。Terminal：E-09 L119 在分配／构造前明确拒绝非 CUDA q，结合 L121 的设备相等检查约束三输入位于同 CUDA 设备 | |
 
 ### 记录与推进边界
 
@@ -194,7 +295,7 @@ optional extension 另行授权。所有 empirical 维度均为 `not-required`�
   当前阶段、Checkpoint 或 final mastery。
 - 普通讲解、追问和正确回答保持零写；只在 durable evidence、正式练习、finding、mastery 或会话边界
   发生语义变化时更新。
-- learner-owned 前向工件与 Agent-owned 验收路径将在需要正式实践时一次性披露并取得契约接受。
+- learner-owned 前向工件与 Agent-owned 验收路径由上方已接受的 revision 1 契约限定。
 - 关闭本课仍需学习者确认；不会自动启动下一课或 optional extension。
 
 ## 条件片段：Session event
@@ -202,3 +303,6 @@ optional extension 另行授权。所有 empirical 维度均为 `not-required`�
 | ID / 日期 | Lesson ref | 覆盖范围 | 完成动作 | Evidence 引用 | 未关闭问题 |
 | --- | --- | --- | --- | --- | --- |
 | `triton-06-session-2026-09-19-a` / 2026-09-19 | `triton-06-fused-attention` | 综合验收、最小 FP16 前向实践启动与计划内暂停 | 综合验收通过；学习者接受 `triton-06-practice-01` revision 1；Agent 建立并验证 44 项验收与可信 expected red；学习者确认核心仍为 learner-owned，暂时中断课程 | E-01–04；[已接受契约](#practice-01) | O2／O3 practical 尚缺；待学习者有时间时提交实现 |
+| `triton-06-session-2026-09-20-a` / 2026-09-20 | `triton-06-fused-attention` | 实践前教学补充需求 | 根据学习者反馈转入全流程与源码补充讲解，明确 descriptor／精度／FP8 阅读范围，以及实践完成后再改进 Skill 的顺序 | E-05 | 整体模型与源码细节待补充确认；O2／O3 practical 尚缺 |
+| `triton-06-session-2026-09-21-a` / 2026-09-21 | `triton-06-fused-attention` | 全流程与源码补充、验收维护、返回实践 | 完成补充讲解与局部变式；核验 FP8 V 上游修复；补齐 M 连续性断言并静态验证；复用概念证据恢复 revision 1 实践 | E-06／07；OBS-06-FP8-01；OBS-06-BENCH-01 | O2／O3 practical 尚缺；待学习者提交实现并在 GPU 环境验收 |
+| `triton-06-session-2026-09-23-a` / 2026-09-23 | `triton-06-fused-attention` | 核心提交与修订后的静态 Review | 首轮定位 9 个静态问题；学习者修订后逐项复核关闭，完成索引集合核对；保持 learner-owned 核心不变 | E-08／09；F-P06-01–09 | GPU 编译／数值与 A4 尚未验收；规范余项及输入对齐覆盖边界已说明 |
