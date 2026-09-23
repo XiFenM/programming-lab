@@ -46,7 +46,7 @@
     },
     {
       "name": "host-gpu",
-      "displayName": "Host CPU+GPU Debug (locked CUDA native architecture)",
+      "displayName": "Host CPU+GPU Debug (system CUDA native architecture)",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",

@@ -36,10 +36,29 @@ repository.
 
 ## Build, Test, and Development Commands
 
-GPU/CUDA work can use either the development container or the repository-local `host-gpu.sh`
-route on a Linux x86_64 machine with a working NVIDIA driver. For CPU-only LeetCode work, use the
-lighter `host-cpu.sh` route. Keep the three control scripts separate; host routes must not call the
+GPU/CUDA work can use either the development container or the `host-gpu.sh`
+route on an Ubuntu 22.04/24.04 x86_64 machine with a working NVIDIA driver. For CPU-only
+LeetCode work, use the lighter `host-cpu.sh` route. Keep the three control scripts separate; host routes must not call the
 container scripts, and the CPU-only route must not acquire GPU dependencies.
+
+Host initialization installs system packages through APT (root/sudo), uv-managed Python 3.12,
+Rust 1.97.1 through rustup, and Node 24 through nvm 0.40.3. Language tools live in the user's
+standard directories and are shared by both host routes. Keep `.venv/` and `.venv-host-gpu/`,
+route caches, and CMake/Cargo build trees separate. `install-system` prepares system packages;
+`init --skip-apt` installs user tools and dependencies after system provisioning. Do not run the
+whole initializer with sudo for a non-root developer. Ubuntu 22.04 needs the Kitware APT source
+only when the installed CMake does not meet 3.28+. Reuse existing system packages, CUDA 12/13 and
+cuDNN 9 after functional checks; do not pin GPU patch versions or upgrade a working GPU stack.
+Install missing minimal CUDA build components and cuDNN dev packages from NVIDIA's signed APT repository;
+never pull the full Toolkit/GUI tools merely to satisfy a meta-package. Support `HOST_GPU_CUDA_HOME`. Reinstall cuda-keyring
+with `--force-confmiss` to restore missing conffiles while preserving existing customizations.
+APT index download failures must stop provisioning; check candidates for missing GPU packages before installation.
+Keep existing package holds. Reuse installed Node 24 within the explicitly required language-tool versions.
+`init` and `install-system` inspect APT sources, compare bounded sequential download samples from
+current/official/TUNA mirrors, then ask which source to use before the first APT update. Download
+failures or missing curl must not block source selection; `HOST_APT_SPEED_TEST=0` skips measurement. For unattended runs, explicitly set
+`HOST_APT_SOURCE=keep|official|tuna`; `init --skip-apt` skips this step. Source edits preserve
+third-party repositories and back up affected files under `/etc/apt/programming-lab-source-backups/`.
 
 - `make init`: create or synchronize the uv-managed Python environment.
 - `make doctor`: verify compilers, Python tools, and NVIDIA runtime availability.
@@ -47,18 +66,23 @@ container scripts, and the CPU-only route must not acquire GPU dependencies.
 - `make test`: run Python, Rust, C++, and CUDA tests.
 - `make lint`: run Ruff, BasedPyright, clang-format/tidy, rustfmt, Clippy, and ShellCheck.
 - `make format`: apply all configured formatters; review the resulting diff.
-- `make verify`: run the complete environment, lint, test, and GPU-stack validation.
-- `bash scripts/host-cpu.sh init`: initialize the isolated host CPU toolchains without Docker.
+- `make verify`: verify the environment and GPU stack with standalone probes in `scripts/`.
+- `bash scripts/host-cpu.sh init`: install APT CPU tools and user-managed uv/Python, Rust, and Node.
 - `bash scripts/host-cpu.sh test`: run focused Python/C++/Rust LeetCode tests on the host.
-- `bash scripts/host-cpu.sh verify`: diagnose, lint, build, and test the host CPU route.
-- `bash scripts/host-gpu.sh init`: initialize the isolated full CPU+GPU host toolchains.
+- `bash scripts/host-cpu.sh verify`: verify host CPU tools, dependencies, and environment isolation.
+- `bash scripts/host-gpu.sh init`: install host tools, system CUDA/cuDNN, and GPU Python dependencies.
 - `bash scripts/host-gpu.sh test`: run Python/Rust/C++ and native CUDA tests on the host.
-- `bash scripts/host-gpu.sh verify`: run full lint, native CUDA, and Python GPU validation.
+- `bash scripts/host-gpu.sh verify`: verify host tools, native CUDA, and the Python GPU stack.
+
+All three `verify` routes validate the environment only; do not lint, build, test, or import
+exercise code from `leetcode/` or `gpu/`. Keep GPU probes independent under `scripts/`.
+Run `lint` and `test` explicitly to check exercises.
 
 Use focused commands while iterating. In the container, for example, run
 `uv run --frozen python -m pytest -q tests/python/leetcode/test_two_sum.py`. On the host, run
 `bash scripts/host-cpu.sh run -- python -m pytest -q tests/python/leetcode/test_two_sum.py`; the
-wrapper forces repository-local paths, and its built-in test/lint actions disable uv synchronization.
+wrapper selects system compilers, shared user language tools, and the route-specific virtual environment.
+Its built-in test/lint actions disable uv synchronization.
 Use the equivalent `host-gpu.sh run -- ...` entry for GPU exercises.
 
 ## Coding Style & Naming Conventions

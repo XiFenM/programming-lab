@@ -6,7 +6,7 @@
 安装。
 
 扩展提供编辑器集成，但不代替仓库自己的检查流程。提交前仍应按改动范围运行 `make lint`、
-`make test` 或 `make verify`。
+`make test`；环境变更使用 `make verify` 验收。
 
 ## 容器与通用工作流
 

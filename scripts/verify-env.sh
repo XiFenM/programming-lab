@@ -8,12 +8,12 @@ echo "========== Toolchain and container diagnostics =========="
 bash scripts/doctor.sh
 
 echo
-echo "========== Static quality checks =========="
-bash scripts/lint.sh
-
-echo
-echo "========== Language and native CUDA tests =========="
-bash scripts/test.sh
+echo "========== Native CUDA environment =========="
+probe_dir="$(mktemp -d)"
+trap 'rm -rf -- "${probe_dir}"' EXIT
+"${CUDACXX:-nvcc}" -std=c++20 -arch=native -ccbin "${CXX:-g++}" \
+  scripts/check_cuda.cu -o "${probe_dir}/check-cuda"
+"${probe_dir}/check-cuda"
 
 echo
 echo "========== Python GPU stack =========="

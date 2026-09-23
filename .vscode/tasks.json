@@ -26,7 +26,7 @@
       "problemMatcher": ["$gcc", "$rustc", "$python"]
     },
     {
-      "label": "Lab: verify everything",
+      "label": "Lab: verify environment",
       "type": "shell",
       "command": "make verify",
       "problemMatcher": ["$gcc", "$rustc", "$python"],

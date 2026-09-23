@@ -1,13 +1,12 @@
 # Programming Lab
 
-一个用于 LeetCode、CUDA、Triton 和 TileLang 的编程练习仓库。仓库提供三条互不混用的路线：
-完整 GPU 开发可使用 NVIDIA 容器，或在 Linux x86_64 宿主机上直接初始化仓库局部的
+一个用于 LeetCode、CUDA、Triton 和 TileLang 的编程练习仓库。仓库提供三条环境配置路线：
+完整 GPU 开发可使用 NVIDIA 容器，或在 Ubuntu 22.04/24.04 x86_64 宿主机上使用 APT 与语言官方安装器配置
 CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 CPU-only 环境。
 
-> 宿主机 GPU 环境检查（2026-09-09）：`bash scripts/host-gpu.sh doctor` 通过，工具路径、锁文件、
-> 已安装依赖及 PyTorch GPU 可见性检查正常。实机为 RTX 5090、驱动 595.71.05、Python 3.12.13、
-> PyTorch 2.13.0、Triton 3.7.1 和 TileLang 0.1.12；完整测试与 lint 的历史验证边界见
-> [宿主机 CPU+GPU 环境](docs/host-gpu-environment.md)。该环境检查未重跑完整测试与 lint。
+> 宿主机路线已改为系统 APT 工具链 + uv 管理 Python + rustup 管理 Rust + nvm 管理 Node。
+> 旧安装策略下的 RTX 5090 验证结果不代表新初始化流程已完成实机全量验收。版本、目录和验证边界见
+> [宿主机 CPU+GPU 环境](docs/host-gpu-environment.md)。
 >
 > 容器历史验证（2026-07-31）：`make doctor`、默认 Python/Rust/C++/CUDA 测试、Python GPU 栈检查
 > 和 Triton 第 01 课的 58 个 GPU 测试均通过；当时完整 `make lint` / `make verify` 被
@@ -18,14 +17,15 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
 
 - 基础镜像固定为 `nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04`，包含 CUDA 13.0、cuDNN
   和 `nvcc`。
-- Ubuntu/Ubuntu Ports 使用清华 TUNA 镜像，NVIDIA CUDA apt 使用 NVIDIA 官方中国站；
+- 容器的 Ubuntu/Ubuntu Ports 使用清华 TUNA 镜像，NVIDIA CUDA apt 使用 NVIDIA 官方中国站；
   uv/PyPI、Node.js release 和 rustup 使用清华镜像，Cargo crate 使用 RsProxy sparse 镜像。
 - 使用非 root 用户 `coder` 开发，可通过 `.env` 将 UID/GID 对齐宿主机，减少 bind mount
   文件权限问题。
 - 未主动安装 Ubuntu 的 `python3`；使用 uv 官方安装命令安装 uv，再由 uv 下载 CPython
   3.12 并创建项目虚拟环境。
 - 使用 nvm `v0.40.3` 的官方安装脚本，并执行 `nvm install 24` 安装 Node.js 24。
-- 使用 rustup 安装 stable Rust，以及 `cargo`、`rustfmt`、Clippy 和 Rust 源码组件。
+- 容器使用 rustup 安装 stable Rust；宿主机固定 Rust 1.97.1。两者都提供
+  `cargo`、`rustfmt`、Clippy 和 Rust 源码组件。
 - C++/CUDA 使用 C++20、CMake Presets、Ninja、ccache、clangd、clang-format、clang-tidy、
   GDB/LLDB 和 NVIDIA Nsight VS Code Edition。
 - Python 使用 Ruff、BasedPyright strict 和 pytest；Rust 使用 rustfmt、Clippy 和 Cargo
@@ -40,10 +40,10 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
 - 算法面试课程第 01 课“约束驱动的算法选择与可观察表达”已完成；课程范围、候选 Lesson 与恢复位置
   见[算法面试 Program 与 Checkpoint](docs/algorithm-interview-learning/README.md#当前-program-状态)。
 - 提供初始化、诊断、格式化、静态检查、测试和全量验收脚本，并由 Makefile 统一入口。
-- 提供 `host-cpu.sh` 一键宿主机路线；Pixi、Python 虚拟环境、Rust、缓存和构建产物均保存在
-  仓库的 Git 忽略目录中，不修改 shell 启动文件或全局语言环境。
-- 提供独立的 `host-gpu.sh` 完整宿主机路线；除 NVIDIA 内核驱动外，CUDA Toolkit、cuDNN、
-  Python GPU 栈、Node、C++ 和 Rust 工具均由锁文件安装到仓库局部目录，不依赖 Docker。
+- 提供 `host-cpu.sh` 宿主机路线：APT 安装 C++ 与构建工具，直接安装 uv 并由其管理 Python
+  3.12，rustup 固定 Rust 1.97.1，nvm 0.40.3 安装 Node 24；Python 只同步开发依赖。
+- `host-gpu.sh` 优先复用已有 CUDA/cuDNN，缺失时才从 NVIDIA 官方 APT 源补装最小组件，
+  以及独立虚拟环境中的 GPU Python 依赖。两条路线共享系统/用户工具，分别保存 venv 和构建产物。
 - 工作区可选宿主机 bind 双向同步或构建时一次性快照复制；CMake/Cargo 构建树、
   Python/编译缓存可选命名卷持久化或随容器删除。
 - 可选的 v2rayA Lite 作为独立 Compose sidecar，与开发容器共享网络，但不使用
@@ -86,7 +86,6 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
 │   └── triton-tutorials/           # Triton 官方教程快照与学习路线
 ├── experiment_results/             # 可复现的 Triton benchmark 数据、图表与 HTML
 ├── pyproject.toml                   # Python/GPU 依赖及 Ruff/Pyright/pytest 配置
-├── pixi.toml / pixi.lock            # Linux x86_64 宿主机 CPU 与 CPU+GPU 工具链
 ├── .python-version                  # uv 管理的 CPython 3.12
 ├── .nvmrc                           # nvm 使用的 Node.js 24 主版本
 ├── CMakeLists.txt                   # C++ 与 CUDA 示例目标
@@ -111,6 +110,9 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
 │   ├── init-env.sh                  # uv 初始化与可选 Git hook
 │   ├── host-cpu.sh                  # 宿主机 CPU-only 初始化、诊断、构建与测试
 │   ├── host-gpu.sh                  # 宿主机 CPU+GPU 初始化、诊断、构建与测试
+│   ├── host-common.sh               # APT、uv、rustup、nvm 的共享宿主机实现
+│   ├── host-apt-sources.awk         # 保留原配置结构的 Ubuntu 源地址替换
+│   ├── host-shell.sh                # 宿主机交互式 shell 的 nvm 激活
 │   ├── container.sh                 # 显式选择工作区、持久化和网络模式
 │   ├── doctor.sh                    # 工具链、uv Python 和 NVIDIA 运行时诊断
 │   ├── lint.sh                      # 全语言静态质量检查
@@ -118,7 +120,7 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
 │   ├── proxy-env.sh                 # 当前 shell 的 v2rayA 代理环境开关
 │   ├── test.sh                      # Python/Rust/C++/CUDA 测试
 │   ├── check_python_gpu.py          # PyTorch/Triton/TileLang GPU 栈验收
-│   └── verify-env.sh                # 完整验收入口
+│   └── verify-env.sh                # 环境验收入口
 ├── .vscode/                         # 插件、设置、任务和调试配置
 ├── .pre-commit-config.yaml          # 可选的本地静态检查 hook
 └── .github/workflows/quality.yml    # 无 GPU 的云端质量检查
@@ -193,76 +195,83 @@ Container Toolkit 文档先验证一个带 `--gpus all` 的 CUDA 容器；仓库
 
 ### 有 GPU：直接使用宿主机 CPU+GPU 路线
 
-Docker 不可用但宿主机可以执行 `nvidia-smi` 时，可以直接初始化完整环境：
+支持 Ubuntu 22.04/24.04 x86_64，先确保宿主机 `nvidia-smi` 正常，再执行：
 
 ```bash
 bash scripts/host-gpu.sh init
 bash scripts/host-gpu.sh verify
 ```
 
-这条路线当前支持 Linux x86_64，不要求系统预装 CUDA Toolkit 或 cuDNN。Pixi 的独立 `gpu`
-environment 按 `pixi.lock` 提供 CUDA 13.0.3、cuDNN 9.20、GCC/Clang、CMake、Node 24 和
-基础 Python；独立的 `.venv-host-gpu` 再按 `uv.lock` 安装 PyTorch、Triton、TileLang 和开发
-依赖。Rust、缓存与 CMake/Cargo 构建树也与 CPU-only 路线分离。
+`init` 会先显示当前 Ubuntu APT 源，对比当前源、官方源和清华源的下载速度，再询问保持现状
+（回车默认）、改用官方源或清华源。测速每个地址最多 10 秒，失败时仍可继续选源；
+可设置 `HOST_APT_SPEED_TEST=0` 跳过测速。
+换源前会备份文件，并保留第三方源。非交互运行可设置 `HOST_APT_SOURCE=keep|official|tuna`；
+`install-system` 同样执行此步骤，`init --skip-apt` 跳过。详细行为见
+[APT 源检查与选择](docs/host-gpu-environment.md#apt-源检查与选择)。
 
-系统侧唯一不可仓库局部化的组件是 NVIDIA 内核驱动。脚本不执行 `sudo`、不修改 shell 启动文件，
-也不会使用系统 `pip`。完整的目录边界、命令语义、资源需求和故障处理见
+`init` 优先复用已有系统工具，仅通过 root 或 sudo 补装缺失的 APT 包。已有 CUDA 12/13 和
+cuDNN 9 通过检查后直接使用，不锁定精确版本、不强制升级。缺失时才从 NVIDIA 官方源补装
+CUDA 最小构建组件和 cuDNN 开发包，不默认安装完整 Toolkit 或 Nsight 图形工具，不升级驱动。
+自定义 Toolkit 可设置 `HOST_GPU_CUDA_HOME`；详见[复用策略](docs/host-gpu-environment.md#优先复用-cudacudnn)。
+
+随后直接安装 uv 并下载 Python 3.12，用 rustup 安装 Rust 1.97.1，用 nvm 0.40.3 安装 Node 24。
+这些语言工具在当前用户目录中共享；`.venv-host-gpu/` 根据 `uv.lock` 安装 `dev` 和 `gpu` 依赖。
+不要对整个 `init` 使用 sudo，否则语言工具会装入 root 的用户目录；脚本只对系统安装步骤提权。
+已由管理员准备系统包时可运行 `init --skip-apt`，此时仍会检查系统工具是否满足要求。
+
+Ubuntu 24.04 使用发行版 CMake；22.04 仅在已有 CMake 不满足要求时添加 Kitware 官方 APT 源，
+安装满足仓库要求的 CMake 3.28+。完整步骤、目录、版本策略和来源见
 [Linux 宿主机 CPU+GPU 环境](docs/host-gpu-environment.md)。
 
 ### 无 GPU：直接使用宿主机 CPU 路线
 
-只练习 LeetCode 时不需要满足上面的 GPU、Docker 和 VS Code Dev Containers 要求。当前锁文件
-支持 Linux x86_64；首次启动只要求 Bash、`curl`、`tar`、`sha256sum` 和基本 GNU 工具。进入
-仓库后执行：
+CPU 路线同样支持 Ubuntu 22.04/24.04 x86_64，只需 Bash、基础 GNU 工具、网络和系统包安装权限：
 
 ```bash
 bash scripts/host-cpu.sh init
 ```
 
-脚本会校验并下载固定版本的 Pixi，然后按 `pixi.lock` 安装 Python 3.12、GCC、CMake、Ninja、
-ccache、clang-format、ShellCheck、uv 等 CPU 工具，并用固定的 rustup 1.29.0 安装 Rust
-1.97.1。Python 只同步 `dev` 依赖组；PyTorch、Triton、TileLang、`cuda-*` 和 `nvidia-*` 包
-不会安装。宿主机 CPU/GPU 路线默认使用 Rust 官方源；需要镜像时可用对应的
-`HOST_CPU_RUSTUP_*` 或 `HOST_GPU_RUSTUP_*` 变量临时覆盖。
-Pixi/uv 下载与 C++/Rust 编译默认最多使用两个并发任务。当前主机首次初始化并运行测试后的实测
-占用约 2.9 GiB，适合本仓库当前这类资源有限且无 GPU 的宿主机。
+CPU 初始化同样先检查、测速并询问 Ubuntu APT 源选择，然后通过 APT 安装 `build-essential`、CMake、
+Ninja、ccache、clang-format、ShellCheck、ripgrep 等工具。
+uv、Python 3.12、Rust 1.97.1、nvm 0.40.3 和 Node 24 的安装方式与 GPU 路线一致。
+Python 只同步 `dev` 组，不安装 PyTorch、Triton、TileLang、`cuda-*` 或 `nvidia-*` 包，
+也不安装 CUDA/cuDNN 系统包。CMake 的 `host-cpu` preset 明确关闭 CUDA。
 
-所有可变状态都位于仓库内部：
+系统工具与用户语言工具可由两条路线共用，项目状态分别保存：
 
 | 路径 | 内容 |
 | --- | --- |
-| `.pixi/` | 锁定的 Python/C++ 基础工具链 |
-| `.venv/` | 仅 CPU 开发与测试依赖 |
-| `.cache/host-cpu/` | Pixi、uv、Rust、ccache 等缓存和工具 |
-| `build/host-cpu/` | 明确关闭 CUDA 的 CMake 构建树 |
-| `target/host-cpu/` | Rust 构建树 |
+| `~/.local/bin/uv` | 官方安装器安装的 uv |
+| `~/.local/share/uv/python/` | uv 管理的 Python 3.12 解释器 |
+| `~/.cargo/`、`~/.rustup/` | 用户共享的 Rust 工具与固定工具链 |
+| `~/.nvm/` | nvm 0.40.3 与 Node 24 |
+| `.venv/` | CPU 开发与测试依赖 |
+| `.cache/host-cpu/` | 安装器下载、ccache 等路线缓存 |
+| `build/host-cpu/`、`target/host-cpu/` | CMake 与 Rust 构建产物 |
 
-这些目录均被 Git 忽略；脚本不会执行 `sudo`，不会修改 `.bashrc`，也不会写入
-`~/.cargo`、`~/.rustup`、`~/.pixi` 或系统目录。这里的“隔离”是依赖与路径隔离，不是针对不可信
-代码的安全沙箱。
-
-初始化之后使用同一个脚本作为稳定入口：
+脚本会安装系统包和用户语言工具，但不修改 shell 启动文件。Python 下载缓存使用 `~/.cache/uv/`。
+旧虚拟环境若引用其他来源或已删除的解释器，`init` 会重建这个生成目录并按锁文件同步依赖。
+日常从包装脚本进入环境，让系统编译器、用户语言工具和项目 venv 同时生效：
 
 ```bash
-bash scripts/host-cpu.sh doctor  # 检查版本、路径、锁文件与 GPU 包缺失状态
-bash scripts/host-cpu.sh test    # Python/C++/Rust 的 LeetCode 测试
-bash scripts/host-cpu.sh lint    # CPU-safe 格式、类型与静态检查
-bash scripts/host-cpu.sh verify  # doctor + lint + test
-bash scripts/host-cpu.sh shell   # 进入已激活的交互式环境
+bash scripts/host-cpu.sh doctor
+bash scripts/host-cpu.sh test
+bash scripts/host-cpu.sh lint
+bash scripts/host-cpu.sh verify
+bash scripts/host-cpu.sh shell
 bash scripts/host-cpu.sh run -- python -m pytest -q tests/python/leetcode/test_two_sum.py
 ```
 
-新增题解时的目录、命名、测试发现规则和各语言配置见
-[LeetCode 练习目录与验证约定](docs/leetcode-practice-conventions.md)。
+也可先由管理员运行 `bash scripts/host-cpu.sh install-system`，再由开发用户执行
+`bash scripts/host-cpu.sh init --skip-apt`。Makefile 中对应的快捷目标为 `host-install-system`、
+`host-init`、`host-doctor`、`host-build`、`host-test`、`host-lint`、`host-verify` 和 `host-shell`。
 
-`host-test` 会构建 CMake 中登记的 CPU C++ 测试目标、运行 `tests/python/leetcode/` 下的测试，
-并运行整个 Rust workspace；它不会把 `leetcode/cpp/` 中未登记的 LeetCode 平台片段当作可独立
-编译的目标。完整 clang-tidy 属于容器或 `host-gpu` 路线，而且会遇到文首记录的既有题解告警。进入
-`host-cpu.sh shell` 后也可
-使用 Makefile 中对应的 `host-doctor`、`host-build`、`host-test`、`host-lint` 和 `host-verify`
-快捷目标。这是一套 CLI 工具链；仓库默认 VS Code 设置仍面向 GPU 容器。若自行适配宿主机
-VS Code，应选择 `.venv/bin/python`、CMake 的 `host-cpu` preset 和
-`build/host-cpu/compile_commands.json`；轻量路线不安装 clangd。
+`host-test` 运行登记的 C++ 测试目标、`tests/python/leetcode/` 下的 Python 测试和整个 Rust
+workspace。旧 C++ 平台片段不会自动成为可编译目标。完整 clang-tidy 属于 GPU 宿主机或容器路线。
+新增题目遵循 [LeetCode 练习约定](docs/leetcode-practice-conventions.md)。
+
+仓库默认 VS Code 配置面向容器。宿主机 CPU 开发应选择 `.venv/bin/python`、`host-cpu`
+CMake preset 和 `build/host-cpu/compile_commands.json`；CPU 路线不安装 clangd。
 
 ## 首次使用
 
@@ -618,7 +627,7 @@ doctor/test/verify 脚本。
 | `make test` | 运行 Python、Rust、C++、CUDA 测试 | 会构建原生目标 |
 | `make lint` | Ruff、Pyright、clang-format/tidy、Clippy、ShellCheck | 会生成 CMake 配置/缓存，不改源码 |
 | `make format` | 自动格式化 Python、C++、CUDA、Rust | **会修改源码** |
-| `make verify` | doctor + lint + 全语言测试 + Python GPU 栈 | 完整且耗时 |
+| `make verify` | 环境诊断 + 独立 CUDA / Python GPU 栈验收 | 会写临时编译文件和 GPU 缓存，不检查练习代码 |
 
 常用的单项命令：
 
@@ -650,24 +659,21 @@ GPU 环境中使用上面的显式命令运行。
 
 ## 环境验收具体做什么
 
-`make verify` 不是只打印版本，它依次完成：
+`make verify` 只验收开发环境，依次完成：
 
 1. `doctor.sh` 检查 uv、Node/npm/nvm、Rust、CMake/Ninja、Clang 工具、`nvcc`、
    `nvidia-smi`、cuDNN 动态库、ShellCheck 等命令/组件。
 2. 确认 Node 主版本为 24、npm 主版本为 11，确认项目虚拟环境的解释器实际指向 uv 管理目录。
 3. 调用 `nvidia-smi`，验证 Docker 到宿主机 NVIDIA 驱动的通路。
-4. 运行 Ruff lint/format check 和 BasedPyright strict。
-5. 运行 clang-format，生成 CMake compile database 后运行 clang-tidy。
-6. 运行 rustfmt 与 Clippy。
-7. 运行 ShellCheck。
-8. 运行默认的 CPU-only pytest 和 Cargo tests。
-9. 用 `nvcc`/CMake 编译 CUDA 13 向量加法，实际分配显存、启动 kernel、拷回并断言结果。
-10. 用 PyTorch 实际创建 CUDA tensor。
-11. JIT 编译并运行 Triton 向量加法，与 PyTorch 结果比较。
-12. 导入 TileLang，打印实际锁定版本和模块位置。
+4. 用 `nvcc` 编译 `scripts/check_cuda.cu`，实际分配显存、启动 kernel、拷回并校验结果。
+5. 用 PyTorch 实际创建 CUDA tensor 并验证运算结果。
+6. JIT 编译并运行 `scripts/check_python_gpu.py` 内的 Triton kernel，与 PyTorch 结果比较。
+7. 导入 TileLang，打印实际锁定版本和模块位置。
 
-`make verify` 中的 Triton 检查是最小 JIT 冒烟测试，不会自动运行需要 GPU 的课程测试；课程
-实现应继续使用各自的显式 pytest 命令验收。
+三条路线的 `verify` 均不检查练习代码，不运行全仓库 lint、题解测试或练习目标构建。
+GPU 验证程序独立保存在 `scripts/`，不导入 `gpu/` 下的课程实现。宿主机 CPU 路线只执行
+环境诊断；GPU 路线额外验证真实 GPU 运算。练习代码请使用对应路线的 `lint`、`test`
+及课内显式 pytest 命令检查。
 
 TileLang 的导入检查是有意设置的边界：TileLang DSL 仍在快速变化，当前 `uv.lock` 已经固定
 实际版本，但仓库尚未开始 TileLang kernel 课程。后续应按照 `gpu/tilelang/README.md` 和锁定
@@ -745,7 +751,7 @@ clangd 和 Microsoft C/C++ IntelliSense 同时启用会产生重复诊断，因�
 的 GDB 调试能力，但关闭它的 IntelliSense，由 clangd 负责补全和 clang-tidy。首次执行
 `make configure` 后 clangd 才能读取 `build/debug/compile_commands.json`。
 
-命令面板中的 `Tasks: Run Task` 提供初始化、doctor、lint、test、完整 verify、CMake build、
+命令面板中的 `Tasks: Run Task` 提供初始化、doctor、lint、test、环境 verify、CMake build、
 Triton 和 TileLang 入口。`launch.json` 提供当前 Python 文件、C++ Two Sum 和 Rust 测试的
 调试模板；Python Test Explorer 已指向默认的 CPU-only `tests/python/` 目录，不会自动收集需要
 GPU 的课内 Triton 测试。
@@ -863,7 +869,7 @@ make verify
 其 Python home 位于 `$HOME/.local/share/uv/python/`。persistent 模式可删除对应 Docker
 命名卷后重新初始化；ephemeral 模式重新创建容器即可。不要用 `sudo pip` 或 apt Python 修补
 项目环境。宿主机 CPU 路线则运行 `bash scripts/host-cpu.sh doctor`，其解释器应位于仓库的
-`.venv/bin/python`，基础 Python 来自 `.pixi/`。
+`.venv/bin/python`，基础 Python 来自 uv 管理的 `~/.local/share/uv/python/`。
 
 ### Node/npm 版本与示例不同
 
@@ -896,4 +902,4 @@ VS Code 执行 `clangd: Restart language server`。如果 GPU 在 configure 阶�
 - Rust：当前跟随 stable；升级后运行 rustfmt、Clippy 和全部测试。
 
 这个仓库刻意把“镜像与工具是否存在”“语言实现是否正确”“GPU kernel 是否真的运行”分成
-可定位的检查层级。日常可以运行单项测试，依赖或驱动升级后则运行 `make verify` 做完整回归。
+可定位的检查层级。日常可以运行单项测试，依赖或驱动升级后则运行 `make verify` 做环境验收。

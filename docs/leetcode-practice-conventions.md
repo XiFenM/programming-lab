@@ -1,7 +1,7 @@
 # LeetCode 练习目录与验证约定
 
 本文约定在本仓库中新增 LeetCode 题解时的目录、命名、测试和验证方式。它面向不使用
-Docker、CUDA 或 GPU 的 Linux x86_64 宿主机路线；GPU 练习继续遵循仓库 README 中的容器路线。
+Docker、CUDA 或 GPU 的 Ubuntu 22.04/24.04 x86_64 宿主机路线；GPU 练习使用 README 中的 GPU 宿主机或容器路线。
 
 ## 核心规则
 
@@ -43,8 +43,7 @@ tests/
 bash scripts/host-cpu.sh init
 ```
 
-后续命令也统一通过 `scripts/host-cpu.sh` 执行，以便使用仓库内隔离的 Python、C++ 和 Rust
-工具链。可以先确认环境状态：
+后续命令也统一通过 `scripts/host-cpu.sh` 执行，以便选择系统 APT C++ 工具、uv 管理的项目虚拟环境和固定版本 Rust。可以先确认环境状态：
 
 ```bash
 bash scripts/host-cpu.sh doctor
@@ -75,7 +74,7 @@ bash scripts/host-cpu.sh run -- \
 ```
 
 `bash scripts/host-cpu.sh test` 会自动运行 `tests/python/leetcode/` 下的全部 Python 测试；
-`lint` 和 `verify` 也会自动检查该目录及 `leetcode/python/`。
+`lint` 会自动检查该目录及 `leetcode/python/`；`verify` 只验收环境。
 
 ## C++
 
@@ -170,7 +169,7 @@ bash scripts/host-cpu.sh run -- \
   cargo test -p leetcode-p0003-longest-substring --locked
 ```
 
-后续 `host-cpu.sh test`、`lint` 和 `verify` 会自动覆盖整个 Rust workspace。
+后续 `host-cpu.sh test` 和 `lint` 会自动覆盖整个 Rust workspace；`verify` 只验收环境。
 
 ## 依赖边界
 
@@ -178,7 +177,8 @@ bash scripts/host-cpu.sh run -- \
 
 - Python：不要直接执行 `pip install`。当前宿主机路线只同步约定的 CPU 开发依赖；新增运行时
   依赖需要同时设计 `pyproject.toml` 中的 CPU 依赖组、更新 `uv.lock`，并调整初始化策略。
-- C++：需要同时在 `pixi.toml`/`pixi.lock` 和 CMake 中显式管理，不能假定宿主机已全局安装。
+- C++：系统库通过宿主机 APT 安装清单与文档管理，并在 CMake 中显式声明依赖；不能假定
+  其他机器已安装。宿主机安装清单位于 `scripts/host-common.sh`。
 - Rust：在题目 crate 的 `Cargo.toml` 中声明，并提交更新后的根 `Cargo.lock`。
 
 除非题目本身要求，否则不要为一道算法题扩大公共工具链。
@@ -192,7 +192,7 @@ bash scripts/host-cpu.sh test
 bash scripts/host-cpu.sh lint
 ```
 
-需要同时检查环境、锁文件、隔离状态、构建、测试和静态质量时运行：
+需要检查环境、锁文件和隔离状态时运行（练习仍由上述 `test` 和 `lint` 检查）：
 
 ```bash
 bash scripts/host-cpu.sh verify
@@ -203,5 +203,5 @@ bash scripts/host-cpu.sh verify
 - 题解和测试使用统一的题号与题名；
 - 标准、边界和约定的错误输入均有测试；
 - C++ 新目标已经登记到 CMake，Rust 新 crate 已更新 `Cargo.lock`；
-- 没有提交 `.venv/`、`.pixi/`、`.cache/`、`build/` 或 `target/`；
-- `host-cpu.sh verify` 通过。
+- 没有提交 `.venv/`、`.venv-host-gpu/`、`.cache/`、`build/` 或 `target/`；
+- `host-cpu.sh test` 和 `host-cpu.sh lint` 通过；环境有改动时还应运行 `host-cpu.sh verify`。
