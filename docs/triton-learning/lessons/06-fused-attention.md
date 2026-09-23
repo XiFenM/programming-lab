@@ -7,7 +7,7 @@
 | Lesson ID | `triton-06-fused-attention` |
 | Program | [Triton 学习档案](../README.md) |
 | 能力标题 | 独立解释 FlashAttention 的精确分块计算，并实现、验证一个 Triton FP16 前向 |
-| 阶段 | `review`（上一轮静态缺陷已修复；GPU 编译与数值验证待进行） |
+| 阶段 | `review`（GPU 基础与 A4 变式数值验收通过；待学习者完成 A4 独立解释） |
 | 启动授权 | 2026-09-14，学习者在 Lesson 05 关闭并推送后明确提出“接下来，我想开启triton下一课。” |
 
 ### 来源
@@ -171,6 +171,27 @@ optional extension 另行授权。所有 empirical 维度均为 `not-required`�
   视图。保留为支持范围／覆盖边界观察，不静默修改 revision 1 或新增 required gate，也不宣称
   当前实现已支持所有连续视图。
 
+<a id="e-10"></a>
+
+- **E-10（2026-09-23，GPU 验收与 A4 变式运行）**：核心 SHA-256 与 E-09 一致，revision 1
+  契约 digest 复核匹配。环境为 RTX 5090（compute capability 12.0，单卡）、驱动 `595.71.05`、
+  Python `3.12.14`、PyTorch `2.13.0+cu130`、Triton `3.7.1`、CUDA build `13.0`。
+  原 44 项测试得到 `41 passed / 3 skipped`；8 组随机数值用例的 O、base-2 M、metadata、M 连续性
+  与输入不变性全部通过，可运行的非法输入拒绝检查全部通过。三项跨 CUDA 设备检查因只有一张卡
+  跳过，不记为通过。结合 E-09 源码与索引 Review，已有 P06-A1–A3 在上述覆盖范围内的设备证据。
+- **A4 变式**：在 Agent-owned 测试中增加 `test_forward_with_increasing_score_groups`，
+  使用新形状 `[B,H,N,D]=[2,1,256,64]`、`sm_scale=0.25`；Q 仅特征 0 为 1，
+  K 仅特征 0 非零，使每个 query 对局部 key j 的自然指数 score 为
+  `s_j=2*floor(j/16)-15`，V 沿用固定种子 1206 的独立随机输入。causal 与 non-causal 均对照
+  PyTorch FP32 参考，沿用原 O／M 容差及 metadata、连续性和输入不变性检查。
+  完整命令 `bash scripts/host-gpu.sh run -- python -m pytest -q -ra --tb=short gpu/triton/lesson06_fused_attention_test.py`
+  得到 `43 passed / 3 skipped`。更新后的测试通过同一路由的 `ruff check` 和 `ruff format --check`。
+- **证据边界**：A4 数值已通过，独立解释尚未发生：需学习者追踪 `(b,h)=(1,0)`、
+  `q_tile_num=2` 的 descriptor Q 行及局部 query 70 的 causal key 范围，并解释 non-causal
+  首两个 K tile 间的 alpha 与 l／acc 重标定。O2／O3 practical 及 final mastery 尚未最终确认。
+  无新增 required finding；此前规范余项与 OBS-06-ALIGN-01 保留，本轮不形成性能证据。
+  Agent 只修改验收工件与授权记录，未修改 learner-owned 实现。
+
 <a id="practice-01"></a>
 
 ## 条件片段：已接受的正式练习
@@ -264,12 +285,14 @@ optional extension 另行授权。所有 empirical 维度均为 `not-required`�
 - 目标：[lesson06_fused_attention_test.py](../../../gpu/triton/lesson06_fused_attention_test.py)。
   2026-09-19 已由 Agent 建立并预检；44 项收集成功，当时 `1 failed / 43 skipped` 的唯一 red
   为核心文件缺失。2026-09-21 补齐既有数值用例中的 M 连续性检查，静态验证通过，GPU 复验待完成。
+  2026-09-23 原套件 GPU 验收为 `41 passed / 3 skipped`；加入两项 A4 变式后为
+  `43 passed / 3 skipped`，详见 E-10。
   命令：`bash scripts/host-gpu.sh run -- python -m pytest -q --tb=short gpu/triton/lesson06_fused_attention_test.py`。
 
 ### Review findings
 
 Opened 行号对应 E-08，Terminal 行号对应 E-09。上一轮 9 项静态 finding 已逐项复核关闭；
-当前没有激活的源码修复动作，下一步是 GPU 编译与原契约验收。
+E-10 的 GPU 基础与变式验收未产生新 finding。当前没有激活的源码修复动作，待 A4 独立解释。
 
 | ID | Maps to | Severity | Owner | Status | Evidence | Next action |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -306,3 +329,4 @@ Opened 行号对应 E-08，Terminal 行号对应 E-09。上一轮 9 项静态 fi
 | `triton-06-session-2026-09-20-a` / 2026-09-20 | `triton-06-fused-attention` | 实践前教学补充需求 | 根据学习者反馈转入全流程与源码补充讲解，明确 descriptor／精度／FP8 阅读范围，以及实践完成后再改进 Skill 的顺序 | E-05 | 整体模型与源码细节待补充确认；O2／O3 practical 尚缺 |
 | `triton-06-session-2026-09-21-a` / 2026-09-21 | `triton-06-fused-attention` | 全流程与源码补充、验收维护、返回实践 | 完成补充讲解与局部变式；核验 FP8 V 上游修复；补齐 M 连续性断言并静态验证；复用概念证据恢复 revision 1 实践 | E-06／07；OBS-06-FP8-01；OBS-06-BENCH-01 | O2／O3 practical 尚缺；待学习者提交实现并在 GPU 环境验收 |
 | `triton-06-session-2026-09-23-a` / 2026-09-23 | `triton-06-fused-attention` | 核心提交与修订后的静态 Review | 首轮定位 9 个静态问题；学习者修订后逐项复核关闭，完成索引集合核对；保持 learner-owned 核心不变 | E-08／09；F-P06-01–09 | GPU 编译／数值与 A4 尚未验收；规范余项及输入对齐覆盖边界已说明 |
+| `triton-06-session-2026-09-23-b` / 2026-09-23 | `triton-06-fused-attention` | GPU 基础验收、A4 变式运行与计划内暂停 | 核对实现与契约无 drift；原 44 项为 41 通过／3 跳过；增加两项新形状与递增 score 变式后为 43 通过／3 跳过，测试 Ruff 检查通过；学习者明确本次仅验证代码并保存断点，稍后继续，未确认结课 | E-10 | A4 独立解释待完成；跨 GPU 检查受单卡环境限制；保留既有非 gate 余项 |

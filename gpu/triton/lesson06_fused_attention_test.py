@@ -107,6 +107,33 @@ def test_forward_matches_torch(
         assert torch.equal(tensor, snapshots[name]), f"mutated input: {name}"
 
 
+@pytest.mark.parametrize("causal", (False, True), ids=("noncausal", "causal"))
+def test_forward_with_increasing_score_groups(
+    ops: ModuleType, cuda_device: torch.device, causal: bool
+) -> None:
+    """P06-A4: a new shape and scores that rise across successive key groups."""
+    inputs = _make_inputs((2, 1, 256, 64), cuda_device)
+    inputs["q"].zero_()
+    inputs["q"][..., 0] = 1
+    inputs["k"].zero_()
+    key_index = torch.arange(256, device=cuda_device)
+    scores = (2 * (key_index // 16) - 15).float()
+    sm_scale = 0.25
+    inputs["k"][..., 0] = scores / sm_scale
+    snapshots = {name: tensor.clone() for name, tensor in inputs.items()}
+    expected_o, expected_m = _reference(inputs, causal, sm_scale)
+
+    o, m = ops.attention_forward(**inputs, causal=causal, sm_scale=sm_scale)
+
+    _assert_metadata(o, expected_o)
+    _assert_metadata(m, expected_m)
+    assert m.is_contiguous(), "M must be contiguous"
+    torch.testing.assert_close(o, expected_o, atol=1e-2, rtol=1e-2)
+    torch.testing.assert_close(m, expected_m, atol=1e-3, rtol=1e-3)
+    for name, tensor in inputs.items():
+        assert torch.equal(tensor, snapshots[name]), f"mutated input: {name}"
+
+
 def _invalid_input(
     inputs: dict[str, torch.Tensor], name: str, issue: str
 ) -> dict[str, torch.Tensor]:
