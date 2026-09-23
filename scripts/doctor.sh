@@ -103,4 +103,4 @@ if [[ ! -f uv.lock ]]; then
   exit 1
 fi
 
-echo "Basic environment checks passed. Run 'make verify' for compile and GPU tests."
+echo "Basic environment checks passed. Run 'make verify' for standalone CUDA and GPU environment probes."

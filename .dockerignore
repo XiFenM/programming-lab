@@ -3,7 +3,6 @@
 !.env.example
 .venv
 .venv-host-gpu
-.pixi
 .pytest_cache
 .ruff_cache
 .mypy_cache

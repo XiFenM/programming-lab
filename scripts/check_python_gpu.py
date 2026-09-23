@@ -1,11 +1,19 @@
-"""Verify the Python GPU stack with real PyTorch and Triton work."""
+"""Verify the Python GPU stack independently of exercise implementations."""
 
 from importlib.metadata import PackageNotFoundError, version
 
 import tilelang
 import torch
+import triton
+import triton.language as tl
 
-from gpu.triton.vector_add import vector_add
+
+@triton.jit
+def _check_vector_add(lhs, rhs, output, size, block_size: tl.constexpr):
+    offsets = tl.program_id(0) * block_size + tl.arange(0, block_size)
+    mask = offsets < size
+    values = tl.load(lhs + offsets, mask=mask) + tl.load(rhs + offsets, mask=mask)
+    tl.store(output + offsets, values, mask=mask)
 
 
 def package_version(package_name: str) -> str:
@@ -45,7 +53,11 @@ def main() -> None:
     torch.testing.assert_close(torch_result.cpu(), cpu_reference)
     print("PyTorch CUDA tensor verification passed")
 
-    triton_result = vector_add(lhs, rhs)
+    triton_result = torch.empty_like(lhs)
+    block_size = 256
+    _check_vector_add[(triton.cdiv(lhs.numel(), block_size),)](
+        lhs, rhs, triton_result, lhs.numel(), block_size=block_size
+    )
     torch.cuda.synchronize(device)
     torch.testing.assert_close(triton_result, torch_result)
     print("Triton JIT kernel verification passed")

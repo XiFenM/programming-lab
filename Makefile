@@ -2,8 +2,8 @@ SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
 .PHONY: help init hooks doctor configure build test lint format pathnote-check verify \
-	host-init host-doctor host-build host-test host-lint host-verify host-shell \
-	host-gpu-init host-gpu-doctor host-gpu-build host-gpu-test host-gpu-lint \
+	host-install-system host-init host-doctor host-build host-test host-lint host-verify host-shell \
+	host-gpu-install-system host-gpu-init host-gpu-doctor host-gpu-build host-gpu-test host-gpu-lint \
 	host-gpu-verify host-gpu-shell
 
 help: ## Show the available repository commands.
@@ -36,13 +36,16 @@ format: ## Apply Python, C++, CUDA, and Rust formatters.
 pathnote-check: ## Validate staged PathNote publication packages.
 	node scripts/check-pathnote-content.mjs
 
-verify: ## Run complete toolchain, lint, test, CUDA, Triton, and TileLang checks.
+verify: ## Verify toolchains and GPU execution without checking exercise code.
 	bash scripts/verify-env.sh
 
-host-init: ## Initialize the repository-local CPU-only host environment.
+host-install-system: ## Install host CPU system packages through APT.
+	bash scripts/host-cpu.sh install-system
+
+host-init: ## Install APT tools and initialize host CPU language tools and dependencies.
 	bash scripts/host-cpu.sh init
 
-host-doctor: ## Diagnose the CPU-only host environment and its isolation.
+host-doctor: ## Diagnose the host CPU system tools and Python environment.
 	bash scripts/host-cpu.sh doctor
 
 host-build: ## Configure and build the host CPU-only C++ target.
@@ -54,16 +57,19 @@ host-test: ## Run CPU-only LeetCode tests for Python, C++, and Rust.
 host-lint: ## Run CPU-only LeetCode format, lint, and type checks.
 	bash scripts/host-cpu.sh lint
 
-host-verify: ## Run complete diagnostics, lint, and tests for the host CPU route.
+host-verify: ## Verify the host CPU environment without checking exercise code.
 	bash scripts/host-cpu.sh verify
 
-host-shell: ## Open an isolated interactive shell for host CPU practice.
+host-shell: ## Open a shell with host CPU tools and the project virtual environment.
 	bash scripts/host-cpu.sh shell
 
-host-gpu-init: ## Initialize the repository-local full CPU+GPU host environment.
+host-gpu-install-system: ## Install host system tools and CUDA/cuDNN through APT.
+	bash scripts/host-gpu.sh install-system
+
+host-gpu-init: ## Install APT tools and initialize host CPU+GPU language tools and dependencies.
 	bash scripts/host-gpu.sh init
 
-host-gpu-doctor: ## Diagnose the host GPU driver and locked CPU+GPU environment.
+host-gpu-doctor: ## Diagnose the host driver, system tools, and CPU+GPU Python environment.
 	bash scripts/host-gpu.sh doctor
 
 host-gpu-build: ## Configure and build the host C++ and native CUDA targets.
@@ -75,8 +81,8 @@ host-gpu-test: ## Run host Python, Rust, C++, and native CUDA tests.
 host-gpu-lint: ## Run full host CPU+GPU format, lint, and type checks.
 	bash scripts/host-gpu.sh lint
 
-host-gpu-verify: ## Verify the full host environment and real GPU execution.
+host-gpu-verify: ## Verify the host GPU environment without checking exercise code.
 	bash scripts/host-gpu.sh verify
 
-host-gpu-shell: ## Open an isolated interactive shell for CPU+GPU practice.
+host-gpu-shell: ## Open a shell with host GPU tools and the project virtual environment.
 	bash scripts/host-gpu.sh shell
