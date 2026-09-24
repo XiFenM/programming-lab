@@ -5,12 +5,12 @@
     "id": "markji",
     "profile": "programming-lab-markji"
   },
-  "artifact_set_sha256": "85882935029f52403b27138510f11e7ad25693e0337e31dc125facc55a890976",
-  "candidate_sha256": "046210f3312938aedf89f672a4ea6219320a716882ff5f85c97f769da4e4a40d",
+  "artifact_set_sha256": "ec95fc8e7a6928ff7a18463bf3f83109e49a96576d97849c12c84b2b975ebef1",
+  "candidate_sha256": "ae7322425cdf066a657f7d50882e61400db2b7d17fe8a20f6784a8735bd76cfa",
   "cards": [
     {
-      "content_sha256": "eb9643af8d79817e5e09fc1d70fc4a3fdd878f7b6ef0eca2bd07ffb2a5d1d856",
-      "content_summary": "四类约束及其与候选方案变化的映射",
+      "content_sha256": "6d8461e702484ca3b2916d419867bce768b753aacf790ae7a96dfc3b5847f819",
+      "content_summary": "算法面试中按数据、语义、访问和资源澄清约束，并具体说明约束对候选算法的影响",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -36,8 +36,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "3f4a87ffbbcbd7be87def579fd2fae6571182028ce79cc3de3c5f08ebdb0d188",
-      "content_summary": "Two Sum 双层枚举的完整性、成本与瓶颈",
+      "content_sha256": "acd47c772d0afd986c8bafc3f88662bda2ec571513249171650a817d41e07343",
+      "content_summary": "向面试官完整解释 Two Sum 不同下标双层枚举：无遗漏与无重复、最坏比较次数、补数查询瓶颈及提前返回边界",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -63,8 +63,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "85f79079a322cc37b48d0988aa89af08754b359e59c4046c6ad12733e953a2be",
-      "content_summary": "有限候选受阻与全局下界证明的边界",
+      "content_sha256": "71acf176a697602b3f3da3b221d24823c6a6db5b630122ea27bbbed68edb797e",
+      "content_summary": "在只读、常数空间的 Two Sum 中，准确区分已排除候选、尚未找到优化与全局下界证明",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -90,8 +90,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "f3e94efddd77948b18d64f50845fc6240ffe944955433208f7706afb6560c1d2",
-      "content_summary": "访问模型变化时先验证既有基线是否可执行",
+      "content_sha256": "2c619a9e3aaa51e350c027f84d9f8d0f43389e7dfbb07daccb0ab8a02775448b",
+      "content_summary": "重复 ID 判定从数组迁移到无回放、无完整历史的单遍流时，先检查逐对枚举的访问依赖",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -117,8 +117,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "cf860c60f17cf9b2e6e470f152375813d067ada0ebb389113e5511bdc50dc8d2",
-      "content_summary": "非递减单遍流的相邻判重机制与边界",
+      "content_sha256": "7e7b93040fa160d89fdf8dfb164a9b41b9ced6f6aa443058ec41c40312fef379",
+      "content_summary": "非递减单遍 ID 流相邻判重的完整性、逐项更新机制、成本与顺序前提；不擅自补完遗留实现边界",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -144,8 +144,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "2122403cbf26a289c9ed325ff655807e1097bdde3bab61a45dd35326142a0c3c",
-      "content_summary": "元素值域、可达和值与 target 合法范围的前提",
+      "content_sha256": "c74b7c75548f20902a748e90d9c007622b7433b180ef4a3b0cf90d2eb85f8642",
+      "content_summary": "在元素固定为 0、1、2 的 Two Sum 中，区分可达和值、合法 target 与有解保证，并保留互异下标边界",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -171,8 +171,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "699dd67244e05101f524ac30c8ffa375cf65ee74b8e799c022c3faab62da66c8",
-      "content_summary": "固定三值域下的有限状态 Two Sum 方案",
+      "content_sha256": "25f272be20304a799082285188c2212f83b33c7a25860a0748e59d1d800a6672",
+      "content_summary": "固定三值域、只读和常数空间约束下，用至多六个下标完整解决返回一对互异原下标的 Two Sum",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -198,8 +198,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "e9505a4044eaf6c724450625befffe86aa93e90640fcc4569f71a3545fa2c553",
-      "content_summary": "以已观察和未观察证据约束面试评价",
+      "content_sha256": "994be38d91b001993e202962002e68a7e44eb0f014bd8949e7bf829e2f3db49d",
+      "content_summary": "以单题实际展示的分析和表达为证据，明确未观察的实现、调试与系统设计，不越界推断岗位胜任",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -225,12 +225,12 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "9640c9aa39fadc6baa64171051195bec532447d0db121c39f21556e027f31885",
-      "content_summary": "约束驱动算法选择的 45–90 秒面试式口述",
+      "content_sha256": "04df27daf1293017153658326b985fc042f6ddd248209ff7b0cbb75833f4d8b9",
+      "content_summary": "以 Two Sum 为明确场景，45–90 秒完整口述约束澄清、枚举基线、补数查询瓶颈、候选筛选与结论边界",
       "dependency_content_sha256": {
-        "mc-4f0190168427ee5f36908a24": "eb9643af8d79817e5e09fc1d70fc4a3fdd878f7b6ef0eca2bd07ffb2a5d1d856",
-        "mc-9a2ca0475b56586028b01f47": "85f79079a322cc37b48d0988aa89af08754b359e59c4046c6ad12733e953a2be",
-        "mc-df1ae68b936de0326cba0825": "3f4a87ffbbcbd7be87def579fd2fae6571182028ce79cc3de3c5f08ebdb0d188"
+        "mc-4f0190168427ee5f36908a24": "6d8461e702484ca3b2916d419867bce768b753aacf790ae7a96dfc3b5847f819",
+        "mc-9a2ca0475b56586028b01f47": "71acf176a697602b3f3da3b221d24823c6a6db5b630122ea27bbbed68edb797e",
+        "mc-df1ae68b936de0326cba0825": "acd47c772d0afd986c8bafc3f88662bda2ec571513249171650a817d41e07343"
       },
       "depends_on": [
         "mc-4f0190168427ee5f36908a24",
@@ -253,7 +253,7 @@
       "priority": 5,
       "quality": "A",
       "review_resolution": {
-        "summary": "已依据更新后的约束澄清、基线完整性/成本与候选边界三张子卡，复核口述的四个评分锚点；不将单题表现或候选受阻扩大为未经证明的结论。"
+        "summary": "已重新对照本课 card-01, card-03, card-02 的增强题答复核本卡：场景与符号定义一致，机制关系和适用边界仍成立，参考回答及评分锚点由这些子卡支持；本轮只增强表达，没有扩大原知识目标。"
       },
       "source_ids": [
         "lesson-01-study-log"
@@ -264,11 +264,11 @@
     }
   ],
   "managed_body_sha256": "ff3b694e290d6842073febe1d4872d57387087f2295269472bdcf0fb314c85b0",
-  "manifest_payload_sha256": "bc586cb4afcd4d0a18e12101ccead1b5dd4f1b98a99d2784ab0ab25b79ba0852",
+  "manifest_payload_sha256": "fd770eb2fc107004e5b983fca7c7034615059052729fc3dda711700cb9ef7cfb",
   "schema": "memo-cards.artifact/v2",
   "sidecars": [
     {
-      "byte_size": 5292,
+      "byte_size": 8702,
       "columns": [
         "意图",
         "场景",
@@ -281,29 +281,29 @@
       "row_count": 3,
       "rows": [
         {
-          "content_sha256": "3f4a87ffbbcbd7be87def579fd2fae6571182028ce79cc3de3c5f08ebdb0d188",
+          "content_sha256": "acd47c772d0afd986c8bafc3f88662bda2ec571513249171650a817d41e07343",
           "logical_id": "mc-df1ae68b936de0326cba0825",
-          "row_sha256": "af31728425b0a5c5f95882a8a16849df14668652ab18231e0bea81b088104c85"
+          "row_sha256": "487762c39e4db7d95507e82ec7f75a0a738b943dea6763f1154245bb86de2150"
         },
         {
-          "content_sha256": "85f79079a322cc37b48d0988aa89af08754b359e59c4046c6ad12733e953a2be",
+          "content_sha256": "71acf176a697602b3f3da3b221d24823c6a6db5b630122ea27bbbed68edb797e",
           "logical_id": "mc-9a2ca0475b56586028b01f47",
-          "row_sha256": "6fba3623a73f127cb46db94c2b5326ee5bba77781259c69747edcb6075340fd8"
+          "row_sha256": "73bc259e6dee3b7e6d28e7f32a3147085f86826f088950dc7192df18e6c03d1c"
         },
         {
-          "content_sha256": "2122403cbf26a289c9ed325ff655807e1097bdde3bab61a45dd35326142a0c3c",
+          "content_sha256": "c74b7c75548f20902a748e90d9c007622b7433b180ef4a3b0cf90d2eb85f8642",
           "logical_id": "mc-1a48039f55d300c7fd6f3de8",
-          "row_sha256": "7338bc6706718169df03a1006d24f83969c66f43f96cfd8248bbf4a549f5b233"
+          "row_sha256": "fb037b1196dd866a980fd9008d85d7cb33729338f26629d7d5bfbc3c1e6d275a"
         }
       ],
-      "sha256": "073639aa7737c3ab9c41d35a84aa7e2801a7f01f16b679b2fb6d27b0542fd486",
+      "sha256": "a1347776d4e91434b38906eeaede1bc15af2c85b8bfcc9f991223c5397692ffa",
       "sheet_name": "cards",
-      "table_sha256": "b4313c0974da29b5b542fec8a9be9faf854518d26e42257e08dfde1bbfee8860",
+      "table_sha256": "de5db6f40b672ab06db12260ccf2814da77fd8f1c8983df5909551093b4823b2",
       "template_id": "correction",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 6567,
+      "byte_size": 11535,
       "columns": [
         "问题",
         "答案",
@@ -315,39 +315,39 @@
       "row_count": 5,
       "rows": [
         {
-          "content_sha256": "eb9643af8d79817e5e09fc1d70fc4a3fdd878f7b6ef0eca2bd07ffb2a5d1d856",
+          "content_sha256": "6d8461e702484ca3b2916d419867bce768b753aacf790ae7a96dfc3b5847f819",
           "logical_id": "mc-4f0190168427ee5f36908a24",
-          "row_sha256": "0ae8c0734d66cb47cac10dd1759fbbdfc4b9936f702d32136e666853839d3e4c"
+          "row_sha256": "b082751bd86699ad8a7ce33890fc87be0b8c5f5cb5c460ecbc1eacd53a2f884a"
         },
         {
-          "content_sha256": "f3e94efddd77948b18d64f50845fc6240ffe944955433208f7706afb6560c1d2",
+          "content_sha256": "2c619a9e3aaa51e350c027f84d9f8d0f43389e7dfbb07daccb0ab8a02775448b",
           "logical_id": "mc-fb9f50860ce8cb63ab2680a0",
-          "row_sha256": "aae78ac56c3b21618e9a95168a54fe6e56a6289cb90638ded5e23eacfd31b446"
+          "row_sha256": "1d1b3106c0cba112e9d924600fee540ccd10f7da34eb5e25b7e6a31abc3dcc50"
         },
         {
-          "content_sha256": "cf860c60f17cf9b2e6e470f152375813d067ada0ebb389113e5511bdc50dc8d2",
+          "content_sha256": "7e7b93040fa160d89fdf8dfb164a9b41b9ced6f6aa443058ec41c40312fef379",
           "logical_id": "mc-7ecf051e0b5c2a7f2d685e80",
-          "row_sha256": "0baf52536f0564326347b5fdc1bf09aa4ce7470a938f16c3cf4df0a03959679f"
+          "row_sha256": "7a36e81c13407b9a56f32401e5d79aa245245978c32d1eed8bc6c510b535eb90"
         },
         {
-          "content_sha256": "699dd67244e05101f524ac30c8ffa375cf65ee74b8e799c022c3faab62da66c8",
+          "content_sha256": "25f272be20304a799082285188c2212f83b33c7a25860a0748e59d1d800a6672",
           "logical_id": "mc-d6bf5b8ac24ed65ff2044c4c",
-          "row_sha256": "8f740bcfeeeed7b5a25b65189b6263e41e3972f568ce76b9969f1bceb581aace"
+          "row_sha256": "75cdbb3218e3149fcb33686de9802a4b821eb73a7e9913d6683dc0801308df87"
         },
         {
-          "content_sha256": "e9505a4044eaf6c724450625befffe86aa93e90640fcc4569f71a3545fa2c553",
+          "content_sha256": "994be38d91b001993e202962002e68a7e44eb0f014bd8949e7bf829e2f3db49d",
           "logical_id": "mc-49862043dfc59100d0b75900",
-          "row_sha256": "fc7164419e02bee3bc8ef3a2f9e497cd8936d8446168472dff3b8c403d843d73"
+          "row_sha256": "9013927a7ea72c62790272db5196ae62e8e9832c023bd51d621a654b9e90593f"
         }
       ],
-      "sha256": "9813365a39d37a011269ad9221e4f48778382a6c833309c35f9ac68eeff75036",
+      "sha256": "8c5fdc4ea9d82b53e4b200ed9b5ecadbf0624c38644ee3b4eeedf0228bd0adff",
       "sheet_name": "cards",
-      "table_sha256": "014e9369d2d8fcf209e9748dfd4013a1761aeffbe2bbee14d964331c6c408b77",
+      "table_sha256": "81d68dea74f7f5a3db3f6cd905b04c6a33a666c109f2da640a7ff6633e42857d",
       "template_id": "technical-qa",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 3491,
+      "byte_size": 4720,
       "columns": [
         "问题",
         "参考回答",
@@ -359,14 +359,14 @@
       "row_count": 1,
       "rows": [
         {
-          "content_sha256": "9640c9aa39fadc6baa64171051195bec532447d0db121c39f21556e027f31885",
+          "content_sha256": "04df27daf1293017153658326b985fc042f6ddd248209ff7b0cbb75833f4d8b9",
           "logical_id": "mc-9fa38a858c2f964aaeb624e8",
-          "row_sha256": "3d1331bc07bd5f2c0dff8250ede39ebfca79945ea91132b4ac4875fba66e672c"
+          "row_sha256": "7b45d8c68fe80400693a1d9053318736683e42d1b737252e35be5b7be1839d5f"
         }
       ],
-      "sha256": "c29ab902d1a43dff13059fd0a745913f80ad0853165ef175d7eaba242ff30e42",
+      "sha256": "55cbe19bd137a23c4c909aee9e1aa781e21b1c0c168b10a517d058d4a7ef0aed",
       "sheet_name": "cards",
-      "table_sha256": "0e0791632743762514e968191173b8c0c2354078569c6407758c4d8ab3fbde30",
+      "table_sha256": "a5994a1f4b149de2f86f0fcf84ba72f319c68ddc7ada74562cc55b9ea3578f96",
       "template_id": "oral",
       "template_version": "1.1.0"
     }

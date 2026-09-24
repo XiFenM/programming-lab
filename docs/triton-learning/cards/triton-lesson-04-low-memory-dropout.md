@@ -5,12 +5,12 @@
     "id": "markji",
     "profile": "programming-lab-markji"
   },
-  "artifact_set_sha256": "7b836ca1dba099717e3e6a5ecf2782bb18552d043324d6b130f25a0d3cec53f5",
-  "candidate_sha256": "b810cbb621545bc48e7a0a330c33b00abf8cee6cabdca9dfc4fbd4fc378a1f10",
+  "artifact_set_sha256": "a152b606327fbcc4ca5292adce21296a75c4c97e9683a695c840a96bc7654f3a",
+  "candidate_sha256": "641ec683e8bb7d7ecc8fbd5fe814e7cfa8a8970b91549760b4b46111b5a0ae5e",
   "cards": [
     {
-      "content_sha256": "823cb749d91f816d98744e0590a8182cb72d7c85aa2bfea175b84575dada21ca",
-      "content_summary": "inverted dropout 通过逆 keep-probability 缩放保持输出期望",
+      "content_sha256": "9618072fc2777338ef58736914b0489e45efa434eb90d921fcf7ef7d8ea92c2d",
+      "content_summary": "在训练期 inverted dropout 的保留/丢弃模型下，推导逆保留概率缩放为何保持单元素期望。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -36,8 +36,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "6d19c78a9c0c3a844c3363e57da0db98d91c0da3d652e6b395c38f374a8aab95",
-      "content_summary": "纠正把 p=0.5 时的保留值 2x 写成输出期望",
+      "content_sha256": "415b9ecaf0b31cfbb84661de710a4555d268b8825eeb9cdacd8275f38459f869",
+      "content_summary": "在两个 seed、p=0.5 的比较场景中，纠正把保留值 2x 当成无条件输出期望。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -63,8 +63,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "011b6ab4f7163c7594b894d55cef98da3dcd703c9d60a7d17fba39864535e0b4",
-      "content_summary": "区分访存边界 mask 与随机 keep mask",
+      "content_sha256": "4b40ccfec01de0e2cd7cfde421539bdcff89df2086938a7e4b9461afd9049e9d",
+      "content_summary": "把分块 dropout 的地址合法性与随机数学决策分开，说明两种 mask 不能互相替代。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -90,8 +90,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "1c73d33b5bd8df599030695798624a187f111afd6e2e22b58d664f7b9ebfe2a8",
-      "content_summary": "global offset 防止不同 program 重复 local-offset 随机模式",
+      "content_sha256": "5d411705955e44ba67158547886ff2402b267fc3350d4107e2af1646438f2e6d",
+      "content_summary": "从 seed/offset 随机映射出发，解释多 program 重用局部索引为何重复模式，以及全局坐标的作用。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -119,8 +119,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "808069c951114c9d52587c1c10641e526d68522ef908d36bdf2d8567290e6434",
-      "content_summary": "分清随机数、keep/drop决策和最终输出的复现条件，明确 p 决定阈值",
+      "content_sha256": "4c4fc599d4e22bd25f4f0d79d6ea92f5fe93812d9b7913a76a54d3b8db824a26",
+      "content_summary": "以重计算前向输出为目标，分清随机数、mask 决策与数值输出各自要求的不变量。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -148,8 +148,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "60024a0a0220cab885c79f1a3a766bbb52837aee7df42734edd65d6175430ffc",
-      "content_summary": "相同 mask 可把不同输入的差异同时清零，阻止从输入不同推出输出必不同",
+      "content_sha256": "385a537fed6657f5a3bb0f3010754be76cd274adbb342a9c093d9e4c9fce838b",
+      "content_summary": "用明确 mask 编码与双输入反例，说明 dropout 可抹掉输入差异，不能据输入不同断言输出不同。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -175,8 +175,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "4533ad7e13f84972267159cf1ef1e2b3668e31f7d8e554a21867efe99d0d5b07",
-      "content_summary": "seeded dropout 以现场随机计算换取 mask 状态和流量减少",
+      "content_sha256": "a0017e88b7b2a0cc6a6b3a2c48c8ee0308bf34e347c5ae31730cb87775528e9c",
+      "content_summary": "区分 seeded dropout 节省的随机状态和 mask 流量，与仍存在及新增的计算开销。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -202,8 +202,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "d4e12695282f75eb8ef26c2e0ae712f194b88a60e0e687f3bc1e721b6b23db00",
-      "content_summary": "通过真实 off-by-one 错误强化尾部有效与无效 lane 的数量守恒",
+      "content_sha256": "668423465a9b1bb2cb88d61e8e4cccfebfbda5c309b63fc9b520924c35d89379",
+      "content_summary": "在 n=1025、固定块长 1024 的尾块中，用半开区间与总数守恒纠正无效位置多算一个。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -229,11 +229,11 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "1563cb8ce153f4afe612d15185d033d09d9c9c4cf805c1777d0601c0c783937b",
-      "content_summary": "将原尾部复合目标明确组织为区间、数量与访存保护的机制链",
+      "content_sha256": "a050dbe8d38971fa683aeef88b1203f7044b63d947260f2a4f9ae252a4bee3c6",
+      "content_summary": "从具体尾块半开区间到位置计数，再区分随机纯计算与必须 mask 的内存操作。",
       "dependency_content_sha256": {
-        "mc-11065b73e0b9651d13129eb5": "011b6ab4f7163c7594b894d55cef98da3dcd703c9d60a7d17fba39864535e0b4",
-        "mc-e72b538ae95230c44696bca8": "d4e12695282f75eb8ef26c2e0ae712f194b88a60e0e687f3bc1e721b6b23db00"
+        "mc-11065b73e0b9651d13129eb5": "4b40ccfec01de0e2cd7cfde421539bdcff89df2086938a7e4b9461afd9049e9d",
+        "mc-e72b538ae95230c44696bca8": "668423465a9b1bb2cb88d61e8e4cccfebfbda5c309b63fc9b520924c35d89379"
       },
       "depends_on": [
         "mc-11065b73e0b9651d13129eb5",
@@ -257,7 +257,7 @@
       "priority": 5,
       "quality": "A",
       "review_resolution": {
-        "summary": "已依据两类 mask 的职责与真实 lane 计数纠错复核区间、数量守恒和访存保护链，确认 n=2057 的 9/1015 推导及 tl.rand/load/store 边界一致。"
+        "summary": "已重新对照本课 card-03, card-08 的增强题答复核本卡：场景与符号定义一致，机制关系和适用边界仍成立，参考回答及评分锚点由这些子卡支持；本轮只增强表达，没有扩大原知识目标。"
       },
       "source_ids": [
         "lesson-04-study-log"
@@ -267,14 +267,14 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "56e29352346caa59b9ce2d92b10a48464e36303308d4999f3c53bb102506069d",
-      "content_summary": "综合口述 seeded dropout 的期望、随机身份、复现、内存取舍和尾部边界",
+      "content_sha256": "63d9983ae969af70149c363cdaf100a8133b29a84ac4e29e448398017c88e21e",
+      "content_summary": "用完整向量任务串联 inverted scaling、全局随机身份、精确复现条件、状态取舍与尾部访存。",
       "dependency_content_sha256": {
-        "mc-1452241f4974fe80e44e9626": "1c73d33b5bd8df599030695798624a187f111afd6e2e22b58d664f7b9ebfe2a8",
-        "mc-46554d25559bf0e0f688b0e8": "1563cb8ce153f4afe612d15185d033d09d9c9c4cf805c1777d0601c0c783937b",
-        "mc-711b7d4e6e47ad5dabe798e3": "823cb749d91f816d98744e0590a8182cb72d7c85aa2bfea175b84575dada21ca",
-        "mc-7208dde569c097b5430c14b0": "4533ad7e13f84972267159cf1ef1e2b3668e31f7d8e554a21867efe99d0d5b07",
-        "mc-aa126e51b7b710faebd12184": "808069c951114c9d52587c1c10641e526d68522ef908d36bdf2d8567290e6434"
+        "mc-1452241f4974fe80e44e9626": "5d411705955e44ba67158547886ff2402b267fc3350d4107e2af1646438f2e6d",
+        "mc-46554d25559bf0e0f688b0e8": "a050dbe8d38971fa683aeef88b1203f7044b63d947260f2a4f9ae252a4bee3c6",
+        "mc-711b7d4e6e47ad5dabe798e3": "9618072fc2777338ef58736914b0489e45efa434eb90d921fcf7ef7d8ea92c2d",
+        "mc-7208dde569c097b5430c14b0": "a0017e88b7b2a0cc6a6b3a2c48c8ee0308bf34e347c5ae31730cb87775528e9c",
+        "mc-aa126e51b7b710faebd12184": "4c4fc599d4e22bd25f4f0d79d6ea92f5fe93812d9b7913a76a54d3b8db824a26"
       },
       "depends_on": [
         "mc-1452241f4974fe80e44e9626",
@@ -301,7 +301,7 @@
       "priority": 5,
       "quality": "A",
       "review_resolution": {
-        "summary": "已复核期望、global offset、包含 p 的决策复现条件、内存取舍及尾部机制五张子卡；口述覆盖相同边界且未新增未经子卡核验的结论。"
+        "summary": "已重新对照本课 card-04, card-09, card-01, card-07, card-05 的增强题答复核本卡：场景与符号定义一致，机制关系和适用边界仍成立，参考回答及评分锚点由这些子卡支持；本轮只增强表达，没有扩大原知识目标。"
       },
       "source_ids": [
         "lesson-04-study-log"
@@ -312,11 +312,11 @@
     }
   ],
   "managed_body_sha256": "d5fadfbb973d0ffd7854862d868077a3460beae66d13a9dfce8525855450fb90",
-  "manifest_payload_sha256": "513bb3090274242ad9e300ec00a0d607ef30f2d9e96f80fc9d43064d79ca7580",
+  "manifest_payload_sha256": "2a857e12fdc2715d4849da72efeb534712d39e9c3b678f96e1d7ecaac5c6ac16",
   "schema": "memo-cards.artifact/v2",
   "sidecars": [
     {
-      "byte_size": 5009,
+      "byte_size": 6817,
       "columns": [
         "意图",
         "场景",
@@ -329,29 +329,29 @@
       "row_count": 3,
       "rows": [
         {
-          "content_sha256": "6d19c78a9c0c3a844c3363e57da0db98d91c0da3d652e6b395c38f374a8aab95",
+          "content_sha256": "415b9ecaf0b31cfbb84661de710a4555d268b8825eeb9cdacd8275f38459f869",
           "logical_id": "mc-a221d1ca9b2a0baea78a067c",
-          "row_sha256": "7df9f8cecc218bdd9fa6c10a10007165fe101fba9c2f043860fd827d28908565"
+          "row_sha256": "1e531202e5e27eb7590676ae601fcd1199ef2d00c159a80243237e302e0d05bb"
         },
         {
-          "content_sha256": "60024a0a0220cab885c79f1a3a766bbb52837aee7df42734edd65d6175430ffc",
+          "content_sha256": "385a537fed6657f5a3bb0f3010754be76cd274adbb342a9c093d9e4c9fce838b",
           "logical_id": "mc-3e5086b8fec794eec0a47fc9",
-          "row_sha256": "715f7d30ba3f22b4b3046f4bfd186c9ff968cbd89a68c9e8bf9d0e38483d51f0"
+          "row_sha256": "699be1b277378033a1747d9688d45313c2dd7f932235d36d8bd8a792d5faa374"
         },
         {
-          "content_sha256": "d4e12695282f75eb8ef26c2e0ae712f194b88a60e0e687f3bc1e721b6b23db00",
+          "content_sha256": "668423465a9b1bb2cb88d61e8e4cccfebfbda5c309b63fc9b520924c35d89379",
           "logical_id": "mc-e72b538ae95230c44696bca8",
-          "row_sha256": "4c66cc28be69cbd16ff4c17f3cf60cb7ae9c0244d112be54bd5323b55c8fd7ab"
+          "row_sha256": "ecec4cde42c5dcaaa306769b7ffb645586bc940490703fca97dda09003a44383"
         }
       ],
-      "sha256": "42423d2cf9550ef339ba5eaef8e1c28a4bcba088c5ae2bac1af0ea80af96e9d6",
+      "sha256": "e944841e648aa2a51d37813e116d6781cb2a0101e45c66d10136b9967ab39e6e",
       "sheet_name": "cards",
-      "table_sha256": "7f49b6680a4195a0e037c3b52e5150c4a6362faa80f66bb7a8b04d547434053a",
+      "table_sha256": "8949a2527697e1b4b6c758e84ed0d82d85ebe7905904b14b8e116e92e18d7889",
       "template_id": "correction",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 7689,
+      "byte_size": 11147,
       "columns": [
         "问题",
         "答案",
@@ -363,44 +363,44 @@
       "row_count": 6,
       "rows": [
         {
-          "content_sha256": "823cb749d91f816d98744e0590a8182cb72d7c85aa2bfea175b84575dada21ca",
+          "content_sha256": "9618072fc2777338ef58736914b0489e45efa434eb90d921fcf7ef7d8ea92c2d",
           "logical_id": "mc-711b7d4e6e47ad5dabe798e3",
-          "row_sha256": "d6c6fee396194a9f46f35aa487faf551d81a86ff55b59731db4855a7e9b3c034"
+          "row_sha256": "9eab1ae39e4e4057b39b67e627eca5cf4aa5813489b731a38692aa39f53d1e43"
         },
         {
-          "content_sha256": "011b6ab4f7163c7594b894d55cef98da3dcd703c9d60a7d17fba39864535e0b4",
+          "content_sha256": "4b40ccfec01de0e2cd7cfde421539bdcff89df2086938a7e4b9461afd9049e9d",
           "logical_id": "mc-11065b73e0b9651d13129eb5",
-          "row_sha256": "72bacb9fd7166b18fcc2584bb21a1d515258c18d4ad986ae919261b132e07293"
+          "row_sha256": "10fbbf494f1c6d23f93acf4a3d3cd02abd301a5c0469296bbc894bba18c62613"
         },
         {
-          "content_sha256": "1c73d33b5bd8df599030695798624a187f111afd6e2e22b58d664f7b9ebfe2a8",
+          "content_sha256": "5d411705955e44ba67158547886ff2402b267fc3350d4107e2af1646438f2e6d",
           "logical_id": "mc-1452241f4974fe80e44e9626",
-          "row_sha256": "eac0b1a57412ab2599e7c3e614a05b063d54bce17bd169fd907b1c413127ba47"
+          "row_sha256": "23433b28c4550f820fd255a384706f7fd07e6b247192f59cef2dc48dd7e8189a"
         },
         {
-          "content_sha256": "808069c951114c9d52587c1c10641e526d68522ef908d36bdf2d8567290e6434",
+          "content_sha256": "4c4fc599d4e22bd25f4f0d79d6ea92f5fe93812d9b7913a76a54d3b8db824a26",
           "logical_id": "mc-aa126e51b7b710faebd12184",
-          "row_sha256": "831d1aa6a198a322aa255e4d9cbf9ea55e762fe3e950c12300b3c19d11a36f06"
+          "row_sha256": "23b3c015347dcd931e4f443ec7ac041cea1579ebf9b693cc58176b42e6343c29"
         },
         {
-          "content_sha256": "4533ad7e13f84972267159cf1ef1e2b3668e31f7d8e554a21867efe99d0d5b07",
+          "content_sha256": "a0017e88b7b2a0cc6a6b3a2c48c8ee0308bf34e347c5ae31730cb87775528e9c",
           "logical_id": "mc-7208dde569c097b5430c14b0",
-          "row_sha256": "8231495d767042d15ce1e0c35a91156d0b46538a77a6939e6227df6e9b0d90fc"
+          "row_sha256": "49bd75c4891c9c84341599416c6ecf4cce7e9b80a0ef16be20d9e172073f38bf"
         },
         {
-          "content_sha256": "1563cb8ce153f4afe612d15185d033d09d9c9c4cf805c1777d0601c0c783937b",
+          "content_sha256": "a050dbe8d38971fa683aeef88b1203f7044b63d947260f2a4f9ae252a4bee3c6",
           "logical_id": "mc-46554d25559bf0e0f688b0e8",
-          "row_sha256": "d2d2e27db376fc5449dd3bee52042dbfb61c4e30d9e40fb78d440577e73aef7c"
+          "row_sha256": "1841279514ff10ffdc59235bf20c58cfea5b021e17a01a83b84b01835d1f98b4"
         }
       ],
-      "sha256": "0738295e327ccae0d7b6a2be343bbef4b178642c0321e5a21687190d181dd48b",
+      "sha256": "774ba6ff8085cb9bbb1739b510e5164108e54da50df4c11e5a68b29c79740277",
       "sheet_name": "cards",
-      "table_sha256": "9c4a26bb72089e195e4720fc82c3f13fd5255e39c33e8de07200a5c29b806be5",
+      "table_sha256": "d0d23c5b4724688ea27e89533c4b85bb66d6df155311583064524c30d15c5458",
       "template_id": "technical-qa",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 3905,
+      "byte_size": 4635,
       "columns": [
         "问题",
         "参考回答",
@@ -412,14 +412,14 @@
       "row_count": 1,
       "rows": [
         {
-          "content_sha256": "56e29352346caa59b9ce2d92b10a48464e36303308d4999f3c53bb102506069d",
+          "content_sha256": "63d9983ae969af70149c363cdaf100a8133b29a84ac4e29e448398017c88e21e",
           "logical_id": "mc-058b865b1ac9de96b3131943",
-          "row_sha256": "200ba90080707989ec75327d86138967c1b30b55a34079855e6ac1573fc1a5df"
+          "row_sha256": "04a68e64d62f02b06ab3a02a5627b0c9f594e5f8e07807d162cd8aaa291f1799"
         }
       ],
-      "sha256": "8175809a6f8b6541132aa4a7b0a23ae711f7d2dc6d11629a56556cdaa38617a8",
+      "sha256": "c1dfbbb56346e38b12ce2918611eb16f057fbf51335dfaee4fb061c4dc22fc33",
       "sheet_name": "cards",
-      "table_sha256": "2d7a3f1730263bc6e14594ea293519766dcc2d38e35a5b0f7c6ebfa19f898b7e",
+      "table_sha256": "0c526b4bc901a4dadca768fefe5b9fdc515f72cea1d018ac378ab5a999f0d4e6",
       "template_id": "oral",
       "template_version": "1.1.0"
     }

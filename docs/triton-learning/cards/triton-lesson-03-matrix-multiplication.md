@@ -5,12 +5,12 @@
     "id": "markji",
     "profile": "programming-lab-markji"
   },
-  "artifact_set_sha256": "4cc16b416b80ec01a83b43163d5fcbe76464e1bd90356f06fdcd5da7efb07845",
-  "candidate_sha256": "46a68e6537a42fc9013a02a498864bd4195c6e719c939de2a3b438b0312b6f9d",
+  "artifact_set_sha256": "3a9a728580c6cbadca12d319e595c07790d65114856270fee1484d21e53b41c5",
+  "candidate_sha256": "b98651d8a871cfdcbbbd3da2a27a20e77ac935c0540f3a3da624765902c6389f",
   "cards": [
     {
-      "content_sha256": "9ee6f52b089106348627bf120738824a3948a2500ef00c7e2405a33ecdf4cc3c",
-      "content_summary": "单个输出 tile 通过沿 K 分块乘加形成；A/B tile 形状与 accumulator 形状对应",
+      "content_sha256": "f11720d7c6a4cb4a3a8dbcf187345b59f831ad9aba8c17c25e40052b1d3e35b3",
+      "content_summary": "从 A[M,K]、B[K,N] 与固定 C 输出块出发，解释 accumulator 形状、沿 K 加载乘加和尾部处理。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -36,8 +36,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "a7c96475fd07ebe405e9043c15cc3ddf0d549850a22b432af2f3bebd6d6dba8e",
-      "content_summary": "澄清局部 K 偏移不变而全局地址随指针推进",
+      "content_sha256": "0849b2d7b0f02df702bbe300b9a94e3971ddd3d2f46480f41c5c53f0ad31b3a4",
+      "content_summary": "在固定 offs_k、指针基址逐轮推进的写法下，用全局 K=t×BLOCK_K+offs_k 区分局部与全局坐标。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -65,8 +65,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "f51a45eb7d39bcd2be01fd5b70e021210f2fef61f6b6d07784de727397fe240e",
-      "content_summary": "区分 K load mask 与 M/N store mask 的职责",
+      "content_sha256": "6812ad091a536c7f12dc5b47a61cc12f682a8b7ec7befd517814a82c73a262eb",
+      "content_summary": "用 C 的 K 轴点积解释错误输入如何污染有效输出，以及 load mask 与 store mask 的不同作用。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -93,8 +93,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "2d5e397b19ea67ec881915eed4ef5860720247206673d24e862238c857090c5e",
-      "content_summary": "M/N dummy 计算保持固定 tile，正确性来自输出坐标独立及最终写回裁剪",
+      "content_sha256": "6000dc6defcdefc6c8435dcbc664527fc763b94de820f3dcf48049132c759f49",
+      "content_summary": "解释 M/N 是独立输出坐标、K 是归约坐标，因此合法替代输入只可服务于最终丢弃的输出。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -120,8 +120,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "32f54b575207d6c896880e35d37a474d7c52b24a054a8686af8bd21e0979235a",
-      "content_summary": "修正 cdiv 前误用整数除法的公式记号",
+      "content_sha256": "480415802208a80a5c8687a82e4e9c57e932d3d30b6079794f4392561c84c752",
+      "content_summary": "通过覆盖全部输出行的目标，纠正 cdiv 之前先整除丢失余数的写法。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -147,8 +147,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "4f6687bd83fa5bea516cf12a3e6b019ea17838422d050156717b76a271f9f1d2",
-      "content_summary": "用已核验 PID 例子建立组内 M 优先映射及 B tile 复用直觉",
+      "content_sha256": "a4015de03bfe216f7f2ab9af57e3fb39853807852dcd17481dee74252ddaf5db",
+      "content_summary": "明确 output-tile 网格与坐标顺序，解释组内先 M 后 N 的 PID 映射及同列 B 的复用关系。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -176,8 +176,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "41a47000eed10cf3884a3407a3af34563bdc93a9d4e519151c6daae492370bc7",
-      "content_summary": "尾组实际大小保证 grouped grid 完整覆盖",
+      "content_sha256": "7dbaf61ab8a79efdd68803898d0fdf4859fc3b21e39e3c7600d1e77c886a886a",
+      "content_summary": "用 5×3 输出 tile 网格说明尾组实际组高如何同时避免非法行号和合法输出遗漏。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -204,8 +204,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "1f5a7758c059f8632594480cf94f715b7b122dae8c826b125c88b6b9f6e10092",
-      "content_summary": "真实编译错误揭示 reduction 与 elementwise minimum 的差异",
+      "content_sha256": "fdc2553eb5d07cb9df6f4ee4d7ff29917f30be305019bcfd62cc883e54788ff6",
+      "content_summary": "在尾组组高计算的明确场景中，区分双输入逐元素 minimum 与单输入轴归约 min。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -233,8 +233,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "88a09e8f3cf55f8891278145da3fd3b2145be82b615bf8c016d88e47c962eba2",
-      "content_summary": "通过工作量、资源和目标设备测量纠正只按 shape 选配置",
+      "content_sha256": "94809c331a8a195066f65d54525084e312e70ee80a907bb192260d4b0d116f1d",
+      "content_summary": "说明矩阵乘法 tile 配置同时影响边界浪费、寄存器和并发，计数只能筛候选而不能裁决性能。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -260,8 +260,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "2773254a6d7354f664ff465b44d680ae8d7f95737d64b3b2097dc5d5b32711f6",
-      "content_summary": "证据不足与 effect size 很小不是同一结论",
+      "content_sha256": "97c1356cfc538045b0fba63acf4d8934a8cac5054cab3ca475415799e793989e",
+      "content_summary": "在配置差异与运行漂移无法分离的 benchmark 中，区分证据不足与真实效应很小。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -287,8 +287,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "40c11ef73efc3fc02309481f7114614e328c50ffdb1d40a8b89205fa4528f47e",
-      "content_summary": "grouped ordering 的缓存复用机制与失效边界",
+      "content_sha256": "ccbd31de8a154c42d588051370234678f0420ac69854502f291e0db8f22f27df",
+      "content_summary": "串联输出 tile 的 A/B 复用、重排后的访问间隔与 L2 驻留条件，并限定性能结论。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -314,11 +314,11 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "8c1106b7e7f2c878e03dd5b10678d6e84aeeb5e9e3fac0e80429f63901688ef9",
-      "content_summary": "综合口述 grouped ordering 的机制、适用条件与证据边界",
+      "content_sha256": "c978aa09990b6b2ca39977c2459f453a5f139ea405af2b65cc5c6f1d8413dda5",
+      "content_summary": "用完整 benchmark 场景口述 grouped ordering 的 L2 机制、成立条件与证据不足的报告方式。",
       "dependency_content_sha256": {
-        "mc-2fd335ab94ec21c8a7c24c73": "40c11ef73efc3fc02309481f7114614e328c50ffdb1d40a8b89205fa4528f47e",
-        "mc-4dc66aa7b63f1fe191d09add": "2773254a6d7354f664ff465b44d680ae8d7f95737d64b3b2097dc5d5b32711f6"
+        "mc-2fd335ab94ec21c8a7c24c73": "ccbd31de8a154c42d588051370234678f0420ac69854502f291e0db8f22f27df",
+        "mc-4dc66aa7b63f1fe191d09add": "97c1356cfc538045b0fba63acf4d8934a8cac5054cab3ca475415799e793989e"
       },
       "depends_on": [
         "mc-2fd335ab94ec21c8a7c24c73",
@@ -340,7 +340,7 @@
       "priority": 4,
       "quality": "A",
       "review_resolution": {
-        "summary": "已依据更新后的 L2 复用机制与证据不足辨析卡复核口述；移除特定版本的 M-first 映射，保持常青的复用机会、条件与结论边界。"
+        "summary": "已重新对照本课 card-11, card-10 的增强题答复核本卡：场景与符号定义一致，机制关系和适用边界仍成立，参考回答及评分锚点由这些子卡支持；本轮只增强表达，没有扩大原知识目标。"
       },
       "source_ids": [
         "lesson-03-concept-log",
@@ -352,11 +352,11 @@
     }
   ],
   "managed_body_sha256": "fd049ff02482f1b78edabf71511f2c3453e7d167fd144fed31e8b13d32a3a202",
-  "manifest_payload_sha256": "216cda1dce69cd375bb16decfe4a4c0781ff2a287027d6c75e295272982d9f80",
+  "manifest_payload_sha256": "9081985eb2312dd331403313cbec0490eb76d479a81204d69f2eac05dd7db434",
   "schema": "memo-cards.artifact/v2",
   "sidecars": [
     {
-      "byte_size": 4094,
+      "byte_size": 5119,
       "columns": [
         "意图",
         "场景",
@@ -369,24 +369,24 @@
       "row_count": 2,
       "rows": [
         {
-          "content_sha256": "32f54b575207d6c896880e35d37a474d7c52b24a054a8686af8bd21e0979235a",
+          "content_sha256": "480415802208a80a5c8687a82e4e9c57e932d3d30b6079794f4392561c84c752",
           "logical_id": "mc-b748990eeb64b83da16794a3",
-          "row_sha256": "adca55f4208cbc17897eabc4c985619dce0e6e67027d083e9b7f2a5476ff87d4"
+          "row_sha256": "6e69d94152aec57c7df4b295c1c62f457462e8871bc965ebcc2f07e92f308f8f"
         },
         {
-          "content_sha256": "1f5a7758c059f8632594480cf94f715b7b122dae8c826b125c88b6b9f6e10092",
+          "content_sha256": "fdc2553eb5d07cb9df6f4ee4d7ff29917f30be305019bcfd62cc883e54788ff6",
           "logical_id": "mc-ccc79bbbc7f5c0a5be131add",
-          "row_sha256": "5a8793001bf7ce18319f050772152956b41d78bd510dcd8bc40f59aa0ea205e8"
+          "row_sha256": "f45955bca00dc4fb24a9d85fd6271d3aa37b4f416bb32fe409b9269c47c96393"
         }
       ],
-      "sha256": "dae6ac6571c4e37f41fd516bf810361c1c695f91d76b9d98abf68121d276d181",
+      "sha256": "b6fee9a1d500b89a110ce8a08b9d0e6a0282b13c89ac5c40f63783286e8c32df",
       "sheet_name": "cards",
-      "table_sha256": "d9ac1457eaeecd30488488303c41546f77cbeca8f4649b3a426127a19d31a4a7",
+      "table_sha256": "2066302e5fd2a881bdd33a6f1c0a29070316793753c079c877d1086bad1d625c",
       "template_id": "correction",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 10057,
+      "byte_size": 15354,
       "columns": [
         "问题",
         "答案",
@@ -398,59 +398,59 @@
       "row_count": 9,
       "rows": [
         {
-          "content_sha256": "9ee6f52b089106348627bf120738824a3948a2500ef00c7e2405a33ecdf4cc3c",
+          "content_sha256": "f11720d7c6a4cb4a3a8dbcf187345b59f831ad9aba8c17c25e40052b1d3e35b3",
           "logical_id": "mc-93d5cb5f189271bd463f66f5",
-          "row_sha256": "434b1b791946374b3ba189bd455777928386b40af8d09df0aadf666fdce3f070"
+          "row_sha256": "44e1e8f56d3c83e62e48b8ebd1b2728c4f9561794266cbb3a74eadadb97a9320"
         },
         {
-          "content_sha256": "a7c96475fd07ebe405e9043c15cc3ddf0d549850a22b432af2f3bebd6d6dba8e",
+          "content_sha256": "0849b2d7b0f02df702bbe300b9a94e3971ddd3d2f46480f41c5c53f0ad31b3a4",
           "logical_id": "mc-a1636912f944d54665961084",
-          "row_sha256": "4dfb2066cc8aa0d87c99e4732fd150b1becde9a17b08c2b873f38c525fc2cb08"
+          "row_sha256": "a4518ee09ca680aac3cbdf27d06a96d27944f175db6603171c807de27311fcc9"
         },
         {
-          "content_sha256": "f51a45eb7d39bcd2be01fd5b70e021210f2fef61f6b6d07784de727397fe240e",
+          "content_sha256": "6812ad091a536c7f12dc5b47a61cc12f682a8b7ec7befd517814a82c73a262eb",
           "logical_id": "mc-2a2e5e507246b774ac4eee7d",
-          "row_sha256": "53dd73c9257b656c46fd355a2b069d63011e51922ae3dce456c5b09983e6cd57"
+          "row_sha256": "1b5121b065cfe55b8cd5999b167c5b2b34477bd41736234a92cc4fedfa697c96"
         },
         {
-          "content_sha256": "2d5e397b19ea67ec881915eed4ef5860720247206673d24e862238c857090c5e",
+          "content_sha256": "6000dc6defcdefc6c8435dcbc664527fc763b94de820f3dcf48049132c759f49",
           "logical_id": "mc-0d4bc6a1836e0d2c6de8bdb5",
-          "row_sha256": "6c4ffc5425d74340f378e37bd3f8e03b2088ea0b94becc0230f3aabde9029b73"
+          "row_sha256": "0605acb1db9549b2caa3916557348c10d426524cee73c53a030f9a899559c876"
         },
         {
-          "content_sha256": "4f6687bd83fa5bea516cf12a3e6b019ea17838422d050156717b76a271f9f1d2",
+          "content_sha256": "a4015de03bfe216f7f2ab9af57e3fb39853807852dcd17481dee74252ddaf5db",
           "logical_id": "mc-40db2e4425a22efcb30a44e2",
-          "row_sha256": "d455700274602d1521846b9a43df58e6f2142d21a98876717a2c0cd657f0f828"
+          "row_sha256": "055a7ed2a1dde1fce85c5570466b9efa5c0da659fc9364938e21e22958750fed"
         },
         {
-          "content_sha256": "41a47000eed10cf3884a3407a3af34563bdc93a9d4e519151c6daae492370bc7",
+          "content_sha256": "7dbaf61ab8a79efdd68803898d0fdf4859fc3b21e39e3c7600d1e77c886a886a",
           "logical_id": "mc-4635ed52ca08d9e8d3d86a8b",
-          "row_sha256": "1a649dbde09eae2c6b4543375fadc57b689df3514e9cd50680b26b15f5207bc7"
+          "row_sha256": "21c2acef98910dcaf045e281d3f79b78de04ce9ccca4843a159b407852b00a10"
         },
         {
-          "content_sha256": "88a09e8f3cf55f8891278145da3fd3b2145be82b615bf8c016d88e47c962eba2",
+          "content_sha256": "94809c331a8a195066f65d54525084e312e70ee80a907bb192260d4b0d116f1d",
           "logical_id": "mc-62ebe8a0b30dea5145854637",
-          "row_sha256": "b472fb36a6bf29cbce23202fdf1890338003021e682f5f1e81c9f812d424b9e9"
+          "row_sha256": "18777b5309730c95183c6b7b17a76b055bd5eb45292a0aa4de011d130d5f9c8c"
         },
         {
-          "content_sha256": "2773254a6d7354f664ff465b44d680ae8d7f95737d64b3b2097dc5d5b32711f6",
+          "content_sha256": "97c1356cfc538045b0fba63acf4d8934a8cac5054cab3ca475415799e793989e",
           "logical_id": "mc-4dc66aa7b63f1fe191d09add",
-          "row_sha256": "e47ba3dd73454081bf6b398cdae6582165bea4b9294d2aa60654371fab0fb0fd"
+          "row_sha256": "bf64699c49d53f930df4687ae970826b5b53eb0a3fc9e9cfdb23bb567099fbe5"
         },
         {
-          "content_sha256": "40c11ef73efc3fc02309481f7114614e328c50ffdb1d40a8b89205fa4528f47e",
+          "content_sha256": "ccbd31de8a154c42d588051370234678f0420ac69854502f291e0db8f22f27df",
           "logical_id": "mc-2fd335ab94ec21c8a7c24c73",
-          "row_sha256": "08212db2ee4190b0280261e3848fa75f54a916395a47bc277d258dd97c2bec09"
+          "row_sha256": "c17cb30033f85442814501c3496e2df51025c6cf972cdf52f87b1db25b4ddf8d"
         }
       ],
-      "sha256": "17a5193fd56248ddb16628650205bde21a08b4104581615687a367ea4d674b74",
+      "sha256": "e732f6df87fecadc1d67dc5e7f8fbac8e1ffc2ee3e0bb43e0efde81ae70d5641",
       "sheet_name": "cards",
-      "table_sha256": "4acb6be4be92013a4856e6da981a939a7632c7989d491d4b9ad2cac7eeeb57e2",
+      "table_sha256": "5510ae5ab7e44ff16be55b844e206979b908212295d52b5539c91ad5b3a7fb27",
       "template_id": "technical-qa",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 3686,
+      "byte_size": 4243,
       "columns": [
         "问题",
         "参考回答",
@@ -462,14 +462,14 @@
       "row_count": 1,
       "rows": [
         {
-          "content_sha256": "8c1106b7e7f2c878e03dd5b10678d6e84aeeb5e9e3fac0e80429f63901688ef9",
+          "content_sha256": "c978aa09990b6b2ca39977c2459f453a5f139ea405af2b65cc5c6f1d8413dda5",
           "logical_id": "mc-89f34aea9a94a29d20e579d9",
-          "row_sha256": "4d60ef8c54e760e363abfb3a7176464bb05f9a4d231d50bd53c6da4f5e3f4d0b"
+          "row_sha256": "4a552b8d87895bfe38a1abcc5bb030de721acad056e204bd157b42ec986d3920"
         }
       ],
-      "sha256": "94f9e1b2d535dfffee67d5027894367d56c0978e9197bc5d6a10db6afaa310dd",
+      "sha256": "faeddc5517cad7b3afdb6f1987d368b9dc67ac4d209d913f99e82a27402009e8",
       "sheet_name": "cards",
-      "table_sha256": "b175e0ec89b63f97a4a4262528b5fc4e28fbc068c6909f04b6dfdf952f905fd0",
+      "table_sha256": "adb6018ed93bff52a3bacdff280631665acfdaf9de06e141f4cb96089b17e06c",
       "template_id": "oral",
       "template_version": "1.1.0"
     }

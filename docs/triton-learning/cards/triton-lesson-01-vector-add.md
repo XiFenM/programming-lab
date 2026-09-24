@@ -5,12 +5,12 @@
     "id": "markji",
     "profile": "programming-lab-markji"
   },
-  "artifact_set_sha256": "7c7398b28792655918680f548dc84c971fdb84c60403e7b3154495dbb0bb1a13",
-  "candidate_sha256": "3aa960a39942529cc4ea78c25df7320077357aefd0baece5ab2427e42cb86abb",
+  "artifact_set_sha256": "0b5cf9688b8a4573d61f6534ef3ea0eb992c3ef2e2c89de5af61ee0422014698",
+  "candidate_sha256": "076a2a8ef6f3fd1c2eaba333e6e2aaba78be20a1d38909007f4c5e23f4fafa86",
   "cards": [
     {
-      "content_sha256": "894df417a31ef17943835be7800a38ae3ed0e007d8c90d9b8fa065a3128bad20",
-      "content_summary": "保留真实错误，区分局部 pointer tensor 的静态形状与完整输入、输出分配。",
+      "content_sha256": "5ab82964188d29fc800eee19335354fbdbd023a469ca6fbe2d16da7023b57a57",
+      "content_summary": "补足尾块读取场景，定义局部指针与 false 位置，保留真实错误并解释形状来源。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -38,10 +38,10 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "9e1ee0d1d3f6ad26184cf346eb97f9196cab44611408231d4eb7fe66d956e190",
-      "content_summary": "由保留形状到无效值进入归约的闭合因果链，不把 mask 当作自动过滤。",
+      "content_sha256": "83c48d58b060ae7262aafa3f807176d52751344e9101ffb6862987684ec8eb0b",
+      "content_summary": "明确 load 后归约的完整场景，以四位置例子解释污染路径及归约前修正。",
       "dependency_content_sha256": {
-        "mc-dbb876a849a86c5fef87e9ed": "894df417a31ef17943835be7800a38ae3ed0e007d8c90d9b8fa065a3128bad20"
+        "mc-dbb876a849a86c5fef87e9ed": "5ab82964188d29fc800eee19335354fbdbd023a469ca6fbe2d16da7023b57a57"
       },
       "depends_on": [
         "mc-dbb876a849a86c5fef87e9ed"
@@ -63,6 +63,9 @@
       "misconception_of": null,
       "priority": 5,
       "quality": "A",
+      "review_resolution": {
+        "summary": "已重新对照本课 card-01 的增强题答复核本卡：场景与符号定义一致，机制关系和适用边界仍成立，参考回答及评分锚点由这些子卡支持；本轮只增强表达，没有扩大原知识目标。"
+      },
       "source_ids": [
         "lesson01-structured"
       ],
@@ -71,8 +74,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "64f5a8f5df03ffd6d6185d2ce71d8fb39aba054ae1b59ccdd9ee75bfdab0a25d",
-      "content_summary": "保留真实原话，将地址边界谓词与填充值的数值语义分开。",
+      "content_sha256": "b33a963bd82a489ecd6e0c3080dc8064bfa50dbee363171c1006d692f503dd83",
+      "content_summary": "为条件写回定义长度、边界和业务条件，以比较方向变化解释 sentinel 失效。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -100,8 +103,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "eded799acb59804041c1881f4024dc6f931470c03f74d27f64d5a27aff68bd0e",
-      "content_summary": "只考 false store 的副作用，不混入 load 返回值或 reduction 的第二个问题。",
+      "content_sha256": "396831528c7611a8c92ebf2a16d5abb2187d60b43143c29c340b35ea00e4f191",
+      "content_summary": "限定合法输出地址，补具体前后值及 load/store 差别，说明未初始化输出边界。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -129,8 +132,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "bfa1b868de760d9f553c8eba951d4e4a874b9141a44d6ecb9cc8a25ea09a035f",
-      "content_summary": "消除把编译期参数等同于 Python 源码永远写死的混淆。",
+      "content_sha256": "85761aba07fbaa2400e76696bf6975bf98fe3fe19167b92d15cd50e523cc5fde",
+      "content_summary": "说明 constexpr 用于块形状的场景，区分源码写死、特化固定和不同 launch 选值。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -158,8 +161,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "bb3250ed232d46049a027c439779491400ad4d8355a901e7b8339fbe89d74d41",
-      "content_summary": "以 grid 依赖参数的确定时机作单一判断，不把动态 shape 泛化成必须 callable。",
+      "content_sha256": "1d346774a1f685f209fd32546869c9bdd8179007b4be227feec15da94f4bdaf4",
+      "content_summary": "给出向量覆盖任务与 autotune 时机，明确 callable/tuple 的判断条件。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -187,8 +190,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "47e64a076035fac3308c2d843f25c6feaf6d500aa0bd90f8aa3c6199a9a2e40d",
-      "content_summary": "建立 program、块级逻辑 tensor 与硬件执行层的分工，防止机械套用线程模型。",
+      "content_sha256": "4cd8824ff6b0c8565842900320a1b3c7868103ad32cf4cc278911482467185b1",
+      "content_summary": "以 arange 的明确用法定义 BLOCK_SIZE，分开 program、逻辑 tensor 与线程/warp。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -216,8 +219,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "e2c276d3b74c00ead85cba40887886d902caef689346542deba74bd3f73609e7",
-      "content_summary": "把本课连续性限制解释为访存模型的前提，不扩张到未学习的多维 stride 接口。",
+      "content_sha256": "7d11ab6822c52cc3ac2b6e12e4d9d2faf70d43f85924eada7774c9b8a770304f",
+      "content_summary": "补切片输入例子、stride 单位及具体地址错位，串联 wrapper 契约与访存实现。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -245,8 +248,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "1486750db58aa996c8af58ef0981cfdc462fe8bfeb239274b7fbc9a160d12068",
-      "content_summary": "将有效带宽的数学变化与硬件流量和优化归因分开，作为通用带宽口径主卡。",
+      "content_sha256": "dcfd4d176fd09689d91886e9b59e2fff53ee4449d34c028497b72d6e022f3623",
+      "content_summary": "补整块/尾块比较背景，定义比值公式全部符号，解释指标提升与真实流量的区别。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -272,8 +275,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "366407284ecbcb2392efb2e47bc7b0ad3560e26a4f44640553420308a740c7ba",
-      "content_summary": "区分增加总采样预算与延长单个样本窗口，保留明确 API 版本范围。",
+      "content_sha256": "ba73207f5be03337c90507d4d87297d2cb5b876b625ff687ab890c0dea5254f0",
+      "content_summary": "定义 do_bench 与时间单位，区分总采样预算和一次调用的短测量窗口。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -301,8 +304,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "0b5b3bf55d618932f9512b76e7c6f2096cc177ae248d688b693bae0ba4319b97",
-      "content_summary": "以缓存和发射场景变化解释为什么批量计时必须单列口径。",
+      "content_sha256": "207c02abd44d43d0e17ea3017eb449750cc6b7375fbef563a1cb90b44be278b7",
+      "content_summary": "说明批量设计的动机、被测成本与场景变化，避免把两种延迟直接替换。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -328,8 +331,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "0af415b0735ab50d261447f3fcb7d42aad4efc4571d45d6b2409225d446b95d5",
-      "content_summary": "保留真实 Review 中的后验阈值问题，形成可迁移的实验报告原则。",
+      "content_sha256": "72c65963f0a28be3ba8f83d028807c237ea174d1e3a2929665c47b8db050fe3b",
+      "content_summary": "补实验预测、5% 判据与事后发现的完整背景，区分原规则结果和物理结论。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -355,8 +358,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "3c710057d90e2a282b9beb8e9e7a9ef66329811ad65c7a05686c3244b8bc27c7",
-      "content_summary": "依据日志中已核对的 predicate 行为解释无效访存消失，区分语义与硬件事务。",
+      "content_sha256": "cac53a684504b45911af911b60c77648377d493ed442ff72c74d2b126f955877",
+      "content_summary": "给出尾块条件访存的两种因果解释，分开逻辑请求、硬件事务与执行开销。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -384,14 +387,14 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "c90e6199fca3484655f55988a567805416a799af3d38e837f8ca46abe9a4cfe4",
-      "content_summary": "综合五张已核验子卡，在一分钟内贯通形状、读取、归约和写回，明确成本边界。",
+      "content_sha256": "b4e3fb1a94c404558696bb5be545bef701489c2220a8ee8809332cef9567452d",
+      "content_summary": "口述题补全尾块读取到归约再到写回的任务，答案独立覆盖五个原有评分锚点。",
       "dependency_content_sha256": {
-        "mc-03f7ee3f9b01c0044dd900b5": "9e1ee0d1d3f6ad26184cf346eb97f9196cab44611408231d4eb7fe66d956e190",
-        "mc-111385513b8b0e97334ae3ee": "3c710057d90e2a282b9beb8e9e7a9ef66329811ad65c7a05686c3244b8bc27c7",
-        "mc-76c2a1b0b86707e61910facc": "eded799acb59804041c1881f4024dc6f931470c03f74d27f64d5a27aff68bd0e",
-        "mc-dbb876a849a86c5fef87e9ed": "894df417a31ef17943835be7800a38ae3ed0e007d8c90d9b8fa065a3128bad20",
-        "mc-f50b2e34931b504fad4ce2b1": "64f5a8f5df03ffd6d6185d2ce71d8fb39aba054ae1b59ccdd9ee75bfdab0a25d"
+        "mc-03f7ee3f9b01c0044dd900b5": "83c48d58b060ae7262aafa3f807176d52751344e9101ffb6862987684ec8eb0b",
+        "mc-111385513b8b0e97334ae3ee": "cac53a684504b45911af911b60c77648377d493ed442ff72c74d2b126f955877",
+        "mc-76c2a1b0b86707e61910facc": "396831528c7611a8c92ebf2a16d5abb2187d60b43143c29c340b35ea00e4f191",
+        "mc-dbb876a849a86c5fef87e9ed": "5ab82964188d29fc800eee19335354fbdbd023a469ca6fbe2d16da7023b57a57",
+        "mc-f50b2e34931b504fad4ce2b1": "b33a963bd82a489ecd6e0c3080dc8064bfa50dbee363171c1006d692f503dd83"
       },
       "depends_on": [
         "mc-03f7ee3f9b01c0044dd900b5",
@@ -417,6 +420,9 @@
       "misconception_of": null,
       "priority": 4,
       "quality": "B",
+      "review_resolution": {
+        "summary": "已重新对照本课 card-02, card-13, card-04, card-01, card-03 的增强题答复核本卡：场景与符号定义一致，机制关系和适用边界仍成立，参考回答及评分锚点由这些子卡支持；本轮只增强表达，没有扩大原知识目标。"
+      },
       "source_ids": [
         "lesson01-structured"
       ],
@@ -425,13 +431,13 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "18040c20f17635ad95a94f930cc4d381c40013ac870d00e7ecdd87e155d03cee",
-      "content_summary": "综合四张子卡给出限定测量口径的性能解释，避免把波动、场景变化或改判据写成优化证据。",
+      "content_sha256": "dfe82c4b88747c81c0dc59e3f5619b946ae184807e5b82d5ed63b2db3a5e43f4",
+      "content_summary": "口述题明确尾块微小差异任务，完整串联指标、采样、批量和事前判据。",
       "dependency_content_sha256": {
-        "mc-526b34ca3272ac96162c4ef8": "366407284ecbcb2392efb2e47bc7b0ad3560e26a4f44640553420308a740c7ba",
-        "mc-aa96ca5a69a65b8c5200a9b5": "0af415b0735ab50d261447f3fcb7d42aad4efc4571d45d6b2409225d446b95d5",
-        "mc-be35b4a473f21cbc5da83fef": "0b5b3bf55d618932f9512b76e7c6f2096cc177ae248d688b693bae0ba4319b97",
-        "mc-c30f86b46d850889b795fd81": "1486750db58aa996c8af58ef0981cfdc462fe8bfeb239274b7fbc9a160d12068"
+        "mc-526b34ca3272ac96162c4ef8": "ba73207f5be03337c90507d4d87297d2cb5b876b625ff687ab890c0dea5254f0",
+        "mc-aa96ca5a69a65b8c5200a9b5": "72c65963f0a28be3ba8f83d028807c237ea174d1e3a2929665c47b8db050fe3b",
+        "mc-be35b4a473f21cbc5da83fef": "207c02abd44d43d0e17ea3017eb449750cc6b7375fbef563a1cb90b44be278b7",
+        "mc-c30f86b46d850889b795fd81": "dcfd4d176fd09689d91886e9b59e2fff53ee4449d34c028497b72d6e022f3623"
       },
       "depends_on": [
         "mc-526b34ca3272ac96162c4ef8",
@@ -456,6 +462,9 @@
       "misconception_of": null,
       "priority": 4,
       "quality": "B",
+      "review_resolution": {
+        "summary": "已重新对照本课 card-10, card-12, card-11, card-09 的增强题答复核本卡：场景与符号定义一致，机制关系和适用边界仍成立，参考回答及评分锚点由这些子卡支持；本轮只增强表达，没有扩大原知识目标。"
+      },
       "source_ids": [
         "lesson01-structured"
       ],
@@ -465,11 +474,11 @@
     }
   ],
   "managed_body_sha256": "8bdebeb71122d13e28fcd3adab2cbd24da07dda0ee8fab103d9905d21c2c3e2f",
-  "manifest_payload_sha256": "3d9a387a515c1f568f36b42201a871731a0e1d2483ee60ec5eae3bbd6e476537",
+  "manifest_payload_sha256": "490923c9dfb29fd7d35f98a0e18459fe56342f0a28528abf5820ce715ee3ba60",
   "schema": "memo-cards.artifact/v2",
   "sidecars": [
     {
-      "byte_size": 4220,
+      "byte_size": 5522,
       "columns": [
         "意图",
         "场景",
@@ -482,24 +491,24 @@
       "row_count": 2,
       "rows": [
         {
-          "content_sha256": "894df417a31ef17943835be7800a38ae3ed0e007d8c90d9b8fa065a3128bad20",
+          "content_sha256": "5ab82964188d29fc800eee19335354fbdbd023a469ca6fbe2d16da7023b57a57",
           "logical_id": "mc-dbb876a849a86c5fef87e9ed",
-          "row_sha256": "97d476511625a4b7d8df062c5decb9dfb93a667438a355908498b98452894a47"
+          "row_sha256": "476e0c28848174a47e563c4e77f2175a3ce194e6eae69b127c01dda27291e35f"
         },
         {
-          "content_sha256": "64f5a8f5df03ffd6d6185d2ce71d8fb39aba054ae1b59ccdd9ee75bfdab0a25d",
+          "content_sha256": "b33a963bd82a489ecd6e0c3080dc8064bfa50dbee363171c1006d692f503dd83",
           "logical_id": "mc-f50b2e34931b504fad4ce2b1",
-          "row_sha256": "10a09e655f9353d63acb21efa31de9ba54e4b6c2d80a41ae829a73f8cfa3fa2a"
+          "row_sha256": "a5ff10121a9593d5989f35e3153a39c27b86078024d7eda98cfe324097f1c1cc"
         }
       ],
-      "sha256": "d380739ed201d13b5e0bc9e0e94346b0b0345e847095745b9c0d4925666ef996",
+      "sha256": "600d1a16d1448044d0d4ff43e19349556e7669ada571b8efdfa3e51dd36488ab",
       "sheet_name": "cards",
-      "table_sha256": "27a9de004bdffde5e8bea79d7a642142aabb33499b8013d19701c6457594321f",
+      "table_sha256": "1011887297986366dec1c4a91872542cb0742aea11026e0df627054c5486b0ae",
       "template_id": "correction",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 10796,
+      "byte_size": 16452,
       "columns": [
         "问题",
         "答案",
@@ -511,69 +520,69 @@
       "row_count": 11,
       "rows": [
         {
-          "content_sha256": "9e1ee0d1d3f6ad26184cf346eb97f9196cab44611408231d4eb7fe66d956e190",
+          "content_sha256": "83c48d58b060ae7262aafa3f807176d52751344e9101ffb6862987684ec8eb0b",
           "logical_id": "mc-03f7ee3f9b01c0044dd900b5",
-          "row_sha256": "018adac23d1e563ec2b3e686f4c87aa8cb008a5ca0c16925fa1a094b21540841"
+          "row_sha256": "bb6a4322bab79d9a7cd4c193553ce07ecd20655351e82de42be9c85fa77a8c35"
         },
         {
-          "content_sha256": "eded799acb59804041c1881f4024dc6f931470c03f74d27f64d5a27aff68bd0e",
+          "content_sha256": "396831528c7611a8c92ebf2a16d5abb2187d60b43143c29c340b35ea00e4f191",
           "logical_id": "mc-76c2a1b0b86707e61910facc",
-          "row_sha256": "92daf9d076dc2d40f115330911522ef06e677bd1411cb5cb2640216f3874c203"
+          "row_sha256": "5657d9ff1366b23a898c8dc02e3fd5f2274d4a38c89035d1425bdb91d2e0f109"
         },
         {
-          "content_sha256": "bfa1b868de760d9f553c8eba951d4e4a874b9141a44d6ecb9cc8a25ea09a035f",
+          "content_sha256": "85761aba07fbaa2400e76696bf6975bf98fe3fe19167b92d15cd50e523cc5fde",
           "logical_id": "mc-6f60ba491472d6a0fe36fd43",
-          "row_sha256": "f43f7454f30f90dba5661d8d62558b81ac637095f9ead77fb0623f2cdee38fce"
+          "row_sha256": "1c7acd463322f61e529fbb087dae886ef2b59b55bc8c009ba859ad5956d7dd3b"
         },
         {
-          "content_sha256": "bb3250ed232d46049a027c439779491400ad4d8355a901e7b8339fbe89d74d41",
+          "content_sha256": "1d346774a1f685f209fd32546869c9bdd8179007b4be227feec15da94f4bdaf4",
           "logical_id": "mc-c007594b3df346419ac002f0",
-          "row_sha256": "80e04f8ccccda09f114bce5f034dff8ca32f7dbd71ec9e58b2b349064d486802"
+          "row_sha256": "3821c41cb77b1b9a6322b1d7b626ee3e26237fca82dc4267b4ef538e3fe5091c"
         },
         {
-          "content_sha256": "47e64a076035fac3308c2d843f25c6feaf6d500aa0bd90f8aa3c6199a9a2e40d",
+          "content_sha256": "4cd8824ff6b0c8565842900320a1b3c7868103ad32cf4cc278911482467185b1",
           "logical_id": "mc-a133c2ec1286463f6931b612",
-          "row_sha256": "28add24b6d99a988be97c8b0b88fa793018c9cf3d35f4b2910ed1dce44b12373"
+          "row_sha256": "ce3cc44f504d3b85e335bf5f202121650f4eb25cd508d4b3b8dd3ce4b3b7f316"
         },
         {
-          "content_sha256": "e2c276d3b74c00ead85cba40887886d902caef689346542deba74bd3f73609e7",
+          "content_sha256": "7d11ab6822c52cc3ac2b6e12e4d9d2faf70d43f85924eada7774c9b8a770304f",
           "logical_id": "mc-657e6c116e07f637d2eb7754",
-          "row_sha256": "3394a40558f69b78f49485b4dfe659b446d102e8a21ab419608af209b9e361da"
+          "row_sha256": "dfc0e3c3d685a78c71291417f8e951aac5a712b0f2adf1ce72633cdd16ec011c"
         },
         {
-          "content_sha256": "1486750db58aa996c8af58ef0981cfdc462fe8bfeb239274b7fbc9a160d12068",
+          "content_sha256": "dcfd4d176fd09689d91886e9b59e2fff53ee4449d34c028497b72d6e022f3623",
           "logical_id": "mc-c30f86b46d850889b795fd81",
-          "row_sha256": "42bf0925c809a3e25c6c7dc45f80f54f13eeb54465599a56c97ff14e3e91d257"
+          "row_sha256": "b2cb98802dda44a8c9e45d3223416b2940b2b35f5ebb8e464771003bc1d8b74d"
         },
         {
-          "content_sha256": "366407284ecbcb2392efb2e47bc7b0ad3560e26a4f44640553420308a740c7ba",
+          "content_sha256": "ba73207f5be03337c90507d4d87297d2cb5b876b625ff687ab890c0dea5254f0",
           "logical_id": "mc-526b34ca3272ac96162c4ef8",
-          "row_sha256": "3a42e6a6d337c30dd01bccf1a631dc147a5d0eea0bc78c853a4364baf7b5903d"
+          "row_sha256": "294d7161e7b0e0eb781c6a888f1657d6fe1939e065e950763869ffbf6e55cb42"
         },
         {
-          "content_sha256": "0b5b3bf55d618932f9512b76e7c6f2096cc177ae248d688b693bae0ba4319b97",
+          "content_sha256": "207c02abd44d43d0e17ea3017eb449750cc6b7375fbef563a1cb90b44be278b7",
           "logical_id": "mc-be35b4a473f21cbc5da83fef",
-          "row_sha256": "e8b9597f2f13b7b02a49a87bfdeffb2a79ebe527284102a056c39a0da79e03bc"
+          "row_sha256": "d37e3189454ff94bc38807b9dee82e88acbdff7d0bed87e367c01d329eb23640"
         },
         {
-          "content_sha256": "0af415b0735ab50d261447f3fcb7d42aad4efc4571d45d6b2409225d446b95d5",
+          "content_sha256": "72c65963f0a28be3ba8f83d028807c237ea174d1e3a2929665c47b8db050fe3b",
           "logical_id": "mc-aa96ca5a69a65b8c5200a9b5",
-          "row_sha256": "a3f1caf848ac40b745a4b26525a240d465154577b49700eb59f81fae73704532"
+          "row_sha256": "0611d792a02e86c70312ee0d536bbf29cbd86c6604014d8883d6645e6f0304a9"
         },
         {
-          "content_sha256": "3c710057d90e2a282b9beb8e9e7a9ef66329811ad65c7a05686c3244b8bc27c7",
+          "content_sha256": "cac53a684504b45911af911b60c77648377d493ed442ff72c74d2b126f955877",
           "logical_id": "mc-111385513b8b0e97334ae3ee",
-          "row_sha256": "e3950a39481e8cf0321fe572f9c54f15e9dbe65ee968c6f50242cca4c03f84cf"
+          "row_sha256": "065bfd8dceaf8c1c70282bfa01804ee4b83a5e43e1888cdfb23c2e730368593a"
         }
       ],
-      "sha256": "d714a5638cdcf59bc0cbc7a01255e78516c0fa0e13667d4b9402b4e82ff67e88",
+      "sha256": "5585a54e80fd8621b82a9b438955920c2a2ca4c73e667bf2ef21e8fcf4bf34d9",
       "sheet_name": "cards",
-      "table_sha256": "2dbb41908aa0ff90f55f5298867d1dfd4d7a42b44c8137055a119bb68f99ca45",
+      "table_sha256": "373ecdebe6e033aab43d02920d283dfc4be3a66e9d15e11209cbad59b1ed64fa",
       "template_id": "technical-qa",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 4784,
+      "byte_size": 5869,
       "columns": [
         "问题",
         "参考回答",
@@ -585,19 +594,19 @@
       "row_count": 2,
       "rows": [
         {
-          "content_sha256": "c90e6199fca3484655f55988a567805416a799af3d38e837f8ca46abe9a4cfe4",
+          "content_sha256": "b4e3fb1a94c404558696bb5be545bef701489c2220a8ee8809332cef9567452d",
           "logical_id": "mc-1f8aa5f84db63f091affc38c",
-          "row_sha256": "f64b74da6380498df1ee64baa08f70b2517256786e08d56c39488897d80e114b"
+          "row_sha256": "d424d17f914e3c0b11611eb255396ee4a8d3e718b4a61e1003e0ff0e1d1ddd23"
         },
         {
-          "content_sha256": "18040c20f17635ad95a94f930cc4d381c40013ac870d00e7ecdd87e155d03cee",
+          "content_sha256": "dfe82c4b88747c81c0dc59e3f5619b946ae184807e5b82d5ed63b2db3a5e43f4",
           "logical_id": "mc-7387175e84296c256e43fd20",
-          "row_sha256": "6158c75897b55464261284eb1ae0eab199dbb565dc6c7bc76ebc6aeab360ddcd"
+          "row_sha256": "4e2042116b8652930c8d9f12ffadc45b65813f9858256c5946711cb8501bfb86"
         }
       ],
-      "sha256": "6810218cdcb5b69dd65e7e280b2ec73df4da1f2a8dec48e4f520d2889df1be7a",
+      "sha256": "3c4339e31fab0dcb10821df83df7a8d71ba27bd4786e8446464967469005bc95",
       "sheet_name": "cards",
-      "table_sha256": "aa9a3585be4bcfa91efbcf594b0c328607a1a05b5efb1aec475d50bd23fefdb5",
+      "table_sha256": "a02b217097d431fe8a18f245601c14ff30804defd586e4d9d25952135982fdb9",
       "template_id": "oral",
       "template_version": "1.1.0"
     }
