@@ -85,7 +85,7 @@ docs/triton-learning/
 | 03 | `03-matrix-multiplication.py` | [lessons/03-matrix-multiplication.md](lessons/03-matrix-multiplication.md) | 已完成（`complete`） |
 | 04 | `04-low-memory-dropout.py` | [lessons/04-low-memory-dropout.md](lessons/04-low-memory-dropout.md) | 已完成（`complete`） |
 | 05 | `05-layer-norm.py` | [lessons/05-layer-norm.md](lessons/05-layer-norm.md) | 已完成（`complete`） |
-| 06 | `06-fused-attention.py` | [lessons/06-fused-attention.md](lessons/06-fused-attention.md) | 进行中（`review`，GPU 验收通过，待 A4 独立解释） |
+| 06 | `06-fused-attention.py` | [lessons/06-fused-attention.md](lessons/06-fused-attention.md) | 已完成（`complete`） |
 | 07 | `07-extern-functions.py` | `lessons/07-extern-functions.md` | 候选（未授权） |
 | 08 | `08-grouped-gemm.py` | `lessons/08-grouped-gemm.md` | 候选（未授权） |
 | 09 | `09-persistent-matmul.py` | `lessons/09-persistent-matmul.md` | 候选（未授权） |
@@ -115,7 +115,7 @@ docs/triton-learning/
 
 ## 当前 Program 状态
 
-最近状态更新：2026-09-23。
+最近状态更新：2026-09-24。
 
 | 字段 | 当前值 |
 | --- | --- |
@@ -126,10 +126,10 @@ docs/triton-learning/
 | Included | 官方案例的概念、实现、正确性与目标明确时的实证验证 |
 | Excluded | 未获授权的独立性能研究、optional extension 与下一 Lesson 执行 |
 | Authorized Lesson refs | `lessons/01-vector-add.md`、`lessons/02-fused-softmax.md`（均为已关闭 legacy）、`lessons/03-matrix-multiplication.md`、`lessons/04-low-memory-dropout.md`、`lessons/05-layer-norm.md`、`lessons/06-fused-attention.md` |
-| Active Lesson ref | [Lesson 06：Fused Attention 的在线 Softmax 与分块数据流](lessons/06-fused-attention.md)（`review`，待 A4 独立解释） |
+| Active Lesson ref | 无；位于 Lesson 边界，最近关闭 [Lesson 06](lessons/06-fused-attention.md#final-mastery) |
 | Checkpoint ref | [下方唯一 Checkpoint](#checkpoint) |
 
-- 第 01–05 课均已关闭；学习者于 2026-09-14 明确启动 Lesson 06，当前前台为该课。
+- 第 01–06 课均已关闭；学习者于 2026-09-24 确认关闭 Lesson 06，当前没有 active Lesson。
 - Lesson 02 的历史 evidence 只由[冻结记录](lessons/02-fused-softmax.md)承担，本 Program 不复制。
 - Lesson 03 的 O4 仅完成了约定的一次 grouped ordering 受控测量；profiler、置信区间、cache 机制深挖
   与穷举调参不属于已关闭 Lesson 的核心范围。
@@ -138,12 +138,12 @@ docs/triton-learning/
 
 | 字段 | 当前值 |
 | --- | --- |
-| Foreground context | `triton-06-fused-attention` Lesson（`review`） |
-| Semantic position | GPU 基础及 A4 新形状／递增 score 数值验收已完成；学习者选择本次仅完成代码验证并暂停，A4 独立解释留待恢复 |
-| Next action | 学习者恢复后解释 E-10 变式中 `(b,h)=(1,0),q_tile_num=2` 的 descriptor Q 全局行范围与局部 query 70 的 causal key 范围 |
-| Forward gate | 完成 A4 索引、在线状态与结果的独立解释后展示 mastery gate；用户确认后才关闭 Lesson |
-| Latest evidence ref | [Lesson 06 E-10](lessons/06-fused-attention.md#e-10) |
-| As of | 2026-09-23；按学习者要求保存断点，Lesson 保持 review；Skill 优化仍在实践完成之后 |
+| Foreground context | `triton-official-tutorials` Program |
+| Semantic position | Lesson 06 已确认关闭，位于 Lesson 边界；guide-learning 改进作为已授权的独立维护工作推进 |
+| Next action | 学习者选择并授权下一 Lesson |
+| Forward gate | 明确授权后才激活下一 Lesson；当前不会自动启动 Lesson 07 |
+| Latest evidence ref | [Lesson 06 Final mastery](lessons/06-fused-attention.md#final-mastery) |
+| As of | 2026-09-24；Lesson 06 complete，Program 保持 active |
 
 ## 记录原则
 

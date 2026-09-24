@@ -7,7 +7,7 @@
 | Lesson ID | `triton-06-fused-attention` |
 | Program | [Triton 学习档案](../README.md) |
 | 能力标题 | 独立解释 FlashAttention 的精确分块计算，并实现、验证一个 Triton FP16 前向 |
-| 阶段 | `review`（GPU 基础与 A4 变式数值验收通过；待学习者完成 A4 独立解释） |
+| 阶段 | `complete`（2026-09-24 学习者确认关闭） |
 | 启动授权 | 2026-09-14，学习者在 Lesson 05 关闭并推送后明确提出“接下来，我想开启triton下一课。” |
 
 ### 来源
@@ -69,10 +69,9 @@ optional extension 另行授权。所有 empirical 维度均为 `not-required`�
 - **2026-09-19 综合验收结论**：当轮判断 O1–O4 的 `conceptual` 已具最低充分证据；这不等同于
   O2／O3 practical 或 final mastery。2026-09-20 学习者反馈整体数据流仍不清晰，后续以 E-05
   补充需求为准；保留已发生的局部与变式证据，不据此跳过全流程讲解。
-- **仍缺 evidence**：O2／O3 practical。学习者已接受以下 revision 1 契约，且于 2026-09-19
-  澄清核心 kernel 由本人编写；Agent 维护验收和记录，并进行 Review。经过 E-05–07 补充讲解，
-  学习者于 2026-09-23 提交首次实现并完成一轮修订；E-08 的 9 项静态缺陷经 E-09 复核关闭，
-  GPU 验证尚未进行。
+- **当前 gate 判断**：E-09 的源码复核、E-10 的 GPU 基础／变式验收及 E-11 的独立解释，已补足
+  O2／O3 practical；结合既有 conceptual 证据，当前 required 维度具备最低充分证据。核心始终由
+  学习者编写，revision 1 不变；学习者于 2026-09-24 明确确认关闭，最终结论见 Final mastery。
 
 <a id="e-03"></a>
 
@@ -192,6 +191,24 @@ optional extension 另行授权。所有 empirical 维度均为 `not-required`�
   无新增 required finding；此前规范余项与 OBS-06-ALIGN-01 保留，本轮不形成性能证据。
   Agent 只修改验收工件与授权记录，未修改 learner-owned 实现。
 
+<a id="e-11"></a>
+
+- **E-11（2026-09-24，A4 独立解释与 mastery gate）**：恢复时核对当前核心 hash、revision 1
+  digest、E-10 与两项变式测试一致，无 drift；本轮没有重跑 GPU 测试。学习者独立得到 E-10 中
+  `(b,h)=(1,0),q_tile_num=2` 的 head 内 Q 区间 `[64,96)`、descriptor 全局行 `[320,352)`，
+  以及局部 query 70 的 causal key 区间 `[0,71)`。
+- **在线状态与局部补差恢复**：学习者独立辨认首两块自然域 score 为 -15／-13、首块分母 16、
+  分子 U0，并正确解释旧分母与分子都需重标定；初次把自然域差值代入 exp2，误得 `2^-2`。
+  Agent 澄清题目 score 尚未除以 ln2，并给出该原例正确系数 `e^-2`。随后只对这一差值换条件，
+  在自然域 score 从 1 变为 4 的新变式中，学习者独立得到 `e^-3`，恢复该范围的独立解释证据。
+- **结果解释**：学习者独立解释同 head 的相同 Q 在 non-causal 下产生相同 score、O 和 M，
+  causal 下则因可见 key 集合随 query 改变而不能沿用该跨行相等结论。Agent 补充精确表述：
+  score 仍包含 sm_scale，causal 包含当前位置自身；O 通常变化但不必两两不同，该有限 score
+  变式的 M 则随有效前缀增长。既有 `[0,71)` 回答已正确包含自身，不形成新的索引缺口。
+- **判断与边界**：P06-A4 所需的索引、在线状态及结果解释已充分；O2／O3 practical 在 E-10
+  所声明的设备／输入覆盖范围内具备最低充分证据。三项跨设备测试仍为 skipped，不记通过；
+  既有规范余项、OBS-06-ALIGN-01 与来源 observations 保留为 non-gating，本课没有性能实证。
+
 <a id="practice-01"></a>
 
 ## 条件片段：已接受的正式练习
@@ -306,6 +323,35 @@ E-10 的 GPU 基础与变式验收未产生新 finding。当前没有激活的�
 | F-P06-08 | O3 / P06-A3 | blocking | learner | closed | Opened：E-08 的 PV 归约维为 8。Terminal：E-09 L135–136 改为 32×16，dot 归约维满足下限，坐标穷举确认每 program 至少两轮 K/V | |
 | F-P06-09 | O3 / P06-A1 | major | learner | closed | Opened：E-08 仅校验设备相等。Terminal：E-09 L119 在分配／构造前明确拒绝非 CUDA q，结合 L121 的设备相等检查约束三输入位于同 CUDA 设备 | |
 
+### Material assistance
+
+- `highest_disclosure`：A4 的指数标度补差中，明确解释 `s/ln2` 的换底及原例 `alpha=e^-2`；
+  未提供新的核心实现或代改工件。
+- `affected_scope`：O2 / P06-A4 的 score 标度与重标定系数解释。
+- `agent_wrote_learner_core`：false。独立证据恢复见 E-11。
+
+<a id="mastery-gate"></a>
+<a id="final-mastery"></a>
+
+## Final mastery
+
+2026-09-24，学习者明确回复“很好，结课吧”，确认关闭 Lesson 06。以下为本课最终掌握结论，
+范围仍由 revision 1 与既定 required 维度限定。
+
+| 目标 | Required 维度 | 最小证据 | 最终判断 |
+| --- | --- | --- | --- |
+| O1：Attention 数学与 IO | conceptual | E-01／02／07：形状、归约、causal 与不物化二次中间量的边界；E-11 结果解释 | 充分 |
+| O2：在线 Softmax | conceptual | E-01／02、E-11：运行状态与共同基准；指数域补差后的独立变式 | 充分 |
+| O2：在线 Softmax | practical | learner-owned 实现；E-09／10 数值与递增 score 变式；E-11 独立解释 | 充分 |
+| O3：program／descriptor／causal | conceptual | E-06／07／11：布局、grid、类型／精度、索引与有效 key 边界 | 充分 |
+| O3：program／descriptor／causal | practical | E-09 源码／索引复核，E-10 GPU 验收，E-11 独立索引与结果解释 | 充分 |
+| O4：反向与保存量 | conceptual | E-01／02／06／07：M 重建概率、Delta、dQ／dK／dV 扫描与输出所有权 | 充分 |
+
+required blocking／major finding 未关闭数为 0；局部换底帮助的独立证据已恢复。
+三项跨 GPU 检查受单卡环境限制，既有规范问题与输入对齐覆盖观察不阻塞本课；empirical 全部为
+not-required。Lesson 06 已确认关闭，未启动 Lesson 07；后续按学习者此前安排处理
+`guide-learning` 改进。
+
 ### 记录与推进边界
 
 - 本文件是 Lesson 06 唯一 evidence ledger；Program 与恢复游标由
@@ -319,7 +365,7 @@ E-10 的 GPU 基础与变式验收未产生新 finding。当前没有激活的�
 - 普通讲解、追问和正确回答保持零写；只在 durable evidence、正式练习、finding、mastery 或会话边界
   发生语义变化时更新。
 - learner-owned 前向工件与 Agent-owned 验收路径由上方已接受的 revision 1 契约限定。
-- 关闭本课仍需学习者确认；不会自动启动下一课或 optional extension。
+- 本课已由学习者确认关闭；下一课或 optional extension 仍需另行授权。
 
 ## 条件片段：Session event
 
@@ -330,3 +376,4 @@ E-10 的 GPU 基础与变式验收未产生新 finding。当前没有激活的�
 | `triton-06-session-2026-09-21-a` / 2026-09-21 | `triton-06-fused-attention` | 全流程与源码补充、验收维护、返回实践 | 完成补充讲解与局部变式；核验 FP8 V 上游修复；补齐 M 连续性断言并静态验证；复用概念证据恢复 revision 1 实践 | E-06／07；OBS-06-FP8-01；OBS-06-BENCH-01 | O2／O3 practical 尚缺；待学习者提交实现并在 GPU 环境验收 |
 | `triton-06-session-2026-09-23-a` / 2026-09-23 | `triton-06-fused-attention` | 核心提交与修订后的静态 Review | 首轮定位 9 个静态问题；学习者修订后逐项复核关闭，完成索引集合核对；保持 learner-owned 核心不变 | E-08／09；F-P06-01–09 | GPU 编译／数值与 A4 尚未验收；规范余项及输入对齐覆盖边界已说明 |
 | `triton-06-session-2026-09-23-b` / 2026-09-23 | `triton-06-fused-attention` | GPU 基础验收、A4 变式运行与计划内暂停 | 核对实现与契约无 drift；原 44 项为 41 通过／3 跳过；增加两项新形状与递增 score 变式后为 43 通过／3 跳过，测试 Ruff 检查通过；学习者明确本次仅验证代码并保存断点，稍后继续，未确认结课 | E-10 | A4 独立解释待完成；跨 GPU 检查受单卡环境限制；保留既有非 gate 余项 |
+| `triton-06-session-2026-09-24-a` / 2026-09-24 | `triton-06-fused-attention` | A4 独立解释、证据核对与结课 | 完成索引、状态与结果解释；补差后通过新变式；展示证据后学习者确认关闭，写入 final mastery（closure） | E-11；Final mastery | 无 required 未关闭问题；保留单卡覆盖与非 gate 余项 |
