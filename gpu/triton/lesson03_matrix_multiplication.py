@@ -8,7 +8,9 @@ def matmul_kernel(
     a_ptr,
     b_ptr,
     c_ptr,
-    M, N, K,
+    M,
+    N,
+    K,
     stride_am,
     stride_ak,
     stride_bk,
@@ -30,7 +32,7 @@ def matmul_kernel(
     first_pid_in_group = group_id * num_pid_in_group
     local_pid_in_group = pid - first_pid_in_group
     first_pid_m = GROUP_SIZE_M * group_id
-    this_group_size_m = tl.minimum(num_pid_m-first_pid_m, GROUP_SIZE_M)
+    this_group_size_m = tl.minimum(num_pid_m - first_pid_m, GROUP_SIZE_M)
     pid_m = first_pid_m + local_pid_in_group % this_group_size_m
     pid_n = local_pid_in_group // this_group_size_m
 
@@ -47,28 +49,23 @@ def matmul_kernel(
         mask_bk = offset_bk < K
         data_a = tl.load(
             a_ptr + offset_am[:, None] * stride_am + offset_ak[None, :] * stride_ak,
-            mask = mask_am[:, None] & mask_ak[None, :],
-            other = 0.0
-            )
+            mask=mask_am[:, None] & mask_ak[None, :],
+            other=0.0,
+        )
         data_b = tl.load(
             b_ptr + offset_bk[:, None] * stride_bk + offset_bn[None, :] * stride_bn,
-            mask = mask_bk[:, None] & mask_bn[None, :],
-            other = 0.0
-            )
+            mask=mask_bk[:, None] & mask_bn[None, :],
+            other=0.0,
+        )
         accumlator = tl.dot(data_a, data_b, accumlator)
     tl.store(
         c_ptr + offset_am[:, None] * stride_cm + offset_bn[None, :] * stride_cn,
         accumlator,
-        mask=(offset_am[:, None] < M) & (offset_bn[None, :] < N)
+        mask=(offset_am[:, None] < M) & (offset_bn[None, :] < N),
     )
 
 
-
-def matmul(
-        a: torch.Tensor,
-        b: torch.Tensor,
-        *,
-        group_size_m: int = 2):
+def matmul(a: torch.Tensor, b: torch.Tensor, *, group_size_m: int = 2):
     if a.device.type != "cuda" or b.device.type != "cuda":
         raise ValueError("The device of input must be CUDA.")
     if a.device != b.device:
@@ -86,29 +83,36 @@ def matmul(
     if group_size_m not in [1, 2]:
         raise ValueError("group_size_m can only be 1 or 2.")
 
-    BLOCK_M=64
-    BLOCK_N=64
-    BLOCK_K=32
-    NUM_WARPS=4
-    NUM_STAGES=3
+    BLOCK_M = 64
+    BLOCK_N = 64
+    BLOCK_K = 32
+    NUM_WARPS = 4
+    NUM_STAGES = 3
     M, K = a.shape
     _, N = b.shape
-
 
     num_block_m = triton.cdiv(M, BLOCK_M)
     num_block_n = triton.cdiv(N, BLOCK_N)
     num_block = num_block_m * num_block_n
     c = torch.empty((M, N), dtype=a.dtype, device=a.device)
-    matmul_kernel[(num_block, )](
-        a,b,c,M,N,K,
-        a.stride(0), a.stride(1),
-        b.stride(0), b.stride(1),
-        c.stride(0), c.stride(1),
+    matmul_kernel[(num_block,)](
+        a,
+        b,
+        c,
+        M,
+        N,
+        K,
+        a.stride(0),
+        a.stride(1),
+        b.stride(0),
+        b.stride(1),
+        c.stride(0),
+        c.stride(1),
         BLOCK_SIZE_M=BLOCK_M,
         BLOCK_SIZE_N=BLOCK_N,
         BLOCK_SIZE_K=BLOCK_K,
         GROUP_SIZE_M=group_size_m,
         NUM_STAGES=NUM_STAGES,
-        num_warps=NUM_WARPS, # pyright: ignore[reportCallIssue]
+        num_warps=NUM_WARPS,  # pyright: ignore[reportCallIssue]
     )
     return c
