@@ -1,0 +1,1075 @@
+<!doctype html>
+<html lang='zh-CN'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<meta name='color-scheme' content='light dark'>
+<meta name='description' content='面向 Rust 初学者：通过组件层次图、逐步命令路线和版本选择实验，理解 rustup、Cargo、rustc、标准库与链接环境。'>
+<title>Rust 开发环境：组件与命令路线</title>
+<style>
+:root{--bg:#f5f6f8;--surface:#fff;--ink:#203047;--muted:#526174;--line:#d7dfe8;--accent:#a54420;--accent-bg:#fff0e7;--blue:#215e9b;--blue-bg:#edf5ff;--green:#226849;--green-bg:#e9f6ee;--warn:#8c5311;--warn-bg:#fff5df;--nav:#16283d;--shadow:0 10px 35px rgb(22 40 61 / .05);font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans CJK SC','Microsoft YaHei',sans-serif;color:var(--ink);background:var(--bg);font-synthesis:none}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:80px}body{margin:0;line-height:1.8;font-size:16px}button,input,select{font:inherit}button,select,a{touch-action:manipulation}button{cursor:pointer}a{color:var(--blue);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}button:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--blue);outline-offset:4px}button:disabled{cursor:default;opacity:.45}h1,h2,h3,p{margin-top:0}h1{font-size:clamp(2rem,4vw,3.3rem);line-height:1.25;letter-spacing:-.025em;margin-bottom:22px}h2{font-size:clamp(1.45rem,2.5vw,1.9rem);line-height:1.45;margin-bottom:8px}h3{font-size:1.08rem;line-height:1.5;margin-bottom:8px}p{margin-bottom:14px}small{font-size:.83rem}code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',monospace}code{font-size:.9em;overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65;margin:0}pre code{font-size:.91rem}button code{font-size:1em}.container{width:min(1200px,calc(100% - 64px));margin-inline:auto}.topbar{background:var(--nav);color:#f2f6fc}.topbar-inner{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-block:16px}.brand{font-weight:700;letter-spacing:.06em;font-size:.85rem}.brand span{color:#f1ad88;margin-right:10px}.topbar nav{display:flex;gap:22px;flex-wrap:wrap}.topbar a{color:#dfe7f3;text-decoration:none;font-size:.88rem}.hero{padding:58px 0 40px;max-width:940px}.eyebrow{font-size:.8rem;letter-spacing:.12em;font-weight:700;color:var(--accent);margin-bottom:14px}.hero .intro{font-size:1.09rem;color:var(--muted);max-width:780px}.keyline{padding:18px 22px;border-left:4px solid var(--accent);background:var(--accent-bg);margin-top:24px;border-radius:0 10px 10px 0}.learning-path{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.learning-path a{font-size:.88rem;color:var(--ink);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 13px;background:var(--surface)}.learning-path b{color:var(--accent);margin-right:7px}.section{margin-bottom:48px;scroll-margin-top:22px}.section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:20px}.section-number{color:var(--accent);font-size:.85rem;letter-spacing:.1em;margin-right:12px}.section-heading p{color:var(--muted);margin:0;max-width:830px}.badge{display:inline-block;border-radius:999px;padding:3px 10px;font-size:.78rem;line-height:1.6;background:var(--blue-bg);color:var(--blue);font-weight:650}.badge.optional{background:var(--bg);color:var(--muted)}.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:24px}.subtle{color:var(--muted);font-size:.9rem}.diagram-legend{display:flex;gap:18px;flex-wrap:wrap;font-size:.82rem;color:var(--muted);margin-bottom:16px}.legend-mark{width:14px;height:14px;display:inline-block;vertical-align:-2px;margin-right:6px;border:1px solid var(--line);border-radius:3px}.legend-mark.active{background:var(--accent-bg);border:2px solid var(--accent)}.legend-mark.selected{background:var(--blue-bg);border-color:var(--blue)}.architecture{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.4fr);gap:20px}.scope{border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0}.scope-label{font-size:.82rem;color:var(--muted);margin:0 0 5px}.scope h3 code{font-size:.87em}.scope-note{font-size:.85rem;color:var(--muted);margin:12px 0 0}.node-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.component{display:flex;flex-direction:column;text-align:left;gap:3px;min-height:72px;width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);line-height:1.45;transition:background-color .15s,border-color .15s}.component strong{font-size:.94rem}.component small{color:var(--muted);overflow-wrap:anywhere}.component:hover{background:var(--blue-bg)}.component[aria-pressed='true']{border-color:var(--blue);background:var(--blue-bg);outline:2px solid var(--blue);outline-offset:2px}.component.in-route{box-shadow:inset 0 0 0 1px var(--accent);border-color:var(--accent);background:var(--accent-bg)}.component.in-route small{color:var(--ink)}.component.route-current strong:before{content:'● ';color:var(--accent)}.manager-node{margin-bottom:10px}.selection-bridge{margin:12px 0;padding:12px;border-left:2px dashed var(--blue);background:var(--bg);font-size:.84rem}.selection-bridge button{border:0;background:none;color:var(--accent);font-weight:650;text-align:left;padding:0;min-height:28px}.selection-bridge button.in-route{background:var(--accent-bg);outline:1px solid var(--accent);outline-offset:3px}.selection-bridge button.route-current:before{content:"● ";color:var(--accent)}.toolchain{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px}.toolchain-title{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.group-label{font-size:.78rem;color:var(--muted);margin:10px 0 6px}.other-toolchains{margin-top:12px;font-size:.84rem;color:var(--muted);border:1px dashed var(--line);padding:10px 12px;border-radius:8px}.support-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:16px}.support-grid .scope{padding:15px}.support-grid .node-grid{grid-template-columns:1fr}.relation-note{margin:18px 0 0;color:var(--muted);font-size:.88rem}.component-detail{display:grid;grid-template-columns:minmax(140px,.34fr) minmax(0,1fr);gap:22px;padding:22px;margin-top:18px;border-left:4px solid var(--blue);background:var(--blue-bg);border-radius:0 10px 10px 0}.component-detail h3{font-size:1.3rem}.component-detail .role{font-size:.85rem;color:var(--blue)}.component-detail p{margin:0 0 8px}.component-detail dl{display:grid;grid-template-columns:64px minmax(0,1fr);gap:5px 12px;margin:0;font-size:.9rem}.component-detail dt{font-weight:650}.component-detail dd{margin:0;overflow-wrap:anywhere}.scenario-buttons{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:18px}.scenario-button{padding:9px 13px;min-height:44px;line-height:1.5;border:1px solid var(--line);background:var(--surface);border-radius:8px;color:var(--ink)}.scenario-button[aria-pressed='true']{background:var(--nav);color:#fff;border-color:var(--nav)}.command-box{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;padding:18px 20px;background:var(--nav);color:#f0f5fc;border-radius:10px;margin:12px 0 15px;min-width:0}.command-box pre{min-width:0}.command-box .copy{flex:none;border:1px solid #8292a5;background:transparent;color:#f0f5fc;border-radius:6px;padding:6px 12px;font-size:.84rem;min-height:40px}.scenario-meta{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;font-size:.86rem;color:var(--muted)}.scenario-summary{margin:12px 0 18px;font-size:1.02rem}.step-controls{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:20px}.control{min-height:42px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);padding:7px 13px;font-size:.9rem}.control.primary{background:var(--accent);color:#fff;border-color:var(--accent)}#step-counter{margin-left:auto;font-size:.86rem;color:var(--muted);font-variant-numeric:tabular-nums}.route-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:24px;align-items:start}.route-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}.route-item{position:relative}.route-item:not(:last-child):after{position:absolute;content:'↓';left:21px;bottom:-15px;line-height:20px;font-size:15px;color:var(--muted);z-index:1}.route-step{width:100%;display:flex;align-items:center;gap:12px;text-align:left;min-height:58px;border:1px solid var(--line);border-radius:9px;padding:10px 12px;background:var(--surface);color:var(--ink);line-height:1.5}.route-step:hover{background:var(--bg)}.route-step[aria-current='step']{background:var(--accent-bg);border-color:var(--accent);box-shadow:inset 3px 0 var(--accent)}.route-step .number{display:grid;place-items:center;flex:0 0 25px;height:25px;background:var(--bg);color:var(--muted);border-radius:50%;font-size:.8rem}.route-step[aria-current='step'] .number{background:var(--accent);color:white}.route-step .step-label{display:block;font-size:.91rem;font-weight:650}.route-step .step-participants{display:block;font-size:.76rem;color:var(--muted);margin-top:2px}.step-detail{position:sticky;top:22px;background:var(--accent-bg);padding:23px;border-radius:12px;border:1px solid var(--line)}.step-detail h3{font-size:1.14rem;margin-bottom:12px}.step-detail p{font-size:.97rem}.result-box{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}.result-box strong{font-size:.88rem}.result-box p{font-size:.89rem;margin:6px 0 0}.scenario-notes{margin:20px 0 0;padding:15px 18px;background:var(--bg);border-radius:8px;font-size:.88rem}.scenario-notes ul{margin:0;padding-left:20px}.scenario-notes li+li{margin-top:6px}.notice{font-size:.82rem;color:var(--muted);margin-top:12px}.selector-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px}.field{display:flex;flex-direction:column;gap:6px;min-width:0}.field label{font-size:.88rem;font-weight:650}.field select{width:100%;padding:9px 11px;min-height:46px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink)}.selection-result{margin-top:20px;padding:18px 20px;border-radius:10px;background:var(--green-bg);border:1px solid var(--line)}.selection-result strong{color:var(--green);font-size:1.15rem}.selection-result p{margin:5px 0 0;font-size:.9rem}.preset-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.comparison{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:20px}.comparison pre{padding:14px;background:var(--bg);border:1px solid var(--line);border-radius:8px;margin-bottom:10px}.comparison p{font-size:.89rem;color:var(--muted)}.status-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-block:20px}.status-item{display:flex;align-items:flex-start;gap:12px;border:1px solid var(--line);padding:16px;border-radius:9px}.status-dot{width:10px;height:10px;border-radius:50%;margin-top:8px;flex:none;background:var(--green)}.status-item.warn .status-dot{background:var(--warn)}.status-item p{margin:4px 0 0;font-size:.88rem;color:var(--muted)}.status-item strong{font-size:.97rem}.status-result{background:var(--warn-bg);border-left:4px solid var(--warn);border-radius:0 10px 10px 0;padding:18px 22px}.status-result p{margin:0 0 10px}.status-result pre{font-size:.88rem}.install-steps{padding-left:24px;margin:18px 0 0}.install-steps li{padding-left:5px;margin:12px 0}.install-steps p{font-size:.9rem;color:var(--muted);margin:3px 0}.install-steps code{background:var(--bg);padding:2px 5px;border-radius:4px}.reference-list{display:grid;grid-template-columns:1fr 1fr;gap:8px 30px;padding-left:22px;font-size:.9rem}.references small{color:var(--muted)}details{border-top:1px solid var(--line);padding-top:16px;margin-top:22px}summary{cursor:pointer;font-weight:650;min-height:36px}.transcript-article{margin:22px 0;padding-bottom:15px;border-bottom:1px solid var(--line)}.transcript-article pre{background:var(--bg);padding:10px;border-radius:6px;font-size:.88rem}.transcript-article li{font-size:.9rem;margin:6px 0}table{border-collapse:collapse;width:100%;font-size:.9rem;margin-block:15px}th,td{text-align:left;vertical-align:top;padding:10px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}th{font-weight:650;background:var(--bg)}.footer{border-top:1px solid var(--line);padding:22px 0 35px;color:var(--muted);font-size:.83rem}.skip-link{position:absolute;left:12px;top:-80px;padding:10px;background:var(--surface);z-index:100}.skip-link:focus{top:12px}
+@media(prefers-color-scheme:dark){:root{--bg:#121b27;--surface:#1b2736;--ink:#e6edf6;--muted:#b0bfd1;--line:#3c4d61;--accent:#f0a580;--accent-bg:#382a28;--blue:#96c6ff;--blue-bg:#22364d;--green:#8dd9ad;--green-bg:#20392f;--warn:#edbf7b;--warn-bg:#362f23;--nav:#0e1723;--shadow:none}.control.primary{color:#251b16}.route-step[aria-current='step'] .number{color:#251b16}.badge.optional{background:#243347}.component.in-route small{color:var(--ink)}}
+@media(max-width:860px){.container{width:min(100% - 36px,1200px)}.architecture{grid-template-columns:1fr}.support-grid{grid-template-columns:1fr 1fr}.support-grid .scope:last-child{grid-column:1/-1}.route-layout{grid-template-columns:1fr}.step-detail{position:static}.hero{padding-top:35px}.topbar-inner{align-items:flex-start}.topbar nav{gap:12px}.reference-list{grid-template-columns:1fr}.panel{padding:20px}}
+@media(max-width:520px){.container{width:calc(100% - 24px)}.topbar-inner{flex-direction:column;gap:8px;padding-block:12px}.topbar nav{gap:14px;font-size:.84rem}.hero{padding:29px 0}.hero .intro{font-size:1rem}.panel{padding:15px;border-radius:12px}.scope{padding:13px}.node-grid{grid-template-columns:1fr 1fr}.support-grid,.selector-grid,.comparison,.status-grid,.component-detail{grid-template-columns:1fr}.support-grid .scope:last-child{grid-column:auto}.component-detail{gap:6px;padding:16px}.component-detail dl{grid-template-columns:52px minmax(0,1fr)}.command-box{padding:14px;gap:8px}.command-box pre code{font-size:.8rem}.command-box .copy{padding:6px 8px}.step-controls{gap:7px}#step-counter{width:100%;margin-left:0}.scenario-button{font-size:.85rem;padding:9px 10px}.section{margin-bottom:32px}.step-detail{padding:17px}.keyline{padding:15px}.component strong{font-size:.88rem}.component small{font-size:.76rem}.reference-list{padding-left:18px}.learning-path a{font-size:.8rem}.status-item{padding:13px}th,td{padding:8px 5px;font-size:.82rem}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.component{transition:none}}
+@media print{body{background:white;color:black;font-size:11pt}.container{width:100%}.topbar,.learning-path,.scenario-buttons,.step-controls,.copy,.preset-row,.selector-grid,.notice,.skip-link{display:none}.panel{box-shadow:none;border:1px solid #aaa;break-inside:avoid}.hero{padding:10px 0}.section{margin-bottom:20px}.architecture,.support-grid{display:block}.scope{margin-bottom:10px}.component{background:white!important;color:black!important;box-shadow:none!important;border-color:#bbb!important}.component small{color:#444!important}.route-layout{display:block}.step-detail{position:static;margin-top:12px}.reference-list{display:block}a{color:#222}.component-detail{background:#f5f5f5}.footer{padding:10px 0}}
+</style>
+</head>
+<body>
+<a class='skip-link' href='#component-map'>跳到组件图</a>
+<header class='topbar'>
+ <div class='container topbar-inner'>
+  <div class='brand'><span>RUST</span>从安装到运行</div>
+  <nav aria-label='页面导航'><a href='#component-map'>组件层次</a><a href='#command-lab'>命令路线</a><a href='#version-lab'>版本选择</a><a href='#environment'>当前环境</a></nav>
+ </div>
+</header>
+<main class='container'>
+ <section class='hero' aria-labelledby='page-title'>
+  <p class='eyebrow'>给第一次接触 Rust 的你</p>
+  <h1 id='page-title'>Rust 开发环境<br>组件与命令路线</h1>
+  <p class='intro'>为什么两个文件都叫 cargo？rustup 在什么时候参与？为什么 check 成功，程序还是跑不起来？从安装位置和命令路线两张图，把这些关系连起来。</p>
+  <div class='keyline'><strong>先记住这条主线：</strong>rustup 管理与选择工具链；Cargo 组织项目与依赖；rustc 编译代码；链接设施把编译产物与所需库连接成程序；操作系统负责运行程序。</div>
+  <div class='learning-path'><a href='#component-map'><b>01</b>看工具放在哪里</a><a href='#command-lab'><b>02</b>跟着命令走一遍</a><a href='#version-lab'><b>03</b>试着选择版本</a></div>
+ </section>
+
+ <section class='section' id='component-map' aria-labelledby='map-title'>
+  <div class='section-heading'><div><h2 id='map-title'><span class='section-number'>01</span>工具的层次与位置</h2><p>外框表示安装位置或组件集合。点击组件看职责；下方切换命令场景时，参与的组件会同时高亮。</p></div><span class='badge'>标准安装结构示意</span></div>
+  <div class='panel'>
+   <div class='diagram-legend'><span><i class='legend-mark'></i>包含／存放关系</span><span><i class='legend-mark active'></i>当前路线参与者</span><span><i class='legend-mark selected'></i>正在查看的组件</span></div>
+   <div class='architecture' role='group' aria-label='默认用户目录下的 Rust 命令入口与工具链层次'>
+    <div class='scope'>
+     <p class='scope-label'>用户目录 · 命令入口</p><h3><code>~/.cargo/bin/</code></h3>
+     <button class='component manager-node' data-component='rustup' aria-pressed='false'><strong>rustup</strong><small>安装、更新和管理多套工具链</small></button>
+     <div class='node-grid'>
+      <button class='component' data-component='cargo-proxy' aria-pressed='false'><strong>cargo 代理</strong><small>选择版本，再转交命令</small></button>
+      <button class='component' data-component='rustc-proxy' aria-pressed='false'><strong>rustc 代理</strong><small>选择版本，再启动编译器</small></button>
+     </div>
+     <div class='selection-bridge'><button type='button' data-component='selector' aria-pressed='false'>工具链选择逻辑 ⇢</button><br><code>+版本</code>、环境变量、项目配置或默认值，共同决定接下来使用哪一套工具。</div>
+     <p class='scope-note'>这里还可能有其他工具代理，以及 <code>cargo install</code> 安装的命令。文件名相同，不代表这个入口就是最终负责构建的 Cargo 本体。</p>
+    </div>
+    <div class='scope'>
+     <p class='scope-label'>用户目录 · 多套工具链的存放位置</p><h3><code>~/.rustup/toolchains/</code></h3>
+     <div class='toolchain'>
+      <div class='toolchain-title'><strong>一套官方工具链</strong><span class='badge'>示例：1.97.1</span></div>
+      <p class='subtle'><code>1.97.1-x86_64-unknown-linux-gnu/</code></p>
+      <p class='group-label'>bin/ · 这套版本的实际工具</p>
+      <div class='node-grid'>
+       <button class='component' data-component='cargo' aria-pressed='false'><strong>Cargo 本体</strong><small>管理依赖、组织构建和测试</small></button>
+       <button class='component' data-component='rustc' aria-pressed='false'><strong>rustc</strong><small>类型检查、代码生成等编译工作</small></button>
+       <button class='component' data-component='rustfmt' aria-pressed='false'><strong>rustfmt</strong><small>统一代码格式 · 可选组件</small></button>
+       <button class='component' data-component='clippy' aria-pressed='false'><strong>Clippy 工具</strong><small>可选组件 · cargo-clippy / clippy-driver</small></button>
+       <button class='component' data-component='rustdoc' aria-pressed='false'><strong>rustdoc</strong><small>生成文档与运行文档测试</small></button>
+      </div>
+      <p class='group-label'>lib/rustlib/ 等目录 · 配套库与源码</p>
+      <div class='node-grid'>
+       <button class='component' data-component='std' aria-pressed='false'><strong>rust-std</strong><small>目标平台的已编译标准库</small></button>
+       <button class='component' data-component='rust-src' aria-pressed='false'><strong>rust-src</strong><small>标准库源码 · 可选组件</small></button>
+      </div>
+     </div>
+     <div class='other-toolchains'>还可以并存其他已安装的工具链，例如 <code>stable-…/</code> 或 <code>nightly-…/</code>。各套通常有自己的 Cargo、rustc 和配套组件。这里列的是结构示例，并不表示本机已安装它们。</div>
+    </div>
+   </div>
+   <div class='support-grid'>
+    <div class='scope'><p class='scope-label'>项目自己的文件</p><h3>你的代码与构建产物</h3><div class='node-grid'>
+     <button class='component' data-component='project' aria-pressed='false'><strong>项目目录</strong><small>Cargo.toml / Cargo.lock / src/</small></button>
+     <button class='component' data-component='binary' aria-pressed='false'><strong>可执行文件</strong><small>通常生成在 target/debug/</small></button>
+    </div></div>
+    <div class='scope'><p class='scope-label'>目标平台提供或配套的设施</p><h3>本机链接与运行</h3><div class='node-grid'>
+     <button class='component' data-component='cc' aria-pressed='false'><strong>cc 链接驱动</strong><small>常由 GCC / Clang 提供入口</small></button>
+     <button class='component' data-component='linker' aria-pressed='false'><strong>实际链接器</strong><small>ld / lld 等；可能随系统或 Rust 提供</small></button>
+     <button class='component' data-component='os' aria-pressed='false'><strong>操作系统</strong><small>加载可执行文件，开始运行</small></button>
+    </div></div>
+    <div class='scope'><p class='scope-label'>使用入口与开发辅助</p><h3>终端和编辑器</h3><div class='node-grid'>
+     <button class='component' data-component='shell' aria-pressed='false'><strong>Shell / 终端</strong><small>按 PATH 查找你输入的命令</small></button>
+     <button class='component' data-component='analyzer' aria-pressed='false'><strong>rust-analyzer</strong><small>编辑器补全、跳转和诊断</small></button>
+    </div><p class='scope-note'>编辑器可自行提供 rust-analyzer，也可使用安装的组件。它不承担最终程序构建。</p></div>
+   </div>
+   <p class='relation-note'>rustup <strong>管理</strong>工具链，Cargo <strong>调用</strong>编译器；不要把调用关系当成“rustc 装在 Cargo 内部”。图中是常规安装的逻辑结构，不是严格的运行时进程树。默认目录可通过配置更改。</p>
+   <aside class='component-detail' id='component-detail' aria-live='polite' aria-atomic='true'>
+    <div><p class='role' id='component-role'>命令入口</p><h3 id='component-name'>cargo 代理</h3></div>
+    <div><p id='component-description'>由 rustup 提供的转发入口，先选择工具链，再启动对应的 Cargo 本体。</p><dl><dt>位置</dt><dd id='component-location'><code>~/.cargo/bin/cargo</code></dd><dt>示例</dt><dd id='component-example'><code>cargo +1.97.1 build</code></dd><dt>边界</dt><dd id='component-boundary'>代理负责版本选择，实际依赖管理与构建由所选的 Cargo 本体完成。</dd></dl></div>
+   </aside>
+  </div>
+ </section>
+
+ <section class='section' id='command-lab' aria-labelledby='command-title'>
+  <div class='section-heading'><div><h2 id='command-title'><span class='section-number'>02</span>从一条命令开始</h2><p>选择场景，先看完整路线，再逐步查看每个参与者在做什么。示例默认项目选用已安装的 1.97.1 工具链。</p></div></div>
+  <div class='panel'>
+   <div class='scenario-buttons' id='scenario-buttons' role='group' aria-label='选择命令场景'></div>
+   <div class='scenario-meta'><span class='badge' id='scenario-label'>构建项目</span><span id='scenario-where'>发起位置：含 Cargo.toml 的项目目录</span></div>
+   <div class='command-box'><pre><code id='scenario-command'>cargo build</code></pre><button type='button' class='copy' id='copy-command'>复制命令</button></div>
+   <p class='scenario-summary' id='scenario-summary'>Cargo 组织构建；rustc 编译源码；链接设施完成可执行文件。</p>
+   <div class='step-controls'><button type='button' class='control primary' id='overview-button'>全程概览</button><button type='button' class='control' id='previous-step'>← 上一步</button><button type='button' class='control' id='next-step'>开始逐步查看 →</button><span id='step-counter'>全程概览</span></div>
+   <div class='route-layout'>
+    <ol class='route-list' id='route-list' aria-label='命令执行逻辑步骤'></ol>
+    <div class='step-detail' aria-live='polite' aria-atomic='true'><p class='eyebrow' id='step-eyebrow'>完整路线</p><h3 id='step-title'>一次构建由谁完成？</h3><p id='step-body'></p><div class='result-box'><strong>这个场景结束后得到什么</strong><p id='scenario-result'></p></div></div>
+   </div>
+   <div class='scenario-notes'><ul id='scenario-notes'></ul></div>
+   <p class='notice'>这是逻辑路线示意，省略了缓存命中、编译单元和系统调度细节。页面中的按钮只改变图示，不安装软件，也不执行终端命令。</p>
+   <details id='all-routes'><summary>查看所有场景的完整文字路线</summary><div id='route-transcripts'></div></details>
+   <noscript><p>请启用 JavaScript 查看各命令场景。上方组件层次和下方版本规则仍可直接阅读。</p></noscript>
+  </div>
+ </section>
+
+ <section class='section' id='version-lab' aria-labelledby='version-title'>
+  <div class='section-heading'><div><h2 id='version-title'><span class='section-number'>03</span>版本选择小实验</h2><p>假设终端找到的是 rustup 的代理入口。改变条件，看看哪项配置最终决定工具链。</p></div></div>
+  <div class='panel'>
+   <p><strong>优先顺序：</strong><code>+版本</code> → <code>RUSTUP_TOOLCHAIN</code> → 最近目录中的 override／工具链文件 → 全局默认。</p>
+   <div class='selector-grid'>
+    <div class='field'><label for='command-version'>① 命令行 +版本</label><select id='command-version'><option value=''>未指定</option><option value='1.97.1'>+1.97.1</option><option value='stable'>+stable</option><option value='nightly'>+nightly</option></select></div>
+    <div class='field'><label for='env-version'>② RUSTUP_TOOLCHAIN 环境变量</label><select id='env-version'><option value=''>未设置</option><option value='1.97.1'>1.97.1</option><option value='stable'>stable</option><option value='nightly'>nightly</option></select></div>
+    <div class='field'><label for='directory-version'>③ 向上查找命中的最近目录配置</label><select id='directory-version'><option value='file:1.97.1'>rust-toolchain.toml：1.97.1</option><option value='file:stable'>rust-toolchain.toml：stable</option><option value='override:nightly'>目录 override：nightly</option><option value=''>未找到目录配置</option></select></div>
+    <div class='field'><label for='default-version'>④ 全局默认工具链</label><select id='default-version'><option value='stable'>stable</option><option value='1.97.1'>1.97.1</option><option value='nightly'>nightly</option></select></div>
+   </div>
+   <div class='selection-result' aria-live='polite' aria-atomic='true'><strong id='selected-toolchain'>选用 1.97.1</strong><p id='selection-reason'></p><p><code id='selection-command'>cargo build</code></p></div>
+   <div class='preset-row'><button class='control' type='button' data-preset='project'>项目固定版本</button><button class='control' type='button' data-preset='command'>命令临时改用 nightly</button><button class='control' type='button' data-preset='host'>本仓库 host 路线示例</button><button class='control' type='button' data-preset='default'>只使用全局默认</button></div>
+   <p class='notice'>目录规则：从当前目录向上找。目录 override 和 rust-toolchain.toml 按距离共同判断；同一目录两者都有时，override 优先。上面的第③项合并表示这一步的结果。此实验只演示选择规则，不检查本机是否安装该版本。</p>
+   <div class='comparison'>
+    <div><h3>选择本次实际使用的工具链</h3><pre><code># rust-toolchain.toml
+[toolchain]
+channel = '1.97.1'</code></pre><p>由 rustup 读取。<code>1.97.1</code> 是具体版本；<code>stable</code> 是通道名称，更新后其具体版本可能变化。</p></div>
+    <div><h3>声明项目最低支持的 Rust 版本</h3><pre><code># Cargo.toml
+[package]
+rust-version = '1.85'</code></pre><p>由 Cargo 使用的最低支持版本声明；它不会把当前编译器固定到 1.85。<code>edition = '2024'</code> 则表示语言版本规则，也不是编译器版本号。</p></div>
+   </div>
+   <details><summary>用熟悉的 uv 来对照</summary><table><thead><tr><th>要完成的工作</th><th>Python / uv</th><th>Rust 常见分工</th></tr></thead><tbody><tr><td>安装语言工具</td><td><code>uv python install</code></td><td><code>rustup toolchain install</code></td></tr><tr><td>选择项目版本</td><td><code>.python-version</code></td><td><code>rust-toolchain.toml</code></td></tr><tr><td>项目与依赖</td><td><code>pyproject.toml</code>、<code>uv.lock</code></td><td><code>Cargo.toml</code>、<code>Cargo.lock</code></td></tr><tr><td>日常执行任务</td><td><code>uv run</code> 等</td><td><code>cargo check/build/run/test</code></td></tr></tbody></table><p class='subtle'>这是职责上的对应，Python 的虚拟环境与 Rust 的编译产物并非同一种机制。uv 集中了更多职责；Rust 通常由 rustup 与 Cargo 协作。</p></details>
+  </div>
+ </section>
+
+ <section class='section' id='environment' aria-labelledby='environment-title'>
+  <div class='section-heading'><div><h2 id='environment-title'><span class='section-number'>04</span>对照当前环境看问题</h2><p>以下是 2026-09-24 本次会话的 Ubuntu x86_64 实测快照，不是打开本页面时自动检测的结果。</p></div><span class='badge optional'>环境状态快照</span></div>
+  <div class='panel'>
+   <div class='status-grid'>
+    <div class='status-item'><span class='status-dot' aria-hidden='true'></span><div><strong>已发现：Rust / Cargo 1.97.1</strong><p>位于 <code>~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/</code>，完整路径可以运行；rustfmt、Clippy 与标准库源码也存在。</p></div></div>
+    <div class='status-item warn'><span class='status-dot' aria-hidden='true'></span><div><strong>待补齐：常规命令入口</strong><p><code>PATH</code> 中未找到 cargo、rustc、rustup；默认 <code>~/.cargo/bin/</code> 也未找到。已有工具文件与可直接使用命令是两件事。</p></div></div>
+    <div class='status-item'><span class='status-dot' aria-hidden='true'></span><div><strong>已通过：临时项目 cargo check</strong><p>临时补充工具目录后，纯标准库小程序的离线检查通过。此结果没有验证最终可执行文件的链接。</p></div></div>
+    <div class='status-item warn'><span class='status-dot' aria-hidden='true'></span><div><strong>尚未通过：生成并运行可执行文件</strong><p>实测编译停在链接入口：<code>linker `cc` not found</code>。需要可用的链接驱动及配套系统开发文件。</p></div></div>
+   </div>
+   <div class='status-result'><p><strong>为什么有 rust-lld，仍然会报找不到 cc？</strong></p><p>当前工具链目录中有 rust-lld，但 GNU/Linux 的默认配置仍通过 cc 驱动安排链接。实际链接器文件存在，不能自动补上驱动和系统配套。该问题与 Rust 代码能否通过类型检查属于不同环节。</p><pre><code>cargo check：项目检查通过
+rustc 生成可执行文件：linker `cc` not found
+最终程序运行：本次未能执行</code></pre></div>
+   <details><summary>从首次安装到验证，标准流程怎样衔接？</summary><ol class='install-steps'><li><strong>准备系统构建环境</strong><p>Ubuntu 通常安装 build-essential；同时准备 curl 用于下载。系统安装由有权限的用户完成。</p></li><li><strong>运行官方 rustup 安装器</strong><p>默认安装会准备 rustup、工具代理和 stable 工具链；default profile 还包括 rustfmt、Clippy 和本地文档。</p></li><li><strong>让命令路径生效</strong><p>重新打开终端，或在 Bash 中执行 <code>source "$HOME/.cargo/env"</code>。终端应能找到 rustup 的代理入口。</p></li><li><strong>确认版本和当前选择</strong><p><code>rustup show</code>、<code>rustc --version</code>、<code>cargo --version</code> 检查工具是否可以启动。</p></li><li><strong>真正编译并运行最小项目</strong><p>在仓库外创建临时 Cargo 项目并执行 <code>cargo run</code>。这一步进一步验证编译、链接和运行完整链路。</p></li></ol><p class='subtle'>当前机器已经有工具链文件，实际配置时应先复用它们。仓库 host 脚本固定使用 1.97.1；本页只是教学说明，没有执行安装或修改环境。</p></details>
+  </div>
+ </section>
+
+ <section class='section references' id='references' aria-labelledby='references-title'>
+  <h2 id='references-title'>来源与适用范围</h2>
+  <p class='subtle'>主要以 rustup 标准安装、官方 Rust 工具链和普通 Linux 原生程序为例。自定义工具链、跨平台编译和特殊构建系统可能采用不同路径。页面不维护课程进度或掌握状态。</p>
+  <ol class='reference-list'>
+   <li><a href='https://rust-lang.github.io/rustup/installation/index.html'>rustup：安装与默认目录</a></li>
+   <li><a href='https://rust-lang.github.io/rustup/concepts/proxies.html'>rustup：工具代理</a></li>
+   <li><a href='https://rust-lang.github.io/rustup/concepts/components.html'>rustup：工具链组件</a></li>
+   <li><a href='https://rust-lang.github.io/rustup/overrides.html'>rustup：工具链选择规则</a></li>
+   <li><a href='https://doc.rust-lang.org/cargo/commands/cargo-check.html'>Cargo：check 的行为与边界</a></li>
+   <li><a href='https://doc.rust-lang.org/cargo/commands/cargo-run.html'>Cargo：构建与运行</a></li>
+   <li><a href='https://doc.rust-lang.org/cargo/commands/cargo-test.html'>Cargo：测试与文档测试</a></li>
+   <li><a href='https://doc.rust-lang.org/clippy/usage.html'>Clippy：使用与 Cargo 集成</a></li>
+   <li><a href='https://doc.rust-lang.org/rustc/codegen-options/index.html#linker'>rustc：链接驱动与链接器</a></li>
+   <li><a href='https://doc.rust-lang.org/cargo/reference/rust-version.html'>Cargo：rust-version 声明</a></li>
+   <li><a href='https://rust-analyzer.github.io/book/'>rust-analyzer：编辑器能力</a></li>
+   <li><a href='https://docs.astral.sh/uv/guides/projects/'>uv：项目环境与版本选择</a></li>
+  </ol>
+  <small>资料核对日期：2026-09-24。打开这些参考链接需要联网；本页图示与交互均可离线使用。</small>
+ </section>
+</main>
+<footer class='footer'><div class='container'>先理解命令从哪里进入，再区分谁选版本、谁组织构建、谁编译、谁链接、谁运行。</div></footer>
+<script type='application/json' id='lesson-data'>{
+  "components": {
+    "shell": {
+      "name": "Shell：接收命令",
+      "role": "命令入口",
+      "description": "终端里负责理解并启动命令的程序，例如 Bash。输入 cargo build 后，Shell 先按 PATH 指定的目录寻找 cargo，再把 build 作为参数交给它。",
+      "location": "终端窗口里；当前所在目录会影响后续寻找项目和选择工具链。",
+      "example": "cargo build",
+      "boundary": "Shell 不理解 Rust 代码，也不负责决定怎样编译项目。终端是交互窗口，Shell 是其中处理命令的程序。"
+    },
+    "rustup": {
+      "name": "rustup：工具链管理器",
+      "role": "安装与管理",
+      "description": "安装、更新和管理不同版本的 Rust 工具链，也能为工具链添加 rustfmt、Clippy、rust-src 等组件。它还提供常用 Rust 命令的代理入口。",
+      "location": "默认命令位于 ~/.cargo/bin/rustup；管理的数据和工具链通常位于 ~/.rustup/。",
+      "example": "rustup toolchain install 1.97.1；rustup component add rust-src --toolchain 1.97.1",
+      "boundary": "rustup 管理 Cargo 和 rustc 的安装，不是把它们的代码嵌在自己内部。它也不负责编译你的 Rust 源文件。"
+    },
+    "cargo-proxy": {
+      "name": "cargo 代理：统一入口",
+      "role": "转发命令",
+      "description": "正常使用 rustup 安装时，PATH 找到的 cargo 通常是 rustup 提供的代理。它先确定工具链，再把命令交给那套工具链中的真正 Cargo。",
+      "location": "默认 ~/.cargo/bin/cargo。",
+      "example": "cargo +1.97.1 build",
+      "boundary": "这个入口不等于某一版本的 Cargo 本体。+1.97.1 由代理识别；直接调用工具链目录中的 Cargo 会绕过这里。"
+    },
+    "rustc-proxy": {
+      "name": "rustc 代理：编译器入口",
+      "role": "转发命令",
+      "description": "正常使用 rustup 安装时，直接输入 rustc，通常先到这个代理。代理选定工具链后，再启动该工具链中的真正 rustc。",
+      "location": "默认 ~/.cargo/bin/rustc。",
+      "example": "rustc main.rs -o hello",
+      "boundary": "直接输入 rustc 可以跳过 Cargo，但通常仍经过 rustup 的版本选择。完整路径调用真正 rustc 则会绕过代理。"
+    },
+    "selector": {
+      "name": "工具链选择规则",
+      "role": "rustup 内部逻辑",
+      "description": "先看命令里的 +版本，再看 RUSTUP_TOOLCHAIN；然后从当前目录向上寻找最近的目录 override 或工具链文件；都没有时使用默认工具链。同一目录中，目录 override 优先于工具链文件。",
+      "location": "这是 rustup 的选择逻辑，没有需要单独安装的 selector 程序。",
+      "example": "本页假设项目 rust-toolchain.toml 固定 1.97.1，且没有其他覆盖；cargo +1.97.1 build 则直接指定版本。",
+      "boundary": "目录 override 和工具链文件要一起比较远近，不能简单理解成所有 override 永远压过所有文件。stable 是渠道名称，已安装的 stable 不会因为时间经过就自动更新。"
+    },
+    "cargo": {
+      "name": "Cargo：项目与构建管理",
+      "role": "组织任务",
+      "description": "读取 Cargo.toml，管理项目的依赖与构建顺序，决定哪些代码需要重新处理，并调用编译器或其他工具。build、check、run 和 test 是常用任务。",
+      "location": "默认 ~/.rustup/toolchains/<工具链>/bin/cargo。",
+      "example": "cargo check；cargo build；cargo run；cargo test",
+      "boundary": "Cargo 组织构建，rustc 执行 Rust 编译。它们是同一工具链中的不同程序；rustc 不是装在 Cargo 里面的。"
+    },
+    "rustc": {
+      "name": "rustc：Rust 编译器",
+      "role": "检查与编译代码",
+      "description": "读取 Rust 源代码，执行语法、类型、借用等检查；需要构建产物时生成机器代码，并按目标平台配置组织链接。Cargo 通常会替你准备它需要的参数。",
+      "location": "默认 ~/.rustup/toolchains/<工具链>/bin/rustc。",
+      "example": "rustc main.rs -o hello",
+      "boundary": "rustc 不按 Cargo.toml 自动下载依赖。检查、机器代码生成和链接是不同阶段；不是每次调用 rustc 都会生成可执行文件。"
+    },
+    "std": {
+      "name": "rust-std：标准库组件",
+      "role": "编译所需的库",
+      "description": "提供目标平台的 Rust 标准库，例如程序使用的字符串、集合、文件和线程等能力。官方常规工具链提供已经编译好的标准库文件及所需元数据。",
+      "location": "通常在工具链的 lib/rustlib/<目标平台>/lib/ 下；每个目标平台对应自己的组件。",
+      "example": "程序使用 String、Vec 或 println! 时，会用到标准库提供的能力。",
+      "boundary": "它是编译和链接使用的输入，不是主动执行下一步的命令。正常项目通常复用它，不会每次从源码重编译整个标准库。"
+    },
+    "rustfmt": {
+      "name": "rustfmt：代码格式化工具",
+      "role": "统一源码格式",
+      "description": "根据 Rust 语法和格式规则调整缩进、空格与换行。cargo fmt 通过 cargo-fmt 这个外部子命令，把项目中的代码交给 rustfmt。",
+      "location": "安装 rustfmt 组件后，工具链 bin/ 中提供 rustfmt 和 cargo-fmt；通常也有对应代理入口。",
+      "example": "cargo fmt；cargo fmt --check",
+      "boundary": "格式整齐不代表类型检查通过或程序正确。cargo fmt 默认会修改源码；--check 只检查格式是否符合要求。"
+    },
+    "clippy": {
+      "name": "Clippy：额外的代码检查",
+      "role": "发现常见问题",
+      "description": "借助 Rust 编译器的分析能力，检查常见错误和可改进的写法。cargo-clippy 负责与 Cargo 配合，clippy-driver 在编译器分析过程中执行这些额外检查。",
+      "location": "安装 clippy 组件后，工具链 bin/ 中提供 cargo-clippy 和 clippy-driver。",
+      "example": "cargo clippy",
+      "boundary": "Clippy 不等于格式化，也不等于运行测试。cargo clippy 是外部子命令，并非所有检查逻辑都内置在 Cargo 中。"
+    },
+    "rust-src": {
+      "name": "rust-src：标准库源码",
+      "role": "源码资料",
+      "description": "提供 Rust 标准库的源代码，便于阅读实现，也可供 rust-analyzer 等工具分析标准库；某些专门的构建流程会用它重建标准库。",
+      "location": "通常在工具链的 lib/rustlib/src/rust/library/ 下。",
+      "example": "rustup component add rust-src --toolchain 1.97.1",
+      "boundary": "rust-src 是源码，rust-std 是供目标平台使用的标准库组件。普通项目使用官方常规工具链编译时，不要求额外安装 rust-src。"
+    },
+    "rustdoc": {
+      "name": "rustdoc：文档与文档测试",
+      "role": "处理 Rust 文档",
+      "description": "从源代码和文档注释生成文档，也能提取文档里的 Rust 示例并测试它们。Cargo 会在相关文档任务或文档测试中使用它。",
+      "location": "随 rustc 组件提供，真正程序在工具链 bin/rustdoc 中；通常有代理入口。",
+      "example": "cargo doc；cargo test 中适用的文档测试",
+      "boundary": "它不是每次普通 build 都必须经过的一站。文档测试会涉及示例代码的编译和执行。"
+    },
+    "cc": {
+      "name": "cc：链接驱动程序",
+      "role": "衔接系统链接环境",
+      "description": "在本页所指的 Ubuntu GNU/Linux 默认构建流程中，rustc 会调用 cc。cc 通常由 GCC 或 Clang 提供，它整理系统库、启动文件等链接参数，再调用真正的链接器。",
+      "location": "通常由系统开发工具提供，并能通过 PATH 找到，例如 /usr/bin/cc。",
+      "example": "构建时报 linker `cc` not found，说明配置中要调用的这个程序没有找到。",
+      "boundary": "这里让 C 编译器充当链接驱动，不表示把 Rust 源码先翻译成 C。cc 与 lld 是不同角色；有 lld 不代表已经有 cc。"
+    },
+    "linker": {
+      "name": "链接器：合并代码与库",
+      "role": "完成链接",
+      "description": "把生成的目标代码与需要的库连接起来，解析代码之间的引用，形成最终产物。在 x86_64-unknown-linux-gnu 的现代官方 Rust 默认配置中，通常经 cc 使用随 Rust 提供的 LLD。",
+      "location": "依目标平台和配置而定，可能是工具链中的 rust-lld，也可能是系统链接器。",
+      "example": "rustc → cc 驱动 → LLD 等实际链接器 → 可执行文件",
+      "boundary": "不同平台和配置的路线可能不同。Rust 1.90 起该 Linux 目标默认尝试自带 LLD，但这不取消默认路线对 cc 的需求。"
+    },
+    "binary": {
+      "name": "编译后的程序",
+      "role": "可执行产物",
+      "description": "这是自己的 Rust 代码构建完成后得到的可执行文件。直接运行它，或者由 cargo run 启动它，都进入程序自身的执行阶段。",
+      "location": "Cargo 的常见开发构建位于 target/debug/；本页直接 rustc 示例输出 ./hello。",
+      "example": "./hello",
+      "boundary": "它不是 .rs 源文件，也不是 Cargo。通常运行它不需要开发工具链，但目标系统仍须满足平台兼容性和动态库等运行依赖。"
+    },
+    "os": {
+      "name": "操作系统：装载与运行",
+      "role": "运行程序",
+      "description": "操作系统装载可执行文件、建立进程，并为它提供文件、内存、线程等运行能力。需要动态库时，还会由相应的装载机制处理。",
+      "location": "当前机器的操作系统及其运行环境。",
+      "example": "执行 ./hello 后，程序从构建产物变成正在运行的进程。",
+      "boundary": "运行时不会自动回到 rustc 重新编译源码。生成在其他平台上的文件，也不一定能在当前机器直接运行。"
+    },
+    "project": {
+      "name": "项目文件：任务的输入",
+      "role": "源码与配置",
+      "description": "Cargo.toml 描述包、依赖与构建目标，src/ 下放 Rust 源码，Cargo.lock 记录依赖解析结果。项目还可以用 rust-toolchain.toml 声明所需工具链。",
+      "location": "你的项目目录；Cargo 默认从当前目录向上寻找 Cargo.toml。",
+      "example": "进入带 Cargo.toml 的目录，再运行 cargo build。",
+      "boundary": "Cargo.toml 管项目，rust-toolchain.toml 影响 rustup 选工具链，它们解决不同问题。单个 main.rs 也能直接交给 rustc，不必先建 Cargo 项目。"
+    },
+    "analyzer": {
+      "name": "rust-analyzer：编辑器助手",
+      "role": "编辑时的语言服务",
+      "description": "为编辑器提供补全、跳转、悬浮信息和代码分析。编辑器通过语言服务协议与它协作；根据配置，它还可能调用 Cargo 检查项目。",
+      "location": "可由编辑器扩展提供，也可以作为 rustup 组件安装。",
+      "example": "在编辑器里查看变量类型，或跳转到函数定义。",
+      "boundary": "它不是 rustc 的替代品。编辑器有补全不代表终端 PATH 正确，也不能据此确认项目已经成功编译和链接。"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "install",
+      "label": "安装工具链",
+      "command": "rustup toolchain install 1.97.1",
+      "where": "在任意目录的终端发起；前提是 rustup 本身已安装且可由 PATH 找到。",
+      "summary": "让 rustup 安装指定版本的工具链，得到一套可以使用的 Cargo、rustc 和标准库等组件。",
+      "result": "工具链管理目录中出现或确认存在 1.97.1 对应的工具与组件；这条命令不会编译你的项目。",
+      "notes": [
+        "实际安装的组件受 profile 和参数影响；额外组件可以随后用 rustup component add 安装。",
+        "已有完整工具链时可能只做确认；缺少内容时通常需要联网下载。",
+        "这条命令明确指定 1.97.1，不通过项目文件来决定要安装哪个版本，也不等同于把项目或全局默认都切换成它。",
+        "1.97.1 是固定版本；stable 是可更新的渠道名称。已安装的 stable 需要更新操作才会改变。"
+      ],
+      "steps": [
+        {
+          "title": "终端接收安装命令",
+          "body": "Shell 按 PATH 查找 rustup，把 toolchain install 1.97.1 交给它。这里不从 cargo 发起。",
+          "nodes": [
+            "shell",
+            "rustup"
+          ]
+        },
+        {
+          "title": "rustup 确定安装内容",
+          "body": "rustup 读取命令指定的版本、当前机器平台和安装 profile，确定需要哪些工具链组件。",
+          "nodes": [
+            "rustup"
+          ]
+        },
+        {
+          "title": "安装或确认组件",
+          "body": "rustup 按需下载并安装组件。Cargo、rustc 和目标平台标准库是相互配合的独立组成部分，不是一个套在另一个程序里的层级。",
+          "nodes": [
+            "rustup",
+            "cargo",
+            "rustc",
+            "std"
+          ]
+        },
+        {
+          "title": "之后通过代理使用它",
+          "body": "已配置好的 cargo、rustc 代理可在后续命令中转发到这套工具链；也能用完整路径访问真实工具。这一步只是说明安装结果，不会自动开始项目构建。",
+          "nodes": [
+            "cargo-proxy",
+            "rustc-proxy",
+            "cargo",
+            "rustc"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "build",
+      "label": "构建项目",
+      "command": "cargo build",
+      "where": "在带 Cargo.toml 的项目目录发起最直观；也可以在子目录发起，或显式提供 --manifest-path。",
+      "summary": "Cargo 组织项目构建，rustc 编译代码；可执行目标还需要经过链接，才得到可以运行的程序。",
+      "result": "示例二进制项目在默认配置下生成 target/debug/ 中的可执行文件；build 本身不会运行它。",
+      "notes": [
+        "本页默认项目 rust-toolchain.toml 固定 1.97.1，且没有其他覆盖。",
+        "Cargo 会复用仍有效的构建结果；每次 build 不一定都重新调用所有编译步骤。",
+        "这条路线展示普通可执行目标。库目标、交叉编译、构建脚本和原生依赖可能增加或改变步骤。",
+        "Ubuntu GNU/Linux 的默认可执行构建路线需要 cc 等系统链接条件；rust-std 已安装不代表系统开发环境也完整。"
+      ],
+      "steps": [
+        {
+          "title": "Shell 找到 cargo 代理",
+          "body": "输入 cargo build 后，Shell 按 PATH 找到 ~/.cargo/bin/cargo 这个常规入口。",
+          "nodes": [
+            "shell",
+            "cargo-proxy"
+          ]
+        },
+        {
+          "title": "rustup 选择工具链",
+          "body": "没有 +版本或环境变量等更高优先级覆盖时，本例使用项目文件指定的 1.97.1。代理把命令交给该工具链中的真正 Cargo。",
+          "nodes": [
+            "selector",
+            "project",
+            "cargo"
+          ]
+        },
+        {
+          "title": "Cargo 读取项目并安排构建",
+          "body": "Cargo 读取 Cargo.toml、依赖信息和源码变化，准备依赖，并决定哪些 crate 需要编译。",
+          "nodes": [
+            "cargo",
+            "project"
+          ]
+        },
+        {
+          "title": "rustc 检查并生成代码",
+          "body": "Cargo 调用所选工具链的 rustc。编译器检查 Rust 代码并生成目标代码；标准库提供它需要的库与元数据输入。",
+          "nodes": [
+            "cargo",
+            "rustc",
+            "std"
+          ]
+        },
+        {
+          "title": "链接成可执行文件",
+          "body": "在本页的默认 Ubuntu 路线中，rustc 通过 cc 驱动实际链接器，把目标代码、需要的 Rust 库和系统链接输入连接成程序。",
+          "nodes": [
+            "rustc",
+            "std",
+            "cc",
+            "linker",
+            "binary"
+          ]
+        },
+        {
+          "title": "保存构建产物",
+          "body": "Cargo 报告构建结果，文件留在构建输出目录。到这里还没有执行程序里的 main。",
+          "nodes": [
+            "cargo",
+            "binary"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "version",
+      "label": "明确指定版本",
+      "command": "cargo +1.97.1 build",
+      "where": "在项目目录发起；这套工具链需要已安装，或能够由 rustup 按配置取得。",
+      "summary": "先由 rustup 代理处理 +1.97.1，再使用指定工具链中的 Cargo 和编译器完成构建。",
+      "result": "本次构建使用指定工具链；不会因此改写项目的工具链文件或全局默认设置。",
+      "notes": [
+        "+版本 的优先级高于 RUSTUP_TOOLCHAIN、目录 override、工具链文件和 default。",
+        "本页项目文件也指定 1.97.1，所以结果版本相同；区别在于本次选择依据是命令里的显式指定。",
+        "+1.97.1 是 rustup 代理语法。直接调用 ~/.rustup/toolchains/<工具链>/bin/cargo 时不能用它代替版本选择。",
+        "没有 +指定和环境覆盖时，目录 override 与工具链文件一起按距离选择；同一目录的 override 优先。"
+      ],
+      "steps": [
+        {
+          "title": "Shell 仍然查找 cargo",
+          "body": "+1.97.1 是传给命令的参数，不会让 Shell 去寻找一个名叫 cargo+1.97.1 的程序。",
+          "nodes": [
+            "shell",
+            "cargo-proxy"
+          ]
+        },
+        {
+          "title": "代理识别显式版本",
+          "body": "rustup 代理读取首个参数 +1.97.1，直接把这套工具链作为本次选择。此时项目文件和默认设置不再决定版本。",
+          "nodes": [
+            "cargo-proxy",
+            "selector"
+          ]
+        },
+        {
+          "title": "启动指定版本的 Cargo",
+          "body": "代理运行 1.97.1 工具链中的真正 Cargo，让它处理 build。标准 rustup 流程会让后续工具调用沿用所选工具链。",
+          "nodes": [
+            "selector",
+            "cargo"
+          ]
+        },
+        {
+          "title": "Cargo 组织项目编译",
+          "body": "Cargo 读取项目，检查可复用结果，并按需让相应 rustc 编译代码；标准库作为编译输入参与。",
+          "nodes": [
+            "cargo",
+            "project",
+            "rustc",
+            "std"
+          ]
+        },
+        {
+          "title": "完成必要的链接",
+          "body": "对本例的可执行目标，rustc 通过 cc 驱动链接器生成程序。指定 Rust 版本不会补齐缺失的系统 cc。",
+          "nodes": [
+            "rustc",
+            "cc",
+            "linker",
+            "binary"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "check",
+      "label": "快速检查代码",
+      "command": "cargo check",
+      "where": "在 Cargo 项目目录发起，适合编辑代码后先查看编译检查结果。",
+      "summary": "Cargo 让编译器检查项目，对通常的被检查目标省略机器代码生成和最终链接，因此往往比 build 更快。",
+      "result": "得到检查结果与可复用元数据，不会因此得到新的可运行程序。",
+      "notes": [
+        "check 通过不代表 build、链接或运行一定成功；某些错误只会在后续阶段出现。",
+        "不能把它理解成永远不需要链接器：构建脚本 build.rs、过程宏及其依赖仍可能需要编译和链接。",
+        "当前环境的纯 std 临时项目 check 通过，与可执行构建因 cc 缺失而失败并不矛盾。",
+        "本例假设所需依赖已可获得；有第三方依赖时，Cargo 仍可能需要准备或下载依赖。"
+      ],
+      "steps": [
+        {
+          "title": "Shell 找到 cargo 代理",
+          "body": "Shell 按 PATH 启动 cargo 入口，把 check 作为任务参数交给它。",
+          "nodes": [
+            "shell",
+            "cargo-proxy"
+          ]
+        },
+        {
+          "title": "选择项目所需工具链",
+          "body": "按本页假设，rustup 选择项目文件指定的 1.97.1，再运行该工具链的 Cargo。",
+          "nodes": [
+            "selector",
+            "project",
+            "cargo"
+          ]
+        },
+        {
+          "title": "Cargo 准备检查任务",
+          "body": "Cargo 读取清单与依赖关系，复用仍有效的结果，并准备需要检查的源码及必要的构建期依赖。",
+          "nodes": [
+            "cargo",
+            "project"
+          ]
+        },
+        {
+          "title": "rustc 执行编译检查",
+          "body": "编译器检查语法、类型、借用等问题，并使用标准库元数据。本例的普通目标不继续生成最终机器代码和可执行文件。",
+          "nodes": [
+            "rustc",
+            "std"
+          ]
+        },
+        {
+          "title": "返回诊断与元数据",
+          "body": "Cargo 显示成功或错误信息，保留可供之后复用的检查产物。不会启动程序，也不能用检查产物代替可执行文件。",
+          "nodes": [
+            "cargo"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "run",
+      "label": "构建并运行",
+      "command": "cargo run",
+      "where": "在有可运行二进制目标的 Cargo 项目目录发起。",
+      "summary": "Cargo 先确认程序已构建到最新状态，然后启动生成的可执行文件。",
+      "result": "程序进入运行阶段，终端显示程序自己的输出。",
+      "notes": [
+        "如果源码、依赖和构建配置都没有需要更新的内容，Cargo 可以直接复用现有产物；run 不等于每次全部重编译。",
+        "存在多个二进制目标时，可能需要 --bin 名称或项目里的 default-run 设置。",
+        "cargo run -- 参数 中，-- 后的参数传给自己的程序。程序通常继承发起 cargo run 时的工作目录。",
+        "构建成功后，运行仍可能因输入、系统动态库、权限或程序自身逻辑而失败。"
+      ],
+      "steps": [
+        {
+          "title": "从 cargo 代理进入",
+          "body": "Shell 根据 PATH 找到 cargo 代理，任务参数是 run。",
+          "nodes": [
+            "shell",
+            "cargo-proxy"
+          ]
+        },
+        {
+          "title": "选择工具链并运行 Cargo",
+          "body": "本例使用项目文件指定的 1.97.1；真正 Cargo 接收运行任务。",
+          "nodes": [
+            "selector",
+            "project",
+            "cargo"
+          ]
+        },
+        {
+          "title": "决定要运行哪个目标",
+          "body": "Cargo 读取项目，选定二进制目标，并判断现有构建产物是否仍然有效。",
+          "nodes": [
+            "cargo",
+            "project",
+            "binary"
+          ]
+        },
+        {
+          "title": "按需构建程序",
+          "body": "有必要时，Cargo 调用 rustc 编译，并通过 cc 与实际链接器完成链接；标准库是其中的输入。已有有效产物时可跳过这些重复工作。",
+          "nodes": [
+            "cargo",
+            "rustc",
+            "std",
+            "cc",
+            "linker",
+            "binary"
+          ]
+        },
+        {
+          "title": "Cargo 启动可执行文件",
+          "body": "构建成功后，Cargo 请求操作系统启动程序。此时任务从准备程序进入执行程序。",
+          "nodes": [
+            "cargo",
+            "binary",
+            "os"
+          ]
+        },
+        {
+          "title": "程序执行自己的逻辑",
+          "body": "操作系统运行生成的程序，例如进入 main 并打印内容。这部分输出来自你的程序，而不是编译器。",
+          "nodes": [
+            "os",
+            "binary"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "test",
+      "label": "编译并执行测试",
+      "command": "cargo test",
+      "where": "在 Cargo 项目目录发起；Cargo 根据所选包和目标组织测试。",
+      "summary": "Cargo 编译测试所需代码，生成测试程序并执行；适用的库文档示例也会经过 rustdoc 测试。",
+      "result": "看到测试通过或失败的结果；编译或链接失败会使相应测试无法开始。",
+      "notes": [
+        "cargo test 包括编译和执行；cargo test --no-run 可以只编译测试。",
+        "默认测试范围受包类型、目标和项目配置影响，并不是所有项目都有单元、集成和文档三种测试。",
+        "适用的文档测试由 rustdoc 处理，通常还需要编译并运行示例。",
+        "测试产物也可能需要 cc 和系统链接环境；check 通过不能代替测试通过。"
+      ],
+      "steps": [
+        {
+          "title": "从 cargo 代理进入",
+          "body": "Shell 启动 cargo 入口，传入 test 任务。",
+          "nodes": [
+            "shell",
+            "cargo-proxy"
+          ]
+        },
+        {
+          "title": "选定工具链",
+          "body": "本页按项目文件使用 1.97.1，由真正 Cargo 处理测试任务。",
+          "nodes": [
+            "selector",
+            "project",
+            "cargo"
+          ]
+        },
+        {
+          "title": "Cargo 选择并准备测试目标",
+          "body": "Cargo 读取项目，确定需要的库、测试和依赖，安排构建顺序，并复用可用结果。",
+          "nodes": [
+            "cargo",
+            "project"
+          ]
+        },
+        {
+          "title": "编译并链接测试程序",
+          "body": "rustc 按测试模式构建相关代码；默认测试框架会组织 #[test] 函数。需要的库作为输入，cc 与实际链接器完成可执行测试产物。",
+          "nodes": [
+            "rustc",
+            "std",
+            "cc",
+            "linker",
+            "binary"
+          ]
+        },
+        {
+          "title": "执行测试",
+          "body": "Cargo 启动测试程序，操作系统运行它们，由测试程序执行断言并报告结果。",
+          "nodes": [
+            "cargo",
+            "binary",
+            "os"
+          ]
+        },
+        {
+          "title": "处理适用的文档测试",
+          "body": "若所选库目标启用文档测试，Cargo 还会调用 rustdoc 处理注释中的 Rust 示例，完成相应编译和测试执行。",
+          "nodes": [
+            "cargo",
+            "rustdoc",
+            "rustc",
+            "binary",
+            "os"
+          ]
+        },
+        {
+          "title": "汇总测试结果",
+          "body": "Cargo 汇总构建和各类测试的结果。执行到这里并通过，才说明本次所选测试已成功完成。",
+          "nodes": [
+            "cargo"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fmt",
+      "label": "整理代码格式",
+      "command": "cargo fmt",
+      "where": "在 Cargo 项目目录发起；选定工具链需要提供 rustfmt 组件。",
+      "summary": "Cargo 把格式化任务交给 cargo-fmt，再由 rustfmt 调整源码的格式。",
+      "result": "源码文件的缩进、空格和换行等可能被改写；不会生成或运行可执行程序。",
+      "notes": [
+        "cargo fmt 是外部子命令，cargo-fmt 与 rustfmt 由 rustfmt 组件提供。",
+        "只想检查格式而不改文件，可以使用 cargo fmt --check。",
+        "格式化需要理解源码语法，但不等于完整编译检查；仍应按任务需要运行 check、build 或 test。",
+        "这条普通格式化路线不要求经过可执行文件链接。"
+      ],
+      "steps": [
+        {
+          "title": "从 cargo 代理进入",
+          "body": "Shell 找到 cargo 入口，把 fmt 交给代理。",
+          "nodes": [
+            "shell",
+            "cargo-proxy"
+          ]
+        },
+        {
+          "title": "选定工具链并启动 Cargo",
+          "body": "按本页假设选择 1.97.1，随后运行真实 Cargo。",
+          "nodes": [
+            "selector",
+            "cargo"
+          ]
+        },
+        {
+          "title": "交给格式化子命令",
+          "body": "Cargo 调度 cargo-fmt。它了解 Cargo 项目结构，并确定要交给 rustfmt 的文件。",
+          "nodes": [
+            "cargo",
+            "project",
+            "rustfmt"
+          ]
+        },
+        {
+          "title": "rustfmt 处理源码",
+          "body": "rustfmt 读取 Rust 文件及适用的格式配置，调整代码外观；它不会在这里生成自己的可执行程序。",
+          "nodes": [
+            "rustfmt",
+            "project"
+          ]
+        },
+        {
+          "title": "保留格式化结果",
+          "body": "默认命令将格式变化写回源码。若使用 --check，则报告是否需要调整而不写回。",
+          "nodes": [
+            "rustfmt",
+            "project"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "clippy",
+      "label": "检查常见写法问题",
+      "command": "cargo clippy",
+      "where": "在 Cargo 项目目录发起；选定工具链需要提供 clippy 组件。",
+      "summary": "Clippy 与 Cargo 和编译器协作，在普通编译分析基础上，补充对常见错误和可改进写法的检查。",
+      "result": "得到编译诊断及 Clippy 提示；普通调用不会自动修改源码或运行应用程序。",
+      "notes": [
+        "cargo-clippy 是外部子命令，clippy-driver 使用编译器内部能力执行检查；不是先运行你的程序再观察行为。",
+        "普通 cargo clippy 通常走类似 check 的流程，但构建脚本和过程宏仍可能需要编译、链接。",
+        "Clippy 不替代格式化与测试；没有提示也不代表程序逻辑已被证明正确。",
+        "源码自动修改属于 cargo clippy --fix 等显式用法，本例没有使用。"
+      ],
+      "steps": [
+        {
+          "title": "从 cargo 代理进入",
+          "body": "Shell 找到 cargo 入口，将 clippy 作为任务参数传入。",
+          "nodes": [
+            "shell",
+            "cargo-proxy"
+          ]
+        },
+        {
+          "title": "选定工具链",
+          "body": "本例选择 1.97.1，然后运行这套工具链中的 Cargo。Clippy 组件也应与所选工具链配合。",
+          "nodes": [
+            "selector",
+            "cargo",
+            "clippy"
+          ]
+        },
+        {
+          "title": "启动 cargo-clippy",
+          "body": "Cargo 调度 cargo-clippy。它为 Cargo 设置使用 clippy-driver 的检查方式，再组织相应的检查任务。",
+          "nodes": [
+            "cargo",
+            "clippy"
+          ]
+        },
+        {
+          "title": "Cargo 准备项目与依赖",
+          "body": "Cargo 读取项目清单，准备依赖和必要的构建期输入，按项目关系调度检查。",
+          "nodes": [
+            "cargo",
+            "project"
+          ]
+        },
+        {
+          "title": "编译器分析加上额外 lint",
+          "body": "clippy-driver 使用 Rust 编译器的分析能力，在适用的代码上执行额外检查。标准库提供所需输入，并不主动发起工具调用。",
+          "nodes": [
+            "clippy",
+            "rustc",
+            "std"
+          ]
+        },
+        {
+          "title": "展示诊断与建议",
+          "body": "终端显示错误、警告或建议。这里没有启动项目的应用程序，也没有执行它的测试断言。",
+          "nodes": [
+            "clippy",
+            "cargo"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "direct-rustc",
+      "label": "直接编译单文件",
+      "command": "rustc main.rs -o hello",
+      "where": "在能找到 main.rs 的目录发起，或把源文件写成明确路径。本例是一个不依赖第三方 crate 的独立小程序。",
+      "summary": "直接把源文件交给 rustc，跳过 Cargo 的项目管理；正常 rustup 安装下仍先经过 rustc 代理选择工具链。",
+      "result": "编译、链接成功后生成 ./hello；该命令本身不会执行 hello。",
+      "notes": [
+        "-o hello 指定输出文件名。源文件里的 fn main 是程序入口。",
+        "直接 rustc 不会替你按 Cargo.toml 下载和组织第三方依赖；复杂项目通常交给 Cargo。",
+        "工具链仍按当前目录和覆盖规则选择；本页假设此目录受指定 1.97.1 的项目工具链文件约束。",
+        "如果写完整路径直接调用工具链 bin/rustc，就绕过代理选择。当前环境可用这种方式访问现存编译器，但默认链接仍会因 cc 缺失失败。"
+      ],
+      "steps": [
+        {
+          "title": "Shell 找到 rustc 代理",
+          "body": "Shell 按 PATH 寻找 rustc。这次入口是 rustc 代理，不会先运行 Cargo。",
+          "nodes": [
+            "shell",
+            "rustc-proxy"
+          ]
+        },
+        {
+          "title": "rustup 确定工具链",
+          "body": "代理按选择规则确定版本。本例仍由当前目录适用的项目工具链文件选择 1.97.1。",
+          "nodes": [
+            "rustc-proxy",
+            "selector",
+            "project"
+          ]
+        },
+        {
+          "title": "启动真正 rustc",
+          "body": "所选工具链中的编译器接收 main.rs -o hello 参数，直接读取这个源文件。",
+          "nodes": [
+            "rustc",
+            "project"
+          ]
+        },
+        {
+          "title": "检查并编译源码",
+          "body": "rustc 执行编译检查并生成目标代码，使用安装好的标准库作为输入；没有 Cargo 代为解析项目依赖。",
+          "nodes": [
+            "rustc",
+            "std"
+          ]
+        },
+        {
+          "title": "链接并写出 hello",
+          "body": "在本页的默认 Ubuntu 路线中，rustc 调用 cc 驱动实际链接器。成功后写出 hello 文件，等待之后单独运行。",
+          "nodes": [
+            "rustc",
+            "cc",
+            "linker",
+            "binary"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "binary",
+      "label": "运行现成程序",
+      "command": "./hello",
+      "where": "在已有可执行文件 hello 的目录发起；该文件应当适合当前操作系统和处理器。",
+      "summary": "直接运行已经构建好的程序，由 Shell 和操作系统完成启动，不进入 Rust 开发工具链。",
+      "result": "程序成为一个运行中的进程，执行自己的逻辑，结束后把退出状态交回 Shell。",
+      "notes": [
+        "./ 表示当前目录。命令已经包含路径，Shell 不会按 PATH 寻找名为 hello 的其他文件。",
+        "通常运行 Rust 可执行文件不需要安装 Cargo、rustup、rustc 或 rust-src。",
+        "仍须满足运行依赖，例如平台兼容性、执行权限，以及程序需要的动态系统库。Rust 可执行文件不等于在所有机器上都完全独立。",
+        "修改 main.rs 不会自动改变已有 hello；需要重新构建才能运行新代码。"
+      ],
+      "steps": [
+        {
+          "title": "Shell 接收明确文件路径",
+          "body": "./hello 指向当前目录下的 hello。Shell 准备启动这个文件，不会进入 cargo 或 rustc 代理。",
+          "nodes": [
+            "shell",
+            "binary"
+          ]
+        },
+        {
+          "title": "请求操作系统启动",
+          "body": "Shell 请求操作系统执行该文件；系统检查是否能够把它作为当前平台的程序启动。",
+          "nodes": [
+            "shell",
+            "os",
+            "binary"
+          ]
+        },
+        {
+          "title": "装载程序及所需运行依赖",
+          "body": "操作系统及相应装载机制建立进程，准备可执行代码和需要的动态库等运行条件。这里不进行 Rust 源码编译。",
+          "nodes": [
+            "os",
+            "binary"
+          ]
+        },
+        {
+          "title": "执行并退出",
+          "body": "程序运行自己的逻辑，例如输出 Hello。结束后，Shell 接收退出状态并继续等待下一条命令。",
+          "nodes": [
+            "binary",
+            "os",
+            "shell"
+          ]
+        }
+      ]
+    }
+  ]
+}</script>
+<script>
+(function () {
+ 'use strict';
+ const data = JSON.parse(document.getElementById('lesson-data').textContent);
+ const byId = function (id) { return document.getElementById(id); };
+ const componentButtons = Array.from(document.querySelectorAll('[data-component]'));
+ let scenario = data.scenarios.find(function (s) { return s.id === 'build'; });
+ let stepIndex = -1;
+ let selectedComponent = 'cargo-proxy';
+ let copyTimer;
+ function showComponent(id) {
+  const c = data.components[id];
+  if (!c) return;
+  selectedComponent = id;
+  byId('component-name').textContent = c.name;
+  byId('component-role').textContent = c.role;
+  byId('component-description').textContent = c.description;
+  byId('component-location').replaceChildren();
+  const path = document.createElement('code'); path.textContent = c.location;
+  byId('component-location').appendChild(path);
+  byId('component-example').replaceChildren();
+  const command = document.createElement('code'); command.textContent = c.example;
+  byId('component-example').appendChild(command);
+  byId('component-boundary').textContent = c.boundary;
+  componentButtons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.component === id)); });
+ }
+ function applyHighlights() {
+  const nodes = stepIndex < 0 ? scenario.steps.flatMap(function (s) { return s.nodes; }) : scenario.steps[stepIndex].nodes;
+  const involved = new Set(nodes);
+  componentButtons.forEach(function (b) {
+   b.classList.toggle('in-route', involved.has(b.dataset.component));
+   b.classList.toggle('route-current', stepIndex >= 0 && involved.has(b.dataset.component));
+  });
+ }
+ function updateStep() {
+  const full = stepIndex < 0;
+  byId('step-counter').textContent = full ? '全程概览 · ' + scenario.steps.length + ' 步' : '第 ' + (stepIndex + 1) + ' / ' + scenario.steps.length + ' 步';
+  byId('step-eyebrow').textContent = full ? '完整路线' : '这一步由谁完成';
+  byId('step-title').textContent = full ? scenario.label : scenario.steps[stepIndex].title;
+  byId('step-body').textContent = full ? scenario.summary : scenario.steps[stepIndex].body;
+  byId('previous-step').disabled = stepIndex <= 0;
+  byId('next-step').disabled = stepIndex === scenario.steps.length - 1;
+  byId('next-step').textContent = full ? '开始逐步查看 →' : '下一步 →';
+  byId('overview-button').setAttribute('aria-pressed', String(full));
+  document.querySelectorAll('.route-step').forEach(function (b, i) {
+   if (i === stepIndex) b.setAttribute('aria-current', 'step');
+   else b.removeAttribute('aria-current');
+  });
+  applyHighlights();
+ }
+ function selectScenario(id) {
+  scenario = data.scenarios.find(function (s) { return s.id === id; });
+  if (!scenario) throw new Error('Unknown scenario');
+  stepIndex = -1;
+  byId('scenario-label').textContent = scenario.label;
+  byId('scenario-command').textContent = scenario.command;
+  byId('scenario-where').textContent = '发起位置：' + scenario.where;
+  byId('scenario-summary').textContent = scenario.summary;
+  byId('scenario-result').textContent = scenario.result;
+  byId('scenario-notes').replaceChildren();
+  scenario.notes.forEach(function (note) { const li = document.createElement('li'); li.textContent = note; byId('scenario-notes').appendChild(li); });
+  document.querySelectorAll('.scenario-button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.scenario === id)); });
+  byId('route-list').replaceChildren();
+  scenario.steps.forEach(function (step, i) {
+   const li = document.createElement('li'); li.className = 'route-item';
+   const button = document.createElement('button'); button.type = 'button'; button.className = 'route-step';
+   const number = document.createElement('span'); number.className = 'number'; number.textContent = String(i + 1); number.setAttribute('aria-hidden','true');
+   const text = document.createElement('span');
+   const label = document.createElement('span'); label.className = 'step-label'; label.textContent = step.title;
+   const participants = document.createElement('span'); participants.className = 'step-participants'; participants.textContent = step.nodes.map(function (node) { return data.components[node].name; }).join(' · ');
+   text.append(label,participants); button.append(number,text);
+   button.addEventListener('click',function () { stepIndex = i; updateStep(); });
+   li.appendChild(button); byId('route-list').appendChild(li);
+  });
+  clearTimeout(copyTimer); byId('copy-command').textContent = '复制命令';
+  updateStep();
+ }
+ data.scenarios.forEach(function (s) {
+  const button = document.createElement('button'); button.type = 'button'; button.className = 'scenario-button'; button.dataset.scenario = s.id; button.textContent = s.label;
+  button.addEventListener('click',function () { selectScenario(s.id); }); byId('scenario-buttons').appendChild(button);
+  const article = document.createElement('article'); article.className = 'transcript-article';
+  const h3 = document.createElement('h3'); h3.textContent = s.label;
+  const pre = document.createElement('pre'); const code = document.createElement('code'); code.textContent = s.command; pre.appendChild(code);
+  const location = document.createElement('p'); location.className = 'subtle'; location.textContent = '发起位置：' + s.where;
+  const ol = document.createElement('ol');
+  s.steps.forEach(function (step) { const li = document.createElement('li'); const b = document.createElement('strong'); b.textContent = step.title + '：'; li.append(b,document.createTextNode(step.body)); ol.appendChild(li); });
+  const result = document.createElement('p'); result.textContent = '结果：' + s.result;
+  const notes = document.createElement('p'); notes.className = 'subtle'; notes.textContent = s.notes.join(' ');
+  article.append(h3,location,pre,ol,result,notes); byId('route-transcripts').appendChild(article);
+ });
+ componentButtons.forEach(function (button) { button.addEventListener('click',function () { showComponent(button.dataset.component); }); });
+ byId('overview-button').addEventListener('click',function () { stepIndex = -1; updateStep(); });
+ byId('previous-step').addEventListener('click',function () { if(stepIndex > 0) stepIndex -= 1; updateStep(); });
+ byId('next-step').addEventListener('click',function () { if(stepIndex < scenario.steps.length - 1) stepIndex += 1; updateStep(); });
+ byId('copy-command').addEventListener('click',async function () {
+  const command = scenario.command;
+  try {
+   if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(command);
+   else {
+    const field = document.createElement('textarea'); field.value = command; field.style.position = 'fixed'; field.style.left = '-9999px'; document.body.appendChild(field); field.select();
+    const copied = document.execCommand('copy'); field.remove(); if(!copied) throw new Error('clipboard unavailable');
+   }
+   byId('copy-command').textContent = '已复制';
+  } catch (_) { byId('copy-command').textContent = '请选中文本复制'; }
+  clearTimeout(copyTimer); copyTimer = setTimeout(function () { byId('copy-command').textContent = '复制命令'; },2500);
+ });
+ function updateVersion() {
+  const command = byId('command-version').value, env = byId('env-version').value, directory = byId('directory-version').value, fallback = byId('default-version').value;
+  let version, reason;
+  if(command) { version = command; reason = '命令行 +版本优先，覆盖环境变量、目录配置与全局默认。'; }
+  else if(env) { version = env; reason = '本次没有 +版本，因此 RUSTUP_TOOLCHAIN 环境变量覆盖目录配置。'; }
+  else if(directory) { const parts = directory.split(':'); version = parts[1]; reason = parts[0] === 'file' ? '没有命令行或环境覆盖，使用向上查找命中的最近 rust-toolchain.toml。' : '没有命令行或环境覆盖，使用向上查找命中的最近目录 override。'; }
+  else { version = fallback; reason = '没有更具体的选择，使用 rustup 的全局默认工具链。'; }
+  byId('selected-toolchain').textContent = '选用 ' + version;
+  byId('selected-toolchain').dataset.version = version;
+  byId('selection-reason').textContent = reason;
+  byId('selection-command').textContent = (env ? 'RUSTUP_TOOLCHAIN=' + env + ' ' : '') + 'cargo' + (command ? ' +' + command : '') + ' build';
+ }
+ ['command-version','env-version','directory-version','default-version'].forEach(function (id) { byId(id).addEventListener('change',updateVersion); });
+ document.querySelectorAll('[data-preset]').forEach(function (button) { button.addEventListener('click',function () {
+  const preset = button.dataset.preset;
+  byId('command-version').value = preset === 'command' ? 'nightly' : '';
+  byId('env-version').value = preset === 'host' ? '1.97.1' : '';
+  byId('directory-version').value = preset === 'default' ? '' : preset === 'host' ? 'file:stable' : 'file:1.97.1';
+  byId('default-version').value = 'stable'; updateVersion();
+ }); });
+ showComponent(selectedComponent); selectScenario('build'); updateVersion();
+}());
+</script>
+</body>
+</html>
