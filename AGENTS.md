@@ -18,14 +18,15 @@ The repository selects `guide-learning`, `study-log`, `english-coach`, and `memo
 The algorithm-interview and Triton Programs are parallel active learning tracks with independent
 control planes and Checkpoints. Route each learning session by its topic and keep at most one
 foreground active Lesson in that session; switching tracks does not freeze, close, or advance the
-other Program. The single `guide-learning` `record_mappings` profile is only the current foreground
-persistence locator, not Program state. Before a durable state write on the other track, retarget
-its Program, Checkpoint, and Lesson paths exactly and re-materialize; never broaden the mapped
-paths to cover both trees. English feedback is zero-write. `english-coach` may use tracked,
-unmodified structured logs from both `docs/algorithm-interview-learning/logs/` and
-`docs/triton-learning/logs/` when its review rules match the request. Frozen legacy dialogues,
-raw archives, and Lessons are never implicit English-review or card sources; card inputs remain
-limited to tracked structured logs.
+other Program. The `guide-learning` `record_mappings` list both tracks once (each Program,
+Checkpoint, Lesson tree, and practice root), so switching tracks never requires retargeting or
+re-materializing; each track's current position lives only in its own Checkpoint section. The
+learner profile shared by both tracks is `docs/learning-profile.md`. English feedback is zero-write.
+`english-coach` may use structured logs from `docs/algorithm-interview-learning/logs/` and
+`docs/triton-learning/logs/` that the learner names or that match the review topic uniquely,
+whether or not they are Git-tracked. Frozen legacy dialogues, raw archives, and Lessons are never
+implicit English-review or card sources; card inputs are structured logs the learner names
+explicitly, and never `git add` or re-materialize just to make a source usable.
 
 `docs/algorithm-interview-course/` is an imported, read-only textual course snapshot for future
 LeetCode study. Use its overview, chapter summaries, lesson notes, and knowledge graph as source
@@ -112,7 +113,9 @@ coverage or untested hardware. Include screenshots only for visual documentation
 
 ## Security & Generated Records
 
-Never commit `.env`, credentials, proxy secrets, build output, or caches. New raw dialogue archives
-belong outside Git worktrees by default; the existing `docs/triton-learning/dialogues/` files are
-frozen legacy evidence. Review any explicitly authorized archive for private paths, attachment
-contents, and accidental cross-topic messages.
+Never commit `.env`, credentials, proxy secrets, build output, or caches. `study-log` produces a
+structured record by default; a raw visible-text archive is produced only on explicit request and
+is saved beside its record under the sibling `logs-raw/` directory with the same file name. The
+existing `docs/triton-learning/dialogues/` files are frozen legacy evidence. Review any explicitly
+authorized archive for private paths, attachment contents, and accidental cross-topic messages;
+saving it does not authorize committing or publishing it.

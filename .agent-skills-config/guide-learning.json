@@ -8,6 +8,11 @@
       "kind": "collection"
     },
     {
+      "fact_id": "learner-profile",
+      "role": "learner-preferences",
+      "kind": "file"
+    },
+    {
       "fact_id": "repository-guidelines",
       "role": "repository-instructions",
       "kind": "file"
@@ -24,23 +29,57 @@
     }
   ],
   "record_mappings": {
-    "practice-artifacts": {
-      "path": "gpu/triton",
-      "kind": "collection"
-    },
-    "program": {
-      "path": "docs/triton-learning/README.md",
-      "kind": "file",
-      "section": "当前 Program 状态"
-    },
-    "checkpoint": {
-      "path": "docs/triton-learning/README.md",
-      "kind": "file",
-      "section": "Checkpoint"
-    },
-    "lesson": {
-      "path": "docs/triton-learning/lessons",
-      "kind": "collection"
-    }
+    "practice-artifacts": [
+      {
+        "path": "gpu/triton",
+        "kind": "collection"
+      },
+      {
+        "path": "leetcode",
+        "kind": "collection"
+      },
+      {
+        "path": "tests/cpp",
+        "kind": "collection"
+      },
+      {
+        "path": "tests/python/leetcode",
+        "kind": "collection"
+      }
+    ],
+    "program": [
+      {
+        "path": "docs/algorithm-interview-learning/README.md",
+        "kind": "file",
+        "section": "当前 Program 状态"
+      },
+      {
+        "path": "docs/triton-learning/README.md",
+        "kind": "file",
+        "section": "当前 Program 状态"
+      }
+    ],
+    "checkpoint": [
+      {
+        "path": "docs/algorithm-interview-learning/README.md",
+        "kind": "file",
+        "section": "Checkpoint"
+      },
+      {
+        "path": "docs/triton-learning/README.md",
+        "kind": "file",
+        "section": "Checkpoint"
+      }
+    ],
+    "lesson": [
+      {
+        "path": "docs/algorithm-interview-learning/lessons",
+        "kind": "collection"
+      },
+      {
+        "path": "docs/triton-learning/lessons",
+        "kind": "collection"
+      }
+    ]
   }
 }
