@@ -2,7 +2,8 @@
 
 <!--
 仅在学习者明确授权当前 Lesson 后创建。复制“核心记录”，再按实际发生追加条件片段；不要预建空的
-练习、finding、event、Checkpoint 或原始对话章节。第 01、02 课是冻结的 legacy evidence，不迁入本模板。
+练习、问题、事件或原始对话章节。第 01、02 课是冻结的 legacy evidence，不迁入本模板。
+讲解、练习与结课的规则由中央 guide-learning 定义；本模板只提供记录格式。
 -->
 
 ## 核心记录
@@ -12,7 +13,7 @@
 | Lesson ID | `triton-NN-<topic>` |
 | Program | [Triton 学习档案](../README.md) |
 | 能力标题 | （一项可独立描述和验收的能力） |
-| 阶段 | `teaching` / `synthesis` / `practice` / `review` / `mastery-gate` / `complete` |
+| 阶段 | `teaching` / `synthesis` / `practice` / `review` / `gate` / `complete` |
 
 ### 来源
 
@@ -21,103 +22,88 @@
 | `docs/triton-tutorials/official/<file>.py` | `teaching-spine` | 仓库 commit | 教学顺序与示例 |
 | `docs/triton-tutorials/official/<file>.py` | `implementation-authority` | 仓库 commit | 固定版本实现与控制流 |
 
-### 目标与证据门槛
+### 目标与所需证据
 
-<!-- 只保留 2–4 个紧密相关目标；required 维度在激活 Lesson 时声明，扩大门槛须重新授权。 -->
+<!-- 2–4 个紧密相关目标，写到理解层（为什么、取舍、迁移），不只停在“能算出”。开课时声明每个目标需要
+哪类证据；新增所需证据等于扩大门槛，须重新授权。 -->
 
-| ID | 可观察目标 | conceptual | practical | empirical | 本课 evidence 目标 |
-| --- | --- | --- | --- | --- | --- |
-| O1 |  | required / not-required | required / not-required | required / not-required |  |
+| ID | 可观察目标 | 理解 | 实践 | 实证 |
+| --- | --- | --- | --- | --- |
+| O1 |  | 需要 / 不需要 | 需要 / 不需要 | 需要 / 不需要 |
 
 ### 当前证据
 
-- **综合验收 evidence**：
-- **仍缺 evidence**：无 / 列出目标与维度
-- **权威知识产物引用**：文章、源码说明或其他稳定锚点；不复制教学正文。
-- **Fallback 心智模型**：仅在没有可链接的权威知识产物时写 3–6 行，否则删除本项。
+- **已有证据**：链接到阶段事件或工件，每条一两句说明证明了什么。
+- **仍缺证据**：无 / 列出目标与证据类型。
+- **权威知识产物**：文章、源码说明或其他稳定锚点；不复制教学正文。
+- **Fallback 心智模型**：仅在没有可链接的知识产物时写 3–6 行，否则删除本项。
 
 ### 核心工件与参考
 
 | 角色 | 路径或引用 | 说明 |
 | --- | --- | --- |
-| learner-owned artifact |  | 仅在实际存在时记录 |
-| Agent-owned evidence |  | 测试、rubric、fixture 或实验记录 |
-| source / knowledge artifact |  | 不复制正文 |
+| 你写（learner-owned） |  | 仅在实际存在时记录 |
+| 我维护（agent-owned） |  | 测试、rubric、fixture 或实验记录 |
+| 来源或知识产物 |  | 不复制正文 |
 
-## 条件片段：Session event
+## 条件片段：阶段事件
 
-<!-- 每个有实质增量的会话段最多一条；无增量时不要添加。 -->
+<!-- 每个有实质进展的会话段最多一条；结课或练习关闭时在同一条标注，不另建一条。 -->
 
-| ID / 日期 | Lesson ref | 覆盖范围 | 完成动作 | Evidence 引用 | 未关闭问题 | Confirmed duration | Marker |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-|  | 本 Lesson ID |  |  |  |  | 仅用户提供时填写 | 无 / `closure` |
+| 日期 | 覆盖范围 | 证明了什么 | 证据链接 | 标注 |
+| --- | --- | --- | --- | --- |
+|  |  | 一两句 |  | 无 / 结课 / 练习关闭 |
 
-## 条件片段：已接受的正式练习
+## 条件片段：练习约定
 
-<!-- 只有综合验收仍有 evidence 缺口且学习者接受六块契约后，才追加本节。 -->
+<!-- 只有综合验收后仍缺证据、且学习者接受约定后才追加。约定语义变化时版本号加一，展示变化并重新接受。 -->
 
-- **Practice ID / revision / digest**：
-- **目标、缺失维度与 evidence gap**：
-- **Task**：
-- **Deliverables**：
+- **编号与版本**：P1，版本 1；学习者接受于 YYYY-MM-DD。
+- **为什么做**：对应的目标与缺失的证据。
+- **你交付什么**：任务与学习者负责的核心产物。
+- **验收项**：
 
-| Artifact | Learner 必须交付的 outcome |
+| ID | 可观察标准 | 检查方式 |
+| --- | --- | --- |
+| A1 |  | 测试 / rubric / 命令 / 解释 / 对照 / 实验 |
+
+- **文件边界**：
+
+| 边界 | 路径或受限模式 |
 | --- | --- |
-|  |  |
+| 你写 |  |
+| 我维护 |  |
+| 我只读 |  |
+| 本次不动 |  |
 
-- **Acceptance**：
+- **求助如何影响证据**：透露关键解法只影响相应范围，之后用表面不同、原理相同的新变式在无提示下恢复。
+- **非目标与可选项**：可选项单列，不进入完成门槛。
 
-| ID | 可观察标准 | Evidence method |
+## 条件片段：帮助影响
+
+| 透露到什么程度 | 影响的验收项或工件 | Agent 是否写了学习者核心工件 |
 | --- | --- | --- |
-| A1 |  |  |
+|  |  | 是 / 否 |
 
-| 边界 | 路径或受限 pattern | 允许操作 |
-| --- | --- | --- |
-| learner-owned |  | read / create / modify / run |
-| agent-owned |  | read / create / modify / run / record |
-| read-only |  | read |
-| excluded |  | 无 |
+## 条件片段：需要跟踪的问题
 
-- **帮助如何影响独立 evidence**：说明 material assistance 只撤销受影响范围，并用无提示同构变式恢复。
-- **非目标与完成门槛**：列出 excluded 能力；required acceptance、映射的 blocking／major finding 与
-  已声明 mastery 维度共同决定完成。
+<!-- 同一根因只记一条并原地更新；只有复验通过才关闭；阻塞问题要延后须经学习者同意并修订约定。 -->
 
-| Optional ID | 可观察 criterion | Evidence method |
-| --- | --- | --- |
-|  |  |  |
+| ID | 对应验收项或目标 | 严重度 | 状态 | 证据 |
+| --- | --- | --- | --- | --- |
+| F1 | A# / O# | 阻塞 / 非阻塞 | 未关闭 / 已关闭 / 延后 | 开启时一句证据；关闭时补一句复验证据 |
 
-| Acceptance event ref | Accepted revision | Accepted digest |
-| --- | --- | --- |
-|  |  |  |
+## 条件片段：结课
 
-## 条件片段：Material assistance
-
-| 实际最高披露内容 | 受影响目标／acceptance／工件 | Agent 写入 learner core |
-| --- | --- | --- |
-|  |  | true / false |
-
-## 条件片段：Durable findings
-
-<!-- 同一根因只保留一条并原地更新；完整命令输出保留在原工件。 -->
-
-| ID | Maps to | Severity | Owner | Status | Evidence | Next action |
-| --- | --- | --- | --- | --- | --- | --- |
-|  | O# / A# | blocking / major / minor / suggestion |  | open / closed / deferred / dismissed | 开启证据；终态验证或理由 | open 时恰好一个动作 |
-
-## 条件片段：Mastery gate 与关闭
-
-<!-- 每行只对应一个“目标 × 一个 required 维度”；同一目标有多个 required 维度时分行。 -->
-
-| 目标 | 单一 Required 维度 | 最小 evidence 锚点 | 判断 |
+| 目标 | 所需证据 | 证据链接 | 判断 |
 | --- | --- | --- | --- |
-| O1 | conceptual |  | 充分 / 不足 |
+| O1 | 理解、实践 |  | 充分 / 不足 |
 
-- **Required blocking／major 未关闭**：0 / 列出 ID
-- **Assistance 影响是否已恢复**：不适用 / evidence 引用
-- **Nonblocking／optional 余项**：无 / 列出
-- **学习者关闭确认**：日期与确认引用；未确认时不得写 final mastery
-- **Final mastery**：仅在确认关闭后记录每个目标与 required 维度的终态 evidence
+- **未关闭的阻塞问题**：0 / 列出 ID
+- **帮助影响是否已恢复**：不适用 / 证据链接
+- **非阻塞余项**：无 / 列出
+- **学习者确认**：日期与确认引用；未确认前不写结课结论
+- **结课结论**：确认后一次写入
 
-原始对话或 structured 过程记录由 `study-log` 按需生成，只在本课链接已审阅产物；它们不保存当前阶段、
-Checkpoint 或 final mastery。确有跨会话恢复任务时，另在已披露且获授权的唯一位置保存可覆盖
-Checkpoint，不在本 Lesson 累积暂停快照。
+结构化过程记录与原文由 `study-log` 按需生成，本课只链接已审阅的产物；它们不保存当前阶段、Checkpoint
+或结课结论。当前位置只写在 Program 页的 Checkpoint，不在本 Lesson 累积暂停快照。

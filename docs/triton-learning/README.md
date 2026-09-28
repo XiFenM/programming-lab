@@ -1,44 +1,26 @@
 # Triton 学习档案
 
 本目录持续记录基于 `docs/triton-tutorials/official/` 的 Triton 学习。第 01、02 课及其对话由旧流程
-形成，现作为冻结的 legacy evidence 保留；从第 03 课起，新会话采用中央 `guide-learning` 的自适应
-教学、证据门槛和稀疏状态规则。
+形成，现作为冻结的 legacy evidence 保留；从第 03 课起采用中央 `guide-learning`。
 
 本 Program 与 [`leetcode-algorithm-interview`](../algorithm-interview-learning/README.md#当前-program-状态)
 并行保持 `active`。两条课程分别维护自己的 Program、Lesson 与 Checkpoint；一次具体学习上下文只选择
 一条课程的前台 Lesson，切换课程不会冻结、关闭或自动推进另一条课程。
 
-## 活动学习流程
+## 教学与状态
 
-结构化主题先给一张很短的全局图，再围绕每个关键节点循环：
+讲解、提问、练习、Review 与结课的行为由中央 `guide-learning` 定义，本仓库不复制；学习者画像与目标
+深度见 [学习者画像](../learning-profile.md)。本课程的状态只落在三处：
 
-1. 详细讲清当前节点的中心关系、机制和边界。
-2. 留出追问，并只做服务当前节点的必要扩展。
-3. 检查刚讲过或已确认的前置知识，不要求猜测尚未教授的事实。
-4. 理解有差距时只补差值，并换条件、例子或问法复查；理解无误时直接推进。
-5. 完成一次轻量复述、举例、自测、映射或推导，并即时校正。
+| 职责 | 位置 |
+| --- | --- |
+| Program：长期范围、排除项与候选顺序 | 本页“当前 Program 状态”与“课程索引” |
+| Lesson：目标、来源、阶段事件、练习约定、证据与结课结论 | `lessons/<NN>-<topic>.md` |
+| Checkpoint：当前位置、唯一下一动作与前进门槛 | 本页 [Checkpoint](#checkpoint) |
 
-所有关键节点覆盖后，先合成完整心智模型并做跨节点综合验收。只有 required mastery 仍缺实践、迁移
-或实证证据时，才提出能补齐缺口的最小正式练习。正式练习必须先展示并接受完整契约；学习者拥有核心
-工件，Agent 只维护契约内的测试、rubric、fixture 和记录。结课必须展示“目标 × required 维度”证据，
-并由学习者确认关闭；不会自动启动下一课或 optional 内容。
-
-普通讲解、追问、正确回答和节点推进不逐轮写入。只在正式练习获接受、核心工件提交、durable finding、
-验证或 mastery 判断改变、跨会话恢复点改变、暂停／收工或确认关闭等耐久事实变化时按需同步。
-
-## 状态职责
-
-- 本 README 的课程索引承担 Triton Program 的长期范围、候选顺序和当前前台引用；不复制 Lesson 证据。
-- `lessons/<NN>-<topic>.md` 是对应 Lesson 的唯一 evidence ledger；只保存来源、目标、required mastery、
-  当前阶段和实际发生的契约、finding、assistance、event 与 final mastery。
-- Session event 每个有实质增量的会话段最多一条，不保存精确恢复游标。
-- 只有确实存在恢复任务时才建立一个可覆盖 Checkpoint；它只保存精确语义位置、唯一下一动作、前进
-  门槛和必要引用，不累积历史快照。
-- 文章、结构化过程记录、卡片和原始对话均为按需产物，不是 Program、Lesson 或 Checkpoint 的事实源。
-
-version 2 受管配置把本页和 `lessons/` 分别登记为并行 Program 的 progress source 与 evidence
-artifacts。受管 locator 只帮助发现事实源；Program 是否 `active` 仍由本页裁决，也不会因此启动第 03
-课或授权修改冻结的第 01、02 课记录。
+当前是哪一课只写在 Checkpoint；Program 与课程索引不重复记录当前课或逐课状态。受管配置同时登记了
+两条课程的 Program、Checkpoint、Lesson 与练习目录，切换课程不需要修改配置或重新 materialize。
+文章、结构化过程记录、卡片和原始对话均为按需产物，不是 Program、Lesson 或 Checkpoint 的事实源。
 
 ## 目录约定
 
@@ -51,7 +33,9 @@ docs/triton-learning/
 │   ├── pytest-gpu-kernel-tests.md     # Triton GPU 正确性测试参考
 │   └── raw-dialogue-export.md         # study-log 现行规则与 legacy 说明
 ├── dialogues/                        # 冻结的第 01、02 课 legacy 对话
+├── transcripts/                      # 配对规则启用前保存的可追溯可见对话，保持原样
 ├── logs/                             # 按需生成的 structured 学习过程记录
+├── logs-raw/                         # 明确要求时保存的同名配对原文
 ├── cards/                            # 按需生成的受管 Markji 暂存卡片
 ├── lessons/
 │   ├── 01-vector-add.md              # 冻结的旧结构 Lesson 记录
@@ -66,38 +50,39 @@ docs/triton-learning/
 - 少量实验结果可以写入 Lesson；过大或需要机器读取的内容放入 `attachments/` 并链接。
 - 官方教程快照保持原样，不在 `docs/triton-tutorials/official/` 中写笔记或修改代码。
 - `dialogues/` 不再接收新 raw 归档；其中旧名称、旧路径和历史命令保持原样。
-- `logs/` 是 `study-log` 的 structured target，也是 `english-coach` 与 `memo-cards` 唯一共享的学习记录
-  collection；目录中的技术占位文件不属于素材，只有用户为本次记录指定并授权的精确 Markdown 才是记录。
-- `cards/` 是 `memo-cards` 的候选输出 collection；只有 `triton-*.md` 进入受管 inventory。静态目录与
-  配置都不授权制卡或发布，legacy 对话与 Lesson 也不会被隐式读取。
-- raw archive 仍默认位于 Git 工作树外，不能从 structured target 推导。
+- `logs/` 是 `study-log` 的 structured target，也是 `english-coach` 与 `memo-cards` 共享的学习记录
+  目录；制卡与英语回顾只读取学习者明确指定的记录，与文件是否已被 Git 跟踪无关。
+- `cards/` 是 `memo-cards` 的输出目录；只有 `triton-*.md` 进入受管 inventory。静态目录与配置都不授权
+  制卡或发布，legacy 对话、transcripts 与 Lesson 也不会被隐式读取。`cards/previews/` 中已有的课程卡片
+  预览保持原样。
+- 原始可见对话默认不保存；学习者明确要求时，由 `study-log` 在确认边界与隐私后写入 `logs-raw/`，与
+  `logs/` 中的记录同名配对。保存不等于授权提交或公开。
 
 ## 课程索引
 
-第 01、02 课的“已完成”沿用历史终态。从第 03 课起，候选顺序不构成启动授权；只有学习者明确开始
-某课后，才创建或激活对应 Lesson，并使用 `teaching`、`synthesis`、`practice`、`review`、
-`mastery-gate`、`complete` 阶段。
+下表是规划顺序，不构成启动授权。已有记录链接的课次已经授权，阶段与结课结论只写在各课记录中；候选
+课次只在学习者明确开始后才创建记录。第 01、02 课是冻结的 legacy 记录。
 
-| 课次 | 官方案例 | 学习记录 | 状态 |
-| --- | --- | --- | --- |
-| 01 | `01-vector-add.py` | [lessons/01-vector-add.md](lessons/01-vector-add.md) | 已完成（legacy） |
-| 02 | `02-fused-softmax.py` | [lessons/02-fused-softmax.md](lessons/02-fused-softmax.md) | 已完成（legacy） |
-| 03 | `03-matrix-multiplication.py` | [lessons/03-matrix-multiplication.md](lessons/03-matrix-multiplication.md) | 已完成（`complete`） |
-| 04 | `04-low-memory-dropout.py` | [lessons/04-low-memory-dropout.md](lessons/04-low-memory-dropout.md) | 已完成（`complete`） |
-| 05 | `05-layer-norm.py` | [lessons/05-layer-norm.md](lessons/05-layer-norm.md) | 已完成（`complete`） |
-| 06 | `06-fused-attention.py` | [lessons/06-fused-attention.md](lessons/06-fused-attention.md) | 已完成（`complete`） |
-| 07 | `07-extern-functions.py` | `lessons/07-extern-functions.md` | 候选（未授权） |
-| 08 | `08-grouped-gemm.py` | `lessons/08-grouped-gemm.md` | 候选（未授权） |
-| 09 | `09-persistent-matmul.py` | `lessons/09-persistent-matmul.md` | 候选（未授权） |
-| 10 | `10-block-scaled-matmul.py` | `lessons/10-block-scaled-matmul.md` | 候选（未授权） |
+| 课次 | 官方案例 | 学习记录 |
+| --- | --- | --- |
+| 01 | `01-vector-add.py` | [lessons/01-vector-add.md](lessons/01-vector-add.md)（legacy） |
+| 02 | `02-fused-softmax.py` | [lessons/02-fused-softmax.md](lessons/02-fused-softmax.md)（legacy） |
+| 03 | `03-matrix-multiplication.py` | [lessons/03-matrix-multiplication.md](lessons/03-matrix-multiplication.md) |
+| 04 | `04-low-memory-dropout.py` | [lessons/04-low-memory-dropout.md](lessons/04-low-memory-dropout.md) |
+| 05 | `05-layer-norm.py` | [lessons/05-layer-norm.md](lessons/05-layer-norm.md) |
+| 06 | `06-fused-attention.py` | [lessons/06-fused-attention.md](lessons/06-fused-attention.md) |
+| 07 | `07-extern-functions.py` | 候选，尚无记录 |
+| 08 | `08-grouped-gemm.py` | 候选，尚无记录 |
+| 09 | `09-persistent-matmul.py` | 候选，尚无记录 |
+| 10 | `10-block-scaled-matmul.py` | 候选，尚无记录 |
 
-获得新 Lesson 授权后，才以 `templates/lesson-record.md` 的“核心记录”为基础创建文件；条件片段只在
-对应事实实际发生时追加。不要整份复制出空章节，也不要因为候选顺序自动开始第 03 课。
+获得新 Lesson 授权后，以 `templates/lesson-record.md` 的“核心记录”为基础创建 `lessons/<NN>-<topic>.md`；
+条件片段只在对应事实实际发生时追加，不要整份复制出空章节。
 
 ## Legacy 对话索引
 
-以下文件是旧流程生成的可见文本快照，保留其旧 Skill 名称、路径和正文，不再刷新或覆盖。现行 raw
-归档由 `study-log` 在用户明确请求并确认边界、隐私和仓库外私有位置后生成；规则见
+以下文件是旧流程生成的可见文本快照，保留其旧 Skill 名称、路径和正文，不再刷新或覆盖。现行原文只在
+学习者明确要求时由 `study-log` 生成，确认边界与隐私后写入 `logs-raw/`；规则见
 [study-log 与 legacy 对话](references/raw-dialogue-export.md)。
 
 | 编号 | 范围 | 原始对话 | 消息数 | 归档状态 |
@@ -115,8 +100,6 @@ docs/triton-learning/
 
 ## 当前 Program 状态
 
-最近状态更新：2026-09-24。
-
 | 字段 | 当前值 |
 | --- | --- |
 | Program ID / 标题 | `triton-official-tutorials` / Triton 官方教程学习 |
@@ -125,11 +108,9 @@ docs/triton-learning/
 | Objective | 理解、实现并验证本仓库固定版本的 Triton 官方教程 |
 | Included | 官方案例的概念、实现、正确性与目标明确时的实证验证 |
 | Excluded | 未获授权的独立性能研究、optional extension 与下一 Lesson 执行 |
-| Authorized Lesson refs | `lessons/01-vector-add.md`、`lessons/02-fused-softmax.md`（均为已关闭 legacy）、`lessons/03-matrix-multiplication.md`、`lessons/04-low-memory-dropout.md`、`lessons/05-layer-norm.md`、`lessons/06-fused-attention.md` |
-| Active Lesson ref | 无；位于 Lesson 边界，最近关闭 [Lesson 06](lessons/06-fused-attention.md#final-mastery) |
-| Checkpoint ref | [下方唯一 Checkpoint](#checkpoint) |
 
-- 第 01–06 课均已关闭；学习者于 2026-09-24 确认关闭 Lesson 06，当前没有 active Lesson。
+当前位置只见下方 Checkpoint；已授权课程与各课阶段见[课程索引](#课程索引)链接的记录。
+
 - Lesson 02 的历史 evidence 只由[冻结记录](lessons/02-fused-softmax.md)承担，本 Program 不复制。
 - Lesson 03 的 O4 仅完成了约定的一次 grouped ordering 受控测量；profiler、置信区间、cache 机制深挖
   与穷举调参不属于已关闭 Lesson 的核心范围。
@@ -139,23 +120,19 @@ docs/triton-learning/
 | 字段 | 当前值 |
 | --- | --- |
 | Foreground context | `triton-official-tutorials` Program |
-| Semantic position | Lesson 06 已确认关闭，位于 Lesson 边界；guide-learning 改进作为已授权的独立维护工作推进 |
+| Semantic position | 第 01–06 课均已关闭；Lesson 06 于 2026-09-24 确认关闭，位于 Lesson 边界，当前没有 active Lesson |
 | Next action | 学习者选择并授权下一 Lesson |
 | Forward gate | 明确授权后才激活下一 Lesson；当前不会自动启动 Lesson 07 |
 | Latest evidence ref | [Lesson 06 Final mastery](lessons/06-fused-attention.md#final-mastery) |
-| As of | 2026-09-24；Lesson 06 complete，Program 保持 active |
+| As of | 2026-09-28；guide-learning 改进已完成，Lesson 06 complete，Program 保持 active |
 
-## 记录原则
+## 本课程的记录约定
 
-- **区分事实与推断**：源码行为、实测结果和解释性推断分别表述并给出版本锚点。
-- **按目标声明证据**：每项目标在激活时声明 conceptual、practical、empirical 为 `required` 或
-  `not-required`，不得在结课时临时改变。
-- **正式练习只补证据缺口**：综合验收已经足够时跳过；需要时先接受六块契约，再创建验收工件。
-- **核心工件归学习者**：Agent 不因验证失败自动接管；material assistance 只撤销受影响范围的独立
-  evidence，并用无提示同构变式恢复。
-- **finding 原地更新**：同一根因只保留一个稳定 finding；required blocking／major 关闭后停止正式
-  Review，minor／suggestion 默认不阻塞。
-- **结果必须可复现**：实验记录环境、版本、输入、控制变量、warm-up、同步、重复策略和比较基线。
+通用的证据、练习、Review 与结课规则见中央 `guide-learning`；本课程另外约定：
+
+- **版本锚点**：源码行为以本仓库固定的教程快照为准，见 `docs/triton-tutorials/SOURCE.md`。
+- **结果必须可复现**：实验记录 GPU 型号、驱动、CUDA 与 Triton 版本、输入规模、控制变量、warm-up、
+  同步、重复策略和比较基线。
 - **性能结论有边界**：不把单台设备上的某个配置、stage 深度或理论 occupancy 泛化为单调规律。
-- **按需分层产物**：`study-log` 的 structured 记录只保留原始回答、误解、纠错、高价值问题和转折；
-  raw 需要单独确认且默认位于 Git 工作树外。两者都不裁决 Lesson stage 或 mastery。
+- **按需产物**：`study-log` 的 structured 记录只保留原始回答、误解、纠错、高价值问题和转折；原文只在
+  明确要求时保存到 `logs-raw/`。两者都不裁决 Lesson 阶段或结课结论。

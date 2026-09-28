@@ -2,10 +2,14 @@
 
 本目录是算法面试长期 Course 的活动状态事实源：
 
-- 本文件承担 Program 控制面与唯一 Checkpoint。
-- `lessons/` 中的已授权文件承担对应 Lesson 的 evidence ledger。
+- 本文件承担 Program 控制面与唯一 Checkpoint；当前是哪一课只写在 Checkpoint。
+- `lessons/` 中的已授权文件承担对应 Lesson 的 evidence ledger，阶段与结课结论只写在其中。
 - `docs/algorithm-interview-course/` 是只读 teaching source，不承担个人进度或 mastery。
 - 学习日志、原始对话和记忆卡只有在另行明确授权后生成，不属于课程状态。
+
+讲解、提问、练习与结课的行为由中央 `guide-learning` 定义；学习者画像与目标深度见
+[学习者画像](../learning-profile.md)。受管配置同时登记了两条课程的 Program、Checkpoint、Lesson 与练习
+目录，切换课程不需要修改配置或重新 materialize。
 
 本 Program 与 [`triton-official-tutorials`](../triton-learning/README.md#当前-program-状态) 并行保持
 `active`。两条课程分别维护自己的 Program、Lesson 与 Checkpoint；一次具体学习上下文只选择一条课程
@@ -21,8 +25,8 @@
 | Objective | 独立处理常见算法面试题：澄清约束、建立模型与基线、定义状态或不变量、实现并验证、说明正确性与复杂度，并迁移到陌生同构题。 |
 | Included | 固定文字课程中的面试方法、复杂度、常见数据结构与算法模式；证据需要时在既有 LeetCode 目录完成最小实践。 |
 | Excluded | 机械刷完 70 课；课程未系统覆盖的高级算法；未授权的多语言重复实现、optional extension、平台时效信息和生产级工程扩展。 |
-| Authorized Lesson refs | [`lessons/01-constraint-driven-selection.md`](lessons/01-constraint-driven-selection.md) |
-| Checkpoint ref | [下方唯一 Checkpoint](#checkpoint) |
+
+已授权课程即 [`lessons/`](lessons/) 中已有记录的课次；当前位置只见下方 Checkpoint。
 
 ## Candidate Lessons
 
