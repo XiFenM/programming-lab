@@ -36,3 +36,4 @@ docker/bashrc text eol=lf
 
 # Immutable dialogue snapshots retain source Markdown breaks and terminal spacing.
 docs/triton-learning/transcripts/20*.md whitespace=-blank-at-eol
+docs/triton-learning/logs-raw/20*.md whitespace=-blank-at-eol

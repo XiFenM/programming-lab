@@ -143,18 +143,22 @@ version 2 消费索引，并为 Codex 与 Claude 选择同样的四个学习 Ski
 
 算法面试与 Triton 是两个并行保持 `active` 的长期 Program，各自拥有独立控制面、Lesson evidence
 ledger 与 Checkpoint。一次具体学习会话只选择一个前台 Lesson；切换主题不会冻结、关闭或自动推进
-另一条课程。`english-coach` 的受管读取范围覆盖这两条课程全部由 Git 跟踪且未修改的 structured
-学习日志，但不包含 raw 私有归档、冻结的 legacy dialogues 或 Lesson evidence。
+另一条课程。`english-coach` 默认零写入，可以使用这两条课程 `logs/` 下由学习者点名、或与回顾主题
+唯一对应的 structured 学习日志，是否已被 Git 跟踪不影响可用性；`logs-raw/` 下的可追溯原文、冻结的
+legacy dialogues 和 Lesson evidence 不会被隐式读取。
 
-`guide-learning` 的单组 `record_mappings` 只定位前台课程的持久化位置。向另一条课程写入状态前，
-需要精确切换 Program、Checkpoint、Lesson 与练习工件映射并重新 materialize；不要把映射扩大到
-同时覆盖两条课程。课程是否 active、是否已结课仍以各自的 Program 与 Lesson 记录为准。
+`guide-learning` 的 `record_mappings` 一次列出两条课程各自的 Program、Checkpoint、Lesson 目录和
+练习根目录，切换课程不需要改映射，也不需要重新 materialize。每条课程当前学到哪里只记录在它自己的
+Checkpoint 中；课程是否 active、是否已结课仍以各自的 Program 与 Lesson 记录为准。两条课程共用的
+学习者画像是 [`docs/learning-profile.md`](docs/learning-profile.md)。
 
 受 Git 跟踪的 [`.agent-skills-config/`](.agent-skills-config) 只提供公共 repository facts、学习状态
 locator、structured log target 以及英语反馈／卡片的窄 collection。它不保存当前课程状态，不授予
 开课、读取 raw、写入、制卡、练习、mastery 或归档权限；具体操作仍以仓库事实和用户当轮授权为准。
-`study-log` 的 raw 私有位置、会话和消息边界不会进入这些公共配置。冻结的 legacy 对话、Lesson、模板
-与参考资料均不属于 `english-coach` 或 `memo-cards` 的允许来源。
+`study-log` 的可追溯原文保存在结构化记录同级的 `logs-raw/` 同名文件中，位置由结构化目标派生；
+会话和消息边界不会进入这些公共配置。卡片来源只能是学习者点名的 structured 学习日志；冻结的 legacy
+对话、可追溯原文、Lesson、模板与参考资料均不属于 `english-coach` 或 `memo-cards` 的允许来源，也不要
+为了让某个来源可用而执行 `git add` 或重新 materialize。
 
 `.agents/skills/`（Codex）与 `.claude/skills/`（Claude）是 materializer 生成且被 Git 忽略的发现副本，
 不是第二份源码。不要手工修改、复制或提交其中内容；Skill 更新只通过中央子模块版本和消费配置完成。
