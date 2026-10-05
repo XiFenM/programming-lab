@@ -50,8 +50,8 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
   `privileged`、`NET_ADMIN` 或容器内 iptables；直连模式完全不启动它。
 - 提供八套 VS Code Dev Container 组合、编辑器设置、推荐插件、任务和调试配置。
 - 提供可选的本地 pre-commit hook，以及不依赖 GPU 的 GitHub Actions 代码质量检查。
-- 仓库级 Codex Skills 由 `.agent-skills` 中央子模块固定版本，并根据
-  `.agent-skills.json` 生成到 `.agents/skills/` 供当前仓库发现。
+- 仓库级 Agent Skills 由 `.agent-skills` 中央子模块固定版本，并根据
+  `.agent-skills.json` 生成到 `.agents/skills/`（Codex）与 `.claude/skills/`（Claude）供当前仓库发现。
 
 ## 仓库结构
 
@@ -71,9 +71,10 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
 ├── compose.proxy-*.yaml             # v2rayA 配置持久化/临时存储覆盖层
 ├── .devcontainer/                   # 工作区 × 持久化 × 网络模式八套配置
 ├── .agent-skills/                   # 中央 Agent Skills 子模块（固定中央版本）
-├── .agent-skills.json               # 中央 Skill 选择；当前为 Codex 启用四个学习 Skill
+├── .agent-skills.json               # 中央 Skill 选择；当前为 Codex 与 Claude 启用四个学习 Skill
 ├── .agent-skills-config/            # 四个学习 Skill 的仓库事实与受管位置配置
 ├── .agents/skills/                  # materializer 生成的仓库级 Codex 发现副本
+├── .claude/skills/                  # materializer 生成的仓库级 Claude 发现副本
 ├── docker/                          # Bash 环境和容器专用 Cargo 镜像配置
 ├── docs/
 │   ├── algorithm-interview-course/ # 算法面试文字课程、知识图谱与复习路线
@@ -126,11 +127,11 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
 └── .github/workflows/quality.yml    # 无 GPU 的云端质量检查
 ```
 
-## 仓库级 Codex Skills
+## 仓库级 Agent Skills
 
 中央规范源以 [`.agent-skills`](.agent-skills) 子模块按主仓库记录的提交固定版本；具体提交可用
 `git submodule status .agent-skills` 查看。[`.agent-skills.json`](.agent-skills.json) 当前使用统一
-version 2 消费索引，并为 Codex 选择四个学习 Skill：
+version 2 消费索引，并为 Codex 与 Claude 选择同样的四个学习 Skill：
 
 - `guide-learning`：来源驱动讲解、自适应理解检查、按证据缺口触发的正式练习、Review 与 mastery。
 - `study-log`：按需提炼结构化学习过程，或在单独确认隐私和边界后保存可追溯可见文本对话。
@@ -155,8 +156,8 @@ locator、structured log target 以及英语反馈／卡片的窄 collection。�
 `study-log` 的 raw 私有位置、会话和消息边界不会进入这些公共配置。冻结的 legacy 对话、Lesson、模板
 与参考资料均不属于 `english-coach` 或 `memo-cards` 的允许来源。
 
-`.agents/skills/` 是 materializer 生成且被 Git 忽略的发现副本，不是第二份源码。不要手工修改、复制
-或提交其中内容；Skill 更新只通过中央子模块版本和消费配置完成。
+`.agents/skills/`（Codex）与 `.claude/skills/`（Claude）是 materializer 生成且被 Git 忽略的发现副本，
+不是第二份源码。不要手工修改、复制或提交其中内容；Skill 更新只通过中央子模块版本和消费配置完成。
 
 首次克隆或子模块尚未初始化时运行：
 

@@ -3,16 +3,20 @@
   "source": ".agent-skills",
   "skills": {
     "english-coach": [
-      "codex"
+      "codex",
+      "claude"
     ],
     "guide-learning": [
-      "codex"
+      "codex",
+      "claude"
     ],
     "memo-cards": [
-      "codex"
+      "codex",
+      "claude"
     ],
     "study-log": [
-      "codex"
+      "codex",
+      "claude"
     ]
   },
   "config": {
