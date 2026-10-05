@@ -71,7 +71,7 @@ docs/triton-learning/
 | 04 | `04-low-memory-dropout.py` | [lessons/04-low-memory-dropout.md](lessons/04-low-memory-dropout.md) |
 | 05 | `05-layer-norm.py` | [lessons/05-layer-norm.md](lessons/05-layer-norm.md) |
 | 06 | `06-fused-attention.py` | [lessons/06-fused-attention.md](lessons/06-fused-attention.md) |
-| 07 | `07-extern-functions.py` | 候选，尚无记录 |
+| 07 | `07-extern-functions.py` | [lessons/07-extern-functions.md](lessons/07-extern-functions.md) |
 | 08 | `08-grouped-gemm.py` | 候选，尚无记录 |
 | 09 | `09-persistent-matmul.py` | 候选，尚无记录 |
 | 10 | `10-block-scaled-matmul.py` | 候选，尚无记录 |
@@ -119,12 +119,12 @@ docs/triton-learning/
 
 | 字段 | 当前值 |
 | --- | --- |
-| Foreground context | `triton-official-tutorials` Program |
-| Semantic position | 第 01–06 课均已关闭；Lesson 06 于 2026-09-24 确认关闭，位于 Lesson 边界，当前没有 active Lesson |
-| Next action | 学习者选择并授权下一 Lesson |
-| Forward gate | 明确授权后才激活下一 Lesson；当前不会自动启动 Lesson 07 |
-| Latest evidence ref | [Lesson 06 Final mastery](lessons/06-fused-attention.md#final-mastery) |
-| As of | 2026-09-28；guide-learning 改进已完成，Lesson 06 complete，Program 保持 active |
+| Foreground context | [Lesson 07 `triton-07-extern-functions`](lessons/07-extern-functions.md) |
+| Semantic position | Lesson 07 处于 `review`：P1 主体与 A6 变式的本机层 16 项全部通过，A5 已通过，F1 已关闭；GPU 层 44 项尚未运行，F2、F3 待其复验 |
+| Next action | 在 GPU 机器上运行 `bash scripts/host-gpu.sh run -- python -m pytest -q gpu/triton/lesson07_extern_functions_test.py`，并把输出与 GPU、软件版本交回；可选运行次正规数观察脚本 |
+| Forward gate | GPU 层 44 项全部通过且 F2、F3 复验关闭后进入结课确认；若失败源于测试自身，由 Agent 修复后重跑 |
+| Latest evidence ref | [Lesson 07 需要跟踪的问题](lessons/07-extern-functions.md#条件片段需要跟踪的问题) |
+| As of | 2026-10-05 |
 
 ## 本课程的记录约定
 

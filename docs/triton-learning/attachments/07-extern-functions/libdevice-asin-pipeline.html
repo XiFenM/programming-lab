@@ -1,0 +1,1264 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Triton 第 07 课节点 3–6 图解：一次 libdevice.asin 调用怎样按布局拆到每个线程、链接 libdevice bitcode、内联并按反射参数变成 PTX 指令；四条实现路线与 NVIDIA、AMD 两个后端的对照；附四个编译器前置概念和布局实验。">
+<title>libdevice.asin 编译链路</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&display=swap">
+<style>
+[hidden]{display:none!important}
+body{margin:0}
+:root{
+  --bg:#f3f4ef;--surface:#ffffff;--surface-2:#eceee6;--ink:#1b222c;--muted:#5a6370;--line:#d3d8cc;
+  --accent:#c2530a;--accent-soft:#fbe5d3;--accent-ink:#ffffff;
+  --lib:#3f4fb8;--lib-soft:#e4e7fb;
+  --w0:#d6e4f5;--w1:#d4ecdf;--w2:#f3e8c8;--w3:#efd6e5;--w4:#e0daf4;--w5:#e3edcc;--w6:#f2dccf;--w7:#cfeaea;
+  --sans:"Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  --serif:"Noto Serif SC","Songti SC","SimSun",serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#11151b;--surface:#1a2028;--surface-2:#222a34;--ink:#e5e9ee;--muted:#a2acb8;--line:#343e4a;
+    --accent:#ff9a57;--accent-soft:#4a2a17;--accent-ink:#1b1208;
+    --lib:#aab5ff;--lib-soft:#262c52;
+    --w0:#22344a;--w1:#1e3a2d;--w2:#3d3520;--w3:#3c2436;--w4:#2c2846;--w5:#2e3a1f;--w6:#40291e;--w7:#1c3a3a;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#11151b;--surface:#1a2028;--surface-2:#222a34;--ink:#e5e9ee;--muted:#a2acb8;--line:#343e4a;
+  --accent:#ff9a57;--accent-soft:#4a2a17;--accent-ink:#1b1208;
+  --lib:#aab5ff;--lib-soft:#262c52;
+  --w0:#22344a;--w1:#1e3a2d;--w2:#3d3520;--w3:#3c2436;--w4:#2c2846;--w5:#2e3a1f;--w6:#40291e;--w7:#1c3a3a;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.8}
+button,select,input{font:inherit;color:inherit}
+code,pre,.mono{font-family:var(--mono)}
+code{font-size:.9em;background:var(--surface-2);padding:.08em .35em;border-radius:4px}
+a{color:var(--accent)}
+h1,h2,h3{text-wrap:balance;line-height:1.35}
+h1,h2{font-family:var(--serif);font-weight:700}
+h1{font-size:clamp(1.9rem,4.4vw,2.7rem);margin:0}
+h2{font-size:clamp(1.4rem,3vw,1.85rem);margin:0}
+h3{font-size:1.08rem;margin:0}
+p{margin:0;max-width:46em}
+.wrap{max-width:1060px;margin-inline:auto;padding-inline:20px}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:10px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:.95rem;letter-spacing:.02em}
+.brand span{font-family:var(--mono);color:var(--accent);margin-right:.5em}
+.topbar nav{display:flex;gap:18px;flex-wrap:wrap;font-size:.9rem}
+.topbar nav a{color:var(--muted);text-decoration:none}
+.topbar nav a:hover,.topbar nav a:focus-visible{color:var(--ink)}
+main{display:grid;gap:64px;padding-block:40px 72px}
+section{display:grid;gap:20px}
+.eyebrow{font-size:.8rem;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;font-weight:500}
+.lede{font-size:1.06rem;color:var(--muted)}
+.keyline{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 18px;max-width:52em}
+.keyline b{color:var(--accent)}
+.sec-head{display:grid;gap:8px}
+.sec-head .tag{font-family:var(--mono);font-size:.8rem;color:var(--accent);letter-spacing:.06em}
+figure{margin:0;display:grid;gap:10px}
+figcaption{font-size:.9rem;color:var(--muted);max-width:52em}
+.fig-scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
+.fig-scroll svg{display:block;width:100%;height:auto}
+.fig-scroll.wide svg{min-width:720px}
+svg.dia{color:var(--ink);font-family:var(--sans);font-size:13px}
+svg.dia text{fill:currentColor}
+svg.dia .sm{font-size:11.5px}
+svg.dia .xs{font-size:10.5px}
+svg.dia .b{font-weight:700}
+svg.dia .m{font-family:var(--mono);font-size:12px}
+svg.dia .m.sm{font-size:11px}
+svg.dia .mu,svg.dia .mu text{fill:var(--muted)}
+svg.dia .ac,svg.dia .ac text{fill:var(--accent)}
+svg.dia .box{fill:var(--surface);stroke:currentColor;stroke-width:1.2}
+svg.dia .box2{fill:var(--surface-2);stroke:var(--line);stroke-width:1.2}
+svg.dia .dash{fill:var(--surface);stroke:currentColor;stroke-width:1.2;stroke-dasharray:5 4}
+svg.dia .acc{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.6}
+svg.dia .lib{fill:var(--lib-soft);stroke:var(--lib);stroke-width:1.2}
+svg.dia .frame{fill:none;stroke:var(--line);stroke-width:1.4}
+svg.dia .arr{fill:none;stroke:currentColor;stroke-width:1.4}
+svg.dia .arr-a{fill:none;stroke:var(--accent);stroke-width:1.8}
+svg.dia .arr-mu{fill:none;stroke:var(--muted);stroke-width:1.2;stroke-dasharray:3 4}
+svg.dia .mk{fill:var(--ink)}
+svg.dia .mk-a{fill:var(--accent)}
+svg.dia .faded{opacity:.35}
+svg.dia .strike{stroke:var(--muted);stroke-width:1.4}
+.concepts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:grid;gap:12px;align-content:start}
+.card h3{display:flex;gap:10px;align-items:baseline}
+.card h3 .n{font-family:var(--mono);color:var(--accent);font-size:.85rem}
+.card p{font-size:.95rem}
+.card .fig-scroll{padding:10px;background:var(--bg)}
+.analogy{font-size:.9rem;color:var(--muted)}
+pre{margin:0;background:var(--surface-2);border-radius:8px;padding:12px 14px;overflow-x:auto;font-size:.82rem;line-height:1.65}
+pre .c{color:var(--muted)}
+pre .keep{color:var(--accent);font-weight:600}
+pre .drop{color:var(--muted);text-decoration:line-through}
+.stepper{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stage-tabs{display:flex;gap:6px;overflow-x:auto;padding:12px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.stage-tabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:.86rem;cursor:pointer;white-space:nowrap}
+.stage-tabs button .i{font-family:var(--mono);color:var(--muted);margin-right:6px;font-size:.78rem}
+.stage-tabs button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.stage-tabs button[aria-pressed="true"] .i{color:inherit}
+.stage-body{padding:18px 20px;display:grid;gap:14px}
+.stage-meta{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:.93rem}
+.stage-meta dt{color:var(--muted)}
+.stage-meta dd{margin:0}
+.stage-delta{font-size:.95rem}
+.stage-src{font-size:.82rem;color:var(--muted);font-family:var(--mono);overflow-wrap:anywhere}
+.stage-nav{display:flex;justify-content:space-between;gap:10px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:.9rem}
+.btn:hover{border-color:var(--ink)}
+.btn:disabled{opacity:.4;cursor:default;border-color:var(--line)}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:0;background:var(--surface);padding:6px 14px;cursor:pointer;font-size:.9rem}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.fig-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.symbols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:10px}
+.sym{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:.9rem}
+.sym b{font-family:var(--mono);color:var(--accent);font-weight:600}
+.lab{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:18px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+.lab-controls{display:grid;gap:12px;align-content:start}
+.lab-controls label{display:grid;gap:4px;font-size:.88rem;color:var(--muted)}
+.lab-controls select,.lab-controls input{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--ink);width:100%}
+.readout{display:grid;gap:6px;font-size:.9rem;background:var(--surface-2);border-radius:8px;padding:10px 12px}
+.readout div{display:flex;justify-content:space-between;gap:10px}
+.readout span:first-child{color:var(--muted)}
+.readout span:last-child{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.readout .e{color:var(--accent);font-weight:600}
+.lab-grid-wrap{display:grid;gap:8px;align-content:start}
+.grid-scroll{max-height:470px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:8px}
+.grid-scroll svg{display:block;width:100%;max-width:560px;height:auto}
+#lab-grid rect{stroke:var(--bg);stroke-width:1.5;cursor:pointer}
+#lab-grid rect.sel{fill:var(--accent)}
+#lab-grid text{fill:var(--muted);font-family:var(--mono);font-size:9px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.hover-line{font-size:.85rem;color:var(--muted);min-height:1.6em;font-family:var(--mono)}
+.warn{font-size:.88rem;border:1px solid var(--accent);background:var(--accent-soft);border-radius:8px;padding:8px 12px}
+.note{font-size:.93rem;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px;max-width:52em}
+.note b{color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-family:var(--mono);font-size:.82rem;border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:2px 10px}
+.tbl-scroll{overflow-x:auto}
+table{border-collapse:collapse;min-width:560px;font-size:.9rem;background:var(--surface)}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;vertical-align:top}
+th{background:var(--surface-2);font-weight:500}
+tr.hl td{background:var(--accent-soft)}
+.summary{background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:16px 20px;display:grid;gap:10px}
+.summary ol{margin:0;padding-left:1.4em;display:grid;gap:4px}
+.quiz{display:grid;gap:14px}
+.q{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 20px;display:grid;gap:8px}
+.q h3 .n{font-family:var(--mono);color:var(--accent);margin-right:8px}
+.q ol{margin:0;padding-left:1.4em;display:grid;gap:6px}
+footer{border-top:1px solid var(--line);padding-block:24px 40px;font-size:.84rem;color:var(--muted)}
+footer ul{margin:8px 0 0;padding-left:1.2em;display:grid;gap:4px}
+@media (max-width:760px){
+  .lab{grid-template-columns:1fr}
+  .wrap{padding-inline:16px}
+  main{gap:48px;padding-block:28px 56px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><span>07</span>libdevice.asin 编译链路</div>
+    <nav aria-label="页面导航">
+      <a href="#concepts">前置概念</a>
+      <a href="#journey">逐站跟踪</a>
+      <a href="#node3">节点 3</a>
+      <a href="#node4">节点 4</a>
+      <a href="#node5">节点 5</a>
+      <a href="#node6">节点 6</a>
+      <a href="#recap">串讲</a>
+      <a href="#check">自测</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section aria-labelledby="page-title">
+  <p class="eyebrow">Triton 第 07 课 · 节点 3–6 图解</p>
+  <h1 id="page-title">libdevice.asin 编译链路</h1>
+  <p class="lede">一行 <code>y = libdevice.asin(x)</code>，编译完成后变成了 GPU 上的哪些指令？本页用本机 Triton 3.7.1 的真实编译产物（目标 sm_90，只编译、不运行），一站一站跟着它走。节点 1、2（接口模块替换、按 dtype 查表）已经讲过，这里从 TTIR 往下讲；最后两节对比四条实现路线和两个后端。</p>
+  <p class="keyline"><b>先记住主线：</b>前端只记下“要调用 <code>__nv_asinf</code>”；布局决定每个线程负责几个元素，每个元素变成一次调用；到 LLVM IR 阶段，才从 libdevice 里把函数体拷进来并内联；GPU 运行时执行的只是展开后的普通指令。</p>
+
+  <figure>
+    <div class="fig-scroll wide">
+      <svg class="dia" viewBox="0 0 980 150" role="img" aria-label="asin 依次经过 Python、TTIR、TTGIR、LLVM IR 的链接前、链接后、O3 后三步、PTX 和 cubin；节点 3 覆盖 TTGIR 到链接前，节点 4 覆盖链接后到 PTX。">
+        <defs>
+          <marker id="m-hero" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <path class="arr-mu" d="M14,26 V20 H226 V26"/>
+        <text class="sm mu" x="120" y="14" text-anchor="middle">节点 1–2（已讲）</text>
+        <path class="arr-a" d="M258,26 V20 H488 V26"/>
+        <text class="sm ac b" x="373" y="14" text-anchor="middle">节点 3</text>
+        <path class="arr-a" d="M508,26 V20 H840 V26"/>
+        <text class="sm ac b" x="674" y="14" text-anchor="middle">节点 4</text>
+        <rect class="frame" x="384" y="34" width="336" height="78" rx="8"/>
+        <text class="xs mu" x="394" y="47">LLVM IR（make_llir 内的三步）</text>
+        <rect class="box" x="14" y="52" width="90" height="44" rx="6"/>
+        <text class="b" x="59" y="79" text-anchor="middle">Python</text>
+        <rect class="box" x="136" y="52" width="90" height="44" rx="6"/>
+        <text class="b" x="181" y="79" text-anchor="middle">TTIR</text>
+        <rect class="box" x="258" y="52" width="90" height="44" rx="6"/>
+        <text class="b" x="303" y="79" text-anchor="middle">TTGIR</text>
+        <rect class="box" x="398" y="56" width="90" height="44" rx="6"/>
+        <text class="b" x="443" y="83" text-anchor="middle">链接前</text>
+        <rect class="acc" x="508" y="56" width="90" height="44" rx="6"/>
+        <text class="b" x="553" y="83" text-anchor="middle">链接后</text>
+        <rect class="acc" x="618" y="56" width="90" height="44" rx="6"/>
+        <text class="b" x="663" y="83" text-anchor="middle">O3 后</text>
+        <rect class="box" x="750" y="52" width="90" height="44" rx="6"/>
+        <text class="b" x="795" y="79" text-anchor="middle">PTX</text>
+        <rect class="box" x="872" y="52" width="90" height="44" rx="6"/>
+        <text class="b" x="917" y="79" text-anchor="middle">cubin</text>
+        <path class="arr" d="M104,74 H134" marker-end="url(#m-hero)"/>
+        <path class="arr" d="M226,74 H256" marker-end="url(#m-hero)"/>
+        <path class="arr" d="M348,74 H396" marker-end="url(#m-hero)"/>
+        <path class="arr" d="M488,78 H506" marker-end="url(#m-hero)"/>
+        <path class="arr" d="M598,78 H616" marker-end="url(#m-hero)"/>
+        <path class="arr" d="M720,74 H748" marker-end="url(#m-hero)"/>
+        <path class="arr" d="M840,74 H870" marker-end="url(#m-hero)"/>
+        <text class="sm mu" x="59" y="134" text-anchor="middle">你写的 kernel</text>
+        <text class="sm mu" x="181" y="134" text-anchor="middle">张量＋符号名</text>
+        <text class="sm mu" x="303" y="134" text-anchor="middle">张量＋布局</text>
+        <text class="sm mu" x="443" y="134" text-anchor="middle">8 次调用</text>
+        <text class="sm mu" x="553" y="134" text-anchor="middle">拷入函数体</text>
+        <text class="sm mu" x="663" y="134" text-anchor="middle">内联</text>
+        <text class="sm mu" x="795" y="134" text-anchor="middle">普通指令</text>
+        <text class="sm mu" x="917" y="134" text-anchor="middle">机器码</text>
+      </svg>
+    </div>
+    <figcaption>整条链路都发生在编译期：Triton 第一次启动这个 kernel 时编译并缓存结果，之后 GPU 只执行最右边的 cubin。橙色两站是节点 4 的重点。</figcaption>
+  </figure>
+</section>
+
+<section id="concepts" aria-labelledby="concepts-title">
+  <div class="sec-head">
+    <span class="tag">前置 · 四个编译器概念</span>
+    <h2 id="concepts-title">先补四个概念</h2>
+    <p>节点 3、4 只用到下面四个概念。每个都附一个 C/C++ 里的对应物，后面各节会反复用到。</p>
+  </div>
+  <div class="concepts">
+    <article class="card">
+      <h3><span class="n">A</span>IR 与逐层降级</h3>
+      <p>编译器不会一步把 Python 变成机器码，而是依次翻译成几种“中间表示”（IR），每一种都更接近硬件。往下翻译一层，叫<b>降级</b>（lowering）。</p>
+      <p>每层描述的粒度不同：TTIR 说的是“整块张量”；TTGIR 加上“哪个线程负责哪些元素”；LLVM IR 写的是“<b>一个线程</b>要执行的标量指令和函数调用”；PTX 是 NVIDIA 的虚拟汇编；cubin 是具体 GPU 的机器码。</p>
+      <p class="analogy">对应物：torch.compile 先把 Python 捕获成 FX 图，再由 Inductor 降级成 Triton 代码，是同一种思路。所有翻译都在编译期完成，运行期 GPU 不再查表、链接或调用 Python。</p>
+    </article>
+
+    <article class="card">
+      <h3><span class="n">B</span>声明、定义与链接</h3>
+      <p><b>声明</b>只有名字和签名，<b>定义</b>才有函数体。<b>链接</b>就是按名字，把调用接到定义上。</p>
+      <div class="fig-scroll">
+        <svg class="dia" viewBox="0 0 460 170" role="img" aria-label="模块里的调用指向一个只有签名的声明；链接时按名字在 libdevice 里找到 __nv_asinf 的定义。">
+          <defs>
+            <marker id="m-b1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="m-b2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-a" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+          <text class="sm mu" x="12" y="16">你的模块</text>
+          <rect class="frame" x="10" y="24" width="190" height="136" rx="8"/>
+          <rect class="box" x="24" y="40" width="162" height="30" rx="5"/>
+          <text class="m sm" x="105" y="59" text-anchor="middle">call @__nv_asinf</text>
+          <path class="arr" d="M105,70 V100" marker-end="url(#m-b1)"/>
+          <rect class="dash" x="24" y="102" width="162" height="44" rx="5"/>
+          <text class="m sm" x="105" y="120" text-anchor="middle">declare @__nv_asinf</text>
+          <text class="xs mu" x="105" y="138" text-anchor="middle">只有签名，没有函数体</text>
+          <text class="sm mu" x="262" y="16">libdevice.10.bc</text>
+          <rect class="frame" x="260" y="24" width="190" height="136" rx="8"/>
+          <rect class="lib" x="274" y="38" width="162" height="24" rx="4"/>
+          <text class="m sm" x="355" y="54" text-anchor="middle">__nv_acosf { … }</text>
+          <rect class="acc" x="274" y="70" width="162" height="24" rx="4"/>
+          <text class="m sm" x="355" y="86" text-anchor="middle">__nv_asinf { … }</text>
+          <rect class="lib" x="274" y="102" width="162" height="24" rx="4"/>
+          <text class="m sm" x="355" y="118" text-anchor="middle">__nv_atanf { … }</text>
+          <text class="xs mu" x="355" y="148" text-anchor="middle">… 共数百个定义</text>
+          <path class="arr-a" d="M186,124 C230,124 230,82 272,82" marker-end="url(#m-b2)"/>
+          <text class="xs ac" x="229" y="112" text-anchor="middle">按名字</text>
+          <text class="xs ac" x="229" y="126" text-anchor="middle">找定义</text>
+        </svg>
+      </div>
+      <p class="analogy">对应物：C++ 头文件里写 <code>float asinf(float);</code>，函数体在数学库里；链接器找不到就报 <code>undefined reference to 'asinf'</code>。bitcode 就是以二进制保存的 LLVM IR，所以 libdevice 能直接并进 kernel 的 LLVM 模块，Triton 的 <code>link_extern_libs</code> 扮演链接器。</p>
+    </article>
+
+    <article class="card">
+      <h3><span class="n">C</span>内联</h3>
+      <p><b>内联</b>是把“调用一个函数”换成“在调用处放一份函数体”。好处：省掉调用本身的开销，放进来的代码能和前后代码一起优化、交错排布。代价：有几个调用处，就有几份代码。</p>
+      <div class="fig-scroll">
+        <svg class="dia" viewBox="0 0 460 170" role="img" aria-label="内联前两个调用处都指向同一个函数体；内联后每个调用处各有一份函数体，原函数不再被调用而被删除。">
+          <defs>
+            <marker id="m-c1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+          <text class="sm mu" x="12" y="16">内联前</text>
+          <rect class="box" x="12" y="36" width="92" height="30" rx="5"/>
+          <text class="m sm" x="58" y="55" text-anchor="middle">call f(a)</text>
+          <rect class="box" x="12" y="100" width="92" height="30" rx="5"/>
+          <text class="m sm" x="58" y="119" text-anchor="middle">call f(b)</text>
+          <rect class="lib" x="136" y="62" width="74" height="42" rx="5"/>
+          <text class="sm" x="173" y="80" text-anchor="middle">f 的</text>
+          <text class="sm" x="173" y="96" text-anchor="middle">函数体</text>
+          <path class="arr" d="M104,51 C120,51 120,74 134,74" marker-end="url(#m-c1)"/>
+          <path class="arr" d="M104,115 C120,115 120,92 134,92" marker-end="url(#m-c1)"/>
+          <path class="arr" d="M218,83 H244" marker-end="url(#m-c1)"/>
+          <text class="xs mu" x="231" y="74" text-anchor="middle">内联</text>
+          <text class="sm mu" x="252" y="16">内联后</text>
+          <rect class="acc" x="252" y="36" width="196" height="30" rx="5"/>
+          <text class="sm" x="350" y="55" text-anchor="middle">f 的函数体（处理 a）</text>
+          <rect class="acc" x="252" y="100" width="196" height="30" rx="5"/>
+          <text class="sm" x="350" y="119" text-anchor="middle">f 的函数体（处理 b）</text>
+          <text class="xs mu" x="350" y="156" text-anchor="middle">f 本身没人再调用 → 删除</text>
+        </svg>
+      </div>
+      <p class="analogy">对应物：C++ 的 <code>inline</code>、CUDA 的 <code>__forceinline__</code>。本例从 libdevice 链接进来的 <code>__nv_asinf</code> 带 <code>alwaysinline</code> 属性，要求编译器必须内联。</p>
+    </article>
+
+    <article class="card">
+      <h3><span class="n">D</span>编译期分支</h3>
+      <p>有些 <code>if</code> 的条件在编译时就知道答案。编译器会把条件换成常量，删掉走不到的那一支，运行时不付任何代价。</p>
+<pre><span class="c">// libdevice 里 fabsf 的写法（示意）</span>
+if (__nvvm_reflect("__CUDA_FTZ"))   <span class="c">// Triton 让它 = 1</span>
+    <span class="keep">y = fabs.ftz(x);   ← 保留</span>
+else
+    <span class="drop">y = fabs(x);       ← 编译期删除</span></pre>
+      <p class="analogy">对应物：C++ 的 <code>#ifdef FAST_MATH</code> 或 <code>if constexpr</code>。<code>__nvvm_reflect</code> 在编译期回答一个参数的值：<code>__CUDA_FTZ</code> 取自 Triton 写进模块的标志，没有设置的参数一律当作 0（LLVM NVPTX 文档）。</p>
+    </article>
+  </div>
+</section>
+
+<section id="journey" aria-labelledby="journey-title">
+  <div class="sec-head">
+    <span class="tag">全流程 · 8 站</span>
+    <h2 id="journey-title">一站一站跟着 asin 走</h2>
+    <p>点上面的站名切换。每站写明谁在做、这一层描述的粒度、asin 在这里的真实样子，以及和上一站相比变了什么。片段来自本机编译产物，删去了调试信息和无关行。</p>
+  </div>
+  <div class="stepper">
+    <div class="stage-tabs" id="stage-tabs" role="group" aria-label="编译阶段"></div>
+    <div class="stage-body" aria-live="polite">
+      <h3 id="stage-title"></h3>
+      <dl class="stage-meta">
+        <dt>谁在做</dt><dd id="stage-who"></dd>
+        <dt>描述粒度</dt><dd id="stage-grain"></dd>
+      </dl>
+      <pre id="stage-code"></pre>
+      <p class="stage-delta" id="stage-delta"></p>
+      <p class="stage-src" id="stage-src"></p>
+      <div class="stage-nav">
+        <button class="btn" id="stage-prev" type="button">← 上一站</button>
+        <button class="btn" id="stage-next" type="button">下一站 →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="node3" aria-labelledby="node3-title">
+  <div class="sec-head">
+    <span class="tag">节点 3</span>
+    <h2 id="node3-title">布局决定每个线程的元素，一个元素一次调用</h2>
+    <p>TTGIR 给张量加上布局，规定 1024 个元素怎样分给 128 个线程。降级到 LLVM IR 时，编译器是在替<b>一个线程</b>写程序：这个线程持有几个元素，就生成几次标量调用。</p>
+  </div>
+
+  <div class="symbols">
+    <div class="sym"><b>BLOCK_SIZE</b><br>一个 program（一个线程块）处理的元素数，本例 1024</div>
+    <div class="sym"><b>num_warps</b><br>线程块里的 warp 数，本例 4；每个 warp 32 个线程</div>
+    <div class="sym"><b>S</b><br>sizePerThread：每个线程一次持有的连续元素数，由 Triton 自动选，本例 4</div>
+    <div class="sym"><b>E</b><br>每个线程持有的元素总数 = BLOCK_SIZE ÷ (32 × num_warps)</div>
+  </div>
+
+  <figure>
+    <div class="fig-head">
+      <h3>布局实验：1024 个元素怎样分给线程</h3>
+    </div>
+    <div class="lab">
+      <div class="lab-controls">
+        <label for="lab-block">BLOCK_SIZE
+          <select id="lab-block"><option>256</option><option>512</option><option selected>1024</option><option>2048</option></select>
+        </label>
+        <label for="lab-warps">num_warps
+          <select id="lab-warps"><option>1</option><option>2</option><option selected>4</option><option>8</option></select>
+        </label>
+        <label for="lab-s">S（sizePerThread）
+          <select id="lab-s"><option>1</option><option>2</option><option selected>4</option></select>
+        </label>
+        <label for="lab-thread">选中的线程编号（也可以直接点格子）
+          <input id="lab-thread" type="number" min="0" max="127" value="0">
+        </label>
+        <div class="readout" id="lab-readout"></div>
+      </div>
+      <div class="lab-grid-wrap">
+        <div class="legend" id="lab-legend"></div>
+        <div class="grid-scroll">
+          <svg id="lab-grid" role="img" aria-label="按 32 列排开的元素网格，颜色表示所属 warp，橙色是选中线程持有的元素。"></svg>
+        </div>
+        <p class="hover-line" id="lab-hover">把鼠标移到格子上，查看它属于哪个线程。</p>
+        <p class="warn" id="lab-warn" hidden></p>
+      </div>
+    </div>
+    <figcaption>每个格子是 <code>x</code> 的一个元素，每行 32 个。颜色表示元素属于哪个 warp，橙色格子是选中线程持有的元素。把 S 从 4 改成 1 试试：E 不变，但线程 0 的 8 个元素从“两段各 4 个相邻元素”变成“每隔 128 个取一个”。</figcaption>
+  </figure>
+
+  <figure>
+    <div class="fig-scroll wide">
+      <svg class="dia" viewBox="0 0 920 340" role="img" aria-label="TTGIR 中的一个张量操作，降级后在线程 0 的程序里变成 1 条声明和 8 次标量调用；运行时 warp 的 32 个线程同时执行同一条指令，各自处理自己的元素。">
+        <defs>
+          <marker id="m-n3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <text class="sm mu" x="20" y="30">TTGIR：一个张量操作</text>
+        <rect class="box" x="20" y="40" width="300" height="96" rx="8"/>
+        <text class="m sm" x="36" y="68">tt.extern_elementwise %x</text>
+        <text class="m sm" x="36" y="90">symbol = "__nv_asinf"</text>
+        <text class="m sm" x="36" y="112">tensor&lt;1024xf32, #blocked&gt;</text>
+        <path class="arr" d="M320,88 H386" marker-end="url(#m-n3)"/>
+        <text class="xs mu" x="353" y="78" text-anchor="middle">按线程</text>
+        <text class="xs mu" x="353" y="104" text-anchor="middle">逐元素拆</text>
+        <text class="sm mu" x="392" y="30">LLVM IR：线程 0 的程序</text>
+        <rect class="box" x="392" y="40" width="508" height="196" rx="8"/>
+        <rect class="dash" x="406" y="52" width="480" height="26" rx="4"/>
+        <text class="m sm" x="418" y="70">declare float @__nv_asinf(float)</text>
+        <text class="xs mu" x="876" y="70" text-anchor="end">只有签名 · 全模块 1 条</text>
+        <g class="m sm">
+          <text x="418" y="100">call float @__nv_asinf(x[0])</text>
+          <text x="418" y="118">call float @__nv_asinf(x[1])</text>
+          <text x="418" y="136">call float @__nv_asinf(x[2])</text>
+          <text x="418" y="154">call float @__nv_asinf(x[3])</text>
+          <text x="418" y="172">call float @__nv_asinf(x[512])</text>
+          <text x="418" y="190">call float @__nv_asinf(x[513])</text>
+          <text x="418" y="208">call float @__nv_asinf(x[514])</text>
+          <text x="418" y="226">call float @__nv_asinf(x[515])</text>
+        </g>
+        <path class="arr-a" d="M700,94 H712 V222 H700"/>
+        <text class="sm ac b" x="722" y="152">E = 8 次调用</text>
+        <text class="xs mu" x="722" y="170">线程 0 持有的 8 个元素</text>
+        <text class="xs mu" x="722" y="186">（S = 4：两段各 4 个）</text>
+        <text class="sm mu" x="20" y="268">运行时：warp 0 的 32 个线程同一时刻执行同一条指令 sqrt.approx.ftz.f32，各自用自己的寄存器</text>
+        <g>
+          <rect class="box2" x="20" y="280" width="84" height="44" rx="5"/><text class="xs mu" x="62" y="297" text-anchor="middle">lane 0</text><text class="m sm" x="62" y="316" text-anchor="middle">x[0]</text>
+          <rect class="box2" x="112" y="280" width="84" height="44" rx="5"/><text class="xs mu" x="154" y="297" text-anchor="middle">lane 1</text><text class="m sm" x="154" y="316" text-anchor="middle">x[4]</text>
+          <rect class="box2" x="204" y="280" width="84" height="44" rx="5"/><text class="xs mu" x="246" y="297" text-anchor="middle">lane 2</text><text class="m sm" x="246" y="316" text-anchor="middle">x[8]</text>
+          <rect class="box2" x="296" y="280" width="84" height="44" rx="5"/><text class="xs mu" x="338" y="297" text-anchor="middle">lane 3</text><text class="m sm" x="338" y="316" text-anchor="middle">x[12]</text>
+          <rect class="box2" x="388" y="280" width="84" height="44" rx="5"/><text class="xs mu" x="430" y="297" text-anchor="middle">lane 4</text><text class="m sm" x="430" y="316" text-anchor="middle">x[16]</text>
+          <rect class="box2" x="480" y="280" width="84" height="44" rx="5"/><text class="xs mu" x="522" y="297" text-anchor="middle">lane 5</text><text class="m sm" x="522" y="316" text-anchor="middle">x[20]</text>
+          <rect class="box2" x="572" y="280" width="84" height="44" rx="5"/><text class="xs mu" x="614" y="297" text-anchor="middle">lane 6</text><text class="m sm" x="614" y="316" text-anchor="middle">x[24]</text>
+          <text class="b mu" x="712" y="308" text-anchor="middle">…</text>
+          <rect class="box2" x="768" y="280" width="84" height="44" rx="5"/><text class="xs mu" x="810" y="297" text-anchor="middle">lane 31</text><text class="m sm" x="810" y="316" text-anchor="middle">x[124]</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>上半部分：一个张量操作，在线程 0 的程序里变成 1 条声明和 8 次标量调用（本例 S = 4）。128 个线程运行同一份程序，各自换成自己的元素。下半部分：执行第一个元素的 sqrt 时，warp 0 的 32 个线程同时执行这条指令。所以“向量宽度”由 warp 提供，函数本身是标量的。</figcaption>
+  </figure>
+
+  <p class="note"><b>为什么是标量调用：</b>libdevice 函数的签名是 <code>float(float)</code>，和 CUDA C 的数学函数一样。GPU 的并行来自同时运行的线程，而不是一条向量指令，所以逐元素调用在计算上没有损失。S 只影响访存：相邻的 S 个元素可以合成一条更宽的读写指令，S = 4 时一次读 16 字节（<code>ld.global.v4.b32</code>）。</p>
+</section>
+
+<section id="node4" aria-labelledby="node4-title">
+  <div class="sec-head">
+    <span class="tag">节点 4</span>
+    <h2 id="node4-title">链接、内联、再按参数选一条路</h2>
+    <p>到节点 3 为止，模块里只有 <code>__nv_asinf</code> 的名字。节点 4 用三步把它变成真正的指令，都发生在 Triton 后端的 <code>make_llir</code> 和随后的 PTX 生成里。</p>
+  </div>
+
+  <figure id="fig-link">
+    <div class="fig-head">
+      <h3>第一步：链接，按名字拷入一份定义</h3>
+      <div class="seg" role="group" aria-label="链接前后">
+        <button type="button" data-fig="fig-link" data-show="before" aria-pressed="true">链接前</button>
+        <button type="button" data-fig="fig-link" data-show="after" aria-pressed="false">链接后</button>
+      </div>
+    </div>
+    <div class="fig-scroll wide">
+      <svg class="dia" viewBox="0 0 920 300" role="img" aria-label="链接前，kernel 模块里只有 __nv_asinf 的声明；链接后，从 libdevice.10.bc 里只拷入 __nv_asinf 这一个定义，设为 internal 并带 alwaysinline。">
+        <defs>
+          <marker id="m-l1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M0,0 L10,5 L0,10 z"/></marker>
+          <marker id="m-l2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-a" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <text class="sm mu" x="20" y="22">kernel 模块（LLVM IR）</text>
+        <rect class="frame" x="20" y="30" width="360" height="256" rx="10"/>
+        <rect class="box" x="36" y="46" width="328" height="104" rx="6"/>
+        <text class="m sm" x="50" y="68">define ptx_kernel @asin_kernel(…)</text>
+        <text class="m sm mu" x="64" y="92">load x[0..3], x[512..515]</text>
+        <text class="m sm ac" x="64" y="114">8 × call @__nv_asinf</text>
+        <text class="m sm mu" x="64" y="136">store y[…]</text>
+        <path class="arr" d="M200,150 V184" marker-end="url(#m-l1)"/>
+        <g data-state="before">
+          <rect class="dash" x="36" y="188" width="328" height="80" rx="6"/>
+          <text class="m sm" x="50" y="214">declare float @__nv_asinf(float)</text>
+          <text class="xs mu" x="50" y="236">只有签名，没有函数体</text>
+          <text class="xs mu" x="50" y="254">此时还不知道函数体在哪</text>
+          <text class="sm mu" x="460" y="150" text-anchor="middle">尚未链接</text>
+        </g>
+        <g data-state="after" hidden>
+          <rect class="acc" x="36" y="188" width="328" height="80" rx="6"/>
+          <text class="m sm" x="50" y="214">define internal float @__nv_asinf</text>
+          <text class="xs" x="50" y="236">从 libdevice 拷入 · internal：只在本模块用</text>
+          <text class="xs" x="50" y="254">alwaysinline：必须内联</text>
+          <path class="arr-a" d="M538,112 C470,112 450,228 368,228" marker-end="url(#m-l2)"/>
+          <text class="xs ac b" x="456" y="62" text-anchor="middle">按名字匹配</text>
+          <text class="xs ac b" x="456" y="78" text-anchor="middle">只拷这一个</text>
+          <text class="xs ac" x="456" y="94" text-anchor="middle">LinkOnlyNeeded</text>
+        </g>
+        <text class="sm mu" x="540" y="22">libdevice.10.bc（473,728 字节）</text>
+        <rect class="frame" x="540" y="30" width="360" height="256" rx="10"/>
+        <rect class="lib" x="556" y="50" width="328" height="28" rx="5"/>
+        <text class="m sm" x="572" y="69">define float @__nv_acosf { … }</text>
+        <rect class="lib" x="556" y="98" width="328" height="28" rx="5"/>
+        <text class="m sm" x="572" y="117">define float @__nv_asinf { … }</text>
+        <rect class="lib" x="556" y="146" width="328" height="28" rx="5"/>
+        <text class="m sm" x="572" y="165">define float @__nv_atanf { … }</text>
+        <rect class="lib" x="556" y="194" width="328" height="28" rx="5"/>
+        <text class="m sm" x="572" y="213">define float @__nv_erff { … }</text>
+        <text class="sm mu" x="720" y="260" text-anchor="middle">… 共数百个函数定义</text>
+        <g data-state="after" hidden>
+          <rect class="acc" x="556" y="98" width="328" height="28" rx="5"/>
+          <text class="m sm b" x="572" y="117">define float @__nv_asinf { … }</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>切到“链接后”：libdevice 里只有 <code>__nv_asinf</code> 被拷进模块。本机核对，链接后模块里只定义了两个函数：<code>asin_kernel</code> 和 <code>__nv_asinf</code>。</figcaption>
+  </figure>
+
+  <div class="note">
+    <p><b>这一步的细节：</b></p>
+    <p>· 库文件从哪来：默认是 Triton wheel 自带的 <code>triton/backends/nvidia/lib/libdevice.10.bc</code>，也可以用环境变量 <code>TRITON_LIBDEVICE_PATH</code> 或启动参数 <code>extern_libs</code> 换掉。</p>
+    <p>· 什么时候链接：只有模块里还有“有声明、无定义”的外部函数时才链接；没用 libdevice 的 kernel 整步跳过（<code>has_extern_deps</code>）。</p>
+    <p>· 缓存：库文件的<b>内容哈希</b>会算进编译缓存键，换一份 bitcode 就会重新编译。</p>
+  </div>
+
+  <figure id="fig-inline">
+    <div class="fig-head">
+      <h3>第二步：O3 内联，8 次调用变成 8 份函数体</h3>
+      <div class="seg" role="group" aria-label="内联前后">
+        <button type="button" data-fig="fig-inline" data-show="before" aria-pressed="true">O3 前</button>
+        <button type="button" data-fig="fig-inline" data-show="after" aria-pressed="false">O3 后</button>
+      </div>
+    </div>
+    <div class="fig-scroll wide">
+      <svg class="dia" viewBox="0 0 920 320" role="img" aria-label="O3 前，8 次调用都指向同一个 __nv_asinf 定义；O3 后，每个元素各有一份函数体，定义被删除，PTX 中没有 call。">
+        <defs>
+          <marker id="m-i1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk-a" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <g data-state="before">
+          <text class="sm mu" x="20" y="22">asin_kernel（线程 0）</text>
+          <rect class="box" x="20" y="30" width="300" height="278" rx="8"/>
+          <text class="m sm mu" x="36" y="56">ld.global.v4  x[0..3]</text>
+          <text class="m sm mu" x="36" y="76">ld.global.v4  x[512..515]</text>
+          <g class="m sm ac">
+            <text x="36" y="104">call @__nv_asinf(x[0])</text>
+            <text x="36" y="126">call @__nv_asinf(x[1])</text>
+            <text x="36" y="148">call @__nv_asinf(x[2])</text>
+            <text x="36" y="170">call @__nv_asinf(x[3])</text>
+            <text x="36" y="192">call @__nv_asinf(x[512])</text>
+            <text x="36" y="214">call @__nv_asinf(x[513])</text>
+            <text x="36" y="236">call @__nv_asinf(x[514])</text>
+            <text x="36" y="258">call @__nv_asinf(x[515])</text>
+          </g>
+          <text class="m sm mu" x="36" y="290">st.global.v4  y[…]</text>
+          <path class="arr-a" d="M262,100 C420,100 440,150 560,160" marker-end="url(#m-i1)"/>
+          <path class="arr-a" d="M262,122 C420,122 440,154 560,162"/>
+          <path class="arr-a" d="M262,144 C420,144 440,158 560,164"/>
+          <path class="arr-a" d="M262,166 C420,166 440,162 560,166"/>
+          <path class="arr-a" d="M262,188 C420,188 440,170 560,168"/>
+          <path class="arr-a" d="M262,210 C420,210 440,174 560,170"/>
+          <path class="arr-a" d="M262,232 C420,232 440,178 560,172"/>
+          <path class="arr-a" d="M262,254 C420,254 440,182 560,174" marker-end="url(#m-i1)"/>
+          <text class="sm mu" x="562" y="94">唯一的定义（链接进来的）</text>
+          <rect class="acc" x="562" y="104" width="338" height="130" rx="8"/>
+          <text class="m sm b" x="578" y="128">define internal @__nv_asinf</text>
+          <text class="sm" x="578" y="154">① |x|，(1 − |x|) ÷ 2，sqrt</text>
+          <text class="sm" x="578" y="176">② |x| &gt; 0.57 时换算</text>
+          <text class="sm" x="578" y="198">③ 多项式（4 次 fma）</text>
+          <text class="sm" x="578" y="220">④ 拼回结果、补回符号</text>
+        </g>
+        <g data-state="after" hidden>
+          <text class="sm mu" x="20" y="22">asin_kernel（线程 0）：每个元素一份函数体，共 8 份</text>
+          <g class="m sm" text-anchor="middle">
+            <text x="258" y="50">x[0]</text><text x="338" y="50">x[1]</text><text x="418" y="50">x[2]</text><text x="498" y="50">x[3]</text>
+            <text x="578" y="50">x[512]</text><text x="658" y="50">x[513]</text><text x="738" y="50">x[514]</text><text x="818" y="50">x[515]</text>
+          </g>
+          <g class="sm">
+            <text x="20" y="84">① |x|、sqrt</text>
+            <text x="20" y="128">② 比较 0.57</text>
+            <text x="20" y="172">③ 多项式</text>
+            <text x="20" y="216">④ 拼回、补符号</text>
+          </g>
+          <g>
+            <rect class="acc" x="222" y="62" width="72" height="34" rx="4"/><rect class="acc" x="302" y="62" width="72" height="34" rx="4"/><rect class="acc" x="382" y="62" width="72" height="34" rx="4"/><rect class="acc" x="462" y="62" width="72" height="34" rx="4"/><rect class="acc" x="542" y="62" width="72" height="34" rx="4"/><rect class="acc" x="622" y="62" width="72" height="34" rx="4"/><rect class="acc" x="702" y="62" width="72" height="34" rx="4"/><rect class="acc" x="782" y="62" width="72" height="34" rx="4"/>
+            <rect class="acc" x="222" y="106" width="72" height="34" rx="4"/><rect class="acc" x="302" y="106" width="72" height="34" rx="4"/><rect class="acc" x="382" y="106" width="72" height="34" rx="4"/><rect class="acc" x="462" y="106" width="72" height="34" rx="4"/><rect class="acc" x="542" y="106" width="72" height="34" rx="4"/><rect class="acc" x="622" y="106" width="72" height="34" rx="4"/><rect class="acc" x="702" y="106" width="72" height="34" rx="4"/><rect class="acc" x="782" y="106" width="72" height="34" rx="4"/>
+            <rect class="acc" x="222" y="150" width="72" height="34" rx="4"/><rect class="acc" x="302" y="150" width="72" height="34" rx="4"/><rect class="acc" x="382" y="150" width="72" height="34" rx="4"/><rect class="acc" x="462" y="150" width="72" height="34" rx="4"/><rect class="acc" x="542" y="150" width="72" height="34" rx="4"/><rect class="acc" x="622" y="150" width="72" height="34" rx="4"/><rect class="acc" x="702" y="150" width="72" height="34" rx="4"/><rect class="acc" x="782" y="150" width="72" height="34" rx="4"/>
+            <rect class="acc" x="222" y="194" width="72" height="34" rx="4"/><rect class="acc" x="302" y="194" width="72" height="34" rx="4"/><rect class="acc" x="382" y="194" width="72" height="34" rx="4"/><rect class="acc" x="462" y="194" width="72" height="34" rx="4"/><rect class="acc" x="542" y="194" width="72" height="34" rx="4"/><rect class="acc" x="622" y="194" width="72" height="34" rx="4"/><rect class="acc" x="702" y="194" width="72" height="34" rx="4"/><rect class="acc" x="782" y="194" width="72" height="34" rx="4"/>
+          </g>
+          <text class="xs mu" x="538" y="248" text-anchor="middle">PTX 里，8 个元素的“比较 0.57”排成连续 8 条 setp.gt.f32：编译器把 8 份函数体交错排布，互不依赖的计算可以重叠执行</text>
+          <rect class="dash" x="222" y="266" width="632" height="36" rx="6"/>
+          <line class="strike" x1="232" y1="284" x2="492" y2="284"/>
+          <text class="m sm mu" x="236" y="289">define internal @__nv_asinf</text>
+          <text class="sm mu" x="508" y="289">定义已删除（没人再调用）· PTX 中 0 条 call</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>O3 前：8 次调用都指向同一个定义。O3 后：每个调用处都被换成一份函数体，一个元素一列；定义本身没人再调用，被删除。代码量因此随 E 增长：本例 PTX 里有 8 条 <code>sqrt.approx.ftz.f32</code>、48 条 <code>fma.rn.ftz.f32</code>，每个元素 6 条 fma。</figcaption>
+  </figure>
+
+  <figure id="fig-reflect">
+    <div class="fig-head">
+      <h3>第三步：编译期按参数选一条路（reflect）</h3>
+      <div class="seg" role="group" aria-label="enable_reflect_ftz 取值">
+        <button type="button" data-fig="fig-reflect" data-show="ftz1" aria-pressed="true">enable_reflect_ftz = True（默认）</button>
+        <button type="button" data-fig="fig-reflect" data-show="ftz0" aria-pressed="false">= False</button>
+      </div>
+    </div>
+    <div class="fig-scroll wide">
+      <svg class="dia" viewBox="0 0 920 300" role="img" aria-label="__nv_asinf 里的 sqrt 由两个编译期参数选择：__CUDA_FTZ 由 Triton 的 enable_reflect_ftz 决定，__CUDA_PREC_SQRT 没有设置，按 0 处理，所以总是选近似 sqrt。">
+        <rect class="box" x="300" y="16" width="320" height="38" rx="6"/>
+        <text class="m sm" x="460" y="40" text-anchor="middle">__nvvm_reflect("__CUDA_FTZ")</text>
+        <rect class="box" x="60" y="112" width="340" height="38" rx="6"/>
+        <text class="m sm" x="230" y="136" text-anchor="middle">__nvvm_reflect("__CUDA_PREC_SQRT")</text>
+        <rect class="box" x="520" y="112" width="340" height="38" rx="6"/>
+        <text class="m sm" x="690" y="136" text-anchor="middle">__nvvm_reflect("__CUDA_PREC_SQRT")</text>
+        <g data-state="ftz1">
+          <path class="arr-a" d="M400,54 L230,112"/>
+          <path class="arr-mu" d="M520,54 L690,112"/>
+          <text class="sm ac b" x="300" y="80" text-anchor="middle">= 1</text>
+          <text class="sm mu" x="620" y="80" text-anchor="middle">= 0</text>
+          <path class="arr-mu" d="M170,150 L115,210"/>
+          <path class="arr-a" d="M290,150 L325,210"/>
+          <path class="arr-mu" d="M630,150 L585,210"/>
+          <path class="arr-mu" d="M750,150 L795,210"/>
+          <rect class="dash faded" x="40" y="210" width="150" height="38" rx="6"/>
+          <text class="m sm faded" x="115" y="234" text-anchor="middle">sqrt.rn.ftz</text>
+          <rect class="acc" x="240" y="210" width="170" height="38" rx="6"/>
+          <text class="m sm b" x="325" y="234" text-anchor="middle">sqrt.approx.ftz</text>
+          <rect class="dash faded" x="520" y="210" width="130" height="38" rx="6"/>
+          <text class="m sm faded" x="585" y="234" text-anchor="middle">sqrt.rn</text>
+          <rect class="dash faded" x="700" y="210" width="190" height="38" rx="6"/>
+          <text class="m sm faded" x="795" y="234" text-anchor="middle">sqrt.approx</text>
+        </g>
+        <g data-state="ftz0" hidden>
+          <path class="arr-mu" d="M400,54 L230,112"/>
+          <path class="arr-a" d="M520,54 L690,112"/>
+          <text class="sm mu" x="300" y="80" text-anchor="middle">= 1</text>
+          <text class="sm ac b" x="620" y="80" text-anchor="middle">= 0</text>
+          <path class="arr-mu" d="M170,150 L115,210"/>
+          <path class="arr-mu" d="M290,150 L325,210"/>
+          <path class="arr-mu" d="M630,150 L585,210"/>
+          <path class="arr-a" d="M750,150 L795,210"/>
+          <rect class="dash faded" x="40" y="210" width="150" height="38" rx="6"/>
+          <text class="m sm faded" x="115" y="234" text-anchor="middle">sqrt.rn.ftz</text>
+          <rect class="dash faded" x="240" y="210" width="170" height="38" rx="6"/>
+          <text class="m sm faded" x="325" y="234" text-anchor="middle">sqrt.approx.ftz</text>
+          <rect class="dash faded" x="520" y="210" width="130" height="38" rx="6"/>
+          <text class="m sm faded" x="585" y="234" text-anchor="middle">sqrt.rn</text>
+          <rect class="acc" x="700" y="210" width="190" height="38" rx="6"/>
+          <text class="m sm b" x="795" y="234" text-anchor="middle">sqrt.approx</text>
+        </g>
+        <text class="xs mu" x="124" y="188" text-anchor="end">= 1</text>
+        <text class="xs mu" x="322" y="188">= 0</text>
+        <text class="xs mu" x="591" y="188" text-anchor="end">= 1</text>
+        <text class="xs mu" x="789" y="188">= 0</text>
+        <text class="xs mu" x="460" y="280" text-anchor="middle">__CUDA_FTZ 取自 Triton 写入的模块标志 nvvm-reflect-ftz；__CUDA_PREC_SQRT 没人设置，按规则取 0，所以两种情况都选近似 sqrt</text>
+      </svg>
+    </div>
+    <div class="chips" id="reflect-chips" aria-live="polite"></div>
+    <figcaption>这是 <code>__nv_asinf</code> 链接进来时的真实分支结构（sqrt 部分）。|x| 和 fma 也有同样的 ftz / 非 ftz 两种写法。上面的指令标签是本机分别用两种选项编译后，在 PTX 里实际看到的指令。</figcaption>
+  </figure>
+
+  <div class="note">
+    <p><b>次正规数与 ftz：</b>绝对值小于 2⁻¹²⁶ ≈ 1.18×10⁻³⁸ 的 fp32 数叫次正规数。ftz（flush to zero）把它们当作 0 处理，换来更简单、更快的指令。对 asin 来说，极小的 x 本该得到 ≈ x，在 ftz 下预计得到 0；这一点留到 GPU 机器上验证。</p>
+    <p><b>什么时候选定：</b>O3 之后，IR 里两条路都还在：ftz 版和普通版的 |x| 都会被算出来，再用 <code>select</code> 二选一。生成 PTX 时 reflect 才被换成常量，另一条路随之删掉。</p>
+  </div>
+
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>编译方式</th><th>次正规数</th><th>单精度 sqrt</th></tr></thead>
+      <tbody>
+        <tr><td>nvcc 默认</td><td>保留（<code>--ftz=false</code>）</td><td>IEEE 就近舍入（<code>--prec-sqrt=true</code>）</td></tr>
+        <tr><td>nvcc <code>--use_fast_math</code></td><td>冲成 0（隐含 <code>--ftz=true</code>）</td><td>近似（隐含 <code>--prec-sqrt=false</code>）</td></tr>
+        <tr class="hl"><td>Triton 3.7.1 默认，libdevice 函数内</td><td>冲成 0（<code>__CUDA_FTZ</code> = 1）</td><td>近似（<code>__CUDA_PREC_SQRT</code> = 0）</td></tr>
+        <tr><td>Triton，<code>enable_reflect_ftz=False</code></td><td>保留</td><td>近似</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="analogy" style="font-size:.88rem;color:var(--muted)">在这两个开关上，Triton 默认编进来的 libdevice 代码更接近 nvcc 的 <code>--use_fast_math</code>，而不是 nvcc 的默认值。反射参数只影响 libdevice 函数内部；Triton 自己降级的指令不受它影响，例如 <code>tl.exp</code> 编出的是不带 ftz 的 <code>ex2.approx.f32</code>。</p>
+
+  <div class="summary">
+    <h3>节点 3、4 连起来</h3>
+    <ol>
+      <li>布局决定每个线程持有 E 个元素（本例 8 个）。</li>
+      <li>每个元素生成一次 <code>call @__nv_asinf</code>，模块里只有 1 条声明。</li>
+      <li>链接按名字从 libdevice 拷入<b>一份</b>定义，设为 internal，带 <code>alwaysinline</code>。</li>
+      <li>O3 把 E 次调用内联成 E 份函数体，定义被删除，PTX 里没有 call。</li>
+      <li>生成 PTX 时，reflect 按参数选定写法：默认是 ftz 加近似 sqrt。</li>
+    </ol>
+  </div>
+</section>
+
+<section id="node5" aria-labelledby="node5-title">
+  <div class="sec-head">
+    <span class="tag">节点 5</span>
+    <h2 id="node5-title">算一个数学函数的四条路线</h2>
+    <p>节点 3、4 讲的是 libdevice 这一条路线。在 Triton 里算一个数学函数一共有四条路线，区别在于：函数体从哪里来，在哪一站进入管线。</p>
+  </div>
+
+  <figure id="fig-routes">
+    <div class="fig-head">
+      <h3>四条路线各自怎样走到最终汇编</h3>
+      <div class="seg" role="group" aria-label="目标后端">
+        <button type="button" data-fig="fig-routes" data-show="nv" aria-pressed="true">NVIDIA（sm_90）</button>
+        <button type="button" data-fig="fig-routes" data-show="amd" aria-pressed="false">AMD（gfx942）</button>
+      </div>
+    </div>
+    <div class="fig-scroll wide">
+      <svg class="dia" viewBox="0 0 940 340" role="img" aria-label="四条路线：tl.math 由后端决定实现，少数直接生成指令，其余改成厂商库调用；libdevice 和自定义库都经过链接再内联；内联汇编不经过链接，文本原样带到最终汇编，换后端就失败。">
+        <defs>
+          <marker id="m-r1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="mk" d="M0,0 L10,5 L0,10 z"/></marker>
+        </defs>
+        <text class="sm mu" x="255" y="22" text-anchor="middle">TTIR 里的样子</text>
+        <text class="sm mu" x="471" y="22" text-anchor="middle">LLVM IR</text>
+        <text class="sm mu" x="662" y="22" text-anchor="middle">链接</text>
+        <text class="sm mu" x="846" y="22" text-anchor="middle">最终汇编</text>
+
+        <text class="b" x="14" y="62">A · tl.math</text>
+        <text class="xs mu" x="14" y="80">后端中立的操作</text>
+        <rect class="box" x="160" y="40" width="190" height="50" rx="6"/>
+        <text class="m sm" x="172" y="61">math.exp %x</text>
+        <text class="xs mu" x="172" y="79">数学操作，不带符号名</text>
+        <path class="arr" d="M350,65 H384" marker-end="url(#m-r1)"/>
+        <rect class="box" x="386" y="40" width="170" height="50" rx="6"/>
+        <text class="sm" x="398" y="61">由后端决定</text>
+        <text class="sm" x="398" y="79">怎么实现</text>
+        <path class="arr" d="M556,65 H766" marker-end="url(#m-r1)"/>
+        <path class="arr-mu" d="M471,90 V114" marker-end="url(#m-r1)"/>
+
+        <text class="b" x="14" y="138">B · libdevice</text>
+        <text class="xs mu" x="14" y="156">厂商提供的库</text>
+        <rect class="box" x="160" y="116" width="190" height="50" rx="6"/>
+        <text class="m sm" x="172" y="137">tt.extern_elementwise</text>
+        <path class="arr" d="M350,141 H384" marker-end="url(#m-r1)"/>
+        <rect class="box" x="386" y="116" width="170" height="50" rx="6"/>
+        <text class="sm" x="398" y="137">declare ＋ E 次 call</text>
+        <path class="arr" d="M556,141 H590" marker-end="url(#m-r1)"/>
+        <rect class="lib" x="592" y="116" width="140" height="50" rx="6"/>
+        <path class="arr" d="M732,141 H766" marker-end="url(#m-r1)"/>
+        <rect class="box" x="768" y="116" width="156" height="50" rx="6"/>
+        <text class="sm" x="780" y="137">内联后的指令</text>
+        <text class="xs mu" x="780" y="155">0 条 call</text>
+
+        <text class="b" x="14" y="214">C · 内联汇编</text>
+        <text class="xs mu" x="14" y="232">自己写指令</text>
+        <rect class="box" x="160" y="192" width="190" height="50" rx="6"/>
+        <text class="m sm" x="172" y="213">tt.elementwise_inline_asm</text>
+        <text class="xs mu" x="172" y="231">带一段汇编文本</text>
+        <path class="arr" d="M350,217 H384" marker-end="url(#m-r1)"/>
+        <rect class="box" x="386" y="192" width="170" height="50" rx="6"/>
+        <text class="m sm" x="398" y="213">call asm "rsqrt…"</text>
+        <text class="xs mu" x="398" y="231">文本原样保留</text>
+        <path class="arr" d="M556,217 H766" marker-end="url(#m-r1)"/>
+        <text class="xs mu" x="662" y="209" text-anchor="middle">不经过链接</text>
+
+        <text class="b" x="14" y="290">D · 自定义库</text>
+        <text class="xs mu" x="14" y="308">extern_libs</text>
+        <rect class="box" x="160" y="268" width="190" height="50" rx="6"/>
+        <text class="m sm" x="172" y="289">tt.extern_elementwise</text>
+        <text class="m sm" x="172" y="307">symbol = my_softsign_f32</text>
+        <path class="arr" d="M350,293 H384" marker-end="url(#m-r1)"/>
+        <rect class="box" x="386" y="268" width="170" height="50" rx="6"/>
+        <text class="sm" x="398" y="289">declare ＋ E 次 call</text>
+        <text class="xs mu" x="398" y="307">和路线 B 完全一样</text>
+        <path class="arr" d="M556,293 H590" marker-end="url(#m-r1)"/>
+        <rect class="acc" x="592" y="268" width="140" height="50" rx="6"/>
+        <text class="m sm" x="662" y="297" text-anchor="middle">你的 mymath.ll</text>
+        <path class="arr" d="M732,293 H766" marker-end="url(#m-r1)"/>
+
+        <g data-state="nv">
+          <text class="xs mu" x="662" y="57" text-anchor="middle">exp、sqrt_rn、除法：直接出指令</text>
+          <text class="xs mu" x="482" y="107">log、sin、erf、sqrt 等：改成 __nv_* 调用，走路线 B</text>
+          <rect class="box" x="768" y="40" width="156" height="50" rx="6"/>
+          <text class="m sm" x="780" y="61">ex2.approx.f32</text>
+          <text class="xs mu" x="780" y="79">不经过链接</text>
+          <text class="m sm" x="172" y="155">symbol = __nv_asinf</text>
+          <text class="xs mu" x="398" y="155">E = 8</text>
+          <text class="m sm" x="662" y="145" text-anchor="middle">libdevice.10.bc</text>
+          <rect class="box" x="768" y="192" width="156" height="50" rx="6"/>
+          <text class="m sm" x="780" y="213">rsqrt.approx.f32</text>
+          <text class="xs mu" x="780" y="231">文本原样出现</text>
+          <rect class="box" x="768" y="268" width="156" height="50" rx="6"/>
+          <text class="m sm" x="780" y="289">abs · add · div.rn</text>
+          <text class="xs mu" x="780" y="307">0 条 call</text>
+        </g>
+        <g data-state="amd" hidden>
+          <text class="xs mu" x="662" y="57" text-anchor="middle">exp、log、sqrt 等：后端自己实现</text>
+          <text class="xs mu" x="482" y="107">erf、sin 等：改成 __ocml_* 调用，走路线 B</text>
+          <rect class="box" x="768" y="40" width="156" height="50" rx="6"/>
+          <text class="sm" x="780" y="61">后端自己的指令</text>
+          <text class="xs mu" x="780" y="79">不链接任何库</text>
+          <text class="m sm" x="172" y="155">symbol = __ocml_asin_f32</text>
+          <text class="xs mu" x="398" y="155">E = 4：每个 warp 64 线程</text>
+          <text class="m sm" x="662" y="145" text-anchor="middle">ocml.bc</text>
+          <rect class="acc" x="768" y="192" width="156" height="50" rx="6"/>
+          <text class="m sm b" x="780" y="213">invalid instruction</text>
+          <text class="xs" x="780" y="231">最后一步失败</text>
+          <rect class="box" x="768" y="268" width="156" height="50" rx="6"/>
+          <text class="sm" x="780" y="289">内联后的指令</text>
+          <text class="xs mu" x="780" y="307">键名须出现在符号名里</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>切换后端，看哪些地方跟着变。A 的写法最可移植，怎么实现交给后端。B 和 D 都要经过“链接、内联”，只是库不同。C 不经过链接，写进去的文本原样带到最后，所以换一个后端就失败。A 和 B 只接受 fp32／fp64 输入，fp16 要先转成 fp32。数据来自本机对两个目标的只编译观察。</figcaption>
+  </figure>
+
+  <div class="note">
+    <p><b>三个实测细节：</b></p>
+    <p>· NVIDIA 上，A 和 B 常常是同一份代码：<code>tl.log</code>、<code>tl.erf</code>、<code>tl.sqrt</code>、<code>tl.floor</code> 编出来的 PTX 与 <code>libdevice.log</code> 等完全相同，因为后端把这些数学操作也改成了 <code>__nv_*</code> 调用。</p>
+    <p>· 路线 D：一个手写的 5 行文本 LLVM IR 文件（<code>softsign(x) = x ÷ (1 + |x|)</code>）通过 <code>extern_libs</code> 链接进来，内联成 <code>abs.f32</code>、<code>add.f32</code>、<code>div.rn.f32</code>，没有 call。不传 <code>extern_libs</code> 时，最后一步报 <code>Unresolved extern function</code>。</p>
+    <p>· 教程第二段演示的就是 <code>extern_libs</code>：把默认的 libdevice 换成指定路径的文件。教程拼路径的方式假设脚本位于 Triton 源码树里；在本仓库的快照位置或 pip 安装的环境中，这个路径不存在，编译会在计算缓存键时报 <code>FileNotFoundError</code>。pip 环境里的正确位置是 <code>triton/backends/nvidia/lib/libdevice.10.bc</code>。</p>
+  </div>
+
+  <h3>同一个运算，有“快速档”和“精确档”</h3>
+  <p>Triton 最顺手的写法默认都是快速档。要和 PyTorch eager 的结果尽量一致，就得主动换成精确档。PyTorch 2.13 的 Inductor 为此专门设了一组 <code>eager_numerics</code> 开关。</p>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>运算</th><th>快速档</th><th>精确档</th><th>Inductor 的选择</th></tr></thead>
+      <tbody>
+        <tr><td>exp</td><td><code>tl.exp</code><br>每元素 2 条：<code>mul.f32</code>、<code>ex2.approx.f32</code></td><td><code>libdevice.exp</code><br>每元素 8 条：先把 x 拆成整数和小数部分</td><td>默认 <code>libdevice.exp</code>；设 <code>TORCHINDUCTOR_USE_FAST_MATH=1</code> 才用 <code>tl_math.exp</code></td></tr>
+        <tr><td>sqrt</td><td><code>tl.sqrt</code>、<code>libdevice.sqrt</code><br><code>sqrt.approx.ftz.f32</code></td><td><code>tl.sqrt_rn</code><br><code>sqrt.rn.f32</code>，IEEE 就近舍入</td><td>始终 <code>tl.sqrt_rn</code></td></tr>
+        <tr><td>除法</td><td><code>a / b</code>、<code>tl.fdiv</code><br><code>div.full.f32</code></td><td><code>tl.div_rn</code><br><code>div.rn.f32</code>，IEEE 就近舍入</td><td>默认 <code>a / b</code>；打开 <code>division_rounding</code> 后用 <code>div_rn</code></td></tr>
+        <tr><td>次正规数</td><td>libdevice 函数内默认 ftz</td><td><code>enable_reflect_ftz=False</code></td><td>打开 <code>disable_ftz</code> 后传这个选项</td></tr>
+        <tr><td>库的版本</td><td>Triton 自带的 <code>libdevice.10.bc</code></td><td>换成 CUDA 工具链的 libdevice</td><td><code>use_pytorch_libdevice</code>：两份库的多项式不同，<code>erf</code>、<code>pow</code> 会差约 1 ulp</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note">
+    <p><b>快速版 exp 为什么不够准：</b>它先算 x × log₂e，再做 2 的幂。乘积只保留 24 位有效数字，|x| 越大，乘积里丢掉的那一点误差被指数放大得越多。精确版先把 x 拆成整数部分和小数部分分别处理，误差不随 |x| 增长。</p>
+    <p><b>ulp</b> 是浮点数最后一位的一个单位，用来衡量算出的结果离“正确舍入的值”有多远；差 1 ulp 就是只差最后一位。CUDA 文档给出的误差上界：标准 <code>expf</code> 是 2 ulp，快速版 <code>__expf</code> 是 2 + ⌊|1.173·x|⌋ ulp；<code>sqrtf</code> 是 0 ulp，fast math 下 1 ulp；快速除法 <code>__fdividef</code> 是 2 ulp。Triton 的快速档用的是同类做法，推断误差特性相同，可以到 GPU 机器上实测。</p>
+  </div>
+
+  <div class="summary">
+    <h3>怎么选</h3>
+    <ol>
+      <li>函数在 <code>tl.math</code> 里（exp、log、sin、cos、sqrt、rsqrt、erf、floor、ceil、abs、fma 等），用 <code>tl.math</code>：写法最可移植。</li>
+      <li>需要 <code>tl.math</code> 没有的函数（asin、pow、lgamma、tanh 等），用 <code>libdevice</code>，并先确认目标后端实现了它：CUDA 约 197 个，AMD 约 57 个。</li>
+      <li>要和 PyTorch eager 尽量一致，换精确档：<code>tl.sqrt_rn</code>、<code>tl.div_rn</code>、<code>libdevice.exp</code>，必要时关掉 ftz、换 libdevice。</li>
+      <li>厂商库里没有的函数，用自定义库；每个目标后端的链接规则不同，要分别验证。</li>
+      <li>内联汇编只在需要某条特定指令、且只面向一个后端时使用。</li>
+    </ol>
+  </div>
+</section>
+
+<section id="node6" aria-labelledby="node6-title">
+  <div class="sec-head">
+    <span class="tag">节点 6</span>
+    <h2 id="node6-title">换一个后端：哪些变，哪些不变</h2>
+    <p>同一个 kernel（<code>libdevice.asin</code>，BLOCK_SIZE = 1024，num_warps = 4）分别以 NVIDIA 的 sm_90（H100 一代）和 AMD 的 gfx942（MI300 一代）为目标编译。四个节点的机制一模一样，变的只是每一环填进去的内容。</p>
+  </div>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>环节</th><th>NVIDIA（sm_90）</th><th>AMD（gfx942）</th></tr></thead>
+      <tbody>
+        <tr><td>节点 1：接口模块换成</td><td><code>…extra.cuda.libdevice</code>，约 197 个函数</td><td><code>…extra.hip.libdevice</code>，约 57 个函数</td></tr>
+        <tr><td>节点 2：查表得到的符号</td><td><code>__nv_asinf</code></td><td><code>__ocml_asin_f32</code></td></tr>
+        <tr><td>节点 3：每个 warp 的线程数</td><td>32</td><td>64</td></tr>
+        <tr><td>节点 3：每线程元素数 E</td><td>8，生成 8 次调用</td><td>4，生成 4 次调用</td></tr>
+        <tr><td>节点 4：默认的库</td><td><code>libdevice.10.bc</code></td><td><code>ocml.bc</code>（数学库）、<code>ockl.bc</code>（辅助库）</td></tr>
+        <tr><td>节点 4：实际链接</td><td>拷入 <code>__nv_asinf</code> 一个函数</td><td>只链接 <code>ocml.bc</code>，拷入 <code>__ocml_asin_f32</code> 和它依赖的 <code>__ocml_fmuladd_f32</code></td></tr>
+        <tr><td>内联之后</td><td>0 次调用；每元素 1 条 sqrt、6 条 fma</td><td>0 次调用；每元素 1 条 sqrt、9 条 fma／mad</td></tr>
+        <tr><td>次正规数的默认处理</td><td>冲成 0，由反射参数 <code>nvvm-reflect-ftz</code> 控制</td><td>保留，由函数属性 <code>denormal-fp-math-f32</code> 控制；<code>allow_flush_denorm</code> 默认 False</td></tr>
+        <tr><td>最终产物</td><td>PTX，再汇编成 cubin</td><td>AMD 汇编，再链接成 hsaco（AMD 的 kernel 二进制）</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note"><b>不变的部分是 Triton 的公共代码：</b><code>tt.extern_elementwise</code> 这个操作、按线程逐元素拆成标量调用、按名字链接、内联。新后端不用重写它们，只需要把自己的内容填进每一环。</p>
+
+  <h3>给新后端加 libdevice 支持，要补六样东西</h3>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>要提供的东西</th><th>节点</th><th>漏掉或写错时的现象（NVIDIA 后端上实测）</th></tr></thead>
+      <tbody>
+        <tr><td>① <code>get_module_map()</code>：接口模块 → 自己的实现模块</td><td>1</td><td>调到空壳函数，它返回 None；下一行才报 <code>cannot convert None … to tensor</code></td></tr>
+        <tr><td>② 实现模块里的各个函数</td><td>1</td><td><code>AttributeError: module '…libdevice' has no attribute '…'</code></td></tr>
+        <tr><td>③ 每个函数的“dtype → 符号”表</td><td>2</td><td><code>KeyError: (triton.language.float16)</code></td></tr>
+        <tr><td>④ 库文件和默认路径；内容哈希进缓存键</td><td>4</td><td><code>FileNotFoundError</code>，发生在生成任何 IR 之前</td></tr>
+        <tr><td>⑤ <code>make_llir</code> 里的按需链接；表里的符号名与库里的定义一致</td><td>4</td><td>最后一步才报找不到定义：<code>ptxas fatal: Unresolved extern function '…'</code></td></tr>
+        <tr><td>⑥ 让库函数被内联；把数值开关传给库</td><td>4</td><td>留给自测题 3</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note">
+    <p><b>AMD 后端的两处不同：</b></p>
+    <p>· 链接规则：NVIDIA 只要发现有未定义的外部函数，就把 <code>extern_libs</code> 里的库都交给链接器。AMD 只链接“键名出现在某个未定义函数名里”的库。本机实测同一个自定义库：键名取 <code>softsign</code> 时，符号 <code>my_softsign_f32</code> 包含它，库被链接并内联；键名取 <code>mymath</code> 时库没有被链接，编译不报错，最终 IR 里留着一次未解析的调用。</p>
+    <p>· 绑死 CUDA 的写法会被拒绝：kernel 里直接写 <code>triton.language.extra.cuda.libdevice</code> 时，AMD 后端发现名字带 <code>__nv_</code> 的未定义函数就报错，提示改用后端中立的 <code>triton.language.extra.libdevice</code>。这一条来自阅读 <code>triton_amd.cc</code>，没有运行。</p>
+  </div>
+</section>
+
+<section id="recap" aria-labelledby="recap-title">
+  <div class="sec-head">
+    <span class="tag">串讲</span>
+    <h2 id="recap-title">把整课连成一条线</h2>
+    <p>还是那一行 <code>y = libdevice.asin(x)</code>：fp32，BLOCK_SIZE = 1024，num_warps = 4，目标 NVIDIA。下表把六个节点按先后排在一起：每一环由谁负责，asin 变成了什么，这一环出错时是什么样子。</p>
+  </div>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>环节</th><th>谁负责</th><th>asin 变成了什么</th><th>这一环出错的样子</th></tr></thead>
+      <tbody>
+        <tr><td>写 kernel</td><td>你</td><td><code>libdevice.asin(x)</code>，接口模块里的空壳函数</td><td>—</td></tr>
+        <tr><td>翻译成 TTIR：换模块<br>（节点 1）</td><td>Triton 前端，按后端的 <code>get_module_map</code></td><td>换成 CUDA 实现模块里的 <code>asin</code></td><td>映射没生效：空壳返回 None，下一行才报错；缺函数：<code>AttributeError</code></td></tr>
+        <tr><td>翻译成 TTIR：查表<br>（节点 2）</td><td><code>extern_elementwise</code></td><td>一条带 <code>symbol = "__nv_asinf"</code> 的逐元素操作</td><td>dtype 不在表里，例如 fp16：<code>KeyError</code></td></tr>
+        <tr><td>TTGIR：布局<br>（节点 3）</td><td>Triton 的 GPU 化 pass</td><td>1024 个元素分给 128 个线程，每个线程 E = 8 个</td><td>—</td></tr>
+        <tr><td>LLVM IR：逐元素调用<br>（节点 3）</td><td>Triton 的公共降级代码</td><td>一个线程的程序：1 条声明、8 次标量调用</td><td>—</td></tr>
+        <tr><td>链接<br>（节点 4）</td><td>后端的 <code>make_llir</code> 调用 <code>link_extern_libs</code></td><td>按名字从 libdevice 拷入 1 份定义，设为 internal</td><td>路径不存在：<code>FileNotFoundError</code>，早在计算缓存键时就报；库里没有这个符号：这里不报，留到最后一步</td></tr>
+        <tr><td>O3 内联<br>（节点 4）</td><td>LLVM 优化器</td><td>8 次调用变成 8 份函数体，定义被删除</td><td>没有内联：机器码里留下真实调用</td></tr>
+        <tr><td>生成 PTX<br>（节点 4）</td><td>LLVM 的 NVPTX 后端</td><td>反射参数选定写法：ftz 加近似 sqrt；0 条 call</td><td>—</td></tr>
+        <tr><td>汇编</td><td>ptxas</td><td>cubin，写入缓存；运行时 GPU 只执行它</td><td>还有未定义的函数：<code>Unresolved extern function</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="summary">
+    <h3>贯穿全课的三个取舍</h3>
+    <ol>
+      <li><b>前端只记名字，后端才给函数体。</b>换来的是同一份 kernel 能在不同后端编译。代价是每个后端的函数集和 dtype 表各不相同，缺了就编译失败。</li>
+      <li><b>链接加内联，而不是真的调用。</b>换来的是运行时没有调用开销，函数体还能和周围代码一起优化。代价是代码量随每线程元素数 E 增长。</li>
+      <li><b>默认偏快，精确要自己选。</b>库用编译期分支容纳多种数值模式，Triton 默认选 ftz 和近似 sqrt；exp、sqrt、除法最顺手的写法也是快速档。要和 PyTorch eager 对齐，得逐项换成精确档。</li>
+    </ol>
+  </div>
+  <div class="note">
+    <p><b>放到真实系统里：</b>PyTorch 的 Inductor 会把一串逐元素运算融合成一个 Triton kernel，其中每个数学函数都走这条链。它默认生成 <code>libdevice.exp</code> 和 <code>tl.sqrt_rn</code>，并用 <code>eager_numerics</code> 这组开关控制除法舍入、ftz 和 libdevice 的版本，目的都是让编译结果贴近 eager。</p>
+    <p><b>换一个后端：</b>机制不变，填进去的内容变。AMD 上符号是 <code>__ocml_asin_f32</code>，每个 warp 64 个线程所以 E = 4，链接的是 <code>ocml.bc</code>，次正规数默认保留。</p>
+  </div>
+</section>
+
+<section id="check" aria-labelledby="check-title">
+  <div class="sec-head">
+    <span class="tag">自测</span>
+    <h2 id="check-title">看完后回答</h2>
+    <p>题 1、2 对应节点 3、4，题 3 对应节点 5、6，最后是整课的综合验收。可以随时回到上面的图。把答案发回对话即可。</p>
+  </div>
+  <div class="quiz">
+    <div class="q">
+      <h3><span class="n">题 1</span>声明、定义与内联</h3>
+      <p>把主例的 <code>BLOCK_SIZE</code> 从 1024 改成 2048，<code>num_warps</code> 仍为 4，S 仍为 4。</p>
+      <ol>
+        <li>每个线程持有几个元素？链接前的 LLVM IR 里，<code>declare @__nv_asinf</code> 有几条、<code>call @__nv_asinf</code> 有几条？为什么两者数量不同？</li>
+        <li>链接之后，模块里 <code>__nv_asinf</code> 的定义有几份？O3 之后，asin 的函数体有几份、<code>call</code> 有几条？为什么定义只有一份，函数体却有多份？</li>
+      </ol>
+    </div>
+    <div class="q">
+      <h3><span class="n">题 2</span>编译期分支（预测）</h3>
+      <p>假如 Triton 在设置 <code>nvvm-reflect-ftz</code> 的同时，也让 <code>__CUDA_PREC_SQRT</code> 取 1，其他都不变。</p>
+      <ol>
+        <li>PTX 里 asin 用到的 sqrt 指令会变成哪一条？</li>
+        <li>为什么只改这一个参数，8 份函数体里的 sqrt 会全部跟着变？</li>
+      </ol>
+    </div>
+    <div class="q">
+      <h3><span class="n">题 3</span>取舍与诊断</h3>
+      <ol>
+        <li>一个 fp32 的 SiLU kernel 写成 <code>y = x / (1 + tl.exp(-x))</code>，目标是 NVIDIA。假设它和 PyTorch eager 相比，多数元素差 1–2 ulp，|x| 大时差得更多。这个 kernel 里哪两处用了快速档？各换成什么？各自的代价是什么？</li>
+        <li>你们的 <code>xpu</code> 后端刚加上 libdevice 支持。TTIR 正确（<code>symbol = "__xpu_asin_f32"</code>），编译也成功，但机器码里仍然有对 <code>__xpu_asin_f32</code> 的真实函数调用。最可能漏了“六样东西”里的哪一样？你会看哪个中间产物来确认？</li>
+      </ol>
+    </div>
+    <div class="q">
+      <h3><span class="n">综合验收</span>三题</h3>
+      <ol>
+        <li><b>口述（60–90 秒，写下来即可）。</b>一个 kernel 的输入是 fp16，要调用 <code>libdevice.erf(x)</code>，目标后端是 AMD。向面试官讲清：从 Python 到机器码依次经过哪些环节，每一环谁负责、产出什么，最后为什么机器码里没有函数调用。</li>
+        <li><b>取舍。</b>SiLU kernel <code>y = x / (1 + tl.exp(-x))</code>，fp32，NVIDIA。（a）要让结果更接近 PyTorch eager，<code>tl.exp</code> 和 <code>/</code> 分别应该改写成哪个函数？（b）改写之后，速度上各要付出什么代价？（c）什么情况下你会选择不改，保留快速档？</li>
+        <li><b>诊断。</b>同一个调用 <code>libdevice.asin</code> 的 kernel 分别在 NVIDIA 和 AMD 上运行，输入里有一个极小的数 1e-40，它是 fp32 的次正规数。假设观察到：NVIDIA 输出 0，AMD 输出约等于 1e-40，其余元素两边一致。（a）为什么两边结果不同？这个差别是在编译过程的哪一步定下来的？（b）想让两边一致，各可以调整哪个选项？这个选项的影响范围有多大？</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>来源与环境</p>
+    <ul>
+      <li>Triton v3.7.1（commit f797708）源码：code_generator.py、language/core.py、ElementwiseOpToLLVM.cpp、third_party/nvidia/backend/compiler.py、python/src/llvm.cc、triton_nvidia.cc。</li>
+      <li>本机只编译不运行：PyPI 的 triton 3.7.1 wheel，<code>GPUTarget("cuda", 90, 32)</code>，PTX 目标 sm_90a；BLOCK_SIZE = 1024，num_warps = 4，指针与 n_elements 按 16 特化；寄存器数据来自 wheel 自带的 <code>ptxas -v</code>。</li>
+      <li>NVCC 文档 v13.4（<code>--ftz</code>、<code>--prec-sqrt</code>、<code>--use_fast_math</code>）；LLVM NVPTXUsage 文档的 Reflection Parameters 一节；CUDA Programming Guide 的 Mathematical Functions 附录（误差上界）。</li>
+      <li>节点 5、6：同一 wheel 对 <code>GPUTarget("hip", "gfx942", 64)</code> 的只编译观察；PyTorch v2.13.0 的 <code>torch/_inductor/codegen/triton.py</code>、<code>config.py</code>、<code>runtime/triton_heuristics.py</code>。</li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+(function () {
+  /* ---------- 逐站跟踪 ---------- */
+  var stages = [
+    {
+      name: "Python", who: "你写的 kernel（Triton 语言）",
+      grain: "整块张量：x 是一个形状为 [1024] 的块",
+      code: "x = tl.load(x_ptr + offsets, mask=mask)\nx = libdevice.asin(x)\ntl.store(y_ptr + offsets, x, mask=mask)",
+      delta: "起点。这里的 libdevice 只是接口模块，里面的函数都是空壳。",
+      src: "docs/triton-tutorials/official/07-extern-functions.py"
+    },
+    {
+      name: "TTIR", who: "Triton 前端：把 Python 语法树翻译成 TTIR",
+      grain: "整块张量，加上要调用的符号名",
+      code: "%x_6 = tt.extern_elementwise %x_5 {libname = \"\", libpath = \"\", pure = true,\n        symbol = \"__nv_asinf\"} : (tensor<1024xf32>) -> tensor<1024xf32>",
+      delta: "接口模块已换成 CUDA 实现，并按 fp32 查表选中 __nv_asinf（节点 1、2）。这里只记“要调用谁”，还不知道函数体在哪。",
+      src: "python/triton/compiler/code_generator.py:309 · python/triton/language/core.py:3418"
+    },
+    {
+      name: "TTGIR", who: "Triton 的 GPU 化 pass：转成 TTGIR，并由 coalesce 等 pass 选定布局",
+      grain: "整块张量，加上布局：哪个线程负责哪些元素",
+      code: "#blocked = #ttg.blocked<{sizePerThread = [4], threadsPerWarp = [32],\n                         warpsPerCTA = [4], order = [0]}>\n\n%x_6 = tt.extern_elementwise %x_5 {… symbol = \"__nv_asinf\"}\n       : (tensor<1024xf32, #blocked>) -> tensor<1024xf32, #blocked>",
+      delta: "操作本身没变，类型上多了 #blocked 布局。按这个布局，每个线程负责 E = 1024 ÷ (32 × 4) = 8 个元素。S = 4 是 Triton 根据“指针按 16 字节对齐”这类特化信息自动选的。",
+      src: "可在下方“布局实验”里改参数观察"
+    },
+    {
+      name: "LLVM IR · 链接前", who: "TritonGPU → LLVM 的转换（ExternElementwiseOpConversion）",
+      grain: "一个线程要执行的标量代码；128 个线程运行同一份代码，各自处理自己的元素",
+      code: "declare float @__nv_asinf(float)          ; 只有签名，没有函数体\n\n%56 = call float @__nv_asinf(float %39)   ; 元素 1\n%57 = call float @__nv_asinf(float %40)   ; 元素 2\n%58 = call float @__nv_asinf(float %41)   ; 元素 3\n%59 = call float @__nv_asinf(float %42)   ; 元素 4\n%60 = call float @__nv_asinf(float %52)   ; 元素 5\n%61 = call float @__nv_asinf(float %53)   ; 元素 6\n%62 = call float @__nv_asinf(float %54)   ; 元素 7\n%63 = call float @__nv_asinf(float %55)   ; 元素 8",
+      delta: "张量不见了：一个张量操作变成 8 次标量调用，每个元素一次。__nv_asinf 在整个模块里只有 1 条声明，函数体还不在这里。",
+      src: "lib/Conversion/TritonGPUToLLVM/ElementwiseOpToLLVM.cpp:193"
+    },
+    {
+      name: "LLVM IR · 链接后", who: "make_llir 里的 link_extern_libs，相当于链接器",
+      grain: "同上，模块里多了一个函数定义",
+      code: "!{i32 4, !\"nvvm-reflect-ftz\", i32 1}               ; Triton 写入的反射参数\n\ndefine internal float @__nv_asinf(float %a) #2 {   ; 定义被拷进来了\n  %1 = call i32 @__nvvm_reflect(ptr @.str)         ; 问：__CUDA_FTZ 是几？\n  %2 = icmp ne i32 %1, 0\n  br i1 %2, label %3, label %5                     ; 分成 ftz 版和普通版两条路\n  …\n}\n\nattributes #2 = { alwaysinline nounwind … }       ; 必须内联",
+      delta: "从 libdevice.10.bc（473,728 字节，数百个函数）里，按名字只拷来 __nv_asinf 这一个定义，并改成 internal。它带 alwaysinline 属性，函数体里有 __nvvm_reflect 编译期分支。",
+      src: "third_party/nvidia/backend/compiler.py:418 · python/src/llvm.cc:871"
+    },
+    {
+      name: "LLVM IR · O3 后", who: "LLVM 优化器（O3）",
+      grain: "同上",
+      code: "; 8 次 call @__nv_asinf 都已消失：每处换成一份函数体\n; __nv_asinf 的定义也已删除：没人再调用它\n; 但 reflect 还没决定，两种写法都在：\n%37  = tail call i32 @__nvvm_reflect(ptr nonnull @.str)\n%38  = tail call float @llvm.nvvm.fabs.ftz.f32(float %24)   ; ftz 版 |x|\n%39  = tail call float @llvm.nvvm.fabs.f32(float %24)       ; 普通版 |x|\n%.0.i = select i1 %.not.i, float %39, float %38            ; 按答案二选一",
+      delta: "内联完成：模块里只剩 asin_kernel 一个函数。reflect 的分支还留着，要到下一站生成 PTX 时才被折叠。",
+      src: "third_party/nvidia/backend/compiler.py:422"
+    },
+    {
+      name: "PTX", who: "LLVM 的 NVPTX 后端：生成 PTX 汇编",
+      grain: "一个线程要执行的指令",
+      code: "// 元素 1（寄存器 %r1）的完整指令链\nabs.ftz.f32          %r25, %r1;               // a = |x|\nsub.f32              %r27, %r26, %r25;        // 1 − a\nmul.f32              %r28, %r27, 0f3F000000;  // t = (1 − a) × 0.5\nsqrt.approx.ftz.f32  %r29, %r28;              // s = √t（近似 sqrt）\nsetp.gt.f32          %p4, %r25, 0f3F11EB85;   // a > 0.57 ?\nselp.f32             %r117, %r29, %r25, %p4;  // r = 是 ? s : a\nmul.f32              %r118, %r117, %r117;     // r²\nfma.rn.ftz.f32       …  ×4                    // 多项式 p(r²)\nmul.f32 / fma.rn.ftz.f32                      // q = r + r·r²·p ≈ asin(r)\nfma.rn.ftz.f32       %r142, %r135, %r124, %r134; // π/2 − 2q（大 x 的换算）\nselp / setp.num / selp.b32 / or.b32           // 选结果、补回 x 的符号",
+      delta: "reflect 在这一站被换成常量（FTZ = 1、PREC_SQRT = 0），只剩“ftz 加近似 sqrt”这一条路。全文 0 条 call；8 条 sqrt.approx.ftz.f32、48 条 fma.rn.ftz.f32；本线程的 8 个元素用 2 条 ld.global.v4.b32 读入。",
+      src: "third_party/nvidia/backend/compiler.py:440（make_ptx）"
+    },
+    {
+      name: "cubin", who: "ptxas（Triton wheel 自带）",
+      grain: "sm_90a 的机器码",
+      code: "$ ptxas -v -arch=sm_90a asin_kernel.ptx\nptxas info : Compiling entry function 'asin_kernel' for 'sm_90a'\nptxas info : Function properties for asin_kernel\n    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads\nptxas info : Used 32 registers, used 0 barriers",
+      delta: "PTX 被汇编成具体 GPU 的机器码。本机用 wheel 自带的 ptxas 单独汇编这份 PTX：每个线程用 32 个寄存器，没有溢出。编译到此结束并写入缓存；运行时 GPU 执行的就是它。",
+      src: "third_party/nvidia/backend/compiler.py:466（make_cubin）"
+    }
+  ];
+
+  var tabs = document.getElementById("stage-tabs");
+  var cur = 0;
+  stages.forEach(function (s, i) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = '<span class="i">' + (i + 1) + "</span>";
+    b.appendChild(document.createTextNode(s.name));
+    b.addEventListener("click", function () { show(i); });
+    tabs.appendChild(b);
+  });
+  function show(i) {
+    cur = i;
+    var s = stages[i];
+    document.getElementById("stage-title").textContent = (i + 1) + " · " + s.name;
+    document.getElementById("stage-who").textContent = s.who;
+    document.getElementById("stage-grain").textContent = s.grain;
+    document.getElementById("stage-code").textContent = s.code;
+    document.getElementById("stage-delta").textContent = s.delta;
+    document.getElementById("stage-src").textContent = s.src;
+    Array.prototype.forEach.call(tabs.children, function (b, j) {
+      b.setAttribute("aria-pressed", j === i ? "true" : "false");
+    });
+    document.getElementById("stage-prev").disabled = i === 0;
+    document.getElementById("stage-next").disabled = i === stages.length - 1;
+  }
+  document.getElementById("stage-prev").addEventListener("click", function () { if (cur > 0) show(cur - 1); });
+  document.getElementById("stage-next").addEventListener("click", function () { if (cur < stages.length - 1) show(cur + 1); });
+  show(0);
+
+  /* ---------- 布局实验 ---------- */
+  var SVGNS = "http://www.w3.org/2000/svg";
+  var elB = document.getElementById("lab-block");
+  var elW = document.getElementById("lab-warps");
+  var elS = document.getElementById("lab-s");
+  var elT = document.getElementById("lab-thread");
+  var grid = document.getElementById("lab-grid");
+  var readout = document.getElementById("lab-readout");
+  var hover = document.getElementById("lab-hover");
+  var warn = document.getElementById("lab-warn");
+  var legend = document.getElementById("lab-legend");
+  var COLS = 32, PITCH = 14, CELL = 12, LEFT = 40, TOP = 16;
+
+  function params() {
+    return { B: +elB.value, W: +elW.value, S: +elS.value };
+  }
+  function owner(i, p) {
+    var T = p.S * 32 * p.W;
+    var it = i % T, rep = Math.floor(i / T);
+    var t = Math.floor(it / p.S);
+    return { t: t, warp: Math.floor(t / 32), lane: t % 32, slot: rep * p.S + (it % p.S) };
+  }
+  function elementsOf(t, p) {
+    var T = p.S * 32 * p.W, out = [];
+    for (var rep = 0; rep * T < p.B; rep++) {
+      for (var s = 0; s < p.S; s++) out.push(rep * T + t * p.S + s);
+    }
+    return out;
+  }
+  function ranges(list) {
+    var parts = [], i = 0;
+    while (i < list.length) {
+      var j = i;
+      while (j + 1 < list.length && list[j + 1] === list[j] + 1) j++;
+      parts.push(i === j ? String(list[i]) : list[i] + "–" + list[j]);
+      i = j + 1;
+    }
+    return parts.join("、");
+  }
+  function row(label, value, cls) {
+    return '<div><span>' + label + '</span><span' + (cls ? ' class="' + cls + '"' : "") + ">" + value + "</span></div>";
+  }
+  function render() {
+    var p = params();
+    var threads = 32 * p.W, T = p.S * 32 * p.W;
+    elT.max = String(threads - 1);
+    var t = Math.min(Math.max(0, parseInt(elT.value, 10) || 0), threads - 1);
+    elT.value = String(t);
+    var replicated = T > p.B;
+    var rows = p.B / COLS;
+    var width = LEFT + COLS * PITCH + 4, height = TOP + rows * PITCH + 4;
+    grid.setAttribute("viewBox", "0 0 " + width + " " + height);
+    while (grid.firstChild) grid.removeChild(grid.firstChild);
+    var sel = replicated ? [] : elementsOf(t, p);
+    var selSet = {};
+    sel.forEach(function (k) { selSet[k] = true; });
+    [0, 8, 16, 24].forEach(function (c) {
+      var tx = document.createElementNS(SVGNS, "text");
+      tx.setAttribute("x", LEFT + c * PITCH + CELL / 2);
+      tx.setAttribute("y", 10);
+      tx.setAttribute("text-anchor", "middle");
+      tx.textContent = "+" + c;
+      grid.appendChild(tx);
+    });
+    for (var r = 0; r < rows; r++) {
+      if (r % 4 === 0) {
+        var lt = document.createElementNS(SVGNS, "text");
+        lt.setAttribute("x", LEFT - 6);
+        lt.setAttribute("y", TOP + r * PITCH + CELL - 2);
+        lt.setAttribute("text-anchor", "end");
+        lt.textContent = String(r * COLS);
+        grid.appendChild(lt);
+      }
+      for (var c = 0; c < COLS; c++) {
+        var i = r * COLS + c;
+        var rc = document.createElementNS(SVGNS, "rect");
+        rc.setAttribute("x", LEFT + c * PITCH);
+        rc.setAttribute("y", TOP + r * PITCH);
+        rc.setAttribute("width", CELL);
+        rc.setAttribute("height", CELL);
+        rc.setAttribute("rx", 2);
+        rc.setAttribute("data-i", i);
+        if (replicated) {
+          rc.setAttribute("style", "fill:var(--surface-2)");
+        } else if (selSet[i]) {
+          rc.setAttribute("style", "fill:var(--accent)");
+          rc.setAttribute("class", "sel");
+        } else {
+          rc.setAttribute("style", "fill:var(--w" + (owner(i, p).warp % 8) + ")");
+        }
+        grid.appendChild(rc);
+      }
+    }
+    legend.innerHTML = "";
+    for (var w = 0; w < p.W; w++) {
+      var sp = document.createElement("span");
+      sp.innerHTML = '<i style="background:var(--w' + w + ')"></i>warp ' + w;
+      legend.appendChild(sp);
+    }
+    var ls = document.createElement("span");
+    ls.innerHTML = '<i style="background:var(--accent)"></i>选中线程';
+    legend.appendChild(ls);
+
+    var html = "";
+    html += row("线程总数 32 × num_warps", threads);
+    html += row("布局块 S × 32 × num_warps", T + " 个元素");
+    if (replicated) {
+      html += row("E（每线程元素数）", "—");
+      warn.hidden = false;
+      warn.textContent = "这个组合里，一个布局块（" + T + " 个元素）比张量（" + p.B + " 个）还大，多出来的线程会重复持有同样的元素。本页不画这种情况，请调大 BLOCK_SIZE，或调小 num_warps、S。";
+    } else {
+      warn.hidden = true;
+      var E = p.B / threads;
+      html += row("E = BLOCK_SIZE ÷ 线程总数", E, "e");
+      html += row("选中线程", "warp " + Math.floor(t / 32) + " · lane " + (t % 32));
+      html += row("它持有的元素", ranges(sel));
+      html += row("一次连续读", p.S + " 个 fp32 = " + (4 * p.S) + " 字节");
+    }
+    readout.innerHTML = html;
+  }
+  grid.addEventListener("click", function (ev) {
+    var i = ev.target.getAttribute && ev.target.getAttribute("data-i");
+    if (i === null || i === undefined) return;
+    var p = params();
+    if (p.S * 32 * p.W > p.B) return;
+    elT.value = String(owner(+i, p).t);
+    render();
+  });
+  grid.addEventListener("mouseover", function (ev) {
+    var i = ev.target.getAttribute && ev.target.getAttribute("data-i");
+    if (i === null || i === undefined) return;
+    var p = params();
+    if (p.S * 32 * p.W > p.B) { hover.textContent = "元素 " + i; return; }
+    var o = owner(+i, p);
+    hover.textContent = "元素 " + i + " → 线程 " + o.t + "（warp " + o.warp + " · lane " + o.lane + "）的第 " + (o.slot + 1) + " 个元素";
+  });
+  [elB, elW, elS, elT].forEach(function (el) { el.addEventListener("change", render); });
+  elT.addEventListener("input", render);
+  render();
+
+  /* ---------- 图的状态切换 ---------- */
+  var chipsFor = {
+    ftz1: ["abs.ftz.f32", "fma.rn.ftz.f32", "sqrt.approx.ftz.f32"],
+    ftz0: ["abs.f32", "fma.rn.f32", "sqrt.approx.f32"]
+  };
+  function setChips(state) {
+    var box = document.getElementById("reflect-chips");
+    box.innerHTML = "";
+    var lead = document.createElement("span");
+    lead.textContent = "PTX 中实际出现：";
+    lead.style.fontSize = ".88rem";
+    lead.style.color = "var(--muted)";
+    box.appendChild(lead);
+    chipsFor[state].forEach(function (c) {
+      var s = document.createElement("span");
+      s.className = "chip";
+      s.textContent = c;
+      box.appendChild(s);
+    });
+  }
+  document.querySelectorAll("button[data-fig]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var fig = document.getElementById(btn.getAttribute("data-fig"));
+      var want = btn.getAttribute("data-show");
+      fig.querySelectorAll("[data-state]").forEach(function (g) {
+        g.toggleAttribute("hidden", g.getAttribute("data-state") !== want);
+      });
+      fig.querySelectorAll("button[data-fig]").forEach(function (b) {
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+      if (fig.id === "fig-reflect") setChips(want);
+    });
+  });
+  setChips("ftz1");
+})();
+</script>
+</body>
+</html>
