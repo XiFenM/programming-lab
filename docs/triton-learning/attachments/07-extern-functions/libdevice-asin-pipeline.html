@@ -676,7 +676,7 @@ else
   </figure>
 
   <div class="note">
-    <p><b>次正规数与 ftz：</b>绝对值小于 2⁻¹²⁶ ≈ 1.18×10⁻³⁸ 的 fp32 数叫次正规数。ftz（flush to zero）把它们当作 0 处理，换来更简单、更快的指令。对 asin 来说，极小的 x 本该得到 ≈ x，在 ftz 下预计得到 0；这一点留到 GPU 机器上验证。</p>
+    <p><b>次正规数与 ftz：</b>绝对值小于 2⁻¹²⁶ ≈ 1.18×10⁻³⁸ 的 fp32 数叫次正规数。ftz（flush to zero）把它们当作 0 处理，换来更简单、更快的指令。对 asin 来说，极小的 x 本该得到 ≈ x，在 ftz 下得到 0。2026-10-05 在 RTX 4070 Ti 上实测：输入 1e-40 时，默认设置输出 0（负数输入得到 -0），传 <code>enable_reflect_ftz=False</code> 后输出 1e-40，与 <code>torch.asin</code> 一致；最小的正规数 1.175e-38 及更大的输入，三者结果相同。</p>
     <p><b>什么时候选定：</b>O3 之后，IR 里两条路都还在：ftz 版和普通版的 |x| 都会被算出来，再用 <code>select</code> 二选一。生成 PTX 时 reflect 才被换成常量，另一条路随之删掉。</p>
   </div>
 
@@ -873,11 +873,18 @@ else
         <tr><td>节点 3：每线程元素数 E</td><td>8，生成 8 次调用</td><td>4，生成 4 次调用</td></tr>
         <tr><td>节点 4：默认的库</td><td><code>libdevice.10.bc</code></td><td><code>ocml.bc</code>（数学库）、<code>ockl.bc</code>（辅助库）</td></tr>
         <tr><td>节点 4：实际链接</td><td>拷入 <code>__nv_asinf</code> 一个函数</td><td>只链接 <code>ocml.bc</code>，拷入 <code>__ocml_asin_f32</code> 和它依赖的 <code>__ocml_fmuladd_f32</code></td></tr>
-        <tr><td>内联之后</td><td>0 次调用；每元素 1 条 sqrt、6 条 fma</td><td>0 次调用；每元素 1 条 sqrt、9 条 fma／mad</td></tr>
+        <tr><td>内联之后</td><td>0 次调用；每元素约 19 条算术指令，其中 6 条 fma、1 条 sqrt</td><td>0 次调用；每元素约 17 条算术指令，其中 9 条 fma、1 条 sqrt</td></tr>
         <tr><td>次正规数的默认处理</td><td>冲成 0，由反射参数 <code>nvvm-reflect-ftz</code> 控制</td><td>保留，由函数属性 <code>denormal-fp-math-f32</code> 控制；<code>allow_flush_denorm</code> 默认 False</td></tr>
         <tr><td>最终产物</td><td>PTX，再汇编成 cubin</td><td>AMD 汇编，再链接成 hsaco（AMD 的 kernel 二进制）</td></tr>
       </tbody>
     </table>
+  </div>
+  <div class="note">
+    <p><b>为什么两边的 fma 条数不同：</b>两家库对同一个 asin 各写了一套算法，数学恒等式相同，写法不同。AMD 并没有做更多的工作，算上全部算术指令，两边相当。AMD 多出的 3 条 fma 来自三处：</p>
+    <p>· 算 (1 − |x|) ÷ 2 时，AMD 用一条 fma，NVIDIA 用一条减法加一条乘法。</p>
+    <p>· 逼近多项式，AMD 有 6 个系数，NVIDIA 有 5 个；两家的分界点也不同，分别是 0.5 和 0.57。</p>
+    <p>· 最后一步，NVIDIA 先选好变量，两个分支共用一条 fma；AMD 把两个分支各算一遍，再选结果。</p>
+    <p>这也是同一个 kernel 在不同后端上结果可能差最后一位的原因之一。</p>
   </div>
   <p class="note"><b>不变的部分是 Triton 的公共代码：</b><code>tt.extern_elementwise</code> 这个操作、按线程逐元素拆成标量调用、按名字链接、内联。新后端不用重写它们，只需要把自己的内容填进每一环。</p>
 

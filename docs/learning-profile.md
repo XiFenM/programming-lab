@@ -27,6 +27,9 @@
 - 符号先行：先定义符号、维度与单位，再按需代入数字；不同维度即使取值相同也用不同符号，例如 `BLOCK_M` 与
   `BLOCK_N`。
 - 节点依赖的 Triton API、dtype 或抽象，先讲清语义和选择理由，再读用到它们的代码。
+- 编译器背景较少。涉及编译器内部的内容（IR、链接、内联、编译期分支等），先用 C/C++ 里的对应物补最少的前置概念，
+  再配可交互的图解和真实的编译产物，然后才检查。学习者在 2026-09-30 的 Triton 第 07 课说明“对于编译器的了解非常少”，
+  并要求用可视化方式讲解复杂点；图解存入仓库，便于复习。
 
 ## 检查题偏好
 
@@ -39,5 +42,6 @@
 
 新课与以下已结课内容对照，不从头讲：
 
-- Triton 第 01–06 课：向量加法、Fused Softmax、矩阵乘法、Low-Memory Dropout、LayerNorm、Fused Attention；
+- Triton 第 01–07 课：向量加法、Fused Softmax、矩阵乘法、Low-Memory Dropout、LayerNorm、Fused Attention、
+  外部函数（libdevice）；
 - 算法面试第 01 课：约束驱动的算法选择与可观察表达。
