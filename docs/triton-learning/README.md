@@ -72,7 +72,7 @@ docs/triton-learning/
 | 05 | `05-layer-norm.py` | [lessons/05-layer-norm.md](lessons/05-layer-norm.md) |
 | 06 | `06-fused-attention.py` | [lessons/06-fused-attention.md](lessons/06-fused-attention.md) |
 | 07 | `07-extern-functions.py` | [lessons/07-extern-functions.md](lessons/07-extern-functions.md) |
-| 08 | `08-grouped-gemm.py` | 候选，尚无记录 |
+| 08 | `08-grouped-gemm.py` | [lessons/08-grouped-gemm.md](lessons/08-grouped-gemm.md) |
 | 09 | `09-persistent-matmul.py` | 候选，尚无记录 |
 | 10 | `10-block-scaled-matmul.py` | 候选，尚无记录 |
 
@@ -119,12 +119,12 @@ docs/triton-learning/
 
 | 字段 | 当前值 |
 | --- | --- |
-| Foreground context | `triton-official-tutorials` Program |
-| Semantic position | 第 01–07 课均已关闭；Lesson 07 于 2026-10-05 确认关闭，位于 Lesson 边界，当前没有 active Lesson |
-| Next action | 学习者选择并授权下一 Lesson |
-| Forward gate | 明确授权后才激活下一 Lesson；当前不会自动启动 Lesson 08 |
-| Latest evidence ref | [Lesson 07 Final mastery](lessons/07-extern-functions.md#final-mastery) |
-| As of | 2026-10-05 |
+| Foreground context | [Lesson 08](lessons/08-grouped-gemm.md)（`triton-08-grouped-gemm`） |
+| Semantic position | Lesson 08 处于 `practice`：练习约定 P1（版本 1）已接受，验收测试已建立并确认为预期失败，学习者尚未提交实现 |
+| Next action | 学习者在 GPU 机器上实现 `gpu/triton/lesson08_grouped_gemm.py` 的 kernel 与包装函数（A1–A5），运行同一测试文件并贴回输出、推送实现 |
+| Forward gate | A1–A5 在 GPU 层通过并经 Review 后，进行 A6 的说明与 A7 的无提示变式；A1–A7 全部通过且阻塞问题关闭后进入结课确认 |
+| Latest evidence ref | [Lesson 08 练习约定 P1](lessons/08-grouped-gemm.md#条件片段练习约定) 与[阶段事件 E-03](lessons/08-grouped-gemm.md#条件片段阶段事件) |
+| As of | 2026-10-07 |
 
 ## 本课程的记录约定
 

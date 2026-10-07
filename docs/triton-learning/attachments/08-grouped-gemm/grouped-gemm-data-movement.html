@@ -1,0 +1,885 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Triton 第 08 课节点 5 图解：一块矩阵数据从显存进入共享内存的三种搬法（逐个元素、异步拷贝、TMA），tl.multiple_of 的对齐保证何时失效，TMA 描述符从声明到搬运的四步，以及没有 TMA 的设备上的回退。">
+<title>Grouped GEMM 数据搬运</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&display=swap">
+<style>
+[hidden]{display:none!important}
+body{margin:0}
+:root{
+  --bg:#f3f4ef;--surface:#ffffff;--surface-2:#eceee6;--ink:#1b222c;--muted:#5a6370;--line:#d3d8cc;
+  --accent:#c2530a;--accent-soft:#fbe5d3;--accent-ink:#ffffff;
+  --lib:#3f4fb8;--lib-soft:#e4e7fb;
+  --w0:#d6e4f5;--w1:#d4ecdf;--w2:#f3e8c8;--w3:#efd6e5;--w4:#e0daf4;--w5:#e3edcc;--w6:#f2dccf;--w7:#cfeaea;
+  --sans:"Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  --serif:"Noto Serif SC","Songti SC","SimSun",serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#11151b;--surface:#1a2028;--surface-2:#222a34;--ink:#e5e9ee;--muted:#a2acb8;--line:#343e4a;
+    --accent:#ff9a57;--accent-soft:#4a2a17;--accent-ink:#1b1208;
+    --lib:#aab5ff;--lib-soft:#262c52;
+    --w0:#22344a;--w1:#1e3a2d;--w2:#3d3520;--w3:#3c2436;--w4:#2c2846;--w5:#2e3a1f;--w6:#40291e;--w7:#1c3a3a;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#11151b;--surface:#1a2028;--surface-2:#222a34;--ink:#e5e9ee;--muted:#a2acb8;--line:#343e4a;
+  --accent:#ff9a57;--accent-soft:#4a2a17;--accent-ink:#1b1208;
+  --lib:#aab5ff;--lib-soft:#262c52;
+  --w0:#22344a;--w1:#1e3a2d;--w2:#3d3520;--w3:#3c2436;--w4:#2c2846;--w5:#2e3a1f;--w6:#40291e;--w7:#1c3a3a;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.8}
+button,select,input{font:inherit;color:inherit}
+code,pre,.mono{font-family:var(--mono)}
+code{font-size:.9em;background:var(--surface-2);padding:.08em .35em;border-radius:4px}
+a{color:var(--accent)}
+h1,h2,h3{text-wrap:balance;line-height:1.35}
+h1,h2{font-family:var(--serif);font-weight:700}
+h1{font-size:clamp(1.9rem,4.4vw,2.7rem);margin:0}
+h2{font-size:clamp(1.4rem,3vw,1.85rem);margin:0}
+h3{font-size:1.08rem;margin:0}
+p{margin:0;max-width:46em}
+.wrap{max-width:1060px;margin-inline:auto;padding-inline:20px}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:10px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:.95rem;letter-spacing:.02em}
+.brand span{font-family:var(--mono);color:var(--accent);margin-right:.5em}
+.topbar nav{display:flex;gap:18px;flex-wrap:wrap;font-size:.9rem}
+.topbar nav a{color:var(--muted);text-decoration:none}
+.topbar nav a:hover,.topbar nav a:focus-visible{color:var(--ink)}
+main{display:grid;gap:64px;padding-block:40px 72px}
+section{display:grid;gap:20px}
+.eyebrow{font-size:.8rem;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;font-weight:500}
+.lede{font-size:1.06rem;color:var(--muted)}
+.keyline{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 18px;max-width:52em}
+.keyline b{color:var(--accent)}
+.sec-head{display:grid;gap:8px}
+.sec-head .tag{font-family:var(--mono);font-size:.8rem;color:var(--accent);letter-spacing:.06em}
+figure{margin:0;display:grid;gap:10px}
+figcaption{font-size:.9rem;color:var(--muted);max-width:52em}
+.fig-scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
+.fig-scroll svg{display:block;width:100%;height:auto}
+.fig-scroll.wide svg{min-width:720px}
+svg.dia{color:var(--ink);font-family:var(--sans);font-size:13px}
+svg.dia text{fill:currentColor}
+svg.dia .sm{font-size:11.5px}
+svg.dia .xs{font-size:10.5px}
+svg.dia .b{font-weight:700}
+svg.dia .m{font-family:var(--mono);font-size:12px}
+svg.dia .m.sm{font-size:11px}
+svg.dia .mu,svg.dia .mu text{fill:var(--muted)}
+svg.dia .ac,svg.dia .ac text{fill:var(--accent)}
+svg.dia .box{fill:var(--surface);stroke:currentColor;stroke-width:1.2}
+svg.dia .box2{fill:var(--surface-2);stroke:var(--line);stroke-width:1.2}
+svg.dia .dash{fill:var(--surface);stroke:currentColor;stroke-width:1.2;stroke-dasharray:5 4}
+svg.dia .acc{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.6}
+svg.dia .lib{fill:var(--lib-soft);stroke:var(--lib);stroke-width:1.2}
+svg.dia .frame{fill:none;stroke:var(--line);stroke-width:1.4}
+svg.dia .arr{fill:none;stroke:currentColor;stroke-width:1.4}
+svg.dia .arr-a{fill:none;stroke:var(--accent);stroke-width:1.8}
+svg.dia .arr-mu{fill:none;stroke:var(--muted);stroke-width:1.2;stroke-dasharray:3 4}
+svg.dia .mk{fill:var(--ink)}
+svg.dia .mk-a{fill:var(--accent)}
+svg.dia .faded{opacity:.35}
+svg.dia .strike{stroke:var(--muted);stroke-width:1.4}
+.concepts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:grid;gap:12px;align-content:start}
+.card h3{display:flex;gap:10px;align-items:baseline}
+.card h3 .n{font-family:var(--mono);color:var(--accent);font-size:.85rem}
+.card p{font-size:.95rem}
+.card .fig-scroll{padding:10px;background:var(--bg)}
+.analogy{font-size:.9rem;color:var(--muted)}
+pre{margin:0;background:var(--surface-2);border-radius:8px;padding:12px 14px;overflow-x:auto;font-size:.82rem;line-height:1.65}
+pre .c{color:var(--muted)}
+pre .keep{color:var(--accent);font-weight:600}
+pre .drop{color:var(--muted);text-decoration:line-through}
+.stepper{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stage-tabs{display:flex;gap:6px;overflow-x:auto;padding:12px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.stage-tabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:.86rem;cursor:pointer;white-space:nowrap}
+.stage-tabs button .i{font-family:var(--mono);color:var(--muted);margin-right:6px;font-size:.78rem}
+.stage-tabs button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.stage-tabs button[aria-pressed="true"] .i{color:inherit}
+.stage-body{padding:18px 20px;display:grid;gap:14px}
+.stage-meta{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:.93rem}
+.stage-meta dt{color:var(--muted)}
+.stage-meta dd{margin:0}
+.stage-delta{font-size:.95rem}
+.stage-src{font-size:.82rem;color:var(--muted);font-family:var(--mono);overflow-wrap:anywhere}
+.stage-nav{display:flex;justify-content:space-between;gap:10px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:.9rem}
+.btn:hover{border-color:var(--ink)}
+.btn:disabled{opacity:.4;cursor:default;border-color:var(--line)}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:0;background:var(--surface);padding:6px 14px;cursor:pointer;font-size:.9rem}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.fig-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.symbols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:10px}
+.sym{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:.9rem}
+.sym b{font-family:var(--mono);color:var(--accent);font-weight:600}
+.lab{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:18px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+.lab-controls{display:grid;gap:12px;align-content:start}
+.lab-controls label{display:grid;gap:4px;font-size:.88rem;color:var(--muted)}
+.lab-controls select,.lab-controls input{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--ink);width:100%}
+.readout{display:grid;gap:6px;font-size:.9rem;background:var(--surface-2);border-radius:8px;padding:10px 12px}
+.readout div{display:flex;justify-content:space-between;gap:10px}
+.readout span:first-child{color:var(--muted)}
+.readout span:last-child{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.readout .e{color:var(--accent);font-weight:600}
+.lab-grid-wrap{display:grid;gap:8px;align-content:start}
+.grid-scroll{max-height:470px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:8px}
+.grid-scroll svg{display:block;width:100%;max-width:560px;height:auto}
+#lab-grid rect{stroke:var(--bg);stroke-width:1.5;cursor:pointer}
+#lab-grid rect.sel{fill:var(--accent)}
+#lab-grid text{fill:var(--muted);font-family:var(--mono);font-size:9px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.hover-line{font-size:.85rem;color:var(--muted);min-height:1.6em;font-family:var(--mono)}
+.warn{font-size:.88rem;border:1px solid var(--accent);background:var(--accent-soft);border-radius:8px;padding:8px 12px}
+.note{font-size:.93rem;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px;max-width:52em}
+.note b{color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-family:var(--mono);font-size:.82rem;border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:2px 10px}
+.tbl-scroll{overflow-x:auto}
+table{border-collapse:collapse;min-width:560px;font-size:.9rem;background:var(--surface)}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;vertical-align:top}
+th{background:var(--surface-2);font-weight:500}
+tr.hl td{background:var(--accent-soft)}
+.summary{background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:16px 20px;display:grid;gap:10px}
+.summary ol{margin:0;padding-left:1.4em;display:grid;gap:4px}
+.quiz{display:grid;gap:14px}
+.q{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 20px;display:grid;gap:8px}
+.q h3 .n{font-family:var(--mono);color:var(--accent);margin-right:8px}
+.q ol{margin:0;padding-left:1.4em;display:grid;gap:6px}
+footer{border-top:1px solid var(--line);padding-block:24px 40px;font-size:.84rem;color:var(--muted)}
+footer ul{margin:8px 0 0;padding-left:1.2em;display:grid;gap:4px}
+@media (max-width:760px){
+  .lab{grid-template-columns:1fr}
+  .wrap{padding-inline:16px}
+  main{gap:48px;padding-block:28px 56px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+svg.dia .thr{stroke:var(--line);stroke-width:1;fill:var(--surface-2)}
+svg.dia .thr.on{fill:var(--lib-soft);stroke:var(--lib)}
+svg.dia .thr.one{fill:var(--accent);stroke:var(--accent)}
+svg.dia .thr.off{fill:var(--surface-2);stroke:var(--line);opacity:.55}
+svg.dia .tile{fill:none;stroke:var(--accent);stroke-width:2.4}
+svg.dia .over{stroke:var(--accent);stroke-width:1;stroke-dasharray:4 3}
+svg.dia .over.zero{fill:var(--surface-2)}
+svg.dia .hatch-bg{fill:var(--accent-soft)}
+svg.dia .hatch-ln{stroke:var(--accent);stroke-width:2}
+details summary{cursor:pointer;color:var(--accent);font-size:.93rem}
+details p{margin-top:8px;font-size:.95rem}
+#mode-code,#step-code{white-space:pre}
+.lab-grid-wrap{gap:14px}
+#cheatsheet table{min-width:680px}
+#cheatsheet tbody th{background:var(--surface);font-weight:500;width:26%}
+#cheatsheet td{width:37%}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><span>Triton 08</span>节点 5 图解</div>
+    <nav aria-label="页内导航">
+      <a href="#concepts">前置概念</a>
+      <a href="#modes">三种搬法</a>
+      <a href="#align">对齐实验</a>
+      <a href="#desc">描述符</a>
+      <a href="#edge">边界</a>
+      <a href="#fallback">没有 TMA 时</a>
+      <a href="#cheatsheet">速查表</a>
+      <a href="#check">自测</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section aria-labelledby="page-title">
+  <div class="sec-head">
+    <div class="eyebrow">Grouped GEMM · 一块数据怎样进到 SM 里</div>
+    <h1 id="page-title">Grouped GEMM 数据搬运</h1>
+  </div>
+  <p class="lede">矩阵乘指令不能直接对显存里的数据做运算。每一轮 K 循环开始前，A 的一块和 B 的一块要先从显存搬进 SM 上的共享内存。教程的两个 kernel 展示了三种搬法，区别在于谁来发指令、谁来算地址、搬的时候能不能同时计算。</p>
+  <div class="keyline">一句话：编译器知道的越多，搬得越快。<b>不知道对齐</b>，只能每次搬 2 个字节；<b>得到对齐承诺</b>，每次搬 16 个字节，并且边搬边算；<b>拿到描述符</b>，整块交给硬件，连地址都不用线程自己算。</div>
+  <p class="note">本页所有指令和数字都来自 2026-10-06 在本机对教程 kernel 的只编译结果（Triton 3.7.1，目标 sm_89 与 sm_90），没有在 GPU 上运行。sm_89 是 RTX 4070 Ti 这一代，sm_90 是带 TMA 的 Hopper。</p>
+</section>
+
+<section id="concepts" aria-labelledby="concepts-title">
+  <div class="sec-head">
+    <div class="tag">先补四个概念</div>
+    <h2 id="concepts-title">用 C/C++ 里的东西来对照</h2>
+  </div>
+  <div class="concepts">
+    <div class="card">
+      <h3><span class="n">1</span>显存与共享内存</h3>
+      <p>显存（global memory）是整块 GPU 共用的大仓库，容量大，离计算单元远。共享内存（shared memory）是每个 CTA 在 SM 上的一小块工作台，离计算单元近，容量很小：本课的 kernel 每个 CTA 用 16 到 131 KB。这两个 kernel 里，矩阵乘用到的数据都要先放到工作台上。</p>
+      <p class="analogy">对照 C：显存像 <code>malloc</code> 出来的大数组，共享内存像函数里的一个小局部数组。先 <code>memcpy</code> 一小块到局部数组，再在上面做密集运算。</p>
+    </div>
+    <div class="card">
+      <h3><span class="n">2</span>对齐与承诺</h3>
+      <p>地址是 16 的倍数，叫 16 字节对齐。一次搬 16 个字节的指令要求地址对齐，否则行为未定义。编译器不确定时只能用最保守的搬法。</p>
+      <pre><span class="c">// 要求 p 是 16 的倍数，否则崩溃</span>
+__m128 v = _mm_load_ps(p);
+<span class="c">// 向编译器保证 p 对齐，保证不成立就是未定义行为</span>
+float *q = __builtin_assume_aligned(p, 16);</pre>
+      <p class="analogy"><code>tl.multiple_of(ptrs, [16, 16])</code> 就是 Triton 里的 <code>__builtin_assume_aligned</code>：它不检查，也不修正，只是一句保证。</p>
+    </div>
+    <div class="card">
+      <h3><span class="n">3</span>异步拷贝与流水</h3>
+      <p>同步的做法是搬完一块、算完一块，再搬下一块，搬的时候计算单元闲着。异步拷贝只负责发起搬运，然后立刻返回；等第 2 块在路上的时候，可以先算第 1 块。流水有几级由 <code>num_stages</code> 决定。</p>
+      <p class="analogy">对照 C：一个线程提前读下一个缓冲区，另一个线程处理当前缓冲区，也就是双缓冲。</p>
+    </div>
+    <div class="card">
+      <h3><span class="n">4</span>描述符</h3>
+      <p>描述符是一张说明书：这片内存是几维的、每维多长、每维的步长是多少、一次搬多大一块。有了它，算地址这件事就从代码变成了数据，可以交给硬件去做。</p>
+      <pre>struct TensorMap {      <span class="c">// 示意，真实对象是 1024 位</span>
+  void *base;           <span class="c">// 矩阵首地址</span>
+  int   dim[2];         <span class="c">// 行数、列数</span>
+  long  stride[2];      <span class="c">// 行步长、列步长（字节）</span>
+  int   box[2];         <span class="c">// 一次搬的块：行数、列数</span>
+  int   fill_mode;      <span class="c">// 越界部分填什么</span>
+};</pre>
+      <p class="analogy">对照 C：把这个结构体交给一个专门做 <code>memcpy</code> 的硬件，告诉它“从第 (i, j) 个元素开始搬一块”。</p>
+    </div>
+  </div>
+</section>
+
+<section id="modes" aria-labelledby="modes-title">
+  <div class="sec-head">
+    <div class="tag">核心对比</div>
+    <h2 id="modes-title">同一块数据的三种搬法</h2>
+    <p>场景：一个 CTA 有 4 个 warp，共 128 个线程。每轮 K 循环要把 A 的一块（128 行 × 32 列）和 B 的一块（32 行 × 128 列）搬进共享内存，都是 fp16，合计 16384 字节。切换下面的按钮，看每种搬法里线程在做什么。</p>
+  </div>
+  <div class="stepper">
+    <div class="stage-tabs" role="group" aria-label="搬运方式">
+      <button type="button" id="mode-0" data-mode="0" aria-pressed="false"><span class="i">A</span>逐个元素</button>
+      <button type="button" id="mode-1" data-mode="1" aria-pressed="true"><span class="i">B</span>异步拷贝</button>
+      <button type="button" id="mode-2" data-mode="2" aria-pressed="false"><span class="i">C</span>TMA</button>
+    </div>
+    <div class="stage-body">
+      <h3 id="mode-title"></h3>
+      <p id="mode-when" class="stage-delta"></p>
+      <div class="fig-scroll wide">
+        <svg class="dia" id="mode-svg" viewBox="0 0 760 250" role="img" aria-labelledby="mode-svg-title">
+          <title id="mode-svg-title">数据从显存经过线程或 TMA 硬件进入共享内存</title>
+          <defs>
+            <marker id="mk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="mk"/></marker>
+            <marker id="mka" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="mk-a"/></marker>
+          </defs>
+          <rect x="14" y="52" width="150" height="150" rx="8" class="box2"/>
+          <text x="89" y="34" text-anchor="middle" class="b">显存</text>
+          <rect x="34" y="78" width="110" height="44" rx="4" class="lib"/>
+          <text x="89" y="97" text-anchor="middle" class="sm">A 的一块</text>
+          <text x="89" y="113" text-anchor="middle" class="xs mu">128 × 32</text>
+          <rect x="34" y="136" width="110" height="44" rx="4" class="lib"/>
+          <text x="89" y="155" text-anchor="middle" class="sm">B 的一块</text>
+          <text x="89" y="171" text-anchor="middle" class="xs mu">32 × 128</text>
+
+          <text x="380" y="34" text-anchor="middle" class="b">一个 CTA 的 128 个线程</text>
+          <g id="thread-grid"></g>
+          <g id="tma-box" hidden>
+            <rect x="262" y="196" width="236" height="40" rx="8" class="acc"/>
+            <text x="380" y="221" text-anchor="middle" class="b">TMA 硬件：按描述符算地址并搬运</text>
+          </g>
+
+          <rect x="596" y="52" width="150" height="150" rx="8" class="box2"/>
+          <text x="671" y="34" text-anchor="middle" class="b">共享内存</text>
+          <rect x="616" y="78" width="110" height="44" rx="4" class="lib"/>
+          <text x="671" y="105" text-anchor="middle" class="sm">A 的一块</text>
+          <rect x="616" y="136" width="110" height="44" rx="4" class="lib"/>
+          <text x="671" y="163" text-anchor="middle" class="sm">B 的一块</text>
+
+          <path id="arr-in" d="M166 127H236" class="arr" marker-end="url(#mk)"/>
+          <path id="arr-out" d="M524 127H592" class="arr" marker-end="url(#mk)"/>
+          <path id="arr-tma" d="M166 190C200 226 230 216 258 216M502 216C540 216 566 226 594 190" class="arr-a" marker-end="url(#mka)" hidden/>
+          <text id="svg-note" x="380" y="246" text-anchor="middle" class="sm mu"></text>
+        </svg>
+      </div>
+      <dl class="stage-meta" id="mode-meta"></dl>
+      <div class="fig-scroll">
+        <svg class="dia" id="mode-time" viewBox="0 0 720 96" role="img" aria-label="搬运与计算在时间上的关系"></svg>
+      </div>
+      <pre id="mode-code"></pre>
+      <p class="stage-src" id="mode-src"></p>
+    </div>
+  </div>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th></th><th>A 逐个元素</th><th>B 异步拷贝</th><th>C TMA</th></tr></thead>
+      <tbody>
+        <tr><th>出现在哪</th><td>指针版 kernel 去掉 <code>tl.multiple_of</code></td><td>指针版 kernel 原样</td><td>描述符版 kernel，目标 sm_90</td></tr>
+        <tr><th>谁发指令</th><td>128 个线程</td><td>128 个线程</td><td>1 个线程</td></tr>
+        <tr><th>每轮的指令</th><td>每线程 64 条读、64 条写</td><td>每线程 8 条拷贝</td><td>整个 CTA 2 条</td></tr>
+        <tr><th>谁算地址</th><td>线程</td><td>线程</td><td>硬件</td></tr>
+        <tr><th>边搬边算</th><td>不能</td><td>能</td><td>能</td></tr>
+        <tr><th>块超出矩阵边界</th><td>读到别的内存</td><td>读到别的内存</td><td>补 0</td></tr>
+        <tr><th>前提</th><td>无</td><td>地址 16 字节对齐，由代码保证</td><td>同样的对齐要求，外加描述符放在全局内存</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="align" aria-labelledby="align-title">
+  <div class="sec-head">
+    <div class="tag">对齐实验</div>
+    <h2 id="align-title">这句保证什么时候不成立</h2>
+    <p>教程在 K 循环里写了 <code>tl.multiple_of(a_ptrs, [16, 16])</code>。它保证的是：每个线程一次搬的那 16 个字节，起始地址是 16 的倍数。对一个连续存放的矩阵，这要求首地址对齐，并且每行的字节数是 16 的倍数。改动下面三项，看每一行的起始位置。</p>
+  </div>
+  <div class="lab">
+    <div class="lab-controls">
+      <label for="al-type">元素类型
+        <select id="al-type">
+          <option value="2" selected>fp16 / bf16（2 字节）</option>
+          <option value="4">fp32（4 字节）</option>
+          <option value="1">fp8（1 字节）</option>
+        </select>
+      </label>
+      <label for="al-cols">行步长：相邻两行相隔多少个元素
+        <select id="al-cols">
+          <option value="1024" selected>1024</option>
+          <option value="1000">1000</option>
+          <option value="512">512</option>
+          <option value="500">500</option>
+          <option value="100">100</option>
+          <option value="36">36</option>
+        </select>
+      </label>
+      <label for="al-off">视图从第几个元素开始
+        <select id="al-off">
+          <option value="0" selected>0（整个张量）</option>
+          <option value="4">4（如 big[:, 4:] 这样的切片）</option>
+          <option value="8">8</option>
+        </select>
+      </label>
+      <div class="readout" id="al-readout"></div>
+    </div>
+    <div class="lab-grid-wrap">
+      <div class="tbl-scroll">
+        <table id="al-table" aria-label="每行起始位置">
+          <thead><tr><th>行号</th><th>起始位置（字节）</th><th>除以 16 的余数</th><th>对齐</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="tbl-scroll">
+        <table aria-label="各实现的处理方式">
+          <thead><tr><th>谁在用这块内存</th><th>它怎么处理</th></tr></thead>
+          <tbody id="al-verdict"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <p class="note">为什么普通 kernel 不用写这句：张量作为 kernel 参数传入时，Triton 在发射前检查 <code>data_ptr() % 16 == 0</code>，成立就自动给这个指针打上“16 的倍数”的标记。本课的指针是 kernel 运行时从地址表里读出来的，编译器对它一无所知，所以只能由你来保证。</p>
+</section>
+
+<section id="desc" aria-labelledby="desc-title">
+  <div class="sec-head">
+    <div class="tag">描述符的一生</div>
+    <h2 id="desc-title">从一行 Python 到硬件搬运</h2>
+    <p>描述符版 kernel 在设备上为每个问题现场创建三个描述符，分别对应 A、B、C。下面按顺序看 A 的描述符经历的四步，代码都取自编译产物。</p>
+  </div>
+  <div class="stepper">
+    <div class="stage-tabs" role="group" aria-label="描述符的四步">
+      <button type="button" data-step="0" aria-pressed="true"><span class="i">1</span>声明</button>
+      <button type="button" data-step="1" aria-pressed="false"><span class="i">2</span>留位置</button>
+      <button type="button" data-step="2" aria-pressed="false"><span class="i">3</span>填表</button>
+      <button type="button" data-step="3" aria-pressed="false"><span class="i">4</span>搬运</button>
+    </div>
+    <div class="stage-body">
+      <h3 id="step-title"></h3>
+      <p id="step-text" class="stage-delta"></p>
+      <pre id="step-code"></pre>
+      <p id="step-extra" class="stage-delta"></p>
+      <p class="stage-src" id="step-src"></p>
+      <div class="stage-nav">
+        <button type="button" class="btn" id="step-prev">上一步</button>
+        <button type="button" class="btn" id="step-next">下一步</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="edge" aria-labelledby="edge-title">
+  <div class="sec-head">
+    <div class="tag">回到节点 4</div>
+    <h2 id="edge-title">块超出矩阵时，两种实现各做什么</h2>
+    <p>节点 4 的例子：B 是 [1024, 512]，块是 128 × 128 × 32。描述符带着矩阵的真实形状，所以硬件知道哪些元素在界外。选一种越界情况和一种实现。</p>
+  </div>
+  <div class="fig-head">
+    <div class="seg" role="group" aria-label="越界情况">
+      <button type="button" id="edge-rows" data-edge="rows" aria-pressed="true">行数不足：A 只有 100 行</button>
+      <button type="button" id="edge-cols" data-edge="cols" aria-pressed="false">列数不足：K 只有 1000</button>
+    </div>
+    <div class="seg" role="group" aria-label="实现">
+      <button type="button" id="impl-ptr" data-impl="ptr" aria-pressed="true">指针版，没有 mask</button>
+      <button type="button" id="impl-desc" data-impl="desc" aria-pressed="false">描述符版</button>
+    </div>
+  </div>
+  <div class="fig-scroll wide">
+    <svg class="dia" id="edge-svg" viewBox="0 0 760 270" role="img" aria-labelledby="edge-svg-title">
+      <title id="edge-svg-title">一个搬运块超出矩阵 A 的边界</title>
+      <defs>
+        <pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="8" height="8" class="hatch-bg"/><line x1="0" y1="0" x2="0" y2="8" class="hatch-ln"/>
+        </pattern>
+      </defs>
+      <text x="20" y="26" class="b" id="edge-cap"></text>
+      <rect id="edge-mat" x="60" y="50" width="260" height="150" class="lib"/>
+      <text id="edge-mat-label" x="190" y="130" text-anchor="middle" class="sm">矩阵 A 的真实数据</text>
+      <rect id="edge-over" x="60" y="200" width="260" height="46" fill="url(#hatch)" class="over"/>
+      <rect id="edge-box" x="60" y="110" width="260" height="136" class="tile"/>
+      <text id="edge-box-label" x="330" y="124" class="sm ac">一次搬运的块</text>
+      <text id="edge-over-label" x="190" y="262" text-anchor="middle" class="sm ac"></text>
+      <g id="edge-notes">
+        <text x="400" y="74" class="b" id="edge-h1"></text>
+        <text x="400" y="100" class="sm" id="edge-l1"></text>
+        <text x="400" y="122" class="sm" id="edge-l2"></text>
+        <text x="400" y="162" class="b" id="edge-h2"></text>
+        <text x="400" y="188" class="sm" id="edge-l3"></text>
+        <text x="400" y="210" class="sm" id="edge-l4"></text>
+      </g>
+    </svg>
+  </div>
+  <div class="note" id="edge-result"></div>
+  <p class="note">描述符版也有前提：行步长的字节数必须是 16 的倍数。K=1000 的 fp16 矩阵每行 2000 字节，满足；K=100 时每行 200 字节，不满足，描述符版同样不能用。PyTorch 的 <code>grouped_mm</code> 遇到这种输出时会自己把每行补长，正是为了满足这一条。</p>
+</section>
+
+<section id="fallback" aria-labelledby="fallback-title">
+  <div class="sec-head">
+    <div class="tag">你的 GPU</div>
+    <h2 id="fallback-title">没有 TMA 的设备上，描述符变成什么</h2>
+    <p>TMA 从 sm_90 开始才有。在更早的架构上，Triton 会在编译早期把描述符改写成普通的指针加 mask：mask 由描述符里的形状生成，界外的读得到 0，界外的写被跳过。接口和结果不变，搬运方式退回到最普通的那种。</p>
+  </div>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>描述符版 kernel 的编译产物</th><th>sm_90，有 TMA</th><th>sm_89，没有 TMA</th></tr></thead>
+      <tbody>
+        <tr><th>描述符变成</th><td>1024 位的 tensor-map 对象</td><td>指针、形状、步长，加上按形状生成的 mask</td></tr>
+        <tr><th>搬进共享内存</th><td>6 条 <code>cp.async.bulk.tensor</code></td><td>普通加载，没有异步拷贝</td></tr>
+        <tr><th>写回 C</th><td>1 条 <code>cp.async.bulk.tensor</code></td><td>带 mask 的普通写</td></tr>
+        <tr><th>矩阵乘指令</th><td><code>wgmma.mma_async</code> 4 条</td><td><code>mma.sync</code> 64 条</td></tr>
+        <tr><th>共享内存</th><td>131,096 字节</td><td>32,768 字节</td></tr>
+        <tr><th>全局暂存区</th><td>每个 CTA 768 字节</td><td>0</td></tr>
+        <tr class="hl"><th>块超出边界</th><td>硬件补 0</td><td>mask 处理，结果相同</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">配置是 BLOCK_SIZE_M=N=128、BLOCK_SIZE_K=64、8 个 warp、3 级流水。教程用 <code>supports_tma()</code> 把描述符版限制在 sm_90 及以上，所以它在 sm_89 上不会被调用；但 kernel 本身在 sm_89 上可以编译。速度谁快谁慢，这里没有测。</p>
+</section>
+
+<section id="cheatsheet" aria-labelledby="cheatsheet-title">
+  <div class="sec-head">
+    <div class="tag">速查表</div>
+    <h2 id="cheatsheet-title">各种输入情形下，调用前要做什么</h2>
+    <p>按“输入是什么样”来查。每一格写的是调用前要做的事，以及做与不做的后果。左列是教程的指针版，靠 <code>tl.multiple_of</code> 的保证用上异步拷贝；右列是描述符版。</p>
+  </div>
+  <div class="summary">
+    <h3>三条原则</h3>
+    <ol>
+      <li>kernel 和描述符都不会改动内存里的布局，所有要求必须在调用前就成立。</li>
+      <li>输入的布局要改，只能拷贝一遍；输出只需要在分配时留好。</li>
+      <li>指针版靠的是保证，没人检查；描述符版在 TMA 上是硬性要求。两者不满足时的行为都没有保证。</li>
+    </ol>
+  </div>
+
+  <h3>一、对齐</h3>
+  <p>“行步长”指相邻两行相隔的字节数。fp16 时，16 字节的倍数相当于 8 个元素的倍数。</p>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>输入的情形</th><th>指针版加异步拷贝</th><th>描述符版</th></tr></thead>
+      <tbody>
+        <tr><th>首地址和行步长都是 16 的倍数</th><td>不用处理。保证 16，每条指令搬 16 字节，有流水</td><td>不用处理，可以直接用</td></tr>
+        <tr><th>行步长只是 8 或 4 的倍数</th><td>不用拷贝。把保证改成 8 或 4，指令数变成 2 倍或 4 倍，仍有流水</td><td>输入必须先拷贝到行步长为 16 倍数的缓冲区</td></tr>
+        <tr><th>行步长连 4 的倍数都不是</th><td>不写保证，退回每次 2 字节的读，没有流水；或者拷贝补齐后保证 16</td><td>同上，必须拷贝</td></tr>
+        <tr><th>首地址不对齐，例如 <code>big[:, 4:]</code></th><td>保证 16 不成立。按实际情况降档，或者拷贝</td><td>必须拷贝</td></tr>
+        <tr><th>输出 C</th><td>教程没有对 C 作保证，怎么分配都行</td><td>分配时把行步长留宽到 16 的倍数，再切片，不需要拷贝</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>二、尺寸不是块的整数倍</h3>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>输入的情形</th><th>指针版</th><th>描述符版</th></tr></thead>
+      <tbody>
+        <tr><th>只有 M 不整</th><td>数据不用处理。kernel 里给读 A 和写 C 加行方向的 mask，异步拷贝保持不变</td><td>不用处理，界外的读补 0，界外的写被跳过</td></tr>
+        <tr><th>N 或 K 不整，选择一</th><td>数据不用处理。三个方向都加 mask，代价是退回每次 2 字节的读，没有流水</td><td>不用处理，同上</td></tr>
+        <tr><th>N 或 K 不整，选择二</th><td>调用前把 A、B 补零到整块，C 按整块分配后切片。要拷贝一次输入，换来保持异步拷贝</td><td>不需要这样做</td></tr>
+        <tr class="hl"><th>完全不处理，也没有 mask</th><td>M：写坏 C 之后的内存；N：C 内部出现竞争写；K：全部结果都可能出错</td><td>不存在这个问题</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">描述符版虽然不怕尺寸不整，但第一张表的对齐要求照旧。比如输出维是 500 时，C 的行步长是 1000 字节，不满足要求。</p>
+
+  <h3>三、存放方向与连续性</h3>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>输入的情形</th><th>指针版</th><th>描述符版</th></tr></thead>
+      <tbody>
+        <tr><th>行内不连续，例如 <code>x[:, ::2]</code> 或转置视图</th><td>必须先 <code>.contiguous()</code>，kernel 假定行内步长是 1</td><td>必须先 <code>.contiguous()</code>，描述符要求最后一维连续</td></tr>
+        <tr><th>B 按 [K, N] 存放</th><td>直接用</td><td>需要 <code>B.T.contiguous()</code>，一次转置拷贝</td></tr>
+        <tr><th>B 按 [N, K] 存放，即 PyTorch 线性层权重的习惯</th><td>需要转置拷贝成 [K, N]</td><td>直接用。kernel 里的 <code>b.T</code> 不搬数据，只是告诉矩阵乘指令第二个操作数是转置摆放的</td></tr>
+        <tr><th>dtype 不是 fp16</th><td>教程把类型写死成 fp16，要先转换，或者改 kernel</td><td>教程支持 fp16 和 FP8 两种</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">转置视图和转置拷贝的区别：<code>B.T</code> 不动内存，只是换一种读法，行内不再连续；<code>B.T.contiguous()</code> 才新开一块内存，按新的行优先顺序把数据拷进去。3 行 2 列的 B 在内存里是 0 1 2 3 4 5，转置拷贝之后是 0 2 4 1 3 5。</p>
+
+  <h3>四、设备</h3>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>设备</th><th>指针版</th><th>描述符版</th></tr></thead>
+      <tbody>
+        <tr><th>sm_90 及以上</th><td>异步拷贝，无额外准备</td><td>TMA 整块搬运。发射前必须 <code>triton.set_allocator</code>，每个 CTA 要 768 字节的全局暂存区</td></tr>
+        <tr><th>sm_89 等没有 TMA 的设备</th><td>异步拷贝照常可用</td><td>描述符被改写成指针加 mask。结果正确，但没有异步拷贝</td></tr>
+        <tr><th>其他后端，例如 AMD</th><td>能编译，搬运方式由后端决定</td><td>同样被改写成指针加 mask</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="summary">
+    <h3>放到真实的 MoE 层里看</h3>
+    <ol>
+      <li>权重是静态的。按 [N, K]、行步长为 16 字节的倍数存一次，两个版本都能直接用。</li>
+      <li>激活每次调用都在变，拷贝代价最高。好在隐藏维通常是 8 的倍数，也是块的整数倍，对齐和 N、K 的整块要求天然满足。</li>
+      <li>真正每次都不同的只有行数。指针版用行方向的 mask，描述符版什么都不用做。</li>
+      <li>输出在分配时留宽即可，没有拷贝。PyTorch 的 <code>grouped_mm</code> 就是这样处理它自己分配的输出的；对输入它只检查、不补齐，不满足就报错。</li>
+    </ol>
+  </div>
+  <p class="note">依据：保证降到 8、4 字节时的搬法，mask 对流水的影响，描述符在 sm_89 和 AMD 上的改写，来自 2026-10-06 至 10-07 在本机的只编译结果。<code>grouped_mm</code> 的行为来自 PyTorch v2.13.0 的源码和 CPU 上的运行。都没有在 GPU 上实测。</p>
+</section>
+
+<section id="recap" aria-labelledby="recap-title">
+  <div class="summary">
+    <h2 id="recap-title">小结</h2>
+    <ol>
+      <li>指针从地址表里读出来，编译器不知道它是否对齐。没有保证时，每个线程一次只搬 2 个字节，也做不了流水。</li>
+      <li><code>tl.multiple_of</code> 是一句保证：有了它，每次搬 16 个字节，K 循环变成 3 级流水。保证不成立时行为未定义，没有人替你检查。</li>
+      <li>描述符把“怎么算地址”交给硬件。一个线程发一条指令搬一整块，越界补 0，所以不需要 mask。</li>
+      <li>描述符对象必须放在全局内存里。在设备上现场创建时，每个 CTA 要一小块全局暂存区，这就是 <code>triton.set_allocator</code> 的用处。</li>
+      <li>没有 TMA 的设备上，描述符退化成指针加 mask：结果一样，搬法最普通。</li>
+    </ol>
+  </div>
+</section>
+
+<section id="check" aria-labelledby="check-title">
+  <div class="sec-head">
+    <div class="tag">自测</div>
+    <h2 id="check-title">先想，再展开看答案</h2>
+  </div>
+  <div class="quiz">
+    <div class="q">
+      <h3><span class="n">1</span>把指针版 kernel 里的两句 <code>tl.multiple_of</code> 删掉，结果还对吗？哪里会变？</h3>
+      <details><summary>看答案</summary>
+        <p>结果仍然正确，因为这句话不改变计算。变的是搬运方式：每个线程每轮从 8 条 16 字节的异步拷贝，退回到 64 条 2 字节的读加 64 条写，K 循环也不再做流水。</p>
+      </details>
+    </div>
+    <div class="q">
+      <h3><span class="n">2</span>一个 fp16 矩阵每行 100 个元素，保留 <code>tl.multiple_of</code> 去跑指针版，会怎样？</h3>
+      <details><summary>看答案</summary>
+        <p>每行 200 字节，除以 16 余 8。偶数行的起始地址对齐，奇数行不对齐，保证不成立。编译器照样生成一次搬 16 字节的指令，在不对齐的地址上执行属于未定义行为。把上面实验里的每行元素数改成 100 可以看到这一点。</p>
+      </details>
+    </div>
+    <div class="q">
+      <h3><span class="n">3</span>教程没有给 <code>c_ptrs</code> 写保证。写回 C 的那一步会受什么影响？</h3>
+      <details><summary>看答案</summary>
+        <p>写回用的是逐个元素的写：每个线程 128 条，每条 2 个字节。我单独编译了一个只做写回的小 kernel 来验证：给 <code>c_ptrs</code> 加上同样的保证后，变成 16 条，每条 16 个字节。</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    来源与版本
+    <ul>
+      <li>Triton v3.7.1：<code>lib/Analysis/AxisInfo.cpp</code> 的对齐推导；<code>lib/Dialect/TritonGPU/Transforms/Pipeliner/PipeliningUtility.cpp</code> 的流水条件；<code>python/triton/backends/compiler.py</code> 的参数对齐标记；<code>lib/Dialect/TritonNvidiaGPU/Transforms/TMALowering.cpp</code> 与 <code>third_party/nvidia/lib/TritonNVIDIAGPUToLLVM/TMAToLLVM.cpp</code> 的描述符创建；<code>lib/Dialect/Triton/Transforms/RewriteTensorDescriptorToPointer.cpp</code> 的回退；<code>python/triton/runtime/interpreter.py</code> 的描述符读写语义。</li>
+      <li>NVIDIA PTX ISA 9.4：<code>cp.async</code> 的拷贝大小只能是 4、8、16 字节；地址必须按访问大小对齐，否则行为未定义；张量搬运块的大小和地址要求 16 字节的倍数；越界元素按填充模式置 0；tensor-map 对象为 1024 位，位于参数、常量或全局空间。</li>
+      <li>PyTorch v2.13.0：<code>aten/src/ATen/native/GroupedMMUtils.h</code> 的步长检查与输出步长补齐。</li>
+      <li>编译观察：教程 <code>08-grouped-gemm.py</code> 的两个 kernel，逐字复制后去掉 autotune，以 sm_89 和 sm_90 为目标只编译。速查表里保证档位和 mask 两项，来自给教程的 K 循环换上不同的保证和 mask 之后的只编译结果；AMD 一项以 gfx942 为目标。</li>
+      <li>PyTorch v2.13.0：<code>aten/src/ATen/native/cuda/GroupedBlas.cpp</code> 的快速路径条件，<code>GroupMMCommon.cuh</code> 的设备侧准备。</li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function el(name, attrs, text) {
+    var n = document.createElementNS(SVGNS, name);
+    for (var k in attrs) { n.setAttribute(k, attrs[k]); }
+    if (text !== undefined) { n.textContent = text; }
+    return n;
+  }
+  function setPressed(buttons, active) {
+    buttons.forEach(function (b) { b.setAttribute("aria-pressed", b === active ? "true" : "false"); });
+  }
+
+  /* ---------- three ways to move a tile ---------- */
+  var MODES = [
+    {
+      title: "A 逐个元素：编译器不知道地址是否对齐",
+      when: "把指针版 kernel 里的 tl.multiple_of 去掉，就得到这种搬法。每个线程先把一个 fp16 读进寄存器，再写进共享内存，一次 2 个字节。搬完才能开始算。",
+      note: "128 个线程都在忙，每条指令只搬 2 个字节",
+      meta: [["谁发指令", "128 个线程各发各的"], ["每线程每轮", "64 条读，64 条写，每条 2 字节"], ["谁算地址", "线程自己，用寄存器"], ["边搬边算", "不能，K 循环没有流水"], ["编译产物", "TTGIR 里是普通的 tt.load；PTX 里没有 cp.async"]],
+      code: "ld.global.b16 { %rs1 }, [ %rd56 + 0 ];      // 从显存读 1 个 fp16\nst.shared.b16 ...                            // 再写进共享内存",
+      src: "只编译，sm_89：ld.global.b16 共 64 条，st.shared.b16 共 64 条",
+      threads: "all", tma: false, pipe: false
+    },
+    {
+      title: "B 异步拷贝：有了 16 字节对齐的保证",
+      when: "这是教程指针版的原样。每个线程用一条指令把 16 个字节（8 个 fp16）直接从显存送进共享内存，指令发出后立刻返回，不等数据到达。",
+      note: "128 个线程都在发拷贝，每条指令搬 16 个字节",
+      meta: [["谁发指令", "128 个线程各发各的"], ["每线程每轮", "8 条拷贝，每条 16 字节"], ["谁算地址", "线程自己，用寄存器"], ["边搬边算", "能，3 级流水"], ["编译产物", "TTGIR 里是 async_copy_global_to_local，标注 contiguity = 8"]],
+      code: "cp.async.cg.shared.global [ %r84 + 0 ], [ %rd35 + 0 ], 0x10, %r85;   // 0x10 = 一次 16 字节\ncp.async.commit_group;\ncp.async.wait_group ...;                                             // 需要用时再等",
+      src: "只编译，sm_89：cp.async.cg.shared.global 共 24 条，即 3 级流水 × 每轮 8 条",
+      threads: "all", tma: false, pipe: true
+    },
+    {
+      title: "C TMA：把整块交给硬件",
+      when: "描述符版 kernel 在 sm_90 上的搬法。一个线程发一条指令，说明用哪个描述符、从哪个坐标开始；硬件算出全部地址，把整块搬进共享内存，搬完后通过一个信号量通知等待的线程。",
+      note: "只有 1 个线程发指令，其余线程不参与搬运",
+      meta: [["谁发指令", "被选中的 1 个线程"], ["整个 CTA 每轮", "2 条，A 和 B 各一条"], ["谁算地址", "硬件，按描述符"], ["边搬边算", "能，3 级流水"], ["块超出边界", "界外元素补 0"]],
+      code: "mbarrier.arrive.expect_tx.shared::cta.b64 _, [%r70], 32768;          // 预告这一轮要到 32768 字节\ncp.async.bulk.tensor.2d.shared::cta.global.mbarrier::complete_tx::bytes\n    [%r26], [%rd39, {%r60, %r118}], [%r70];                          // 目的地，[描述符，{坐标}]，[信号量]",
+      src: "只编译，sm_90，块为 128 × 64：cp.async.bulk.tensor 搬入 6 条，即 3 级流水 × 每轮 2 条",
+      threads: "one", tma: true, pipe: true
+    }
+  ];
+
+  var grid = document.getElementById("thread-grid");
+  var squares = [];
+  (function buildGrid() {
+    var cols = 16, size = 14, gap = 3, x0 = 380 - (cols * (size + gap) - gap) / 2, y0 = 52;
+    for (var i = 0; i < 128; i++) {
+      var r = Math.floor(i / cols), c = i % cols;
+      var sq = el("rect", { x: x0 + c * (size + gap), y: y0 + r * (size + gap), width: size, height: size, rx: 2, "class": "thr" });
+      grid.appendChild(sq); squares.push(sq);
+    }
+  })();
+
+  function drawTimeline(svg, pipe) {
+    while (svg.firstChild) { svg.removeChild(svg.firstChild); }
+    svg.appendChild(el("text", { x: 8, y: 30, "class": "sm mu" }, "搬运"));
+    svg.appendChild(el("text", { x: 8, y: 70, "class": "sm mu" }, "计算"));
+    var w = 96, x0 = 60, i;
+    if (!pipe) {
+      for (i = 0; i < 3; i++) {
+        svg.appendChild(el("rect", { x: x0 + i * 2 * (w + 6), y: 14, width: w, height: 24, rx: 4, "class": "lib" }));
+        svg.appendChild(el("text", { x: x0 + i * 2 * (w + 6) + w / 2, y: 31, "text-anchor": "middle", "class": "sm" }, "第 " + (i + 1) + " 块"));
+        svg.appendChild(el("rect", { x: x0 + (i * 2 + 1) * (w + 6), y: 54, width: w, height: 24, rx: 4, "class": "acc" }));
+        svg.appendChild(el("text", { x: x0 + (i * 2 + 1) * (w + 6) + w / 2, y: 71, "text-anchor": "middle", "class": "sm" }, "第 " + (i + 1) + " 块"));
+      }
+    } else {
+      for (i = 0; i < 6; i++) {
+        svg.appendChild(el("rect", { x: x0 + i * (w + 6), y: 14, width: w, height: 24, rx: 4, "class": "lib" }));
+        svg.appendChild(el("text", { x: x0 + i * (w + 6) + w / 2, y: 31, "text-anchor": "middle", "class": "sm" }, "第 " + (i + 1) + " 块"));
+      }
+      for (i = 0; i < 4; i++) {
+        svg.appendChild(el("rect", { x: x0 + (i + 2) * (w + 6), y: 54, width: w, height: 24, rx: 4, "class": "acc" }));
+        svg.appendChild(el("text", { x: x0 + (i + 2) * (w + 6) + w / 2, y: 71, "text-anchor": "middle", "class": "sm" }, "第 " + (i + 1) + " 块"));
+      }
+    }
+    svg.appendChild(el("text", { x: 712, y: 92, "text-anchor": "end", "class": "xs mu" }, pipe ? "时间 →　计算第 1 块时，第 2、3 块已经在路上" : "时间 →　搬的时候计算单元在等"));
+  }
+
+  var modeButtons = Array.prototype.slice.call(document.querySelectorAll("[data-mode]"));
+  function showMode(i) {
+    var m = MODES[i];
+    setPressed(modeButtons, modeButtons[i]);
+    document.getElementById("mode-title").textContent = m.title;
+    document.getElementById("mode-when").textContent = m.when;
+    document.getElementById("svg-note").textContent = m.note;
+    squares.forEach(function (sq, k) {
+      sq.setAttribute("class", m.threads === "all" ? "thr on" : (k === 0 ? "thr one" : "thr off"));
+    });
+    document.getElementById("tma-box").toggleAttribute("hidden", !m.tma);
+    document.getElementById("arr-tma").toggleAttribute("hidden", !m.tma);
+    document.getElementById("arr-in").toggleAttribute("hidden", m.tma);
+    document.getElementById("arr-out").toggleAttribute("hidden", m.tma);
+    var dl = document.getElementById("mode-meta");
+    dl.textContent = "";
+    m.meta.forEach(function (p) {
+      var dt = document.createElement("dt"); dt.textContent = p[0];
+      var dd = document.createElement("dd"); dd.textContent = p[1];
+      dl.appendChild(dt); dl.appendChild(dd);
+    });
+    drawTimeline(document.getElementById("mode-time"), m.pipe);
+    document.getElementById("mode-code").textContent = m.code;
+    document.getElementById("mode-src").textContent = m.src;
+  }
+  modeButtons.forEach(function (b, i) { b.addEventListener("click", function () { showMode(i); }); });
+  showMode(1);
+
+  /* ---------- alignment lab ---------- */
+  var alType = document.getElementById("al-type"), alCols = document.getElementById("al-cols"), alOff = document.getElementById("al-off");
+  function row2(a, b, cls) {
+    var d = document.createElement("div"), s1 = document.createElement("span"), s2 = document.createElement("span");
+    s1.textContent = a; s2.textContent = b; if (cls) { s2.className = cls; }
+    d.appendChild(s1); d.appendChild(s2); return d;
+  }
+  function updateAlign() {
+    var elem = parseInt(alType.value, 10), cols = parseInt(alCols.value, 10), off = parseInt(alOff.value, 10);
+    var rowBytes = cols * elem, base = off * elem;
+    var tbody = document.querySelector("#al-table tbody");
+    tbody.textContent = "";
+    var bad = 0;
+    for (var r = 0; r < 8; r++) {
+      var start = base + r * rowBytes, rem = start % 16, ok = rem === 0;
+      if (!ok) { bad++; }
+      var tr = document.createElement("tr");
+      if (!ok) { tr.className = "hl"; }
+      [String(r), String(start), String(rem), ok ? "是" : "否"].forEach(function (t) {
+        var td = document.createElement("td"); td.textContent = t; tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    }
+    var baseOk = base % 16 === 0, strideOk = rowBytes % 16 === 0, allOk = baseOk && strideOk;
+    var ro = document.getElementById("al-readout");
+    ro.textContent = "";
+    ro.appendChild(row2("行步长的字节数", cols + " × " + elem + " = " + rowBytes));
+    ro.appendChild(row2("它是 16 的倍数吗", strideOk ? "是" : "否，余 " + (rowBytes % 16)));
+    ro.appendChild(row2("首地址偏移", base + " 字节" + (baseOk ? "" : "，不对齐")));
+    ro.appendChild(row2("保证是否成立", allOk ? "成立" : "不成立", "e"));
+    var need = 16 / elem;
+    var v = document.getElementById("al-verdict");
+    v.textContent = "";
+    var rows = [
+      ["教程指针版", allOk ? "不检查。这次保证恰好成立，可以正常使用 16 字节的搬运。" : "不检查。照样生成一次搬 16 字节的指令，在不对齐的地址上执行属于未定义行为。"],
+      ["描述符（TMA）", allOk ? "满足要求：首地址对齐，行步长是 16 字节的倍数。" : "不满足要求" + (strideOk ? "：首地址没有对齐。" : "：行步长必须是 16 字节的倍数，即 " + need + " 个元素的倍数。")],
+      ["PyTorch grouped_mm", allOk ? "通过输入检查。" : (strideOk ? "在 GPU 上被拒绝：expected data_ptr to be aligned to 16 bytes。" : "被拒绝：strides should be multiple of 16 bytes。")]
+    ];
+    rows.forEach(function (p) {
+      var tr = document.createElement("tr"), th = document.createElement("th"), td = document.createElement("td");
+      th.textContent = p[0]; td.textContent = p[1]; tr.appendChild(th); tr.appendChild(td); v.appendChild(tr);
+    });
+  }
+  [alType, alCols, alOff].forEach(function (s) { s.addEventListener("change", updateAlign); });
+  updateAlign();
+
+  /* ---------- life of a descriptor ---------- */
+  var STEPS = [
+    {
+      title: "1 声明：你写的一行",
+      text: "这一行只登记事实：这片内存是一个 gm 行、gk 列的矩阵，行步长 lda，一次搬 BLOCK_SIZE_M × BLOCK_SIZE_K 的一块。它不读任何数据。教程把它放在 if 里面，所以每个 CTA 只为自己要处理的问题创建描述符。",
+      code: "a_desc = tl.make_tensor_descriptor(\n    a_ptr,\n    shape=[gm, gk],            # 矩阵的真实形状\n    strides=[lda, 1],          # 单位是元素；最后一维必须连续\n    block_shape=[BLOCK_SIZE_M, BLOCK_SIZE_K],\n)",
+      extra: "形状来自尺寸表，运行时才知道，所以描述符不能在编译时做好。问题的个数也是运行时才知道，而 kernel 的参数个数固定，所以它也没法由主机做好再当参数传进来，只能在设备上现场创建。",
+      src: "教程 08-grouped-gemm.py 第 274–279 行"
+    },
+    {
+      title: "2 留位置：描述符要住在全局内存里",
+      text: "硬件要求描述符对象位于参数、常量或全局空间，不能只放在共享内存里。所以编译器为每个描述符在一块全局暂存区里预留位置。",
+      code: "%a_desc = ttg.global_scratch_alloc {alignment = 128, nbytes = 256}\n%b_desc = ttg.global_scratch_alloc {alignment = 128, nbytes = 256}\n%c_desc = ttg.global_scratch_alloc {alignment = 128, nbytes = 256}\n// 元数据：global_scratch_size = 768，global_scratch_align = 128",
+      extra: "每个 CTA 需要 768 字节。发射时 Triton 调用你用 triton.set_allocator 注册的函数，一次申请“CTA 数 × 768”字节。教程里注册的函数是 torch.empty(size, device=\"cuda\", dtype=torch.int8)。没有注册分配器，这个 kernel 就发射不了。",
+      src: "只编译，sm_90 的 TTGIR；发射逻辑见 third_party/nvidia/backend/driver.py 的 allocate_scratch"
+    },
+    {
+      title: "3 填表：运行时把 13 个字段写进去",
+      text: "描述符对象是 1024 位，即 128 字节。CTA 先在共享内存里把它清零，再用一组指令逐个字段填写，最后整体拷到第 2 步留好的全局位置。",
+      code: "tensormap.replace.tile.global_address.shared::cta.b1024.b64 [ %rd24 + 0 ], %rd25;      // 首地址 a_ptr\ntensormap.replace.tile.global_dim.shared::cta.b1024.b32     [ %rd24 + 0 ], 0x0, %r61;  // 列数 gk\ntensormap.replace.tile.global_dim.shared::cta.b1024.b32     [ %rd24 + 0 ], 0x1, %r63;  // 行数 gm\ntensormap.replace.tile.global_stride.shared::cta.b1024.b64  [ %rd24 + 0 ], 0x0, %rd26; // 行步长，字节\ntensormap.replace.tile.box_dim.shared::cta.b1024.b32        [ %rd24 + 0 ], 0x0, %r57;  // 块的列数\ntensormap.replace.tile.box_dim.shared::cta.b1024.b32        [ %rd24 + 0 ], 0x1, %r58;  // 块的行数\ntensormap.replace.tile.elemtype.shared::cta.b1024.b32       [ %rd24 + 0 ], 0x6;        // 元素类型\ntensormap.replace.tile.fill_mode.shared::cta.b1024.b32      [ %rd24 + 0 ], 0x0;        // 越界填 0\n...\ntensormap.cp_fenceproxy.global.shared::cta...  [ %rd27 + 0 ], [ %rd24 + 0 ], 0x80;      // 拷到全局内存，0x80 = 128 字节",
+      extra: "这是在设备上创建描述符的代价：每个描述符 13 条填写指令加一次拷贝，三个描述符就是三份。它只在 CTA 开始处理一个新问题时发生一次，不在 K 循环里。",
+      src: "只编译，sm_90 的 PTX；字段含义见 PTX ISA 9.4 的 tensormap.replace"
+    },
+    {
+      title: "4 搬运：一条指令搬一整块",
+      text: "K 循环里的 a_desc.load([offs_am, kk * BLOCK_SIZE_K]) 变成下面的指令。被选中的一个线程发出它；硬件读描述符，从给定坐标开始把 128 × 64 的一块搬进共享内存，界外的元素填 0；搬够预告的字节数后，信号量放行等待的线程，随后做矩阵乘。",
+      code: "mbarrier.arrive.expect_tx.shared::cta.b64 _, [%r70], 32768;      // A、B 两块共 32768 字节\ncp.async.bulk.tensor.2d.shared::cta.global.mbarrier::complete_tx::bytes\n    [%r26], [%rd39, {%r60, %r118}], [%r70];                      // A：目的地，[描述符，{列坐标，行坐标}]，[信号量]\ncp.async.bulk.tensor.2d.shared::cta.global.mbarrier::complete_tx::bytes\n    [%r73], [%rd40, {%r60, %r74}], [%r70];                       // B\n...\nwgmma.mma_async.sync.aligned.m64n128k16.f32.f16.f16 ...          // 矩阵乘，累加到 fp32",
+      extra: "写回 C 用的是同一条指令的反方向：从共享内存搬到显存。按 Triton 给出的参考语义，界外的元素不会被写。",
+      src: "只编译，sm_90 的 PTX；语义见 PTX ISA 9.4 的 cp.async.bulk.tensor 与 Triton 的 interpreter.py"
+    }
+  ];
+  var stepButtons = Array.prototype.slice.call(document.querySelectorAll("[data-step]"));
+  var cur = 0;
+  function showStep(i) {
+    cur = i;
+    var s = STEPS[i];
+    setPressed(stepButtons, stepButtons[i]);
+    document.getElementById("step-title").textContent = s.title;
+    document.getElementById("step-text").textContent = s.text;
+    document.getElementById("step-code").textContent = s.code;
+    document.getElementById("step-extra").textContent = s.extra;
+    document.getElementById("step-src").textContent = s.src;
+    document.getElementById("step-prev").disabled = i === 0;
+    document.getElementById("step-next").disabled = i === STEPS.length - 1;
+  }
+  stepButtons.forEach(function (b, i) { b.addEventListener("click", function () { showStep(i); }); });
+  document.getElementById("step-prev").addEventListener("click", function () { if (cur > 0) { showStep(cur - 1); } });
+  document.getElementById("step-next").addEventListener("click", function () { if (cur < STEPS.length - 1) { showStep(cur + 1); } });
+  showStep(0);
+
+  /* ---------- tile crossing the matrix boundary ---------- */
+  var EDGE = {
+    rows: {
+      cap: "A 是 [100, 1024]，块要处理第 0–127 行",
+      box: { x: 60, y: 110, w: 260, h: 136 }, mat: { x: 60, y: 50, w: 260, h: 150 }, over: { x: 60, y: 200, w: 260, h: 46 },
+      ptr: {
+        h1: "读 A", l1: "第 100–127 行不存在，地址落到 A 的末尾之后。", l2: "4 块各读一遍，共 114,688 个元素。",
+        h2: "写 C", l3: "第 100–127 行写到 C 的末尾之后。", l4: "共 14,336 个元素，28,672 字节。",
+        result: "指针版：前 100 行的有效结果正确，但 C 后面别的数据被写坏了。逐个问题比较结果发现不了。"
+      },
+      desc: {
+        h1: "读 A", l1: "硬件知道 A 只有 100 行。", l2: "块里第 100–127 行的元素填 0，不访问 A 之外的内存。",
+        h2: "写 C", l3: "C 的描述符声明只有 100 行。", l4: "界外的 28 行不写。",
+        result: "描述符版：结果正确，没有越界访问。不需要你写 mask。"
+      }
+    },
+    cols: {
+      cap: "A 是 [128, 1000]，最后一轮要读第 992–1023 列",
+      box: { x: 250, y: 50, w: 112, h: 150 }, mat: { x: 60, y: 50, w: 260, h: 150 }, over: { x: 320, y: 50, w: 42, h: 150 },
+      ptr: {
+        h1: "读 A", l1: "第 1000–1023 列绕到下一行的第 0–23 列，", l2: "读到的是 A 自己的真实数据。只有最后一行落到 A 之后。",
+        h2: "读 B", l3: "第 1000–1023 行不存在，落到 B 的末尾之后。", l4: "共 12,288 个元素，内容是别的数据。",
+        result: "指针版：每个输出都多加了一项，全部结果都可能出错；只有 B 之后的内存恰好是 0 时才碰巧正确。"
+      },
+      desc: {
+        h1: "读 A", l1: "硬件知道 A 只有 1000 列。", l2: "块里第 1000–1023 列的元素填 0，不会绕到下一行。",
+        h2: "读 B", l3: "B 的描述符声明 K 只有 1000。", l4: "界外的部分同样填 0。",
+        result: "描述符版：多出来的项是 0 乘 0，结果正确。"
+      }
+    }
+  };
+  var edgeSel = "rows", implSel = "ptr";
+  var edgeButtons = Array.prototype.slice.call(document.querySelectorAll("[data-edge]"));
+  var implButtons = Array.prototype.slice.call(document.querySelectorAll("[data-impl]"));
+  function setRect(id, r) {
+    var n = document.getElementById(id);
+    n.setAttribute("x", r.x); n.setAttribute("y", r.y); n.setAttribute("width", r.w); n.setAttribute("height", r.h);
+  }
+  function showEdge() {
+    var e = EDGE[edgeSel], t = e[implSel];
+    setPressed(edgeButtons, document.getElementById(edgeSel === "rows" ? "edge-rows" : "edge-cols"));
+    setPressed(implButtons, document.getElementById(implSel === "ptr" ? "impl-ptr" : "impl-desc"));
+    document.getElementById("edge-cap").textContent = e.cap;
+    setRect("edge-box", e.box); setRect("edge-mat", e.mat); setRect("edge-over", e.over);
+    document.getElementById("edge-over").setAttribute("class", implSel === "ptr" ? "over bad" : "over zero");
+    var lab = document.getElementById("edge-box-label");
+    lab.setAttribute("x", edgeSel === "rows" ? 330 : 250); lab.setAttribute("y", edgeSel === "rows" ? 124 : 222);
+    var ol = document.getElementById("edge-over-label");
+    ol.setAttribute("x", edgeSel === "rows" ? 190 : 341); ol.setAttribute("y", edgeSel === "rows" ? 262 : 44);
+    ol.textContent = implSel === "ptr" ? "界外：别的内存" : "界外：填 0";
+    ["h1", "l1", "l2", "h2", "l3", "l4"].forEach(function (k) { document.getElementById("edge-" + k).textContent = t[k]; });
+    document.getElementById("edge-result").textContent = t.result;
+  }
+  edgeButtons.forEach(function (b) { b.addEventListener("click", function () { edgeSel = b.getAttribute("data-edge"); showEdge(); }); });
+  implButtons.forEach(function (b) { b.addEventListener("click", function () { implSel = b.getAttribute("data-impl"); showEdge(); }); });
+  showEdge();
+})();
+</script>
+</body>
+</html>
