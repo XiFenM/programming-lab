@@ -18,6 +18,16 @@
       "kind": "file"
     },
     {
+      "fact_id": "rust-by-example-provenance",
+      "role": "source-catalog",
+      "kind": "file"
+    },
+    {
+      "fact_id": "rust-by-example-sources",
+      "role": "knowledge-artifacts",
+      "kind": "collection"
+    },
+    {
       "fact_id": "triton-tutorial-provenance",
       "role": "source-catalog",
       "kind": "file"
@@ -39,6 +49,10 @@
         "kind": "collection"
       },
       {
+        "path": "rust",
+        "kind": "collection"
+      },
+      {
         "path": "tests/cpp",
         "kind": "collection"
       },
@@ -50,6 +64,11 @@
     "program": [
       {
         "path": "docs/algorithm-interview-learning/README.md",
+        "kind": "file",
+        "section": "当前 Program 状态"
+      },
+      {
+        "path": "docs/rust-learning/README.md",
         "kind": "file",
         "section": "当前 Program 状态"
       },
@@ -66,6 +85,11 @@
         "section": "Checkpoint"
       },
       {
+        "path": "docs/rust-learning/README.md",
+        "kind": "file",
+        "section": "Checkpoint"
+      },
+      {
         "path": "docs/triton-learning/README.md",
         "kind": "file",
         "section": "Checkpoint"
@@ -74,6 +98,10 @@
     "lesson": [
       {
         "path": "docs/algorithm-interview-learning/lessons",
+        "kind": "collection"
+      },
+      {
+        "path": "docs/rust-learning/lessons",
         "kind": "collection"
       },
       {

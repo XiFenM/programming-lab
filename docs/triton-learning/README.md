@@ -3,9 +3,10 @@
 本目录持续记录基于 `docs/triton-tutorials/official/` 的 Triton 学习。第 01、02 课及其对话由旧流程
 形成，现作为冻结的 legacy evidence 保留；从第 03 课起采用中央 `guide-learning`。
 
-本 Program 与 [`leetcode-algorithm-interview`](../algorithm-interview-learning/README.md#当前-program-状态)
-并行保持 `active`。两条课程分别维护自己的 Program、Lesson 与 Checkpoint；一次具体学习上下文只选择
-一条课程的前台 Lesson，切换课程不会冻结、关闭或自动推进另一条课程。
+本 Program 与 [`leetcode-algorithm-interview`](../algorithm-interview-learning/README.md#当前-program-状态)、
+[`rust-language-and-async`](../rust-learning/README.md#当前-program-状态) 并行保持 `active`。各条课程分别维护自己的
+Program、Lesson 与 Checkpoint；一次具体学习上下文只选择一条课程的前台 Lesson，切换课程不会冻结、关闭或
+自动推进其他课程。
 
 ## 教学与状态
 
@@ -19,7 +20,7 @@
 | Checkpoint：当前位置、唯一下一动作与前进门槛 | 本页 [Checkpoint](#checkpoint) |
 
 当前是哪一课只写在 Checkpoint；Program 与课程索引不重复记录当前课或逐课状态。受管配置同时登记了
-两条课程的 Program、Checkpoint、Lesson 与练习目录，切换课程不需要修改配置或重新 materialize。
+各条课程的 Program、Checkpoint、Lesson 与练习目录，切换课程不需要修改配置或重新 materialize。
 文章、结构化过程记录、卡片和原始对话均为按需产物，不是 Program、Lesson 或 Checkpoint 的事实源。
 
 ## 目录约定
@@ -104,7 +105,7 @@ docs/triton-learning/
 | --- | --- |
 | Program ID / 标题 | `triton-official-tutorials` / Triton 官方教程学习 |
 | State | `active` |
-| Parallel Program ref | [`leetcode-algorithm-interview`](../algorithm-interview-learning/README.md#当前-program-状态)（`active`） |
+| Parallel Program ref | [`leetcode-algorithm-interview`](../algorithm-interview-learning/README.md#当前-program-状态)（`active`）、[`rust-language-and-async`](../rust-learning/README.md#当前-program-状态)（`active`） |
 | Objective | 理解、实现并验证本仓库固定版本的 Triton 官方教程 |
 | Included | 官方案例的概念、实现、正确性与目标明确时的实证验证 |
 | Excluded | 未获授权的独立性能研究、optional extension 与下一 Lesson 执行 |

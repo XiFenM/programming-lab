@@ -4,7 +4,8 @@
 
 `leetcode/` contains solutions by language: Python modules, C++ sources/headers, and one Rust
 crate per problem under `leetcode/rust/<problem>/`. GPU exercises live in `gpu/cuda/`,
-`gpu/triton/`, and `gpu/tilelang/`. Put shared Python and C++ tests in `tests/python/` and
+`gpu/triton/`, and `gpu/tilelang/`. Rust-course practice crates go under `rust/`, one crate per
+Lesson. Put shared Python and C++ tests in `tests/python/` and
 `tests/cpp/`; lesson-specific GPU tests may remain beside their implementation. Documentation
 belongs in `docs/`, automation in `scripts/`, and the pinned central Skill source in
 `.agent-skills/`. `.agent-skills.json` selects repository Skills, while the tracked public locators
@@ -17,13 +18,13 @@ canonical naming, test-discovery, CMake/Cargo registration, and focused-validati
 
 The repository selects `guide-learning`, `study-log`, `english-coach`, and `memo-cards` for both
 Codex and Claude.
-The algorithm-interview and Triton Programs are parallel active learning tracks with independent
-control planes and Checkpoints. Route each learning session by its topic and keep at most one
-foreground active Lesson in that session; switching tracks does not freeze, close, or advance the
-other Program. The `guide-learning` `record_mappings` list both tracks once (each Program,
-Checkpoint, Lesson tree, and practice root), so switching tracks never requires retargeting or
-re-materializing; each track's current position lives only in its own Checkpoint section. The
-learner profile shared by both tracks is `docs/learning-profile.md`. English feedback is zero-write.
+The algorithm-interview, Triton, and Rust Programs are parallel active learning tracks with
+independent control planes and Checkpoints. Route each learning session by its topic and keep at
+most one foreground active Lesson in that session; switching tracks does not freeze, close, or
+advance any other Program. The `guide-learning` `record_mappings` list every track once (each
+Program, Checkpoint, Lesson tree, and practice root), so switching tracks never requires retargeting
+or re-materializing; each track's current position lives only in its own Checkpoint section. The
+learner profile shared by all tracks is `docs/learning-profile.md`. English feedback is zero-write.
 `english-coach` may use structured logs from `docs/algorithm-interview-learning/logs/` and
 `docs/triton-learning/logs/` that the learner names or that match the review topic uniquely,
 whether or not they are Git-tracked. Frozen legacy dialogues, raw archives, and Lessons are never
@@ -36,6 +37,17 @@ material, but do not infer an active Lesson, mastery, or practice authorization 
 order. Put implementations and tests in the existing `leetcode/` and `tests/` trees rather than
 editing the imported course in bulk. Its original media and production records remain outside this
 repository.
+
+`docs/rust-by-example/` is a read-only snapshot of Rust by Example, pinned to the commit shipped
+with Rust 1.97.1, the toolchain the host routes install; its `SOURCE.md` records provenance and
+local verification. It is the teaching spine of Lessons 01–17 of the Rust Program in
+`docs/rust-learning/`; the async Lessons 18–25 use the external sources listed in that Program,
+pinned when each Lesson starts. Do not edit the snapshot, and do not infer an active Lesson,
+mastery, or practice authorization from the chapter order. The `rust/` practice root does not exist
+until the first practice starts; add `rust/*` to the Cargo workspace members only together with
+that first crate. Async practice and the PyO3 part of Lesson 17 need third-party crates such as
+Tokio and PyO3; add each dependency only through an accepted practice contract. The Rust track's
+`study-log`, `english-coach`, and `memo-cards` locations are not registered yet.
 
 ## Build, Test, and Development Commands
 

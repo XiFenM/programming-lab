@@ -8,12 +8,13 @@
 - 学习日志、原始对话和记忆卡只有在另行明确授权后生成，不属于课程状态。
 
 讲解、提问、练习与结课的行为由中央 `guide-learning` 定义；学习者画像与目标深度见
-[学习者画像](../learning-profile.md)。受管配置同时登记了两条课程的 Program、Checkpoint、Lesson 与练习
+[学习者画像](../learning-profile.md)。受管配置同时登记了各条课程的 Program、Checkpoint、Lesson 与练习
 目录，切换课程不需要修改配置或重新 materialize。
 
-本 Program 与 [`triton-official-tutorials`](../triton-learning/README.md#当前-program-状态) 并行保持
-`active`。两条课程分别维护自己的 Program、Lesson 与 Checkpoint；一次具体学习上下文只选择一条课程
-的前台 Lesson，切换课程不会冻结、关闭或自动推进另一条课程。
+本 Program 与 [`triton-official-tutorials`](../triton-learning/README.md#当前-program-状态)、
+[`rust-language-and-async`](../rust-learning/README.md#当前-program-状态) 并行保持 `active`。各条课程分别维护自己的
+Program、Lesson 与 Checkpoint；一次具体学习上下文只选择一条课程的前台 Lesson，切换课程不会冻结、关闭或
+自动推进其他课程。
 
 ## 当前 Program 状态
 
@@ -21,7 +22,7 @@
 | --- | --- |
 | Program ID / 标题 | `leetcode-algorithm-interview` / LeetCode 算法面试能力课程 |
 | State | `active` |
-| Parallel Program ref | [`triton-official-tutorials`](../triton-learning/README.md#当前-program-状态)（`active`） |
+| Parallel Program ref | [`triton-official-tutorials`](../triton-learning/README.md#当前-program-状态)（`active`）、[`rust-language-and-async`](../rust-learning/README.md#当前-program-状态)（`active`） |
 | Objective | 独立处理常见算法面试题：澄清约束、建立模型与基线、定义状态或不变量、实现并验证、说明正确性与复杂度，并迁移到陌生同构题。 |
 | Included | 固定文字课程中的面试方法、复杂度、常见数据结构与算法模式；证据需要时在既有 LeetCode 目录完成最小实践。 |
 | Excluded | 机械刷完 70 课；课程未系统覆盖的高级算法；未授权的多语言重复实现、optional extension、平台时效信息和生产级工程扩展。 |

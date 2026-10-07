@@ -39,6 +39,10 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
   综合、概念词表和关系图，作为后续 LeetCode 学习实践的只读知识材料。
 - 算法面试课程第 01 课“约束驱动的算法选择与可观察表达”已完成；课程范围、候选 Lesson 与恢复位置
   见[算法面试 Program 与 Checkpoint](docs/algorithm-interview-learning/README.md#当前-program-状态)。
+- 提供 Rust by Example 的固定版本快照（随 Rust 1.97.1 发布的那一版），以及共 25 个候选课次的 Rust 课程：
+  第 01–17 课以该快照为主线讲语言，第 18–25 课依据 Rust 官方教材、Tokio 官方教程和相关库讲异步与服务端
+  并发。Program 已建立、尚未开课；课程范围、候选 Lesson 与恢复位置见
+  [Rust Program 与 Checkpoint](docs/rust-learning/README.md#当前-program-状态)。
 - 提供初始化、诊断、格式化、静态检查、测试和全量验收脚本，并由 Makefile 统一入口。
 - 提供 `host-cpu.sh` 宿主机路线：APT 安装 C++ 与构建工具，直接安装 uv 并由其管理 Python
   3.12，rustup 固定 Rust 1.97.1，nvm 0.40.3 安装 Node 24；Python 只同步开发依赖。
@@ -83,6 +87,8 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
 │   ├── host-gpu-environment.md     # Linux 宿主机完整 CPU+GPU 路线
 │   ├── leetcode-practice-conventions.md # LeetCode 目录、命名、测试与验证约定
 │   ├── proxy-configuration.md      # v2rayA Lite 与 Codex CLI 代理配置指南
+│   ├── rust-by-example/            # Rust by Example 固定版本快照、许可证与来源记录
+│   ├── rust-learning/              # Rust Program、候选课次与 Checkpoint
 │   ├── triton-learning/            # Triton Program、Lesson 证据、日志、卡片与 legacy 对话
 │   └── triton-tutorials/           # Triton 官方教程快照与学习路线
 ├── experiment_results/             # 可复现的 Triton benchmark 数据、图表与 HTML
@@ -141,15 +147,16 @@ version 2 消费索引，并为 Codex 与 Claude 选择同样的四个学习 Ski
 已完成课程的结构化日志、可追溯对话、卡片及来源缺口统一见
 [学习复盘材料索引](docs/learning-review-materials.md)。
 
-算法面试与 Triton 是两个并行保持 `active` 的长期 Program，各自拥有独立控制面、Lesson evidence
+算法面试、Triton 与 Rust 是三个并行保持 `active` 的长期 Program，各自拥有独立控制面、Lesson evidence
 ledger 与 Checkpoint。一次具体学习会话只选择一个前台 Lesson；切换主题不会冻结、关闭或自动推进
-另一条课程。`english-coach` 默认零写入，可以使用这两条课程 `logs/` 下由学习者点名、或与回顾主题
-唯一对应的 structured 学习日志，是否已被 Git 跟踪不影响可用性；`logs-raw/` 下的可追溯原文、冻结的
-legacy dialogues 和 Lesson evidence 不会被隐式读取。
+其他课程。`english-coach` 默认零写入，可以使用算法面试与 Triton 两条课程 `logs/` 下由学习者点名、或与
+回顾主题唯一对应的 structured 学习日志，是否已被 Git 跟踪不影响可用性；`logs-raw/` 下的可追溯原文、
+冻结的 legacy dialogues 和 Lesson evidence 不会被隐式读取。Rust 课程的日志与卡片目录尚未登记到
+`study-log`、`english-coach` 与 `memo-cards` 的配置中，第一次需要时再登记。
 
-`guide-learning` 的 `record_mappings` 一次列出两条课程各自的 Program、Checkpoint、Lesson 目录和
+`guide-learning` 的 `record_mappings` 一次列出三条课程各自的 Program、Checkpoint、Lesson 目录和
 练习根目录，切换课程不需要改映射，也不需要重新 materialize。每条课程当前学到哪里只记录在它自己的
-Checkpoint 中；课程是否 active、是否已结课仍以各自的 Program 与 Lesson 记录为准。两条课程共用的
+Checkpoint 中；课程是否 active、是否已结课仍以各自的 Program 与 Lesson 记录为准。各条课程共用的
 学习者画像是 [`docs/learning-profile.md`](docs/learning-profile.md)。
 
 受 Git 跟踪的 [`.agent-skills-config/`](.agent-skills-config) 只提供公共 repository facts、学习状态

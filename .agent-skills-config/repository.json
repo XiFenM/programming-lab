@@ -10,11 +10,19 @@
     },
     "learner-profile": {
       "path": "docs/learning-profile.md",
-      "description": "Learner background, target depth, and explanation and check preferences shared by both learning tracks."
+      "description": "Learner background, target depth, and explanation and check preferences shared by all learning tracks."
     },
     "repository-guidelines": {
       "path": "AGENTS.md",
       "description": "Repository instructions, validation commands, and security boundaries."
+    },
+    "rust-by-example-provenance": {
+      "path": "docs/rust-by-example/SOURCE.md",
+      "description": "Pinned provenance and local verification notes for the Rust by Example snapshot."
+    },
+    "rust-by-example-sources": {
+      "path": "docs/rust-by-example/src",
+      "description": "Tracked Rust by Example source snapshot, pinned to the Rust 1.97.1 release, used as the teaching spine of the Rust track."
     },
     "triton-learning-control-plane": {
       "path": "docs/triton-learning/README.md",
