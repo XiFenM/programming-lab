@@ -5,3 +5,7 @@ version = 4
 [[package]]
 name = "leetcode-two-sum"
 version = "0.1.0"
+
+[[package]]
+name = "rust-lesson01-hello-formatting"
+version = "0.1.0"

@@ -30,7 +30,7 @@ Checkpoint、Lesson 目录与练习目录，切换课程不需要修改配置或
 
 ## 目录约定
 
-目前只有本页。其余位置在第一次用到时才创建，不预建空目录：
+各位置在第一次用到时才创建，不预建空目录：
 
 | 位置 | 用途 | 何时出现 |
 | --- | --- | --- |
@@ -101,7 +101,7 @@ RBE 开篇这样概括 Rust：一门注重安全、速度与并发的系统编�
 
 | 课次 | Candidate ID | 能力标题 | 学完要能回答 | RBE 章节 |
 | ---: | --- | --- | --- | --- |
-| 01 | `rust-01-hello-formatting` | 第一个程序与格式化输出 | `println!` 为什么是宏而不是函数？一个类型怎样决定自己被打印成什么样？ | [1 Hello World](../rust-by-example/src/hello.md)（7） |
+| [01](lessons/01-hello-formatting.md) | `rust-01-hello-formatting` | 第一个程序与格式化输出 | `println!` 为什么是宏而不是函数？一个类型怎样决定自己被打印成什么样？ | [1 Hello World](../rust-by-example/src/hello.md)（7） |
 | 02 | `rust-02-data-shapes` | 数据的形状：基本类型、struct 与 enum | 切片为什么由指针和长度两部分组成？Rust 的 enum 比 C 的枚举多了什么？ | [2 Primitives](../rust-by-example/src/primitives.md)、[3 Custom Types](../rust-by-example/src/custom_types.md)（11） |
 | 03 | `rust-03-bindings-types-conversion` | 绑定、类型与转换 | 默认不可变和遮蔽各防住什么？`as` 与 `From`、`TryFrom` 该怎样选？ | [4 Variable Bindings](../rust-by-example/src/variable_bindings.md)、[5 Types](../rust-by-example/src/types.md)、[6 Conversion](../rust-by-example/src/conversion.md)、[7 Expressions](../rust-by-example/src/expression.md)（15） |
 | 04 | `rust-04-control-flow-patterns` | 控制流与模式匹配 | `match` 的穷尽性检查防住了什么？`for` 的三种迭代方式分别对集合做了什么？ | [8 Flow of Control](../rust-by-example/src/flow_control.md)（19） |
@@ -221,11 +221,11 @@ TRPL 指 Rust 官方教材 The Rust Programming Language；各来源的版本见
 | 字段 | 当前值 |
 | --- | --- |
 | Foreground context | `rust-language-and-async` Program |
-| Semantic position | Program 已建立，尚无已授权的 Lesson，位于第一课之前 |
-| Next action | 学习者选择第一课并授权开课；候选顺序的第一项是 Lesson 01 `rust-01-hello-formatting` |
-| Forward gate | 只有学习者明确授权后才创建并激活对应的 Lesson 记录；候选顺序不构成启动授权 |
-| Latest evidence ref | 尚无学习证据；来源快照的核对见[来源记录](../rust-by-example/SOURCE.md#本地核对) |
-| As of | 2026-10-07 |
+| Semantic position | Lesson 01 已确认关闭；当前没有 active Lesson，位于 Lesson 边界等待下一课授权 |
+| Next action | 学习者决定是否授权启动候选 Lesson 02 `rust-02-data-shapes` |
+| Forward gate | 只有学习者明确授权后才创建并激活下一课的记录；关闭 Lesson 01 不自动启动下一课 |
+| Latest evidence ref | [Lesson 01 结课](lessons/01-hello-formatting.md#条件片段结课) |
+| As of | 2026-10-08 |
 
 ## 本课程的记录约定
 
@@ -244,9 +244,8 @@ TRPL 指 Rust 官方教材 The Rust Programming Language；各来源的版本见
   沿用 [`leetcode/rust/two_sum`](../../leetcode/rust/two_sum/Cargo.toml) 的写法。验收测试由 Agent 维护，学习者实现
   核心逻辑。单课命令是 `bash scripts/host-cpu.sh run -- cargo test -p rust-lessonNN-<topic> --locked`；
   `host-cpu.sh test` 与 `host-cpu.sh lint` 会覆盖整个 workspace。本课程不需要 GPU。
-- **workspace 登记**：第一个练习 crate 创建时，把 `"rust/*"` 加入根 `Cargo.toml` 的 workspace members 并更新
-  `Cargo.lock`，在那一份练习约定里一并确认。此前不能提前加：`rust/` 不存在或为空时，这个通配会让整个 workspace
-  加载失败；加入之后，`rust/` 下的每个子目录都必须是 crate（核对于 Cargo 1.97.1）。
+- **workspace 登记**：根 `Cargo.toml` 的 workspace members 已包含 `"rust/*"`（随第 01 课的练习加入）。`rust/` 下的每个
+  子目录都必须是 crate，否则整个 workspace 加载失败（核对于 Cargo 1.97.1）。新增练习 crate 后要更新根 `Cargo.lock`。
 - **第三方依赖**：第 01–16 课的练习只用标准库；第 17 课的 PyO3 部分和整个异步部分必须用第三方 crate。每个依赖都在
   对应课的练习约定里确认后才加入，版本由根 `Cargo.lock` 固定。已知有三处要在各自的约定里先定做法：
   - PyO3 的练习除了 `pyo3` crate，还需要一个构建并安装扩展模块的工具（指南推荐 maturin，它是 Python 包，不在仓库

@@ -43,9 +43,9 @@ with Rust 1.97.1, the toolchain the host routes install; its `SOURCE.md` records
 local verification. It is the teaching spine of Lessons 01–17 of the Rust Program in
 `docs/rust-learning/`; the async Lessons 18–25 use the external sources listed in that Program,
 pinned when each Lesson starts. Do not edit the snapshot, and do not infer an active Lesson,
-mastery, or practice authorization from the chapter order. The `rust/` practice root does not exist
-until the first practice starts; add `rust/*` to the Cargo workspace members only together with
-that first crate. Async practice and the PyO3 part of Lesson 17 need third-party crates such as
+mastery, or practice authorization from the chapter order. Practice crates under `rust/` are Cargo
+workspace members through the `rust/*` glob, so every direct subdirectory of `rust/` must be a
+crate. Async practice and the PyO3 part of Lesson 17 need third-party crates such as
 Tokio and PyO3; add each dependency only through an accepted practice contract. The Rust track's
 `study-log`, `english-coach`, and `memo-cards` locations are not registered yet.
 

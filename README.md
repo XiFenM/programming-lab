@@ -41,7 +41,7 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
   见[算法面试 Program 与 Checkpoint](docs/algorithm-interview-learning/README.md#当前-program-状态)。
 - 提供 Rust by Example 的固定版本快照（随 Rust 1.97.1 发布的那一版），以及共 25 个候选课次的 Rust 课程：
   第 01–17 课以该快照为主线讲语言，第 18–25 课依据 Rust 官方教材、Tokio 官方教程和相关库讲异步与服务端
-  并发。Program 已建立、尚未开课；课程范围、候选 Lesson 与恢复位置见
+  并发。课程范围、候选 Lesson 与当前位置见
   [Rust Program 与 Checkpoint](docs/rust-learning/README.md#当前-program-状态)。
 - 提供初始化、诊断、格式化、静态检查、测试和全量验收脚本，并由 Makefile 统一入口。
 - 提供 `host-cpu.sh` 宿主机路线：APT 安装 C++ 与构建工具，直接安装 uv 并由其管理 Python
@@ -106,6 +106,7 @@ CPU+GPU 环境；只练习 LeetCode 时，还可以选择更轻量的宿主机 C
 │   ├── python/                      # Python 题解
 │   ├── cpp/                         # C++ 题解
 │   └── rust/                        # 每题一个 Rust crate
+├── rust/                            # Rust 课程的练习 crate，每课一个
 ├── gpu/
 │   ├── cuda/vector_add.cu           # 原生 CUDA 编译/运行测试
 │   ├── triton/                     # 向量操作、Softmax、Matmul、Dropout 实现与课内验收

@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Rust 第 01 课节点 2 图解：一行 println! 从源码到输出的六步，哪些在编译期完成、哪些留到运行期，写错时编译器在哪一步拦下，以及和 C 的 printf、C++ 的 std::format 的对照。">
+<title>println! 的编译与运行</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&display=swap">
+<style>
+[hidden]{display:none!important}
+body{margin:0}
+/* 版式：单栏阅读页，最宽 1060px；编译期用靛蓝，运行期用橙色，被拦下的那一步用红色 */
+:root{
+  --bg:#f3f4ef;--surface:#ffffff;--surface-2:#eceee6;--ink:#1b222c;--muted:#5a6370;--line:#d3d8cc;
+  --accent:#c2530a;--accent-soft:#fbe5d3;--accent-ink:#ffffff;
+  --lib:#3f4fb8;--lib-soft:#e4e7fb;
+  --bad:#b3261e;--bad-soft:#fbe3e0;
+  --sans:"Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  --serif:"Noto Serif SC","Songti SC","SimSun",serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#11151b;--surface:#1a2028;--surface-2:#222a34;--ink:#e5e9ee;--muted:#a2acb8;--line:#343e4a;
+    --accent:#ff9a57;--accent-soft:#4a2a17;--accent-ink:#1b1208;
+    --lib:#aab5ff;--lib-soft:#262c52;
+    --bad:#ffb4a9;--bad-soft:#4f1f1b;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#11151b;--surface:#1a2028;--surface-2:#222a34;--ink:#e5e9ee;--muted:#a2acb8;--line:#343e4a;
+  --accent:#ff9a57;--accent-soft:#4a2a17;--accent-ink:#1b1208;
+  --lib:#aab5ff;--lib-soft:#262c52;
+  --bad:#ffb4a9;--bad-soft:#4f1f1b;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.8}
+button{font:inherit;color:inherit}
+code,pre,.mono{font-family:var(--mono)}
+code{font-size:.9em;background:var(--surface-2);padding:.08em .35em;border-radius:4px}
+h1,h2,h3{text-wrap:balance;line-height:1.35}
+h1,h2{font-family:var(--serif);font-weight:700}
+h1{font-size:clamp(1.8rem,4.2vw,2.5rem);margin:0}
+h2{font-size:clamp(1.4rem,3vw,1.8rem);margin:0}
+h3{font-size:1.1rem;margin:0}
+p{margin:0;max-width:46em}
+ul{margin:0;padding-left:1.3em;max-width:46em;display:grid;gap:6px}
+.wrap{max-width:1060px;margin-inline:auto;padding-inline:20px}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:10px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:.95rem;letter-spacing:.02em}
+.brand span{font-family:var(--mono);color:var(--accent);margin-right:.5em}
+.topbar nav{display:flex;gap:18px;flex-wrap:wrap;font-size:.9rem}
+.topbar nav a{color:var(--muted);text-decoration:none}
+.topbar nav a:hover,.topbar nav a:focus-visible{color:var(--ink)}
+main{display:grid;gap:64px;padding-block:40px 72px}
+section{display:grid;gap:20px}
+.eyebrow{font-size:.8rem;letter-spacing:.12em;color:var(--muted);font-weight:500}
+.lede{font-size:1.06rem;color:var(--muted)}
+.keyline{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 18px;max-width:52em}
+.keyline b{color:var(--accent)}
+.note{font-size:.9rem;color:var(--muted);max-width:52em}
+.sec-head{display:grid;gap:8px}
+.sec-head .tag{font-family:var(--mono);font-size:.8rem;color:var(--accent);letter-spacing:.06em}
+figure{margin:0;display:grid;gap:8px;min-width:0}
+figcaption{font-size:.85rem;color:var(--muted);max-width:52em;overflow-wrap:anywhere}
+pre{margin:0;background:var(--surface-2);border-radius:8px;padding:12px 14px;overflow-x:auto;font-size:.82rem;line-height:1.65}
+pre .keep{color:var(--accent);font-weight:600}
+pre.err{border-left:3px solid var(--bad)}
+.concepts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:grid;gap:12px;align-content:start;min-width:0}
+.card p{font-size:.95rem}
+.analogy{font-size:.9rem;color:var(--muted)}
+.analogy b{color:var(--ink);font-weight:500}
+.phase{display:inline-block;font-size:.78rem;border-radius:999px;padding:1px 10px;border:1px solid var(--line);white-space:nowrap}
+.phase.src{background:var(--surface-2);color:var(--muted)}
+.phase.ct{background:var(--lib-soft);border-color:var(--lib);color:var(--lib)}
+.phase.rt{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:.88rem;color:var(--muted);align-items:center}
+.stepper{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stage-tabs{display:none;gap:6px;overflow-x:auto;padding:12px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.js .stage-tabs{display:flex}
+.stage-tabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:.86rem;cursor:pointer;white-space:nowrap}
+.stage-tabs button .i{font-family:var(--mono);color:var(--muted);margin-right:6px;font-size:.78rem}
+.stage-tabs button.ct{border-color:var(--lib)}
+.stage-tabs button.rt{border-color:var(--accent)}
+.stage-tabs button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.stage-tabs button[aria-pressed="true"] .i{color:inherit}
+.stage{padding:20px;display:grid;gap:14px;min-width:0}
+.stage+.stage{border-top:1px solid var(--line)}
+.js .stage+.stage{border-top:0}
+.stage-head{display:flex;gap:10px 14px;align-items:baseline;flex-wrap:wrap}
+.stage-head .n{font-family:var(--mono);color:var(--accent);font-size:.85rem}
+.stage-nav{display:none;justify-content:space-between;gap:10px;padding:0 20px 20px}
+.js .stage-nav{display:flex}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:.9rem}
+.btn:hover{border-color:var(--ink)}
+.btn:disabled{opacity:.4;cursor:default;border-color:var(--line)}
+button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:none;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap;width:fit-content;max-width:100%}
+.js .seg{display:inline-flex}
+.seg button{border:0;background:var(--surface);padding:6px 14px;cursor:pointer;font-size:.9rem;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.variant{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:grid;gap:14px;min-width:0}
+.strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;font-size:.8rem}
+.strip div{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface-2);display:grid;gap:2px;min-width:0}
+.strip div b{font-family:var(--mono);font-weight:600}
+.strip div span{overflow-wrap:anywhere}
+.strip .stop{background:var(--bad-soft);border-color:var(--bad);color:var(--bad)}
+.strip .skip{opacity:.4}
+.verdict{font-weight:500}
+.verdict.bad{color:var(--bad)}
+.verdict.rt{color:var(--accent)}
+.table-scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:720px;font-size:.92rem}
+th,td{text-align:left;vertical-align:top;padding:10px 14px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+th{font-weight:500;color:var(--muted);background:var(--surface-2);white-space:nowrap}
+td:first-child{white-space:nowrap;font-weight:500}
+tr.rust td{background:var(--accent-soft)}
+.takeaways{display:grid;gap:12px}
+footer{border-top:1px solid var(--line);padding-block:24px 48px;font-size:.85rem;color:var(--muted)}
+footer .wrap{display:grid;gap:8px}
+footer p{max-width:none;overflow-wrap:anywhere}
+@media (max-width:560px){
+  .strip{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .stage,.variant{padding:16px}
+}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><span>Rust 01</span>println! 的编译与运行</div>
+    <nav aria-label="页内导航">
+      <a href="#concepts">三个前置概念</a>
+      <a href="#pipeline">六步流水线</a>
+      <a href="#errors">在哪一步被拦下</a>
+      <a href="#compare">和 C、C++ 对照</a>
+      <a href="#recap">小结</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section aria-labelledby="page-title">
+  <div class="eyebrow">Rust 第 01 课 · 节点 2 图解</div>
+  <h1 id="page-title">一行 println! 在编译期和运行期各发生什么</h1>
+  <p class="lede">整页只用一个 7 行的例子。它定义一个只包着一个 <code>i32</code> 的结构体 <code>Structure</code>，让编译器为它生成 <code>Debug</code>；在 <code>main</code> 里把整数 31 绑定到 <code>days</code>，再用一行 <code>println!</code> 打印两样东西：<code>days</code> 用 <code>{}</code>，<code>Structure(3)</code> 用 <code>{:?}</code>。程序输出 <code>31 days, Structure(3)</code>。这一行由教程 Formatted print 和 Debug 两节里的两个示例合成。</p>
+  <figure>
+    <pre>#[derive(Debug)]
+struct Structure(i32);
+
+fn main() {
+    let days = 31;
+    <b class="keep">println!("{} days, {:?}", days, Structure(3));</b>
+}</pre>
+    <figcaption>贯穿全页的例子，下文叫它 <code>probe.rs</code>。</figcaption>
+  </figure>
+  <div class="keyline"><b>结论：</b>格式串的解析、参数个数的核对、类型能不能这样打印，全部在编译期完成。运行期只剩两件事：锁住标准输出，按一张已经算好的模板把内容写出去。</div>
+  <p class="note">本页的展开结果、报错和输出都是 2026-10-07 在本机用 <code>rustc 1.97.1 (8bab26f4f 2026-07-14)</code> 实际得到的，标准库源码取自同一版本。换一个 Rust 版本，展开出来的内部函数名和模板编码可能不同。</p>
+</section>
+
+<section id="concepts" aria-labelledby="concepts-title">
+  <div class="sec-head">
+    <div class="tag">先补概念</div>
+    <h2 id="concepts-title">三个前置概念</h2>
+    <p>流水线里会反复出现这三个词。每个都先用 C、C++ 或 Python 里已有的东西对上号。</p>
+  </div>
+  <div class="concepts">
+    <div class="card">
+      <h3>宏：编译期的代码改写</h3>
+      <p>名字后面带 <code>!</code> 的是宏调用，不是函数调用。编译器在做类型检查之前，先把每个宏调用替换成它展开出来的代码。</p>
+      <p class="analogy"><b>对照：</b>C 的 <code>#define</code> 也在编译前改写代码，用 <code>gcc -E</code> 能看到结果。区别在于 C 的宏替换的是文本；Rust 的宏接收和产出的是语法片段，展开结果还要经过完整的类型检查。</p>
+    </div>
+    <div class="card">
+      <h3>trait：对类型能力的约定</h3>
+      <p><code>Display</code> 是一个 trait，只有一个方法 <code>fmt</code>，意思是“这个类型知道怎样把自己写成给人看的文字”。一个类型实现了它，才能用 <code>{}</code> 打印。</p>
+      <figure>
+        <pre>pub trait Display: PointeeSized {
+    fn fmt(&amp;self, f: &amp;mut Formatter&lt;'_&gt;) -&gt; Result;
+}</pre>
+        <figcaption>标准库里的定义，<code>library/core/src/fmt/mod.rs</code>。<code>PointeeSized</code> 是与类型大小有关的内部细节，这一课可以忽略。</figcaption>
+      </figure>
+      <p class="analogy"><b>对照：</b>C++ 里为类型重载 <code>operator&lt;&lt;</code>，或者为 <code>std::format</code> 特化 <code>std::formatter&lt;T&gt;</code>。Python 里是 <code>__str__</code>，而 <code>Debug</code> 对应 <code>__repr__</code>。</p>
+    </div>
+    <div class="card">
+      <h3>编译期与运行期</h3>
+      <p>编译期指 <code>rustc</code> 运行的时候，运行期指编译出来的程序运行的时候。同一件事放在哪一边做，决定了错误什么时候暴露、代价什么时候付。</p>
+      <p class="analogy"><b>对照：</b>C 的 <code>printf</code> 到运行期才解析格式串。C++20 的 <code>std::format</code> 把这件事挪到了编译期。Rust 一开始就放在编译期。</p>
+    </div>
+  </div>
+</section>
+
+<section id="pipeline" aria-labelledby="pipeline-title">
+  <div class="sec-head">
+    <div class="tag">主线</div>
+    <h2 id="pipeline-title">六步流水线</h2>
+    <p>从你写下的那一行，到终端上出现文字，一共六步。第 1 步是你写的源码，第 2 到第 5 步由编译器完成，第 6 步才是程序运行时做的。</p>
+  </div>
+  <div class="legend">
+    <span><span class="phase src">源码</span> 你写的</span>
+    <span><span class="phase ct">编译期</span> <code>rustc</code> 运行时</span>
+    <span><span class="phase rt">运行期</span> <code>./probe</code> 运行时</span>
+  </div>
+  <div class="stepper">
+    <div class="stage-tabs" role="group" aria-label="流水线的六步">
+      <button type="button" data-stage="1" class="src"><span class="i">1</span>源码</button>
+      <button type="button" data-stage="2" class="ct"><span class="i">2</span>宏展开</button>
+      <button type="button" data-stage="3" class="ct"><span class="i">3</span>解析格式串</button>
+      <button type="button" data-stage="4" class="ct"><span class="i">4</span>选 trait、查类型</button>
+      <button type="button" data-stage="5" class="ct"><span class="i">5</span>生成 Arguments</button>
+      <button type="button" data-stage="6" class="rt"><span class="i">6</span>写出结果</button>
+    </div>
+
+    <article class="stage" id="stage-1">
+      <div class="stage-head"><span class="n">第 1 步</span><h3>你写下的一行</h3><span class="phase src">源码</span></div>
+      <p>一次宏调用，带一个格式串和两个参数。格式串里有两个占位符：<code>{}</code> 和 <code>{:?}</code>。此刻它们的区别还只是两段不同的文字。</p>
+      <figure>
+        <pre>println!("{} days, {:?}", days, Structure(3));</pre>
+        <figcaption><code>probe.rs</code> 第 6 行。</figcaption>
+      </figure>
+    </article>
+
+    <article class="stage" id="stage-2">
+      <div class="stage-head"><span class="n">第 2 步</span><h3>宏展开</h3><span class="phase ct">编译期</span></div>
+      <p><code>println!</code> 是标准库用 <code>macro_rules!</code> 写的一个普通宏。它自己不懂格式串，只做一件事：把参数原样交给 <code>format_args!</code>，再把结果传给函数 <code>_print</code>。</p>
+      <figure>
+        <pre>macro_rules! println {
+    () =&gt; {
+        $crate::print!("\n")
+    };
+    ($($arg:tt)*) =&gt; {{
+        <b class="keep">$crate::io::_print($crate::format_args_nl!($($arg)*));</b>
+    }};
+}</pre>
+        <figcaption>标准库里的定义，<code>library/std/src/macros.rs</code>。<code>format_args_nl!</code> 是 <code>format_args!</code> 的变体，会在末尾补一个换行。</figcaption>
+      </figure>
+      <p>展开之后，整个文件变成下面这样。<code>#[derive(Debug)]</code> 也在这一步变成了一段真正的 <code>impl</code>。</p>
+      <figure>
+        <pre>struct Structure(i32);
+#[automatically_derived]
+<b class="keep">impl ::core::fmt::Debug for Structure</b> {
+    #[inline]
+    fn fmt(&amp;self, f: &amp;mut ::core::fmt::Formatter) -&gt; ::core::fmt::Result {
+        ::core::fmt::Formatter::debug_tuple_field1_finish(f, "Structure",
+            &amp;&amp;self.0)
+    }
+}
+
+fn main() {
+    let days = 31;
+    {
+        ::std::io::_print(format_args!(<b class="keep">"{0} days, {1:?}\n"</b>, days,
+                Structure(3)));
+    };
+}</pre>
+        <figcaption>命令 <code>rustc -Zunpretty=expanded probe.rs</code> 的输出，省略了开头 5 行与预导入有关的内容。<code>-Z</code> 选项本来只在 nightly 上开放，这里用环境变量 <code>RUSTC_BOOTSTRAP=1</code> 在 1.97.1 上打开，只用于观察。</figcaption>
+      </figure>
+      <ul>
+        <li>占位符被编上了号：<code>{}</code> 成了 <code>{0}</code>，<code>{:?}</code> 成了 <code>{1:?}</code>。</li>
+        <li>换行符 <code>\n</code> 被拼进了格式串，<code>println!</code> 比 <code>print!</code> 多的就是它。</li>
+      </ul>
+      <p class="analogy"><b>对照：</b>这相当于 <code>gcc -E</code> 看到的预处理结果。</p>
+    </article>
+
+    <article class="stage" id="stage-3">
+      <div class="stage-head"><span class="n">第 3 步</span><h3>解析格式串，核对参数</h3><span class="phase ct">编译期</span></div>
+      <p><code>format_args!</code> 是编译器内建的宏，真正读懂格式串的是它。它读取格式串这个字面量，切成字面文字和占位符，然后核对两件事：每个占位符都能找到参数吗？每个参数都被用到了吗？</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>顺序</th><th>片段</th><th>种类</th><th>对应的参数</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>{0}</code></td><td>占位符，没有写格式说明</td><td>第 0 个：<code>days</code></td></tr>
+            <tr><td>2</td><td><code>" days, "</code></td><td>字面文字，7 个字节</td><td>无</td></tr>
+            <tr><td>3</td><td><code>{1:?}</code></td><td>占位符，格式说明是 <code>?</code></td><td>第 1 个：<code>Structure(3)</code></td></tr>
+            <tr><td>4</td><td><code>"\n"</code></td><td>字面文字，1 个字节</td><td>无</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>两个占位符，两个参数，一一对上，这一步通过。前提是格式串必须是字面量，因为编译器要在这一步读它的内容。</p>
+      <p class="analogy"><b>对照：</b>C 的 <code>printf</code> 把这一步留到运行期，每次调用都重新扫描一遍格式串。</p>
+    </article>
+
+    <article class="stage" id="stage-4">
+      <div class="stage-head"><span class="n">第 4 步</span><h3>按占位符选 trait，检查类型</h3><span class="phase ct">编译期</span></div>
+      <p>每种占位符对应一个 trait：<code>{}</code> 是 <code>Display</code>，<code>{:?}</code> 是 <code>Debug</code>，<code>{:x}</code> 是 <code>LowerHex</code>，以此类推。编译器为每个参数生成一次函数调用，选哪个函数由占位符决定。</p>
+      <figure>
+        <pre>super let args = (<b class="keep">&amp;days</b>, <b class="keep">&amp;Structure(3)</b>);
+super let args =
+    [format_argument::<b class="keep">new_display</b>(args.0),
+            format_argument::<b class="keep">new_debug</b>(args.1)];</pre>
+        <figcaption>命令 <code>rustc -Zunpretty=hir probe.rs</code> 输出中 <code>main</code> 的一部分。<code>super let</code> 是编译器内部使用的写法，可以当作 <code>let</code> 来读。</figcaption>
+      </figure>
+      <p>这两个函数的签名里写着对类型的要求：</p>
+      <figure>
+        <pre>#[inline]
+pub const fn new_display&lt;<b class="keep">T: Display</b>&gt;(x: &amp;T) -&gt; Argument&lt;'_&gt; {
+    argument_new!(T, x, &lt;T as Display&gt;::fmt)
+}
+#[inline]
+pub const fn new_debug&lt;<b class="keep">T: Debug</b>&gt;(x: &amp;T) -&gt; Argument&lt;'_&gt; {
+    argument_new!(T, x, &lt;T as Debug&gt;::fmt)
+}</pre>
+        <figcaption>标准库里的定义，<code>library/core/src/fmt/rt.rs</code>。</figcaption>
+      </figure>
+      <ul>
+        <li><code>T: Display</code> 这个约束就是类型检查发生的地方。<code>days</code> 是 <code>i32</code>，标准库为它实现了 <code>Display</code>，通过。<code>Structure</code> 有 derive 出来的 <code>Debug</code>，也通过。</li>
+        <li>参数以 <code>&amp;days</code>、<code>&amp;Structure(3)</code> 的形式传入，是借用而不是拿走。所以打印之后 <code>days</code> 还能继续用。</li>
+        <li>每个参数最终被存成两样东西：一个指向值的指针，一个指向它的 <code>fmt</code> 函数的指针。</li>
+      </ul>
+      <p class="analogy"><b>对照：</b>相当于 C++ 在编译期决议“这个类型有没有 <code>std::formatter&lt;T&gt;</code> 的特化”。</p>
+    </article>
+
+    <article class="stage" id="stage-5">
+      <div class="stage-head"><span class="n">第 5 步</span><h3>生成 fmt::Arguments</h3><span class="phase ct">编译期</span></div>
+      <p>格式串被翻译成一段模板字节，和上一步的参数表一起装进一个 <code>fmt::Arguments</code>。到这里花括号已经不存在了。</p>
+      <figure>
+        <pre>unsafe {
+    format_arguments::new(<b class="keep">b"\xc0\x07 days, \xc0\x01\n\x00"</b>,
+        &amp;args)
+}</pre>
+        <figcaption>同一份 <code>-Zunpretty=hir</code> 输出的后半部分。</figcaption>
+      </figure>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>模板里的字节</th><th>含义</th></tr></thead>
+          <tbody>
+            <tr><td><code>\xc0</code></td><td>一个使用默认选项的占位符，取参数表里的下一个参数（第 0 个）</td></tr>
+            <tr><td><code>\x07</code> 加 7 个字节</td><td>字面文字 <code>" days, "</code>，前面是它的长度</td></tr>
+            <tr><td><code>\xc0</code></td><td>又一个占位符，取下一个参数（第 1 个）</td></tr>
+            <tr><td><code>\x01</code> 加 1 个字节</td><td>字面文字 <code>"\n"</code></td></tr>
+            <tr><td><code>\x00</code></td><td>模板结束</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul>
+        <li>两个占位符在模板里是同一个字节 <code>\xc0</code>。用 <code>Display</code> 还是 <code>Debug</code> 不记在模板里，而记在参数表的函数指针里。</li>
+        <li>模板是一段只读数据，参数表在栈上。<code>println!</code> 不会先在堆上拼出一个字符串；会分配字符串的是 <code>format!</code>。</li>
+      </ul>
+      <p class="note">模板编码的依据是 <code>library/core/src/fmt/mod.rs</code> 中 <code>Arguments</code> 结构体上方的注释。这是 1.97.1 的内部表示，不属于稳定接口。</p>
+    </article>
+
+    <article class="stage" id="stage-6">
+      <div class="stage-head"><span class="n">第 6 步</span><h3>运行：写出结果</h3><span class="phase rt">运行期</span></div>
+      <p>程序运行到这一行时，<code>_print</code> 取得标准输出，顺着模板走：字面文字直接写出；遇到占位符，就通过参数表里的函数指针调用那个类型的 <code>fmt</code>。对 <code>days</code> 调用的是 <code>i32</code> 的 <code>Display::fmt</code>，对 <code>Structure(3)</code> 调用的是第 2 步里 derive 出来的 <code>Debug::fmt</code>。</p>
+      <figure>
+        <pre>pub fn _print(args: fmt::Arguments&lt;'_&gt;) {
+    print_to(args, stdout, "stdout");
+}
+
+fn print_to&lt;T&gt;(args: fmt::Arguments&lt;'_&gt;, global_s: fn() -&gt; T, label: &amp;str)
+where
+    T: Write,
+{
+    if print_to_buffer_if_capture_used(args) {
+        // Successfully wrote to capture buffer.
+        return;
+    }
+
+    if let Err(e) = global_s().write_fmt(args) {
+        <b class="keep">panic!("failed printing to {label}: {e}");</b>
+    }
+}</pre>
+        <figcaption>标准库里的定义，<code>library/std/src/io/stdio.rs</code>。</figcaption>
+      </figure>
+      <ul>
+        <li>每次调用 <code>println!</code> 都要给标准输出加一次锁。标准库文档提醒：在很热的循环里这可能成为瓶颈，这时应当先 <code>stdout().lock()</code>，再往锁住的句柄里写。</li>
+        <li>写失败时没有返回值可以检查，<code>print_to</code> 直接 <code>panic!</code>。最常见的触发方式是下游提前关闭了管道，见下一节最后一个例子。</li>
+      </ul>
+    </article>
+
+    <div class="stage-nav">
+      <button type="button" class="btn" id="stage-prev">上一步</button>
+      <button type="button" class="btn" id="stage-next">下一步</button>
+    </div>
+  </div>
+</section>
+
+<section id="errors" aria-labelledby="errors-title">
+  <div class="sec-head">
+    <div class="tag">动手改</div>
+    <h2 id="errors-title">改一处，看它在哪一步被拦下</h2>
+    <p>下面五种改法，每一种都贴出实际的报错或输出。前四种停在编译期，程序根本生成不出来；最后一种能通过编译，到运行期才出事。</p>
+  </div>
+  <div class="seg" role="group" aria-label="五种改法">
+    <button type="button" data-variant="count">少一个参数</button>
+    <button type="button" data-variant="extra">多一个参数</button>
+    <button type="button" data-variant="literal">格式串放进变量</button>
+    <button type="button" data-variant="display">类型没有 Display</button>
+    <button type="button" data-variant="pipe">管道提前关闭</button>
+  </div>
+
+  <article class="variant" id="variant-count">
+    <h3>少一个参数</h3>
+    <div class="strip" aria-label="停在第 3 步">
+      <div><b>1</b><span>源码</span></div><div><b>2</b><span>宏展开</span></div><div class="stop"><b>3</b><span>解析格式串</span></div><div class="skip"><b>4</b><span>查类型</span></div><div class="skip"><b>5</b><span>生成</span></div><div class="skip"><b>6</b><span>运行</span></div>
+    </div>
+    <p>格式串引用了第 0 个和第 1 个参数，但只给了一个。这是教程 Formatted print 一节里留给读者修的那一行。</p>
+    <figure><pre>fn main() {
+    println!("My name is {0}, {1} {0}", "Bond");
+}</pre></figure>
+    <figure><pre class="err">error: invalid reference to positional argument 1 (there is 1 argument)
+ --&gt; err_count.rs:2:32
+  |
+2 |     println!("My name is {0}, {1} {0}", "Bond");
+  |                                ^
+  |
+  = note: positional arguments are zero-based</pre><figcaption><code>rustc</code> 的报错原文。</figcaption></figure>
+    <p class="verdict bad">停在第 3 步：占位符找不到对应的参数。</p>
+  </article>
+
+  <article class="variant" id="variant-extra">
+    <h3>多一个参数</h3>
+    <div class="strip" aria-label="停在第 3 步">
+      <div><b>1</b><span>源码</span></div><div><b>2</b><span>宏展开</span></div><div class="stop"><b>3</b><span>解析格式串</span></div><div class="skip"><b>4</b><span>查类型</span></div><div class="skip"><b>5</b><span>生成</span></div><div class="skip"><b>6</b><span>运行</span></div>
+    </div>
+    <p>格式串里只有一个占位符，却给了两个参数。多出来的那个不会被悄悄丢掉。</p>
+    <figure><pre>fn main() {
+    println!("{} days", 31, 12);
+}</pre></figure>
+    <figure><pre class="err">error: argument never used
+ --&gt; err_extra.rs:2:29
+  |
+2 |     println!("{} days", 31, 12);
+  |              ---------      ^^ argument never used
+  |              |
+  |              formatting specifier missing</pre><figcaption><code>rustc</code> 的报错原文。</figcaption></figure>
+    <p class="verdict bad">停在第 3 步：有参数没有被任何占位符用到。</p>
+  </article>
+
+  <article class="variant" id="variant-literal">
+    <h3>格式串放进变量</h3>
+    <div class="strip" aria-label="停在第 3 步">
+      <div><b>1</b><span>源码</span></div><div><b>2</b><span>宏展开</span></div><div class="stop"><b>3</b><span>解析格式串</span></div><div class="skip"><b>4</b><span>查类型</span></div><div class="skip"><b>5</b><span>生成</span></div><div class="skip"><b>6</b><span>运行</span></div>
+    </div>
+    <p>把格式串先存进变量 <code>fmt</code>，再交给 <code>println!</code>。宏拿到的只是 <code>fmt</code> 这个名字，它指向什么内容要到后面的阶段才知道，所以第 3 步读不到格式串。</p>
+    <figure><pre>fn main() {
+    let fmt = "{} days";
+    println!(fmt, 31);
+}</pre></figure>
+    <figure><pre class="err">error: format argument must be a string literal
+ --&gt; err_runtime_fmt.rs:3:14
+  |
+3 |     println!(fmt, 31);
+  |              ^^^
+  |
+help: you might be missing a string literal to format with
+  |
+3 |     println!("{} {}", fmt, 31);
+  |              ++++++++</pre><figcaption><code>rustc</code> 的报错原文。它给出的修法是把 <code>fmt</code> 当成一个普通参数来打印。</figcaption></figure>
+    <p class="verdict bad">停在第 3 步：格式串必须是字面量。这是把检查放在编译期所付出的代价。</p>
+  </article>
+
+  <article class="variant" id="variant-display">
+    <h3>类型没有实现 Display</h3>
+    <div class="strip" aria-label="停在第 4 步">
+      <div><b>1</b><span>源码</span></div><div><b>2</b><span>宏展开</span></div><div><b>3</b><span>解析格式串</span></div><div class="stop"><b>4</b><span>查类型</span></div><div class="skip"><b>5</b><span>生成</span></div><div class="skip"><b>6</b><span>运行</span></div>
+    </div>
+    <p>这里的 <code>Structure</code> 没有写 <code>#[derive(Debug)]</code>，也没有手写 <code>Display</code>，却用 <code>{}</code> 去打印它。这也是教程同一节里让读者取消注释试一试的那一行。</p>
+    <figure><pre>struct Structure(i32);
+
+fn main() {
+    println!("This struct `{}` won't print...", Structure(3));
+}</pre></figure>
+    <figure><pre class="err">error[E0277]: `Structure` doesn't implement `std::fmt::Display`
+ --&gt; err_display.rs:4:49
+  |
+4 |     println!("This struct `{}` won't print...", Structure(3));
+  |                            --                   ^^^^^^^^^^^^ `Structure` cannot be formatted with the default formatter
+  |                            |
+  |                            required by this formatting parameter
+  |
+help: the trait `std::fmt::Display` is not implemented for `Structure`
+ --&gt; err_display.rs:1:1
+  |
+1 | struct Structure(i32);
+  | ^^^^^^^^^^^^^^^^
+  = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead</pre><figcaption><code>rustc</code> 的报错原文。最后一行还提示可以改用 <code>{:?}</code>，不过那需要类型实现 <code>Debug</code>。</figcaption></figure>
+    <p class="verdict bad">停在第 4 步：占位符个数对得上，但 <code>new_display</code> 要求的 <code>T: Display</code> 不成立。</p>
+  </article>
+
+  <article class="variant" id="variant-pipe">
+    <h3>管道提前关闭</h3>
+    <div class="strip" aria-label="编译通过，在第 6 步出错">
+      <div><b>1</b><span>源码</span></div><div><b>2</b><span>宏展开</span></div><div><b>3</b><span>解析格式串</span></div><div><b>4</b><span>查类型</span></div><div><b>5</b><span>生成</span></div><div class="stop"><b>6</b><span>运行</span></div>
+    </div>
+    <p>这个程序循环打印 10 万行，代码没有任何问题。把它的输出接给 <code>head -n 1</code>：<code>head</code> 读到第一行就退出，管道随之关闭，之后的写入失败。</p>
+    <figure><pre>fn main() {
+    for i in 0..100_000 {
+        println!("line {i}");
+    }
+}</pre></figure>
+    <figure><pre class="err">$ ./many | head -n 1
+line 0
+
+thread 'main' (638240) panicked at /rustc/8bab26f4f68e0e26f0bb7960be334d5b520ea452/library/std/src/io/stdio.rs:1166:9:
+failed printing to stdout: Broken pipe (os error 32)</pre><figcaption>终端里的实际输出。括号里的线程号每次运行都不同。</figcaption></figure>
+    <p class="verdict rt">编译通过，在第 6 步出错：写标准输出失败，<code>println!</code> 直接 panic。编译期的检查管不到输出设备的状态。</p>
+  </article>
+</section>
+
+<section id="compare" aria-labelledby="compare-title">
+  <div class="sec-head">
+    <div class="tag">取舍</div>
+    <h2 id="compare-title">和 C、C++ 对照</h2>
+    <p>同样是“少传一个参数”和“打印一个没有定义打印方式的类型”，四种做法的反应不一样。</p>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>做法</th><th>格式串何时解析</th><th>少传一个参数</th><th>自定义类型怎样接入</th></tr></thead>
+      <tbody>
+        <tr><td>C 的 <code>printf</code></td><td>运行期，每次调用都解析</td><td>能编译。格式串是字面量时 gcc 给一条 <code>-Wformat</code> 警告，放进变量后连警告也没有。运行时去读不存在的参数，本机输出了 <code>1</code> 加一串乱码</td><td>不能。只能自己拆成基本类型再传</td></tr>
+        <tr><td>C++ 的 <code>std::cout &lt;&lt;</code></td><td>没有格式串</td><td>不存在这种错误，每个值各写一次 <code>&lt;&lt;</code></td><td>重载 <code>operator&lt;&lt;</code>，没有重载就是编译错误</td></tr>
+        <tr><td>C++20 的 <code>std::format</code></td><td>编译期</td><td>编译错误</td><td>特化 <code>std::formatter&lt;T&gt;</code>，没有特化就是编译错误</td></tr>
+        <tr class="rust"><td>Rust 的 <code>println!</code></td><td>编译期</td><td>编译错误</td><td>实现 <code>Display</code>，或 derive <code>Debug</code>；没有实现就是编译错误</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">C 和 C++20 两行是 2026-10-07 在本机用 gcc 与 g++ 13.3.0 实测的；<code>std::cout</code> 一行是语言规则，没有另做实验。读不存在的参数在 C 里是未定义行为，输出什么都有可能。</p>
+  <p>Rust 这样做换来的是：格式和参数对不上的错误不可能留到运行期；运行期也不用再解析格式串。付出的是：格式串必须写死在源码里，想在运行时换格式得用别的办法；每一种“打印方式”都是一个 trait，类型要一个个去实现。</p>
+</section>
+
+<section id="recap" aria-labelledby="recap-title">
+  <div class="sec-head">
+    <div class="tag">小结</div>
+    <h2 id="recap-title">带走三句话</h2>
+  </div>
+  <div class="takeaways">
+    <div class="keyline"><b>它必须是宏。</b>函数拿到的只是运行期的值；格式串的内容、参数的个数和类型都是编译期才有的信息，只有宏能用上。</div>
+    <div class="keyline"><b>占位符决定 trait，trait 决定能不能打印。</b><code>{}</code> 要 <code>Display</code>，<code>{:?}</code> 要 <code>Debug</code>；这个约束写在 <code>new_display</code>、<code>new_debug</code> 的签名里，由编译器检查。</div>
+    <div class="keyline"><b>运行期只做两件事。</b>加锁，按模板写出。写失败就 panic；需要自己处理写入错误时，改用 <code>writeln!</code> 往一个锁住的句柄里写，它会返回 <code>Result</code>。</div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>教程来源：仓库内的 Rust by Example 快照 <code>docs/rust-by-example/src/hello/print.md</code> 与 <code>hello/print/print_debug.md</code>（上游提交 <code>898f0ac</code>，随 Rust 1.97.1 发布）。</p>
+    <p>标准库源码：<code>rustc 1.97.1 (8bab26f4f 2026-07-14)</code> 自带的 <code>rust-src</code> 组件，路径都以 <code>library/</code> 开头。</p>
+    <p>所有命令都在仓库外的临时目录里执行。本页属于 programming-lab 的 Rust 课程第 01 课。</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  root.classList.add('js');
+
+  var stages = Array.prototype.slice.call(document.querySelectorAll('.stage'));
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.stage-tabs button'));
+  var prev = document.getElementById('stage-prev');
+  var next = document.getElementById('stage-next');
+  var current = 1;
+
+  function showStage(n) {
+    current = Math.min(Math.max(n, 1), stages.length);
+    stages.forEach(function (el, i) { el.hidden = i + 1 !== current; });
+    tabs.forEach(function (b) {
+      b.setAttribute('aria-pressed', String(Number(b.dataset.stage) === current));
+    });
+    prev.disabled = current === 1;
+    next.disabled = current === stages.length;
+  }
+  tabs.forEach(function (b) {
+    b.addEventListener('click', function () { showStage(Number(b.dataset.stage)); });
+  });
+  prev.addEventListener('click', function () { showStage(current - 1); });
+  next.addEventListener('click', function () { showStage(current + 1); });
+  showStage(1);
+
+  var variants = Array.prototype.slice.call(document.querySelectorAll('.variant'));
+  var picks = Array.prototype.slice.call(document.querySelectorAll('.seg button'));
+  function showVariant(name) {
+    variants.forEach(function (el) { el.hidden = el.id !== 'variant-' + name; });
+    picks.forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.variant === name));
+    });
+  }
+  picks.forEach(function (b) {
+    b.addEventListener('click', function () { showVariant(b.dataset.variant); });
+  });
+  showVariant('count');
+})();
+</script>
+</body>
+</html>
