@@ -8,6 +8,10 @@
 - **异步部分（第 18–25 课）**讲异步的执行模型和服务端并发。RBE 没有覆盖这部分，改用 Rust 官方教材的并发与异步
   两章、Tokio 官方教程和相关库的文档与源码，见[异步部分的来源](#异步部分的来源)。
 
+遇到不认识的 Rust 名词，或者想弄清 `cargo`、`rustc`、`rustup` 各管什么，先查全课共用的
+[《Rust 基础知识》](attachments/00-rust-basics/rust-basics.html)：前半是名词表，后半是开发环境图解。它是可交互的
+页面，用浏览器在本地打开。
+
 本 Program 与 [`triton-official-tutorials`](../triton-learning/README.md#当前-program-状态)、
 [`leetcode-algorithm-interview`](../algorithm-interview-learning/README.md#当前-program-状态) 并行保持 `active`。
 各条课程分别维护自己的 Program、Lesson 与 Checkpoint；一次具体学习上下文只选择一条课程的前台 Lesson，切换课程
@@ -36,6 +40,7 @@ Checkpoint、Lesson 目录与练习目录，切换课程不需要修改配置或
 | --- | --- | --- |
 | `docs/rust-learning/lessons/<NN>-<topic>.md` | 单课记录，以 [Lesson 模板](../triton-learning/templates/lesson-record.md)的“核心记录”为基础，把 Program、Lesson ID 前缀和来源换成本课程的 | 学习者授权开课时 |
 | `docs/rust-learning/attachments/<NN>-<topic>/` | 图解、实验数据等补充材料 | 某一课实际产生时 |
+| [`docs/rust-learning/attachments/00-rust-basics/rust-basics.html`](attachments/00-rust-basics/rust-basics.html) | 全课共用的《Rust 基础知识》：名词表与开发环境图解 | 2026-10-08 建立；每课结课时补入该课的新名词 |
 | `rust/lessonNN_<topic>/` | 正式练习的 crate，每课一个 | 第一份练习约定被接受时 |
 
 - RBE 快照保持原样，不在 `docs/rust-by-example/` 中写笔记或修改示例。
@@ -212,7 +217,8 @@ TRPL 指 Rust 官方教材 The Rust Programming Language；各来源的版本见
 - **范围扩展**：同日，学习者询问课程是否涵盖 Rust async，并要求“如果没有，希望能添加一些这方面的内容，使得学完后能够
   回答包括但不限于图中的这些问题”。据此加入异步部分（第 18–25 课），原来可选的综合课改为第 25 课的综合项目。
   随后学习者决定把 PyO3 的基础并入第 17 课：“请并进第17课吧”。
-- Objective 是按学习者画像和上述要求写出的默认表述，学习者尚未逐条确认；第一课开课时核对。
+- **Objective 确认**：2026-10-08，学习者看过后答复“可以确认”。
+- **起点**：学习者此前完全没有接触过 Rust（2026-10-08 学习者说明）。讲解和练习都不能默认学习者认识 Rust 的名词或语法。
 
 当前位置只见下方 Checkpoint；已授权课程与各课阶段见[课程索引](#课程索引)链接的记录。
 
@@ -231,6 +237,17 @@ TRPL 指 Rust 官方教材 The Rust Programming Language；各来源的版本见
 
 通用的证据、练习、Review 与结课规则见中央 `guide-learning`；本课程另外约定：
 
+- **先指路，再讲解**：开课导入要列出本课对应的教程页面；每个节点开头都要写明这一步对应教程的哪一页、建议先读还是
+  讲完再读。页面同时给出快照路径和同版本的在线地址。学习者在 2026-10-08 指出，第 01 课里没有人提醒他教程在哪里、
+  该读哪些部分。
+- **名词渐进引入**：每课开头列出本课会出现的新名词；每个名词第一次出现时用平实的话解释，并给出 C/C++ 或 Python 里的
+  对应物，之后才使用。还没讲到的名词不拿来解释别的东西，绕不开时当场补一句。学习者在 2026-10-08 指出，第 01 课里
+  trait、crate 等名词是靠课外资料才初步弄懂的，“学习的阻力很大”，希望“尽可能渐进地继续或者详细解释必要的名词”。
+- **名词表**：出现过的名词收在[《Rust 基础知识》](attachments/00-rust-basics/rust-basics.html)的名词表里，按类别排列。
+  每个词写明它是什么、对应 C++ 或 Python 里的什么、首次出现和系统展开的课次，并链接到教程的对应页面；每个词有
+  固定的锚点 `#term-<英文短名>`。讲解用到表里已有的名词时指向它；每课结课时把这一课的新名词补进去，一个词的
+  解释里不用表里还没有的词。学习者在 2026-10-08 同意建立名词表，并要求把它和原来的工具链图解合成一页、放进本
+  课程的 attachments；原页面 `docs/rust-toolchain-explainer.html` 因此移到这里。
 - **版本锚点**：语言部分的原文、示例行为和输出以固定快照与 Rust 1.97.1 为准，见[来源记录](../rust-by-example/SOURCE.md)。
   引用标准库文档、Rust Reference 或 TRPL 时使用同一版本，即 `https://doc.rust-lang.org/1.97.1/` 下的页面。异步
   部分的其余来源和真实系统的源码锚点在各课开课时固定版本。在线的最新版与固定版本不一致时，讲解顺序沿用固定
