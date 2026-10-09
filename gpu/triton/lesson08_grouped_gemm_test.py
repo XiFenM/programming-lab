@@ -68,7 +68,8 @@ ATOL = 2e-3
 Sizes = list[tuple[int, int, int]]
 
 # Every problem is (M, N, K). With the default 64 x 64 x 32 blocks, the first two tables keep
-# N and K whole numbers of blocks; the third does not.
+# N and K whole numbers of blocks; the third does not; the fourth puts a problem with partial
+# N and K blocks ahead of whole-block problems.
 FULL_TILE_GROUPS: dict[str, Sizes] = {
     "one-problem": [(64, 64, 64)],
     "three-squares": [(256, 256, 256), (128, 128, 128), (64, 64, 64)],
@@ -85,6 +86,11 @@ RAGGED_NK_GROUPS: dict[str, Sizes] = {
     "ragged-n": [(64, 40, 64), (64, 200, 32)],
     "ragged-k": [(64, 64, 72), (128, 64, 8)],
     "ragged-all": [(33, 40, 72), (7, 24, 104), (129, 72, 40), (5, 8, 8), (0, 40, 72)],
+}
+# Run only inside guard regions, so that an access outside a matrix stays in the test's buffers.
+MIXED_ORDER_GROUPS: dict[str, Sizes] = {
+    "ragged-then-whole": [(64, 40, 72), (64, 64, 64)],
+    "whole-ragged-whole": [(64, 64, 64), (33, 40, 72), (128, 64, 96)],
 }
 
 
@@ -215,13 +221,70 @@ def test_default_num_sm_uses_the_device(ops: ModuleType, device: torch.device) -
         _assert_matches(actual, a, b)
 
 
-def test_tensors_on_different_devices_are_rejected(ops: ModuleType, device: torch.device) -> None:
-    if device.type != "cuda":
-        pytest.skip("needs two devices")
-    a = _values(64, 64, 1, device)
-    b = _values(64, 64, 2, torch.device("cpu"))
+class _KernelNotLaunched:
+    """Stands in for the kernel while the device checks run.
+
+    A wrapper that misses one of these checks would otherwise hand one device the addresses of
+    another device's memory.
+    """
+
+    def __getitem__(self, grid: object) -> Callable[..., None]:
+        def launch(*_args: object, **_kwargs: object) -> None:
+            return None
+
+        return launch
+
+
+def _other_device(device: torch.device) -> torch.device:
+    """A second device: the CPU beside a GPU, PyTorch's data-free "meta" device beside the CPU."""
+    return torch.device("cpu" if device.type == "cuda" else "meta")
+
+
+Operands = tuple[list[torch.Tensor], list[torch.Tensor], list[torch.Tensor] | None]
+DeviceCase = Callable[[torch.device, torch.device], Operands]
+
+
+def _b_elsewhere(device: torch.device, other: torch.device) -> Operands:
+    return [_values(64, 64, 1, device)], [_values(64, 64, 2, other)], None
+
+
+def _first_problem_elsewhere(device: torch.device, other: torch.device) -> Operands:
+    return (
+        [_values(64, 64, 1, other), _values(64, 64, 3, device)],
+        [_values(64, 64, 2, other), _values(64, 64, 4, device)],
+        None,
+    )
+
+
+def _last_problem_elsewhere(device: torch.device, other: torch.device) -> Operands:
+    return (
+        [_values(64, 64, 1, device), _values(64, 64, 3, other)],
+        [_values(64, 64, 2, device), _values(64, 64, 4, other)],
+        None,
+    )
+
+
+def _out_elsewhere(device: torch.device, other: torch.device) -> Operands:
+    out = [torch.empty((64, 64), dtype=torch.float16, device=other)]
+    return [_values(64, 64, 1, device)], [_values(64, 64, 2, device)], out
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        pytest.param(_b_elsewhere, id="b-of-a-problem"),
+        pytest.param(_first_problem_elsewhere, id="first-problem"),
+        pytest.param(_last_problem_elsewhere, id="last-problem"),
+        pytest.param(_out_elsewhere, id="out"),
+    ],
+)
+def test_tensors_on_different_devices_are_rejected(
+    ops: ModuleType, device: torch.device, monkeypatch: pytest.MonkeyPatch, case: DeviceCase
+) -> None:
+    monkeypatch.setattr(ops, "grouped_matmul_kernel", _KernelNotLaunched())
+    group_a, group_b, out = case(device, _other_device(device))
     with pytest.raises(ValueError):
-        ops.grouped_matmul([a], [b], num_sm=1)
+        ops.grouped_matmul(group_a, group_b, out=out, num_sm=1)
 
 
 Call = Callable[[ModuleType, torch.device], object]
@@ -342,6 +405,7 @@ def test_invalid_arguments_raise_value_error(
             "ragged-n": RAGGED_NK_GROUPS["ragged-n"],
             "ragged-k": RAGGED_NK_GROUPS["ragged-k"],
             "ragged-all": RAGGED_NK_GROUPS["ragged-all"],
+            **MIXED_ORDER_GROUPS,
         }
     ),
 )

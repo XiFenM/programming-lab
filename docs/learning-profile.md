@@ -49,8 +49,8 @@
 
 新课与以下已结课内容对照，不从头讲：
 
-- Triton 第 01–07 课：向量加法、Fused Softmax、矩阵乘法、Low-Memory Dropout、LayerNorm、Fused Attention、
-  外部函数（libdevice）；
+- Triton 第 01–08 课：向量加法、Fused Softmax、矩阵乘法、Low-Memory Dropout、LayerNorm、Fused Attention、
+  外部函数（libdevice）、Grouped GEMM；
 - 算法面试第 01 课：约束驱动的算法选择与可观察表达；
 - Rust 第 01 课：第一个程序与格式化输出。
 

@@ -1,6 +1,6 @@
 # 学习复盘材料索引
 
-整理与核对日期：2026-09-14；2026-10-05 补入 Triton 第 06、07 课，此前各行未重新核对。
+整理与核对日期：2026-09-14；2026-10-05 补入 Triton 第 06、07 课，2026-10-09 补入第 08 课，此前各行未重新核对。
 本页索引已经完成课程的复盘材料及可恢复来源，
 不裁决课程进度或掌握程度；课程状态仍以各轨道的 Program 和 Lesson 为准。
 
@@ -16,6 +16,7 @@
 | Triton 05：LayerNorm | [9 月 9–14 日](triton-learning/logs/2026-09-14-layer-norm.md) | [学习与实践 111 条](triton-learning/transcripts/2026-09-09-layer-norm-learning.md)、[复验与结课 14 条](triton-learning/transcripts/2026-09-14-layer-norm-review-and-closure.md) | [16 张，3 个 XLSX](triton-learning/cards/triton-lesson-05-layer-norm.md) |
 | Triton 06：Fused Attention | [9 月 14–19 日](triton-learning/logs/2026-09-19-fused-attention.md)、[9 月 20–24 日全貌补充与 FP16 前向实践](triton-learning/logs/2026-09-24-fused-attention.md) | 9 月 14–19 日未保存原文；[9 月 20–24 日 120 条](triton-learning/logs-raw/2026-09-24-fused-attention.md) | [34 张，3 个 XLSX](triton-learning/cards/triton-lesson-06-fused-attention.md)，覆盖两份日志 |
 | Triton 07：外部函数（libdevice） | [9 月 30 日–10 月 5 日](triton-learning/logs/2026-10-05-extern-functions.md) | [开课到确认结课 90 条](triton-learning/logs-raw/2026-10-05-extern-functions.md) | [25 张，3 个 XLSX](triton-learning/cards/triton-lesson-07-extern-functions.md) |
+| Triton 08：Grouped GEMM | [10 月 5–9 日](triton-learning/logs/2026-10-09-grouped-gemm.md) | [开课到确认结课 82 条](triton-learning/logs-raw/2026-10-09-grouped-gemm.md) | [34 张，3 个 XLSX](triton-learning/cards/triton-lesson-08-grouped-gemm.md) |
 
 新增两份结构化日志从已保存的课程对话蒸馏，保留真实回答、误解、纠错、关键问题与转折，
 并标注补整理日期及原有消息位置。现有日志中的历史遗留按当时语境阅读；例如 8 月 17 日
@@ -41,6 +42,7 @@
 | Triton 05：精度解释、最终复验与结课确认 | [2026-09-14](triton-learning/transcripts/2026-09-14-layer-norm-review-and-closure.md) | 14 |
 | Triton 06：全貌补充与 FP16 前向实践 | [2026-09-24](triton-learning/logs-raw/2026-09-24-fused-attention.md) | 120 |
 | Triton 07：开课至确认结课 | [2026-10-05](triton-learning/logs-raw/2026-10-05-extern-functions.md) | 90 |
+| Triton 08：开课至确认结课 | [2026-10-09](triton-learning/logs-raw/2026-10-09-grouped-gemm.md) | 82 |
 
 第 01、02 课的九段旧对话保持原样。已核对消息计数、编号、时间顺序和分段边界；
 它们使用旧格式，不将其解释为现行 raw schema，也不单凭分段连续性声明原会话没有遗漏。
@@ -68,6 +70,11 @@ SHA-256、可见内容摘要、稳定消息 ID、起止边界和归档身份；`
 第 07 课原文扫描未发现凭据或个人标识；`proprietary` 类别命中 13 条，来自 Triton 开源代码和本仓库
 练习代码块。原文按确认保留本机路径、容器内路径和图解页的私有链接，未做手工润色或脱敏。
 `logs-raw/` 下日期命名的原文同样保留原消息的行尾空格，`.gitattributes` 对它们也关闭了行尾空格告警。
+
+第 08 课的原文同样由 `study_log.py` 直接生成在 `logs-raw/`，与结构化日志同名并互相链接，状态为 `final`，
+是一段连续范围，其中 4 条是客户端命令留下的记录。扫描未发现凭据或个人标识；`proprietary` 类别命中 22 处，
+分布在 14 条消息里，来自 Triton 开源代码和本仓库的练习、测试代码。原文按学习者确认保留 GPU 机器的容器主机名、
+其上的绝对路径和图解页的私有链接，未做手工润色或脱敏。
 
 ## 历史消息锚点恢复
 
@@ -156,3 +163,16 @@ AMD 未在真机运行）不制卡。跨既有 inventory 未发现重复、冲�
 新增 25 张、跳过 0 张。每张卡均完成完整内容、语法版本和章节归属的独立读回验证，最终章节包含
 25 张卡且仅出现语法版本 3，再次预览时 25 张均为 `skip`。恢复回执保存在仓库外，不含 token 或
 卡片全文；API 验证不代替客户端视觉渲染检查。
+
+## 2026-10-09 Grouped GEMM 记录与卡片
+
+第 08 课结构化日志从当次会话的指定范围蒸馏，保留 82 条：42 条要点、19 条纠错、9 条转折、9 条高价值
+问题和 3 条遗留，各条目共引用 59 个稳定消息 ID 供回查；学习者的原话逐句与提取正文核对。临时提取正文
+在蒸馏后删除。同名原文为 82 条可见消息，配对校验通过。
+
+根据该受管日志精选 34 张卡片：21 张技术问答、10 张真实纠错、3 张综合口述，24 张为 A、10 张为 B。
+覆盖三种做法的取舍、地址表与偏移表、静态步长调度与块大小、三个方向的越界与保护区测试、对齐保证与
+降档、TMA 描述符与回退、转置与补齐、真实 MoE 规模下的落点、新后端迁移，以及练习和 A6 中的真实错误。
+三条遗留不制卡；`continue` 与 mask 括号两条会直接得到明确的编译报错，评为 C，没有制卡。跨既有
+inventory 未发现重复、冲突、依赖漂移或暂缓项；Markdown 与 3 个 XLSX 以相同 request 复核为 `no-op`、
+`would_write=false`。本次只生成本地卡片和阅读版预览，没有上传到墨墨。
