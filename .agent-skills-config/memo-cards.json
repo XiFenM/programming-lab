@@ -15,6 +15,13 @@
       ]
     },
     {
+      "id": "rust-study-logs",
+      "kind": "structured-log",
+      "patterns": [
+        "docs/rust-learning/logs/*.md"
+      ]
+    },
+    {
       "id": "triton-study-logs",
       "kind": "structured-log",
       "patterns": [
@@ -30,6 +37,15 @@
       ],
       "inventory_patterns": [
         "docs/algorithm-interview-learning/cards/algorithm-interview-*.md"
+      ]
+    },
+    {
+      "id": "rust-cards",
+      "patterns": [
+        "docs/rust-learning/cards/rust-*.md"
+      ],
+      "inventory_patterns": [
+        "docs/rust-learning/cards/rust-*.md"
       ]
     },
     {

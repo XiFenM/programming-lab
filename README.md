@@ -152,8 +152,9 @@ version 2 消费索引，并为 Codex 与 Claude 选择同样的四个学习 Ski
 ledger 与 Checkpoint。一次具体学习会话只选择一个前台 Lesson；切换主题不会冻结、关闭或自动推进
 其他课程。`english-coach` 默认零写入，可以使用算法面试与 Triton 两条课程 `logs/` 下由学习者点名、或与
 回顾主题唯一对应的 structured 学习日志，是否已被 Git 跟踪不影响可用性；`logs-raw/` 下的可追溯原文、
-冻结的 legacy dialogues 和 Lesson evidence 不会被隐式读取。Rust 课程的日志与卡片目录尚未登记到
-`study-log`、`english-coach` 与 `memo-cards` 的配置中，第一次需要时再登记。
+冻结的 legacy dialogues 和 Lesson evidence 不会被隐式读取。Rust 课程的日志与卡片目录已登记到
+`study-log` 与 `memo-cards` 的配置中（`docs/rust-learning/logs/`、同级的 `logs-raw/` 与 `cards/`）；`english-coach`
+还没有登记这条课程，第一次需要时再登记。
 
 `guide-learning` 的 `record_mappings` 一次列出三条课程各自的 Program、Checkpoint、Lesson 目录和
 练习根目录，切换课程不需要改映射，也不需要重新 materialize。每条课程当前学到哪里只记录在它自己的

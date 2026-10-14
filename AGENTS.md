@@ -47,7 +47,9 @@ mastery, or practice authorization from the chapter order. Practice crates under
 workspace members through the `rust/*` glob, so every direct subdirectory of `rust/` must be a
 crate. Async practice and the PyO3 part of Lesson 17 need third-party crates such as
 Tokio and PyO3; add each dependency only through an accepted practice contract. The Rust track's
-`study-log`, `english-coach`, and `memo-cards` locations are not registered yet.
+`study-log` and `memo-cards` locations are registered: structured logs in `docs/rust-learning/logs/`
+(raw text in the sibling `logs-raw/`) and cards in `docs/rust-learning/cards/`. Its `english-coach`
+location is not registered yet.
 
 ## Build, Test, and Development Commands
 

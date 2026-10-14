@@ -1,0 +1,3382 @@
+{
+ "schema": "memo-cards.request/v1",
+ "output_collection": "rust-cards",
+ "target": "docs/rust-learning/cards/rust-lesson-02-data-shapes.md",
+ "selection": "selected",
+ "sources": [
+  {
+   "id": "data-shapes-log",
+   "collection": "rust-study-logs",
+   "path": "docs/rust-learning/logs/2026-10-14-data-shapes.md",
+   "sha256": "1b817b981de07199e814fe3620e69be01c207e003a9acb2831f3ea5177f512e2",
+   "summary": "10/8–10/14：数值规则、切片、struct 与 enum 的布局、match、Box、引用与 Copy 的纠错与答疑"
+  }
+ ],
+ "cards": [
+  {
+   "key": "no-implicit-numeric-conversion",
+   "rank": 1,
+   "domain": "rust-data-shapes",
+   "recall_target": "u32 乘出的结果赋给 u64 时, C 和 Rust 各发生什么, Rust 为什么不做隐式数值转换?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "numel 是 32 位无符号整数，值为 544,997,376。C 里写 uint64_t nbits = numel * 16;，Rust 里写 let nbits: u64 = numel * 16;。两边各发生什么？Rust 为什么这样设计，代价是什么？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "C 能编译并悄悄算错，Rust 直接拒绝编译：不同数值类型之间没有隐式转换。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "C",
+       "parts": [
+        {
+         "type": "text",
+         "text": "先在 32 位里乘，溢出后才扩成 64 位，得到 130,023,424 而不是 8,719,958,016；开了 -Wall -Wextra 也没有警告。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Rust",
+       "parts": [
+        {
+         "type": "text",
+         "text": "报类型不匹配，必须写出在哪个宽度里算：u64::from(numel) * 16，或者 numel as u64 * 16。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "代价与惯例",
+       "parts": [
+        {
+         "type": "text",
+         "text": "代价是每次变宽度、变符号都要写出来。惯例是尽早统一成一种类型，长度、下标、偏移全用 usize，因为下标只接受 usize。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "as 总能编译，放不下时不报错；u64::from 只在不丢信息的方向上存在，方向写反了编译不过。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "没有隐式数值转换；在哪个宽度里算要写出来",
+    "来源": "数据的形状 学习记录 10-14 · 标量类型与数值规则"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "C 的 u32 乘法先溢出再变宽且无警告; Rust 没有隐式数值转换, 要写出在哪个宽度里算",
+   "depends_on": []
+  },
+  {
+   "key": "integer-overflow-semantics",
+   "rank": 2,
+   "domain": "rust-data-shapes",
+   "recall_target": "Rust 的整数溢出在常量、调试构建、发布构建下各怎样, 和 C 有什么不同, 为什么这样规定?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 里整数运算溢出时会发生什么？分别说明写死的常量、调试构建、发布构建三种情况，并和 C 的规则对比。为什么调试时检查、发布时不检查？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "溢出不是未定义行为，而是有明确规定的程序错误：调试构建 panic，发布构建默认按补码回绕。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "三种情况",
+       "parts": [
+        {
+         "type": "text",
+         "text": "常量溢出如 1u32 - 2 直接是编译错误；运行时才知道的值，调试构建 panic，发布构建只留下低位、不报错。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "和 C 对比",
+       "parts": [
+        {
+         "type": "text",
+         "text": "C 的有符号溢出是未定义行为，编译器可以假设它不发生；Rust 里有符号、无符号是同一条规则。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "为什么",
+       "parts": [
+        {
+         "type": "text",
+         "text": "语言把溢出定性为程序员的错误：开了调试断言的构建必须检查并 panic，其他构建由实现决定，回绕时结果必须是确定的二进制补码。Cargo 默认调试开、发布关，省掉的是每次运算后的一次判断。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "推论：默认的发布构建里溢出是静默的，回绕出的数是错的，但不会报错。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "不是 UB：调试 panic，发布回绕且静默",
+    "来源": "数据的形状 学习记录 10-14 · 标量类型与数值规则"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "Rust 整数溢出不是未定义行为: 常量编译错误, 调试构建 panic, 发布构建补码回绕",
+   "depends_on": []
+  },
+  {
+   "key": "checked-wrapping-saturating-choice",
+   "rank": 3,
+   "domain": "rust-data-shapes",
+   "recall_target": "用不可信的 shape 算大小时乘法该怎么写, checked、wrapping、saturating 三组方法各用在哪?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "程序要根据外部文件头里的 shape 和每个元素的位数，算出一个张量占多少字节。文件是别人给的，不可信。这个乘法应该怎么写？checked_*、wrapping_*、saturating_* 三组方法各用在什么场合？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "用 checked_mul：溢出时得到 None，把溢出变成一个调用方必须处理的值。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "为什么",
+       "parts": [
+        {
+         "type": "text",
+         "text": "默认的发布构建里普通的乘法溢出后静默回绕，算出一个看起来正常的数。checked_* 返回 Option，不把它拆开就用不了里面的数，调用方没法忽略。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "另外两组",
+       "parts": [
+        {
+         "type": "text",
+         "text": "wrapping_* 明确要回绕，用在回绕本身是算法一部分的地方，例如哈希；saturating_* 卡在上下限。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "真实代码",
+       "parts": [
+        {
+         "type": "text",
+         "text": "safetensors 校验文件头时用 checked_mul 把各维连乘，再乘位数，溢出就返回校验错误。64 位的 usize 让真实模型不会溢出，checked_mul 防的是恶意文件头，比如把 shape 写成两个 2 的 40 次方。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "减法同理：止小于起时 end - start 会溢出，用 checked_sub，或者像 safetensors 那样先比较再减。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "不可信输入的大小计算用 checked_*，让溢出变成 None",
+    "来源": "数据的形状 学习记录 10-14 · 标量类型与数值规则"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "不可信输入的大小计算用 checked_* 把溢出变成 None; wrapping 用于哈希等, saturating 卡上下限",
+   "depends_on": []
+  },
+  {
+   "key": "slice-is-pointer-plus-length",
+   "rank": 4,
+   "domain": "rust-data-shapes",
+   "recall_target": "切片为什么是指针加长度, 解决了什么问题, 代价是什么?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 的切片 &[T] 为什么设计成“指针加长度”两个机器字？对比把长度留在类型里的数组，以及 C 的数组传参，说明它解决了什么问题、付出了什么。",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "它让一个函数能处理任意长度的一段元素，同时长度永远跟着指针，每次下标访问都有东西可比。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "长度留在类型里",
+       "parts": [
+        {
+         "type": "text",
+         "text": "数组 [T; N] 的长度是类型的一部分，接收 [i32; 5] 的函数传 [i32; 4] 就编译不过，每种长度是一个不同的类型。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "C 的做法",
+       "parts": [
+        {
+         "type": "text",
+         "text": "数组传参退化成指针，长度丢了，要靠另一个参数传，两者对不对得上没人检查；把 4 个元素的数组传给要 5 个的函数能编译，运行时读到数组之外。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Rust 的做法",
+       "parts": [
+        {
+         "type": "text",
+         "text": "把那对指针和长度做成一个值；取子切片只算出一个新指针和一个新长度，不复制元素。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "代价",
+       "parts": [
+        {
+         "type": "text",
+         "text": "引用占 16 字节而不是 8，每次按下标访问多一次比较；用 for 逐个遍历不经过下标，没有这次比较。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "切片只能表示连续的一段，步长视图和多维视图表示不了。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "长度跟着指针走：任意长度可传，下标可检查",
+    "来源": "数据的形状 学习记录 10-14 · 数组与切片"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "切片把指针和长度做成一个值: 函数能收任意长度, 下标可检查; 代价是 16 字节和每次下标的比较",
+   "depends_on": []
+  },
+  {
+   "key": "array-vec-slice-compared",
+   "rank": 5,
+   "domain": "rust-data-shapes",
+   "recall_target": "[T; N]、Vec<T>、&[T] 三者在长度、值的内容、所有权上有什么区别, 参数该写哪种?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 里 [T; N]、Vec<T>、&[T] 都表示“一串元素”。它们有什么区别？分别说明长度何时确定、值里放的是什么、是否拥有数据，以及函数参数通常该写哪一种。",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "数组的值就是元素本身；Vec 拥有堆上的数据；切片只是借来的指针加长度。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "[T; N]",
+       "parts": [
+        {
+         "type": "text",
+         "text": "长度在编译期确定并写在类型里，值里就是 N 个元素。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Vec<T>",
+       "parts": [
+        {
+         "type": "text",
+         "text": "长度运行期可以增长，值里是指针、容量、长度，64 位机器上共 24 字节，数据在堆上并归它所有；从别处的数据造一个就要复制。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "&[T]",
+       "parts": [
+        {
+         "type": "text",
+         "text": "值里是指针和长度共 16 字节，不拥有数据，是借别人的。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "函数参数",
+       "parts": [
+        {
+         "type": "text",
+         "text": "写成 &[T]，数组和 Vec 都能传进来，也不发生复制。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "要自己保存运行时才知道长度的数据用 Vec；只是看一段已有的数据用切片。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "数组是元素本身，Vec 拥有堆数据，切片只借",
+    "来源": "数据的形状 学习记录 10-14 · 数组与切片"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "数组的值是元素本身且长度在类型里; Vec 拥有堆上数据; 切片是借来的指针加长度; 参数写 &[T]",
+   "depends_on": []
+  },
+  {
+   "key": "bounds-check-stays-in-release",
+   "rank": 6,
+   "domain": "rust-data-shapes",
+   "recall_target": "发布构建里下标越界检查还在吗, 为什么和溢出检查的处理不同?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 的发布构建默认不再检查整数溢出。那么数组和切片的下标越界检查在发布构建里还在吗？为什么两者的处理不同？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "越界检查在发布构建里也不关。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "原因",
+       "parts": [
+        {
+         "type": "text",
+         "text": "溢出只是算错一个数；越界读写会碰到不属于你的内存，这是 Rust 承诺安全代码里绝不发生的事。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "具体行为",
+       "parts": [
+        {
+         "type": "text",
+         "text": "按下标访问先比较下标和长度，不成立就 panic；用 get 则不 panic，返回 Option；对数组用常量下标越界直接是编译错误。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "想省掉这次比较，就不要用下标而用迭代：逐个遍历不经过下标。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "溢出可以算错，越界绝不放行",
+    "来源": "数据的形状 学习记录 10-14 · 数组与切片"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "越界检查在发布构建也保留: 溢出只是算错数, 越界会碰到不属于你的内存",
+   "depends_on": []
+  },
+  {
+   "key": "fat-pointer-metadata",
+   "rank": 7,
+   "domain": "rust-data-shapes",
+   "recall_target": "胖指针多带的那个字是什么, 由什么决定, 和 C++ 的虚表指针放法有何不同?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 里 &i32 是 8 字节，&[i32] 和 &str 是 16 字节。这种多带一个字的胖指针，多带的那个字一定是长度吗？它由什么决定？和 C++ 存放虚表指针的方式有什么不同？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "不一定是长度：它是什么由指针指向的类型决定，带的是那个类型在编译时缺的信息。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "规则",
+       "parts": [
+        {
+         "type": "text",
+         "text": "大小编译时就知道的类型，指针一个字就够；大小要到运行时才知道的类型，指针得把缺的那份信息带上。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "三种",
+       "parts": [
+        {
+         "type": "text",
+         "text": "指向切片带元素个数；指向 str 带字节数；指向 dyn Trait 带虚表的地址。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "和 C++ 比",
+       "parts": [
+        {
+         "type": "text",
+         "text": "C++ 把虚表指针放在每个对象的开头，Rust 把它放在指针里，所以一个 i32 平时还是 4 字节，不用为了能被动态调用而多存一个指针。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Box 遵守同一条规则：Box<u8> 是 8 字节，Box<[u8]> 是 16 字节。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "指针带上类型在编译时缺的信息：个数、字节数或虚表",
+    "来源": "数据的形状 学习记录 10-14 · struct、布局与节点 3–4 检查"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "胖指针多带的字由指向的类型决定: 切片是元素个数, str 是字节数, dyn Trait 是虚表地址",
+   "depends_on": []
+  },
+  {
+   "key": "safetensors-zero-copy-view",
+   "rank": 8,
+   "domain": "rust-data-shapes",
+   "recall_target": "safetensors 从权重文件取出一个张量时复制了多少数据, 为什么能做到?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "snapshot",
+    "product": "safetensors",
+    "version": "0.8.0"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "safetensors 库（0.8.0）要从一个 3.9 GB 的权重文件里取出 1.09 GB 的 embedding 表交给使用者，它的 TensorView 用 &[u8] 保存数据。这个取出的动作复制了多少字节？为什么能这样做？shape 字段又为什么用 Vec<usize>，而不是数组或切片？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "一个字节都没复制：取出来的是一个 16 字节的切片，指针指向数据区里这个张量的开头，长度是 1,089,994,752。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "机制",
+       "parts": [
+        {
+         "type": "text",
+         "text": "取张量就是对整个文件的字节切一段：只算出一个新指针和一个新长度。配合把整个文件 mmap 进内存，这段数据甚至还没从磁盘读进来。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "规模",
+       "parts": [
+        {
+         "type": "text",
+         "text": "装着它的 TensorView 只有 48 字节，描述的却是 1.09 GB 的数据。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "shape 的选择",
+       "parts": [
+        {
+         "type": "text",
+         "text": "维数运行时才知道，所以不能是数组；记录文件头的结构要自己保存从 JSON 解析出的形状，所以不能是借来的切片。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "把数据字段换成 Vec<u8>，就要把这 1.09 GB 复制到堆上。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "切片只是指针加长度：取一段不复制",
+    "来源": "数据的形状 学习记录 10-14 · 数组与切片"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "safetensors 取张量只是切一段 &[u8], 16 字节的切片描述 1.09 GB, 配合 mmap 零复制",
+   "depends_on": []
+  },
+  {
+   "key": "str-len-is-bytes",
+   "rank": 9,
+   "domain": "rust-data-shapes",
+   "recall_target": "Rust 字符串的 len 为什么是字节数, 为什么不能按下标取字符?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 里字符串 héllo 的 len() 返回 6，而它只有 5 个字符。为什么？为什么 s[1] 这样按下标取字符编译不过？想按字符处理该怎么做？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "字符串统一按 UTF-8 存，len 返回的是字节数；带重音的 é 占 2 个字节。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "UTF-8",
+       "parts": [
+        {
+         "type": "text",
+         "text": "不同的字符占 1 到 4 个字节：ASCII 是 1，带重音的拉丁字母是 2，汉字是 3，emoji 是 4。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "为什么不给下标",
+       "parts": [
+        {
+         "type": "text",
+         "text": "第几个字符从哪个字节开始，要从头数才知道；Rust 不提供一个看起来很快、实际要扫描的下标。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "怎么做",
+       "parts": [
+        {
+         "type": "text",
+         "text": "字符数用 s.chars().count()，第几个字符用 s.chars().nth(i)；按字节范围切可以，但必须切在字符边界上，否则运行时 panic。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "单独的 char 按最宽的情况占 4 字节，字符串里不这样存。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "len 是字节数；按字符要用 chars()",
+    "来源": "数据的形状 学习记录 10-14 · 作答前的追问：字符串、Box、模式、标签与 Option"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "字符串按 UTF-8 存, len 是字节数; 不能按下标取字符, 按字符用 chars()",
+   "depends_on": []
+  },
+  {
+   "key": "struct-field-reordering",
+   "rank": 10,
+   "domain": "rust-data-shapes",
+   "recall_target": "Rust 默认怎样摆 struct 的字段, 为什么敢重排, 带来什么限制, repr(C) 何时需要?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "snapshot",
+    "product": "rust",
+    "version": "1.97.1"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "struct Plain { a: u8, b: u32, c: u8 } 在 C 里占 12 字节，Rust 1.97.1 默认只占 8 字节。Rust 做了什么？它为什么敢这样做？这带来哪些限制，需要和 C 或文件格式对接时怎么办？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Rust 默认可以重排字段：把 b 放在偏移 0，a 和 c 紧跟在后面，省掉了填充。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "为什么敢",
+       "parts": [
+        {
+         "type": "text",
+         "text": "C 的字段顺序是和外界的约定，别的编译单元、别的语言都按同一个布局读；Rust 默认不做这个承诺，只保证字段不重叠、各自对齐。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "限制",
+       "parts": [
+        {
+         "type": "text",
+         "text": "默认布局的 struct 不能直接交给 C，也不能把内存里的字节原样写进文件再指望别的程序读回来。Rust 自己写、自己读用的是同一种布局，所以自己的测试发现不了。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "怎么办",
+       "parts": [
+        {
+         "type": "text",
+         "text": "加 #[repr(C)]，字段按声明顺序、照 C 的规则摆放；代价是可能变大。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "具体偏移是这个编译器版本上的实测，默认布局不是语言的承诺。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "默认可重排省填充；对接外界用 repr(C)",
+    "来源": "数据的形状 学习记录 10-14 · struct、布局与节点 3–4 检查"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "Rust 默认可重排字段以省填充, 不承诺布局; 与 C 或文件格式对接时用 repr(C)",
+   "depends_on": []
+  },
+  {
+   "key": "c-tagged-union-holes",
+   "rank": 11,
+   "domain": "rust-data-shapes",
+   "recall_target": "C 的标签加联合有哪三个洞, Rust 的 enum 怎样堵上?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "C 里表示“几选一”的数据，通常用一个 enum 标签加一个 union。这种写法有哪三个洞？Rust 的 enum 分别怎样堵上？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "C 的标签和数据只是靠约定配合；Rust 把标签和载荷做成一个类型并且绑死。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "不一致",
+       "parts": [
+        {
+         "type": "text",
+         "text": "C 里标签和载荷可以不一致：标签说是点击，载荷里放的却是按键，读出来是错的数据，没有任何警告。Rust 的载荷只能在 match 的对应分支里拿到。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "漏分支",
+       "parts": [
+        {
+         "type": "text",
+         "text": "C 的 switch 漏了分支最多只有一条警告。Rust 的 match 必须穷尽，漏一个变体是编译错误。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "任意整数",
+       "parts": [
+        {
+         "type": "text",
+         "text": "C 里任何整数都能当枚举值。Rust 的整数不能转成 enum，标签只会是声明过的那几个变体。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "代价是每个值按最大的变体占空间；写下划线兜底会放弃加变体时编译器的提醒。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "标签与数据绑死；match 穷尽；整数不能当枚举",
+    "来源": "数据的形状 学习记录 10-14 · enum 与 match"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "C 的 enum 加 union 可不一致、可漏分支、可塞任意整数; Rust 的 enum 把三者都变成做不到或编译错误",
+   "depends_on": []
+  },
+  {
+   "key": "enum-size-and-niche",
+   "rank": 12,
+   "domain": "rust-data-shapes",
+   "recall_target": "enum 的值多大由什么决定, Option<u32>、Option<Box<u32>>、Option<bool> 的大小各怎么解释?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "snapshot",
+    "product": "rust",
+    "version": "1.97.1"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 1.97.1、64 位机器上，Option<u32> 是 8 字节，Option<Box<u32>> 也是 8 字节，Option<bool> 只有 1 字节。enum 的值多大是怎样决定的？这三个大小各怎么解释？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "大小等于最大的变体加标签，再按对齐凑整；当载荷有永远用不到的取值时，编译器把标签藏进去，不再单独占字节。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Option<u32>",
+       "parts": [
+        {
+         "type": "text",
+         "text": "u32 的每一种取值都是合法的数，没有哪个能空出来表示“没有”，所以要另外放 4 字节的标签，共 8 字节。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Option<Box<u32>>",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Box 里是一个一定有效的地址，永远不会全是 0，编译器就拿全 0 表示 None，仍是 8 字节。内存里和 C 的可空指针一模一样。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Option<bool>",
+       "parts": [
+        {
+         "type": "text",
+         "text": "bool 只用 0 和 1 两个取值，2 就可以表示 None，所以只占 1 字节。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "这只是编译器省空间的做法，对写代码没有影响：仍然必须先确认是哪个变体，才能拿到里面的值。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "最大变体加标签并凑整；有空闲取值时标签不占地方",
+    "来源": "数据的形状 学习记录 10-14 · 作答前的追问：字符串、Box、模式、标签与 Option"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "enum 大小是最大变体加标签并按对齐凑整; 载荷有用不到的取值时标签藏进去, Option<Box> 仍 8 字节",
+   "depends_on": []
+  },
+  {
+   "key": "payload-needs-a-pattern",
+   "rank": 13,
+   "domain": "rust-data-shapes",
+   "recall_target": "为什么取 enum 的载荷必须经过模式, 有哪几种写法, 加变体时各自表现如何?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 不允许用 e.0 这样的写法直接取出 enum 值里的数据。为什么？拿到载荷有哪几种写法，各适合什么情况？以后给 enum 加变体时，它们的表现有什么不同？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "要拿到载荷，必须经过一个写明变体的模式：判断是哪个变体和取出数据写成一步。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "为什么不给 e.0",
+       "parts": [
+        {
+         "type": "text",
+         "text": "一个 enum 值里有哪些字段，取决于运行时它是哪个变体。e.0 里没有地方写“我认为它是哪个变体”，要么不检查，那就是 C 的 union；要么运行时偷偷检查、不对就崩。Rust 两条都不走。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "四种写法",
+       "parts": [
+        {
+         "type": "text",
+         "text": "每个变体各做各的用 match；只关心一个变体用 if let；不是这个变体就提前返回用 let … else；只要一个布尔结果用 matches!。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "加变体时",
+       "parts": [
+        {
+         "type": "text",
+         "text": "不带下划线兜底的 match 会报错提醒你；if let、let … else、matches! 都不做穷尽检查，新变体被悄悄跳过。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "只有拿载荷才需要模式，把整个值传走、存起来、打印都不需要。检查本身发生在运行时，编译器保证的是每个取载荷的地方都有这次检查。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "判断变体和取数据是同一步；简写不做穷尽检查",
+    "来源": "数据的形状 学习记录 10-14 · 作答前的追问：字符串、Box、模式、标签与 Option"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "取载荷必须经过写明变体的模式; match、if let、let else、matches! 各有用处, 后三者不做穷尽检查",
+   "depends_on": []
+  },
+  {
+   "key": "named-vs-positional-variants",
+   "rank": 14,
+   "domain": "rust-data-shapes",
+   "recall_target": "enum 的变体什么时候用圆括号, 什么时候用带字段名的花括号?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "定义 Rust 的 enum 时，带数据的变体可以写成圆括号的 Cuda(u32)，也可以写成花括号的 Loaded { device: Device, bytes: usize }。什么时候用哪一种？两种写法在内存里有区别吗？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "这是约定：只有一个数据、看变体名和类型就知道是什么时用圆括号；两个以上数据，或者光看类型不知道是什么时用花括号。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "理由",
+       "parts": [
+        {
+         "type": "text",
+         "text": "圆括号里的含义全靠位置。写成 Running(u32, u32) 或 Click(i64, i64)，两个位置类型相同，写反了编译器发现不了。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "用别人的类型时",
+       "parts": [
+        {
+         "type": "text",
+         "text": "没有选择，定义里是哪种，构造和 match 就写哪种。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "内存",
+       "parts": [
+        {
+         "type": "text",
+         "text": "两种写法的布局相同，字段名只存在于代码里，不占内存。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "这和 struct 的三种写法一一对应：不带数据、像元组结构体、带字段名。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "一个且自明用圆括号；多个或不自明用字段名",
+    "来源": "数据的形状 学习记录 10-14 · 结课前的答疑：括号、引用与 Copy"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "变体带一个自明的数据用圆括号, 多个或含义不明用带字段名的花括号; 布局相同",
+   "depends_on": []
+  },
+  {
+   "key": "state-as-enum-not-kind-field",
+   "rank": 15,
+   "domain": "rust-data-shapes",
+   "recall_target": "用 kind 字段加全部字段的 struct 表示多种状态有什么问题, 改成 enum 换来什么?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "一个请求有排队中、运行中、已完成、失败四种状态，每种状态要记的数据不同。有人按 C 的思路写成一个 struct：一个 kind: u8，加上所有状态的字段（入队时间、worker 编号、token 数、错误信息）。这种写法有什么问题？改成 enum 换来了什么？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "struct 写法允许大量不该出现的值，全靠约定和自觉的判断；enum 让每种状态只带属于它的数据，读之前必须先确认状态。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "非法值",
+       "parts": [
+        {
+         "type": "text",
+         "text": "kind 是 u8，可以取 0 到 3 之外的值；每种状态都带着不属于它的字段，比如已完成却有错误信息。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "何时出事",
+       "parts": [
+        {
+         "type": "text",
+         "text": "常在状态切换时：失败后重试，kind 改回排队，错误信息里还留着上次的内容，只看错误信息非空的代码就会判错。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "enum",
+       "parts": [
+        {
+         "type": "text",
+         "text": "每个变体只带自己的数据，想读失败原因必须先匹配到失败这个变体；以后加一种状态，所有逐个列出变体的 match 都会被编译器指出来。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "带两个同类型数据的变体用带字段名的写法，避免位置写反。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "让不该出现的状态写不出来",
+    "来源": "数据的形状 学习记录 10-14 · 节点 5–6 检查"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "kind 加全部字段的 struct 允许非法状态; enum 让每种状态只带自己的数据并强制先判断",
+   "depends_on": []
+  },
+  {
+   "key": "field-access-destructure-nested-pattern",
+   "rank": 16,
+   "domain": "rust-data-shapes",
+   "recall_target": "字段访问、解构、嵌套模式各适合什么情况, 嵌套模式怎样压平 match 套 match?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "读取一个值内部的数据，Rust 有字段访问（如 rect.top_left.y）、解构（如 let (start, end) = offsets;）和嵌套模式三种写法。它们各适合什么情况？嵌套模式怎样把 match 套 match 压平？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "有名字的字段直接访问；没有名字的位置用解构起名字；要同时判断好几层的形状时用嵌套模式。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "字段访问",
+       "parts": [
+        {
+         "type": "text",
+         "text": "带字段名的 struct 读几个字段时最直接，名字已经有了。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "解构",
+       "parts": [
+        {
+         "type": "text",
+         "text": "元组和元组结构体的 .0、.2 看不出含义，解构能起名字；模式里还必须把字段列全，漏了要么补上，要么明确写两个点表示不要。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "嵌套模式",
+       "parts": [
+        {
+         "type": "text",
+         "text": "WorkerType::Prefill { bootstrap_port: Some(port) } 一个模式做了三件事：确认是 Prefill，确认端口是 Some，把端口取出来叫 port。原来的 match 套 match 变成并列的分支，穷尽检查照样管用。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "enum 的载荷只能用模式取；运行时几种写法没有实质差别。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "有名字直接访问，无名字解构，多层判断用嵌套模式",
+    "来源": "数据的形状 学习记录 10-14 · 练习：约定、求助与 Review"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "有名字的字段直接访问, 元组用解构起名, 多层判断用嵌套模式把 match 套 match 压平",
+   "depends_on": []
+  },
+  {
+   "key": "rust-enum-vs-cpp-variant",
+   "rank": 17,
+   "domain": "rust-data-shapes",
+   "recall_target": "Rust 的 enum 与 C++ 的 std::variant 在漏处理、取错成员、占用空间上有何不同?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "snapshot",
+    "product": "rust",
+    "version": "1.97.1"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "C++17 的 std::variant 和 Rust 的 enum 都把标签和数据绑在一起。在漏处理一种情况、取错成员、占用空间这三件事上，两者有什么不同？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "两者思路相同，Rust 把检查做得更靠前，也排得更紧。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "漏处理",
+       "parts": [
+        {
+         "type": "text",
+         "text": "std::visit 漏了一种情况同样编译不过，但报的是一长串模板错误；Rust 的 match 直接指出哪个变体没覆盖。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "取错成员",
+       "parts": [
+        {
+         "type": "text",
+         "text": "std::get 取错了要到运行时才抛 bad_variant_access；Rust 里载荷只能在对应的分支里拿到，取错这件事写不出来。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "空间",
+       "parts": [
+        {
+         "type": "text",
+         "text": "一次实测里，三个成员的 std::variant 是 40 字节，比最大的成员 std::string 多 8 字节；对应的 Rust enum 是 24 字节，和它最大的变体一样大。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "大小数字来自 g++ 13.3 和 rustc 1.97.1 的一次实测，只说明趋势。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "同样绑定标签与数据；Rust 检查更早、排得更紧",
+    "来源": "数据的形状 学习记录 10-14 · enum 与 match"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "variant 与 Rust enum 思路相同; variant 取错成员运行时才抛, 漏分支报模板错误, 实测更占空间",
+   "depends_on": []
+  },
+  {
+   "key": "recursive-type-needs-box",
+   "rank": 18,
+   "domain": "rust-data-shapes",
+   "recall_target": "递归类型为什么必须隔一层 Box, Box 起什么作用, 代价是什么?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 里写 enum List { Cons(u32, List), Nil } 编译不过，改成 Cons(u32, Box<List>) 就可以。为什么？Box 在这里起什么作用，付出了什么？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Rust 的值就是数据本身，类型里直接包含自己会让大小无穷大；Box 把里面那一个换成固定 8 字节的指针。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "为什么无穷",
+       "parts": [
+        {
+         "type": "text",
+         "text": "enum 的载荷放在值里面。Cons(u32, List) 要在一个 List 里放下另一个完整的 List，大小等于 4 加它自己的大小，无解。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Box 的作用",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Box<List> 是指向堆上一个 List 的指针，大小和它指向什么无关；它独占这个值，自己被销毁时堆上的值随之释放。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "代价",
+       "parts": [
+        {
+         "type": "text",
+         "text": "一次堆分配，访问时多跳一次。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "C 也一样必须写成 struct Node *next；差别是 C 的指针可以为空、可以悬空、要手工释放。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "值是数据本身，所以自包含要隔一层指针",
+    "来源": "数据的形状 学习记录 10-14 · 递归类型与 Box"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "类型直接包含自己会让大小无穷; Box 是固定 8 字节且独占堆上值的指针, 代价是分配和一次跳转",
+   "depends_on": []
+  },
+  {
+   "key": "box-vs-mut-reference",
+   "rank": 19,
+   "domain": "rust-data-shapes",
+   "recall_target": "Box<T> 与 &mut T 的根本区别是什么, 在哪里看得出来, 各用在什么场合?",
+   "assessment": "discrimination",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Box<T> 和 &mut T 都是 8 字节的指针，都能修改指向的值，同一时刻也都只有它一个能碰那个值。它们的根本区别是什么？这个区别在哪些地方看得出来？各用在什么场合？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "区别在值归谁：Box 拥有它指向的值，&mut 只是把别人的值临时借来改。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Box",
+       "parts": [
+        {
+         "type": "text",
+         "text": "值在堆上，归这个 Box；Box 用完，值就释放；它可以从函数返回、存进 struct。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "&mut",
+       "parts": [
+        {
+         "type": "text",
+         "text": "值在哪里都行，取地址不分配；用完什么都不发生，释放永远是原主的事；它不能比原主存在得久。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "看得出来的地方",
+       "parts": [
+        {
+         "type": "text",
+         "text": "函数里造的值，Box 能带出来，返回局部变量的 &mut 编译不过。借出去期间原主自己也不能碰；原主销毁之前借用必须已经结束，否则编译不过。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "怎么选",
+       "parts": [
+        {
+         "type": "text",
+         "text": "值需要一个主人并且要放在堆上，用 Box，常见于字段；值已经有主、只是让别人临时改一下，用 &mut，常见于函数参数。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "两者不是二选一，可以把 Box 里的值再借出去改。C 和 C++ 里原主销毁后继续用指针通常能编译，只是悄悄读写了已释放的内存。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "Box 拥有，&mut 借用；借用不能比原主久",
+    "来源": "数据的形状 学习记录 10-14 · 作答前的追问：Box 与 &mut"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "Box 拥有堆上的值并负责释放, &mut 只是临时借来改; 借用不能比原主久, 违反则编译不过",
+   "depends_on": []
+  },
+  {
+   "key": "const-vs-static",
+   "rank": 20,
+   "domain": "rust-data-shapes",
+   "recall_target": "const 与 static 的区别是什么, 默认用哪个, 全局可变计数器怎么做?",
+   "assessment": "discrimination",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 的 const 和 static 都能定义全程序可见的有名字的值。它们的区别是什么？默认该用哪个？需要一个全局的、会被修改的计数器时怎么做？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "const 是编译期常量，值被抄到每个使用处，没有固定地址；static 是全程序唯一的一块内存，活到程序结束。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "怎么选",
+       "parts": [
+        {
+         "type": "text",
+         "text": "默认用 const。数据量大不想每处各抄一份、需要一个唯一的地址、需要全局可变状态时，用 static。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "共同规则",
+       "parts": [
+        {
+         "type": "text",
+         "text": "都必须写类型，初始值必须在编译时能算出来，都不能直接赋值。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "全局计数器",
+       "parts": [
+        {
+         "type": "text",
+         "text": "不用 static mut，它只能在 unsafe 里读写；给 static 一个原子类型，例如 static COUNT: AtomicU64 = AtomicU64::new(0);，再用 fetch_add 修改。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "const 可以用在要求编译时已知的位置，比如数组长度；用 let 定义的变量不行。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "const 内联无地址；static 唯一地址；可变全局用原子类型",
+    "来源": "数据的形状 学习记录 10-14 · const 与 static、串讲"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "const 值被内联到每个使用处且无固定地址; static 是唯一的一块内存; 全局可变状态用 static 加原子类型",
+   "depends_on": []
+  },
+  {
+   "key": "wraparound-accepted-as-valid",
+   "rank": 21,
+   "domain": "rust-data-shapes",
+   "recall_target": "把大小计算里的 checked_mul 换成普通乘法, 发布构建下为什么比崩溃更危险, 测试为何发现不了?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "一个函数把 shape 各维连乘再乘位数，算出张量的字节数，然后和文件头给出的偏移长度比较，相等才接受。如果把其中的 checked_mul 换成普通的乘法，调试构建和发布构建下各会怎样？为什么说发布构建下的“静默回绕”比崩溃更危险？只靠普通的测试为什么发现不了？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "调试构建在乘法处 panic；发布构建不报错，回绕出一个错的数，凑好的输入会被当成正常数据接受。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "被接受的例子",
+       "parts": [
+        {
+         "type": "text",
+         "text": "一个 u8 张量声称有 2 的 61 次方加 3 个元素，乘 8 位后回绕成 24 位，也就是 3 字节；偏移给的长度也是 3，校验通过。一个声称有 2.3×10¹⁸ 个元素的张量被当成了 3 字节的正常张量。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "为什么测不出",
+       "parts": [
+        {
+         "type": "text",
+         "text": "普通的坏输入回绕出的数和偏移长度对不上，函数仍然拒绝，碰巧是正确答案，测试通过。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "怎么测",
+       "parts": [
+        {
+         "type": "text",
+         "text": "专门构造一个回绕后正好对上的输入，并且在发布构建下也跑测试。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "形状是攻击者自己填的，凑出这样的数并不难，所以对不可信输入的大小计算要用 checked_*。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "回绕不报错；凑好的输入被接受；普通测试碰巧通过",
+    "来源": "数据的形状 学习记录 10-14 · 练习：A8 的说明与 A9"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "普通乘法在发布构建回绕后, 凑好的形状会通过校验; 普通坏输入碰巧被拒绝所以测试发现不了",
+   "depends_on": []
+  },
+  {
+   "key": "reference-and-deref-model",
+   "rank": 22,
+   "domain": "rust-data-shapes",
+   "recall_target": "用值与地址的模型解释 & 和 * 各做什么, 什么时候必须写 *?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 里 for s in &self.shape { n = n.checked_mul(*s)?; } 这一行，为什么 shape 前面要写 &，s 前面又要写 *？用“值本身还是地址”的模型，解释 & 和 * 各做了什么，以及什么时候不用写 *。",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "u32 和 &u32 是两个不同的类型：前者是数本身，后者是指向它的地址。& 取地址，* 顺着地址读出值。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "这一行",
+       "parts": [
+        {
+         "type": "text",
+         "text": "&self.shape 表示只借 shape 来遍历，所以每轮拿到的 s 是一个元素的地址；checked_mul 的参数要的是数本身，所以写 *s。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "规则",
+       "parts": [
+        {
+         "type": "text",
+         "text": "要的是值、手里是引用，就写 *。它主要出现在传参、返回和构造值的时候。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "不用写的地方",
+       "parts": [
+        {
+         "type": "text",
+         "text": "用点号取字段或调用方法时，编译器自动解引用。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "对着引用做 match",
+       "parts": [
+        {
+         "type": "text",
+         "text": "整个值是借来的，拆出来的部分也是引用，所以要返回里面的数时同样要写 *。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "用 * 把值读出来等于复制一份，只对数值这类可以按字节复制的类型可行；对 Vec 这样做是想把它取走，编译不过。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "& 取地址，* 读值；要值而手里是引用就写 *",
+    "来源": "数据的形状 学习记录 10-14 · 结课前的答疑：括号、引用与 Copy"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "u32 与 &u32 是两个类型: & 取地址, * 顺地址读值; 传参、返回、构造时要值就写 *, 点号自动解引用",
+   "depends_on": []
+  },
+  {
+   "key": "rust-reference-vs-pointer-vs-cpp-reference",
+   "rank": 23,
+   "domain": "rust-data-shapes",
+   "recall_target": "Rust 的 &T 与 C 的指针、C++ 的引用相比, 像在哪里, 不像在哪里?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 的引用 &T 和 C 的指针、C++ 的引用相比，分别像在哪里、不像在哪里？从能否为空、取值要不要写 *、能否改指向和放进容器、悬垂由谁防这四点说明。",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "用法像指针，保证像 C++ 引用，再加上编译器检查。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "像指针",
+       "parts": [
+        {
+         "type": "text",
+         "text": "它是一个可以存、可以改指向的值，能放进容器；取值要写 *，用点号时除外。C++ 的引用是别名，r = b 是把 b 的值写进它引用的对象。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "像 C++ 引用",
+       "parts": [
+        {
+         "type": "text",
+         "text": "不能为空，必须指向一个有效的值，也没有指针加减。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "多出来的",
+       "parts": [
+        {
+         "type": "text",
+         "text": "指向的东西会不会已经没了，C 和 C++ 都没人防；Rust 由编译器检查借用规则来防。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "和 C 完全一样、不受检查的指针 Rust 也有，叫裸指针，写作 *const T，解引用必须放在 unsafe 里。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "用法像指针，保证像引用，外加编译器检查",
+    "来源": "数据的形状 学习记录 10-14 · 结课前的答疑：括号、引用与 Copy"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "Rust 的引用可存可改指向且取值写 *, 但不为空、无指针运算, 悬垂由编译器防; 裸指针需 unsafe",
+   "depends_on": []
+  },
+  {
+   "key": "self-vs-ref-self-receiver",
+   "rank": 24,
+   "domain": "rust-data-shapes",
+   "recall_target": "方法的接收者写 &self 与写 self 有什么区别, 什么时候该用 self?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "给 Rust 的类型写方法时，第一个参数可以写 &self，也可以写 self。两者传进去的东西有什么不同？调用之后，调用方手里的值各怎样？什么时候该用 self？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "&self 只借，调用后原来的值照常可用；self 把值整个拿走，调用后原来的变量不能再用。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "&self",
+       "parts": [
+        {
+         "type": "text",
+         "text": "是 self: &Self 的简写，传进去的是地址。只是读一读、算个数的方法都用它。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "self",
+       "parts": [
+        {
+         "type": "text",
+         "text": "传进去的是值本身，值被移动进方法；方法返回时它被销毁，它占的堆内存随之释放。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "何时用 self",
+       "parts": [
+        {
+         "type": "text",
+         "text": "方法要把这个值消耗掉，比如 Option 的 unwrap；或者类型很小而且可以按字节复制，这时传值只是抄一份，调用方手里的还在。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "在一个 &self 的方法里调用同一个值上的 self 方法编译不过：借来的东西不能交出去。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "&self 借，self 拿走",
+    "来源": "数据的形状 学习记录 10-14 · 结课前的答疑：用 byte_len 走查 & 和 *"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "&self 传地址且调用后值仍可用; self 把值移动进方法, 适合消耗值或小的可复制类型",
+   "depends_on": []
+  },
+  {
+   "key": "for-loop-borrow-vs-move",
+   "rank": 25,
+   "domain": "rust-data-shapes",
+   "recall_target": "for s in &v 与 for s in v 有什么区别, 和 C++ 的范围 for 一样吗?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 里 for s in &v 和 for s in v 有什么区别（v 是一个 Vec<usize>）？循环结束后 v 各怎样？这和 C++ 的 for (size_t s : v) 是一回事吗？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "带 & 是借着看，循环后 v 还在；不带 & 是把 v 整个交给循环，循环后 v 没了。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "带 &",
+       "parts": [
+        {
+         "type": "text",
+         "text": "每轮拿到的是一个元素的地址，类型是 &usize。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "不带 &",
+       "parts": [
+        {
+         "type": "text",
+         "text": "每轮直接拿到元素的值，Vec 被移动进循环，循环结束时它的堆内存就释放了；之后再用 v 编译不过。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "和 C++ 比",
+       "parts": [
+        {
+         "type": "text",
+         "text": "不是一回事。C++ 的 for (size_t s : v) 是把每个元素抄一份，v 还在；Rust 不带 & 是把容器整个交出去。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "在只借到 self 的方法里遍历它的字段，必须带 &：借来的东西不能交出去。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "&v 借着看；v 整个交出去",
+    "来源": "数据的形状 学习记录 10-14 · 结课前的答疑：用 byte_len 走查 & 和 *"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "for s in &v 只借且得到元素的引用; for s in v 把 Vec 移动进循环; C++ 的范围 for 只是逐个复制",
+   "depends_on": []
+  },
+  {
+   "key": "move-by-default-and-call-forms",
+   "rank": 26,
+   "domain": "rust-data-shapes",
+   "recall_target": "把不能按字节复制的值直接传给函数会怎样, 调用处有哪三种写法?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 里把一个不能按字节复制的值（例如带 Vec 字段的 struct）直接传给函数，写成 f(info)，会发生什么？调用处有哪三种写法，各自的含义和代价是什么？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "默认是移动：值交给了函数，原来的变量之后不能再用。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "三种写法",
+       "parts": [
+        {
+         "type": "text",
+         "text": "f(info) 是移动，之后 info 不能用；f(&info) 是借出，只传一个地址，之后还能用；f(info.clone()) 是先造一份副本再把副本移动进去，要新分配堆内存并抄元素。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "不只是传参",
+       "parts": [
+        {
+         "type": "text",
+         "text": "赋值、作为返回值、放进 struct 或 Vec 也都是移动。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "机器层面",
+       "parts": [
+        {
+         "type": "text",
+         "text": "移动和按字节复制做的是同一件事，都是把值的字节抄过去；区别只在编译器之后还让不让你用原来那个。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "只是读数据时首选借出，而不是 clone。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "默认移动；借出传地址；clone 才是副本",
+    "来源": "数据的形状 学习记录 10-14 · 结课前的答疑：用 byte_len 走查 & 和 *"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "传值默认移动; 调用处可移动、借出或 clone 后移动; 只读时首选借出",
+   "depends_on": []
+  },
+  {
+   "key": "copy-vs-clone",
+   "rank": 27,
+   "domain": "rust-data-shapes",
+   "recall_target": "带 Vec 字段的类型为什么不能 derive Copy, Copy 与 Clone 各是什么?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "一个 struct 的字段是 dtype: Dtype、shape: Vec<usize>、data_offsets: (usize, usize)。给它写 #[derive(Clone, Copy)] 编译不过，说 Copy 不行。为什么？Copy 和 Clone 各是什么？对一个动态数组写 b = a，在 C++、Python、Rust 里各做了什么？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "因为 shape 是 Vec，而 Vec 不能是 Copy：所有字段都是 Copy，类型才能是 Copy。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Copy",
+       "parts": [
+        {
+         "type": "text",
+         "text": "一个标记，表示把字节照抄一份就算复制好了；这类值赋值和传参之后，原来的还能用。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "为什么 Vec 不行",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Vec 的值是指针、长度、容量，元素在堆上。照抄这几个字节，就有两个 Vec 指向同一块堆内存，各自释放一次就是重复释放。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Clone",
+       "parts": [
+        {
+         "type": "text",
+         "text": "显式调用 .clone()，由你明确要一份副本；对 Vec 来说要新分配内存并把元素抄过去。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "三种语言",
+       "parts": [
+        {
+         "type": "text",
+         "text": "C++ 的 vector 赋值悄悄调用复制构造，是深复制；Python 是两个名字指向同一个列表；Rust 是移动，原来的变量失效。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "带 Vec 这类拥有堆内存的字段的类型都不能是 Copy，要副本只能 clone。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "Copy 是按字节照抄；拥有堆内存的类型只能 Clone",
+    "来源": "数据的形状 学习记录 10-14 · 结课前的答疑：括号、引用与 Copy"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "所有字段都是 Copy 类型才能是 Copy; Vec 照抄会重复释放; 要副本用显式的 clone",
+   "depends_on": []
+  },
+  {
+   "key": "eq-vs-partialeq",
+   "rank": 28,
+   "domain": "rust-data-shapes",
+   "recall_target": "Eq 比 PartialEq 多了什么, 为什么带浮点字段的类型不能 derive Eq?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 里 #[derive(PartialEq)] 已经能用 ==，为什么还有一个 Eq？它多了什么？为什么带 f32 字段的类型不能 derive Eq？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Eq 不增加任何功能，只是多一条承诺：任何值都等于它自己。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "浮点数",
+       "parts": [
+        {
+         "type": "text",
+         "text": "NaN 不等于自己，所以浮点数只有 PartialEq，带浮点字段的类型也就不能加 Eq。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "用处",
+       "parts": [
+        {
+         "type": "text",
+         "text": "标准库有些功能要求 Eq，比如做哈希表的键。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "什么时候加",
+       "parts": [
+        {
+         "type": "text",
+         "text": "只有整数这类字段的类型，可以两个都 derive。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Eq 没有方法，它只影响这个类型能不能用在要求 Eq 的地方。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "Eq 是“等于自己”的承诺；NaN 做不到",
+    "来源": "数据的形状 学习记录 10-14 · 结课前的答疑：括号、引用与 Copy"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "Eq 只是任何值等于自己的承诺; 浮点数的 NaN 做不到所以只有 PartialEq; 哈希表的键要求 Eq",
+   "depends_on": []
+  },
+  {
+   "key": "dot-auto-ref-and-deref",
+   "rank": 29,
+   "domain": "rust-data-shapes",
+   "recall_target": "点号在取字段和调方法时自动做了什么, 完整写法是什么, 和 C 的 -> 是什么关系?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 代码里 info.byte_len() 和 self.dtype.bitsize() 一个 & 和 * 都没有，但方法要的是 &self，self 本身又是引用。点号这个运算符替你做了什么？把它们完整写出来是什么样？它和 C 的 -> 是什么关系，有什么限制？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "点号在取字段和调用方法时，自动补上需要的 & 和 *。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "完整写法",
+       "parts": [
+        {
+         "type": "text",
+         "text": "info.byte_len() 就是 TensorInfo::byte_len(&info)；self 是引用时，self.dtype.bitsize() 就是 Dtype::bitsize(&(*self).dtype)。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "取字段不等于读值",
+       "parts": [
+        {
+         "type": "text",
+         "text": "&self.shape 完整是 &((*self).shape)：先找到字段所在的位置，再取这个位置的地址，中间没有复制也没有移动。所以在借来的 self 上可以写 &self.shape，却不能把 self.shape 当作值交出去。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "和 -> 比",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Rust 没有 ->，取字段和调方法只有点号；它有几层引用就解几层，穿过 Box 也一样，调方法时还自动补 &。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "自动补只发生在点号上，传参和运算时仍然要自己写 & 和 *；裸指针也不会自动解引用。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "点号自动补 & 和 *；取字段取的是位置",
+    "来源": "数据的形状 学习记录 10-14 · 结课前的答疑：用 byte_len 走查 & 和 *"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "点号取字段和调方法时自动借用与解引用, 取代了 ->; 传参和运算时仍要自己写 & 和 *",
+   "depends_on": []
+  },
+  {
+   "key": "as-cast-silent-truncation",
+   "rank": 30,
+   "domain": "rust-data-shapes",
+   "recall_target": "用 as 把 usize 的偏移转成 u32 有什么风险, 它受溢出检查保护吗?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "correction",
+   "fields": {
+    "意图": "调用方手里的偏移是 usize，而函数要的是 u32。把偏移用 as u32 转一下再传进去，会引入什么风险？它和整数溢出的检查是什么关系？",
+    "场景": "第 02 课节点 1–2 的检查题：根据文件头里的偏移算张量字节数的函数。",
+    "正确": "as 的截断在调试构建和发布构建下都不 panic，是静默的；偏移达到 2 的 32 次方、也就是文件超过 4 GiB 时就会算错。",
+    "错误": "as u32是强制类型转换，也可能导致溢出。",
+    "说明": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "as 的截断不归溢出检查管，它从不报错。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "比溢出更隐蔽",
+       "parts": [
+        {
+         "type": "text",
+         "text": "减法溢出至少会在调试构建的测试里 panic；as 连测试都不报，只在大文件上悄悄算错。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "as 的行为",
+       "parts": [
+        {
+         "type": "text",
+         "text": "整数变窄时只留下低位，例如 300i32 as u8 得 44；浮点数转整数超出范围时卡在上下限。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "该怎么用",
+       "parts": [
+        {
+         "type": "text",
+         "text": "只用在确知放得下、或者本来就要截断的地方；否则用只在不丢信息的方向上存在的 From，或者让类型从一开始就统一。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "把 usize 直接传给要 u32 的参数是编译错误，Rust 不会替你转。"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "as 的截断不受溢出检查保护, 两种构建都静默; 大于 4 GiB 的偏移 as u32 会悄悄算错",
+   "depends_on": []
+  },
+  {
+   "key": "array-field-holds-data-inline",
+   "rank": 31,
+   "domain": "rust-data-shapes",
+   "recall_target": "把借来的切片字段换成定长数组字段, 会失去什么, 多付出什么?",
+   "assessment": "discrimination",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "correction",
+   "fields": {
+    "意图": "TensorView 里的数据是一个切片 &[u8]。如果把这个字段改成数组 [u8; 1089994752]（embedding 表正好这么多字节），会失去什么、多付出什么？",
+    "场景": "第 02 课节点 3–4 的检查题第 1 题。",
+    "正确": "数组长度必须是编译时的常数，一个定义描述不了大小各不相同的张量；而且这 1.09 GB 就装在这个值里。",
+    "错误": "这样就写死了长度，如果换一个模型，长度变了就会类型不匹配报错。",
+    "说明": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "长度写死是对的，但问题来得更早，也更重：数组的值就是元素本身，中间没有指针。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "更早",
+       "parts": [
+        {
+         "type": "text",
+         "text": "同一个文件里几十个张量大小各不相同，而且读完文件头才知道，数组长度却必须在编译时确定。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "更重",
+       "parts": [
+        {
+         "type": "text",
+         "text": "拿数组做字段，这些数据就内嵌在这个 struct 的值里：造它要把数据复制进来，值本身也有 1.09 GB，8 MB 的栈放不下。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "同一个模型也解释了递归类型为什么必须隔一层 Box：Rust 的值就是数据本身。"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "数组的值就是元素本身: 长度须编译期确定, 且 1.09 GB 会内嵌在值里并被复制",
+   "depends_on": []
+  },
+  {
+   "key": "get-vs-index-same-check",
+   "rank": 32,
+   "domain": "rust-data-shapes",
+   "recall_target": "&data[a..b] 与 data.get(a..b) 在检查上有什么区别, 各用在什么场合?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "correction",
+   "fields": {
+    "意图": "从一个字节缓冲区里取出从 start 到 end 的一段，可以写 &data[start..end]，也可以写 data.get(start..end)。两者在检查上有什么区别？各用在什么场合？",
+    "场景": "第 02 课结课前的答疑：练习里 slice 手写的三个比较可以换成 get。",
+    "正确": "两者做的是同一个检查，区别只在检查不通过之后：下标 panic，get 返回 None。",
+    "错误": "所以data.get相比于直接的[start,end]，可以多给出异常情况的检查，异常时返回None是吧？",
+    "说明": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "返回 None 是对的，“多了检查”不对：下标访问同样会检查起止颠倒和越界。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "同一个条件",
+       "parts": [
+        {
+         "type": "text",
+         "text": "标准库里两者用的是同一个条件：end - start 不溢出，并且 end 不超过长度。起止都等于长度的空区间是合法的，得到空切片。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "怎么选",
+       "parts": [
+        {
+         "type": "text",
+         "text": "范围是自己的程序算出来的、越界说明程序有 bug，用下标，panic 正合适；范围来自外部，比如文件头里的偏移，用 get，把它交给调用方处理。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "手写比较",
+       "parts": [
+        {
+         "type": "text",
+         "text": "先手写几个比较再用下标，等于同一个检查做了两遍，而且容易在大于等于和大于之间差一。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "两种写法都会在越界时拦住，只是拦住之后的行为不同。"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "下标与 get 做同一个范围检查; 不通过时下标 panic 而 get 返回 None; 外部来的范围用 get",
+   "depends_on": []
+  },
+  {
+   "key": "alignment-is-not-always-8",
+   "rank": 33,
+   "domain": "rust-data-shapes",
+   "recall_target": "所有类型的大小都按 8 对齐吗, 对齐和大小是怎样决定的?",
+   "assessment": "discrimination",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "correction",
+   "fields": {
+    "意图": "看了几个含指针的 Rust 类型，它们的大小都是 8 的倍数。是不是所有类型的大小都按 8 对齐？一个类型的对齐和大小是怎样决定的？",
+    "场景": "第 02 课看了图解页里几个 enum 的字节之后的追问。",
+    "正确": "不是；对齐取字段里最大的那个对齐，大小是对齐的整数倍。全是 u8 的 struct 对齐是 1。",
+    "错误": "我发现这些内存都是对齐8的。所以大小都是对齐8吗？",
+    "说明": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "对齐是 8 的只是含有指针、usize 或 u64 的类型。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "三条规则",
+       "parts": [
+        {
+         "type": "text",
+         "text": "每个基本类型有自己的对齐，一般等于它的大小；复合类型的对齐等于它的字段里最大的那个对齐；大小是对齐的整数倍。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "例子",
+       "parts": [
+        {
+         "type": "text",
+         "text": "三个 u8 字段的 struct 是 3 字节、对齐 1；一个 u16 加一个 u8 是 4 字节、对齐 2；一个 u8 加一个 [u32; 100] 是 404 字节、对齐 4，比的是对齐而不是大小。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "为什么凑整",
+       "parts": [
+        {
+         "type": "text",
+         "text": "为了放进数组：第 i 个元素在偏移 i 乘大小处，大小是对齐的整数倍，每个元素才都落在对齐的地址上。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "“基本类型的对齐等于它的大小”是平台的规定，不是语言的规定；判断时看对齐，不要拿大小代替。"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "对齐取字段中最大的对齐, 大小是对齐的整数倍; 对齐 8 只是因为含指针或 64 位整数",
+   "depends_on": []
+  },
+  {
+   "key": "tree-size-alignment-and-niche",
+   "rank": 34,
+   "domain": "rust-data-shapes",
+   "recall_target": "带两个 Box 的 enum Tree 一个值多大, 为什么不是 20 也不是 24?",
+   "assessment": "discrimination",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "snapshot",
+    "product": "rust",
+    "version": "1.97.1"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "correction",
+   "fields": {
+    "意图": "Rust 1.97.1、64 位机器上，enum Tree { Leaf(u32), Node(Box<Tree>, Box<Tree>) } 的一个值占多少字节？由什么决定？",
+    "场景": "第 02 课节点 5–6 的检查题第 2 题。",
+    "正确": "16 字节；由最大的变体决定，和树有多深无关。",
+    "错误": "值大小由最大的情况两个Box决定。标签4字节+两个Box 2 * 8字节 = 20字节。",
+    "说明": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "“由最大的变体决定”是对的，数字错在两处：漏了按对齐凑整，也漏了标签可以不单独占字节。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "按规则算",
+       "parts": [
+        {
+         "type": "text",
+         "text": "大小要凑成对齐 8 的整数倍：标签 4 加填充 4 加两个指针 16 是 24，不是 20。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "实际是 16",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Box 不会是 0，编译器用“第一个指针的位置是 0”表示 Leaf：Leaf(7) 的前 8 字节全是 0，7 放在后面；Node 的 16 字节就是两个堆地址。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "只有载荷里有永远用不到的取值时才能这样省，否则就是按规则算出的 24 字节。"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "Tree 是 16 字节: 按规则应凑整到 24, 但 Box 不为 0, 标签借用了第一个指针的 0 值",
+   "depends_on": []
+  },
+  {
+   "key": "wildcard-arm-is-not-a-safe-default",
+   "rank": 35,
+   "domain": "rust-data-shapes",
+   "recall_target": "给 enum 加变体后, 逐个列出的 match 与带下划线兜底的 match 各会怎样?",
+   "assessment": "discrimination",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "correction",
+   "fields": {
+    "意图": "一个 enum 以后要加新的变体。对它做 match 时，逐个列出所有变体和用下划线兜底这两种写法，在加变体之后各会发生什么？下划线是不是“至少有个兜底”？",
+    "场景": "第 02 课节点 5–6 的检查题：给请求状态加一种“已取消”。",
+    "正确": "逐个列出的 match 会编译失败并指出没处理的变体；带下划线的照常编译，新变体被悄悄归进“其余”，而那个兜底对它未必正确。",
+    "错误": "而如果带有_的match，也至少有了兜底的处理方法。",
+    "说明": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "下划线的兜底是在新变体出现之前写的，对新变体不一定对，而且编译器不再提醒。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "例子",
+       "parts": [
+        {
+         "type": "text",
+         "text": "判断“请求是否还在进行”的函数写成：完成和失败返回 false，下划线返回 true。加入“已取消”后照常编译，已取消的请求被判成还在进行。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "清单",
+       "parts": [
+        {
+         "type": "text",
+         "text": "不写下划线时，加一个变体，所有逐个列出的 match 都会报错，等于编译器给了一张“还有哪些地方要改”的清单。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "代价",
+       "parts": [
+        {
+         "type": "text",
+         "text": "逐个列出要多写一些分支。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "库的作者可以用 #[non_exhaustive] 要求库外的代码必须写下划线，这样库加变体不会让使用者编译失败；库内仍然逐个列出。"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "下划线兜底写于新变体出现之前且关掉编译器的提醒; 逐个列出的 match 在加变体时会报错",
+   "depends_on": []
+  },
+  {
+   "key": "some-is-a-variant-not-a-tag",
+   "rank": 36,
+   "domain": "rust-data-shapes",
+   "recall_target": "Some 是什么, 它和标签、载荷是什么关系?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "correction",
+   "fields": {
+    "意图": "Option<u32> 的值写作 Some(7) 或 None。Some 是什么？它和“标签”“载荷”是什么关系？",
+    "场景": "第 02 课讲到标签可以不单独占字节之后的两次追问。",
+    "正确": "Some 是 Option 的两个变体之一；标签是内存里记录“现在是哪个变体”的整数；载荷是 Some 带的那个值。",
+    "错误": "Some又是什么？是Option定义的标签？",
+    "说明": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "带数据的是变体，不是标签；Option<u32> 本身就是一个普通的 enum。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "定义",
+       "parts": [
+        {
+         "type": "text",
+         "text": "标准库里是 enum Option<T> { None, Some(T) }，尖括号里填具体类型。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "类比",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Some 之于 Option，就是 Cuda 之于 enum Device { Cpu, Cuda(u32) }；Some(7) 看起来像函数调用，其实是在造这个变体的值。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "为什么要包一层",
+       "parts": [
+        {
+         "type": "text",
+         "text": "u32 和 Option<u32> 是两个不同的类型：不包不能赋值，不拆不能做加法，所以没法对一个可能没有的值直接运算。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "不用写 Option:: 前缀，是因为标准库替每个程序预先引入了 Some 和 None。"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "Some 是 Option 的变体而非标签; 标签是记录变体的整数, 载荷是变体带的值",
+   "depends_on": []
+  },
+  {
+   "key": "shrink-the-largest-variant",
+   "rank": 37,
+   "domain": "rust-data-shapes",
+   "recall_target": "想让 enum 的每个值变小, 应该把哪个变体的什么装进 Box?",
+   "assessment": "discrimination",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "snapshot",
+    "product": "atom",
+    "commit": "43f5393dc456c1047d316d14be6acb662cce6db7"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "correction",
+   "fields": {
+    "意图": "流式推理的每个分片是一个 enum：中间的分片是 Partial（字段合计 48 字节），最后一个是 Complete（字段合计 188 字节），每个值占 192 字节。流里有几百个 Partial 和 1 个 Complete。想让每个 Partial 变小，应该把什么装进 Box？",
+    "场景": "第 02 课综合验收第 2 题：没讲过的真实类型 TokenChunk。",
+    "正确": "把最大的变体 Complete 的全部字段整体装进一个 Box，整个 enum 降到 48 字节，每个 Complete 只多一次堆分配。",
+    "错误": "可以尝试将TokenLogprobs、MatchedStop、Usage等自定义的类型用Box取指针，而不是整个类型放在里面。",
+    "说明": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "enum 的大小由最大的变体决定，所以要缩小的是最大的那个变体，只动小变体里的字段没有用。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "三种改法",
+       "parts": [
+        {
+         "type": "text",
+         "text": "只把 Partial 里的字段装箱，仍是 192 字节；把自定义类型的字段逐个装箱是 136 字节，每个 Complete 最多多 4 次堆分配；整体装箱是 48 字节，只多 1 次。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "怎么写",
+       "parts": [
+        {
+         "type": "text",
+         "text": "变体本身不是类型，不能直接放进 Box：先把 Complete 的字段搬进一个单独的 struct，再让变体只带一个指向它的 Box。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "代价",
+       "parts": [
+        {
+         "type": "text",
+         "text": "每造一个 Complete 一次堆分配，读它的字段多跳一次指针，构造和匹配它的代码要跟着改。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "只有十来个字节的字段不值得单独装箱：指针本身就占 8 字节，还多一次分配。值不值得改，取决于它是否真的成了瓶颈。"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "enum 大小由最大变体决定: 把最大变体的字段整体搬进 struct 再装箱, 192 字节降到 48",
+   "depends_on": []
+  },
+  {
+   "key": "const-with-interior-mutability",
+   "rank": 38,
+   "domain": "rust-data-shapes",
+   "recall_target": "把 static 的原子计数器改成 const 之后, 两次加一再读取会得到多少, 为什么?",
+   "assessment": "discrimination",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "correction",
+   "fields": {
+    "意图": "程序里有 static ACTIVE: AtomicU64 = AtomicU64::new(0);，main 里两次 ACTIVE.fetch_add(1, …) 后打印 ACTIVE.load(…)，输出 2。把 static 改成 const，程序仍能编译。输出变成多少？为什么？",
+    "场景": "第 02 课综合验收第 3 题：改一个条件，预测结果。",
+    "正确": "输出 0：const 的每一次使用都是一份新的 AtomicU64::new(0)，连最后读取的那一次也是。",
+    "错误": "Const是编译期内联，main里面的两行代码相当于都变成AtomicU64::new(0).fetch_add(1, Ordering::Relaxed)。就做了两次0+1，输出变成1.",
+    "说明": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "机制说对了：const 被抄到每个使用处。漏的是读取那一行也是一次使用。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "三次使用",
+       "parts": [
+        {
+         "type": "text",
+         "text": "前两次各自造出一个新的原子变量、加到 1，然后就被丢掉；第三次又造出一个新的 0 并读它。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "应该怎么写",
+       "parts": [
+        {
+         "type": "text",
+         "text": "需要全程序共享、会被修改的状态时用 static：它是唯一的一块内存，所有使用处指向同一个地址。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "这类错误能通过编译，表现是计数器永远读到 0。"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "const 的每次使用都是一份新值, 连读取也是, 所以输出 0; 共享的可变状态要用 static",
+   "depends_on": []
+  },
+  {
+   "key": "safety-cost-is-runtime-not-compile-time",
+   "rank": 39,
+   "domain": "rust-data-shapes",
+   "recall_target": "Rust 用切片和 Option 换来的保证, 代价到底是什么?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "correction",
+   "fields": {
+    "意图": "C 里用一对（指针，长度）传一段数据、用可空指针表示“可能没有”；Rust 里对应切片和 Option。Rust 多保证了长度与地址绑定、“没有”不再靠约定。这些保证的代价是什么？",
+    "场景": "第 02 课综合验收第 1 题的口述。",
+    "正确": "运行时的边界检查，以及必须写出来的分支；编译期的检查不花运行时间。",
+    "错误": "代价是增加了更多编译器检查。",
+    "说明": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "编译期的检查不是运行时的代价。真正的代价有两样。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "边界检查",
+       "parts": [
+        {
+         "type": "text",
+         "text": "每次按下标访问都要比较一次，不通过就 panic。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "必须写的分支",
+       "parts": [
+        {
+         "type": "text",
+         "text": "None 的情况不处理就拿不到里面的数据，代码里要多写分支。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "没有变大",
+       "parts": [
+        {
+         "type": "text",
+         "text": "内存并没有变大：切片和 C 的一对参数一样是 16 字节；引用不会为 0，Option 包一层仍是原来的大小。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "逐个遍历不经过下标，就没有那次比较。"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "安全保证的代价是运行时的边界检查和必须写的分支, 不是编译器检查; 内存没有变大",
+   "depends_on": []
+  },
+  {
+   "key": "oral-c-pointer-length-to-rust",
+   "rank": 40,
+   "domain": "rust-data-shapes",
+   "recall_target": "用 60–90 秒回答: C 的 (指针, 长度) 与可空指针在 Rust 里对应什么, 内存是否变大, 多保证了什么, 代价是什么。",
+   "assessment": "oral",
+   "layer": "oral",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "oral",
+   "fields": {
+    "问题": "面试官说：“C 里我用 (const uint8_t *p, size_t len) 传一段数据，用可空指针 T *p 表示‘可能没有’。Rust 里这两样分别对应什么类型？内存里变大了吗？Rust 多保证了什么，代价是什么？”请用 60–90 秒回答。",
+    "参考回答": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "一段数据对应切片 &[u8]，可空指针对应 Option 包住的引用或 Box；内存没有变大，多出来的是保证。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "对应与大小",
+       "parts": [
+        {
+         "type": "text",
+         "text": "切片就是指针加长度两个字，16 字节；引用和 Box 不会为 0，编译器拿 0 表示 None，Option 包一层仍是 8 字节。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "多保证了什么",
+       "parts": [
+        {
+         "type": "text",
+         "text": "长度永远跟着指针，每次下标访问都会检查；“没有”写进了类型，不先处理 None 就拿不到里面的值。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "代价",
+       "parts": [
+        {
+         "type": "text",
+         "text": "运行时每次下标访问多一次比较，代码里必须写出处理 None 的分支；编译期的检查不花运行时间。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "越界检查在发布构建里也不关；逐个遍历不经过下标，没有这次比较。"
+        }
+       ]
+      }
+     ]
+    },
+    "评分锚点": [
+     "说出切片是指针加长度、16 字节，与 C 的一对参数一样大",
+     "说出 Option 包住引用或 Box 不增加大小，以及原因",
+     "说明多出的两项保证：长度被绑定并检查、必须先处理 None",
+     "把代价归到运行时的边界检查和必须写的分支，而不是编译器检查"
+    ],
+    "来源": "数据的形状 学习记录 10-14 · 综合验收"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "口述 C 的指针加长度与可空指针对应 Rust 的切片与 Option: 大小不变, 多了绑定与检查, 代价在运行时",
+   "depends_on": [
+    "slice-is-pointer-plus-length",
+    "enum-size-and-niche",
+    "bounds-check-stays-in-release",
+    "payload-needs-a-pattern",
+    "safety-cost-is-runtime-not-compile-time"
+   ]
+  },
+  {
+   "key": "oral-rust-enum-design",
+   "rank": 41,
+   "domain": "rust-data-shapes",
+   "recall_target": "用 60–90 秒讲清 Rust 的 enum 相对 C 的 enum 加 union、C++ 的 variant: 布局、保证与代价。",
+   "assessment": "oral",
+   "layer": "oral",
+   "fact_scope": {
+    "kind": "snapshot",
+    "product": "rust",
+    "version": "1.97.1"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "oral",
+   "fields": {
+    "问题": "请用 60–90 秒向面试官讲清：Rust 的 enum 和 C 的 enum 加 union、C++ 的 std::variant 相比，内存里长什么样，多了哪些保证，付出了什么代价？",
+    "参考回答": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Rust 的 enum 是带标签的联合：每个变体可以带自己的数据，标签和载荷绑死，数据只能在匹配到对应变体时取到。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "布局",
+       "parts": [
+        {
+         "type": "text",
+         "text": "内存里是标签加最大变体那么大的空间，按对齐凑整；载荷有用不到的取值时标签藏进去，所以 Option 包住 Box 不占额外空间。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "相对 C",
+       "parts": [
+        {
+         "type": "text",
+         "text": "C 的标签和 union 靠约定配合，可以不一致，switch 漏分支只有警告，任何整数都能当枚举值；Rust 里这三件事分别是做不到、编译错误、不允许转换。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "相对 C++",
+       "parts": [
+        {
+         "type": "text",
+         "text": "std::variant 思路相同，但取错成员要到运行时才抛异常，漏处理一种情况报的是模板错误。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "代价",
+       "parts": [
+        {
+         "type": "text",
+         "text": "每个值按最大的变体占空间；写下划线兜底会放弃加变体时编译器的提醒。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "取载荷必须经过写明变体的模式，这次检查省不掉；标签怎样摆放是编译器的选择。"
+        }
+       ]
+      }
+     ]
+    },
+    "评分锚点": [
+     "说出布局：标签加最大变体，标签可以藏进用不到的取值",
+     "对比 C：标签与数据不一致、漏分支、任意整数这三个洞及 Rust 的做法",
+     "对比 std::variant：取错成员的发现时机，或漏分支的报错方式",
+     "说出两条代价：按最大变体占空间、下划线兜底关掉提醒",
+     "指出取载荷必须经过模式"
+    ],
+    "来源": "数据的形状 学习记录 10-14 · enum 与 match"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "口述 Rust enum 的布局、相对 C 的三项保证、与 variant 的差别以及两条代价",
+   "depends_on": [
+    "c-tagged-union-holes",
+    "enum-size-and-niche",
+    "payload-needs-a-pattern",
+    "wildcard-arm-is-not-a-safe-default",
+    "rust-enum-vs-cpp-variant"
+   ]
+  },
+  {
+   "key": "oral-untrusted-size-arithmetic",
+   "rank": 42,
+   "domain": "rust-data-shapes",
+   "recall_target": "用 60–90 秒讲清解析不可信的权重文件头时, Rust 在大小计算和取数据上哪里帮你、哪里要自己小心。",
+   "assessment": "oral",
+   "layer": "oral",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "oral",
+   "fields": {
+    "问题": "面试官问：你的 Rust 服务要解析别人给的模型权重文件，文件头里的 shape 和偏移都不可信。用这些数算大小、取数据时，Rust 在哪些地方会帮你，哪些地方仍然要自己小心？请用 60–90 秒回答，并举出一个会出事的具体输入。",
+    "参考回答": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "越界读写 Rust 一定拦得住；但整数溢出在发布构建里是静默的，as 的截断任何时候都是静默的，这两处要自己用检查过的运算。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "溢出",
+       "parts": [
+        {
+         "type": "text",
+         "text": "调试构建溢出会 panic，发布构建默认回绕成一个错的数；所以大小和偏移的计算用 checked_mul、checked_sub 这类运算，把溢出变成必须处理的 None。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "会出事的输入",
+       "parts": [
+        {
+         "type": "text",
+         "text": "一个声称有 2 的 61 次方加 3 个 u8 元素的张量，乘 8 位后回绕成 3 字节，和偏移给的长度正好对上，就被当成正常数据接受。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "类型转换",
+       "parts": [
+        {
+         "type": "text",
+         "text": "把 usize 的偏移用 as 转成 u32 不会报错，文件超过 4 GiB 时悄悄截断。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "取数据",
+       "parts": [
+        {
+         "type": "text",
+         "text": "范围来自外部时用 get，越界和起止颠倒得到 None，而不是让服务 panic。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "普通的坏输入回绕后往往碰巧被拒绝，测试会全部通过；要专门构造回绕后对得上的输入，并在发布构建下跑测试。"
+        }
+       ]
+      }
+     ]
+    },
+    "评分锚点": [
+     "区分调试构建 panic 与发布构建静默回绕",
+     "说出用 checked 系列运算把溢出变成 None",
+     "指出 as 的截断不受溢出检查保护",
+     "举出回绕后被接受的具体输入或同类例子",
+     "说明取数据时 get 与下标的取舍，以及测试要覆盖发布构建"
+    ],
+    "来源": "数据的形状 学习记录 10-14 · 练习：A8 的说明与 A9"
+   },
+   "source_ids": [
+    "data-shapes-log"
+   ],
+   "content_summary": "口述解析不可信文件头: 溢出在发布构建静默、as 静默截断、用 checked 运算和 get, 并举出回绕被接受的输入",
+   "depends_on": [
+    "integer-overflow-semantics",
+    "checked-wrapping-saturating-choice",
+    "as-cast-silent-truncation",
+    "wraparound-accepted-as-valid",
+    "get-vs-index-same-check"
+   ]
+  }
+ ]
+}

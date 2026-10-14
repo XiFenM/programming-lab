@@ -42,6 +42,9 @@ Checkpoint、Lesson 目录与练习目录，切换课程不需要修改配置或
 | `docs/rust-learning/attachments/<NN>-<topic>/` | 图解、实验数据等补充材料 | 某一课实际产生时 |
 | [`docs/rust-learning/attachments/00-rust-basics/rust-basics.html`](attachments/00-rust-basics/rust-basics.html) | 全课共用的《Rust 基础知识》：名词表、简写对照与开发环境图解 | 2026-10-08 建立；每课结课时补入该课的新名词。2026-10-14 补入第 02 课的 35 个名词（共 84 个）和简写对照表 |
 | `rust/lessonNN_<topic>/` | 正式练习的 crate，每课一个 | 第一份练习约定被接受时 |
+| `docs/rust-learning/logs/<日期>-<topic>.md` | `study-log` 的结构化学习记录 | 学习者明确要求整理时 |
+| `docs/rust-learning/logs-raw/<日期>-<topic>.md` | 与结构化记录同名配对的可追溯可见对话 | 学习者明确要求保存原文并确认范围与风险后 |
+| `docs/rust-learning/cards/rust-*.md` 及同名前缀的 XLSX | `memo-cards` 的受管卡片 | 学习者明确要求制卡时 |
 
 - RBE 快照保持原样，不在 `docs/rust-by-example/` 中写笔记或修改示例。
 - 实践源码与测试放在 `rust/`；Lesson 使用相对链接，不复制实现。
@@ -275,4 +278,6 @@ TRPL 指 Rust 官方教材 The Rust Programming Language；各来源的版本见
   与 `dbg!`；RBE 快照中有 13 个文件使用 `unwrap`、4 个使用 `expect`、8 个涉及 `unsafe`。练习默认遵守仓库规则。
   确实需要例外的课次（预计是第 12、17 课）在该课的练习约定里单独约定做法，不提前放宽全局规则。
 - **按需产物**：`study-log` 的 structured 记录与原文、`memo-cards` 的卡片都只在学习者明确要求时生成。本课程的
-  日志与卡片目录还没有登记到这些 Skill 的配置中，第一次需要时再登记。
+  日志与卡片目录在 2026-10-14 第一次用到时登记进了这两个 Skill 的配置：结构化记录在 `logs/`，同名的可追溯原文在
+  `logs-raw/`，卡片在 `cards/`。`english-coach` 还没有登记这条课程，第一次需要时再登记。已有材料的索引见
+  [学习复盘材料索引](../learning-review-materials.md)。

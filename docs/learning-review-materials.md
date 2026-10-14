@@ -1,6 +1,6 @@
 # 学习复盘材料索引
 
-整理与核对日期：2026-09-14；2026-10-05 补入 Triton 第 06、07 课，2026-10-09 补入第 08 课，此前各行未重新核对。
+整理与核对日期：2026-09-14；2026-10-05 补入 Triton 第 06、07 课，2026-10-09 补入第 08 课，2026-10-14 补入 Rust 第 01、02 课，此前各行未重新核对。
 本页索引已经完成课程的复盘材料及可恢复来源，
 不裁决课程进度或掌握程度；课程状态仍以各轨道的 Program 和 Lesson 为准。
 
@@ -17,6 +17,8 @@
 | Triton 06：Fused Attention | [9 月 14–19 日](triton-learning/logs/2026-09-19-fused-attention.md)、[9 月 20–24 日全貌补充与 FP16 前向实践](triton-learning/logs/2026-09-24-fused-attention.md) | 9 月 14–19 日未保存原文；[9 月 20–24 日 120 条](triton-learning/logs-raw/2026-09-24-fused-attention.md) | [34 张，3 个 XLSX](triton-learning/cards/triton-lesson-06-fused-attention.md)，覆盖两份日志 |
 | Triton 07：外部函数（libdevice） | [9 月 30 日–10 月 5 日](triton-learning/logs/2026-10-05-extern-functions.md) | [开课到确认结课 90 条](triton-learning/logs-raw/2026-10-05-extern-functions.md) | [25 张，3 个 XLSX](triton-learning/cards/triton-lesson-07-extern-functions.md) |
 | Triton 08：Grouped GEMM | [10 月 5–9 日](triton-learning/logs/2026-10-09-grouped-gemm.md) | [开课到确认结课 82 条](triton-learning/logs-raw/2026-10-09-grouped-gemm.md) | [34 张，3 个 XLSX](triton-learning/cards/triton-lesson-08-grouped-gemm.md) |
+| Rust 01：第一个程序与格式化输出 | [10 月 7–8 日，补整理](rust-learning/logs/2026-10-08-hello-formatting.md) | [开课到结课后的反馈 32 条](rust-learning/logs-raw/2026-10-08-hello-formatting.md) | [21 张，3 个 XLSX](rust-learning/cards/rust-lesson-01-hello-formatting.md) |
+| Rust 02：数据的形状 | [10 月 8–14 日](rust-learning/logs/2026-10-14-data-shapes.md) | [开课到确认结课 94 条](rust-learning/logs-raw/2026-10-14-data-shapes.md) | [42 张，3 个 XLSX](rust-learning/cards/rust-lesson-02-data-shapes.md) |
 
 新增两份结构化日志从已保存的课程对话蒸馏，保留真实回答、误解、纠错、关键问题与转折，
 并标注补整理日期及原有消息位置。现有日志中的历史遗留按当时语境阅读；例如 8 月 17 日
@@ -43,6 +45,8 @@
 | Triton 06：全貌补充与 FP16 前向实践 | [2026-09-24](triton-learning/logs-raw/2026-09-24-fused-attention.md) | 120 |
 | Triton 07：开课至确认结课 | [2026-10-05](triton-learning/logs-raw/2026-10-05-extern-functions.md) | 90 |
 | Triton 08：开课至确认结课 | [2026-10-09](triton-learning/logs-raw/2026-10-09-grouped-gemm.md) | 82 |
+| Rust 01：开课至结课后的两点反馈 | [2026-10-08](rust-learning/logs-raw/2026-10-08-hello-formatting.md) | 32 |
+| Rust 02：开课至确认结课 | [2026-10-14](rust-learning/logs-raw/2026-10-14-data-shapes.md) | 94 |
 
 第 01、02 课的九段旧对话保持原样。已核对消息计数、编号、时间顺序和分段边界；
 它们使用旧格式，不将其解释为现行 raw schema，也不单凭分段连续性声明原会话没有遗漏。
@@ -176,3 +180,43 @@ AMD 未在真机运行）不制卡。跨既有 inventory 未发现重复、冲�
 三条遗留不制卡；`continue` 与 mask 括号两条会直接得到明确的编译报错，评为 C，没有制卡。跨既有
 inventory 未发现重复、冲突、依赖漂移或暂缓项；Markdown 与 3 个 XLSX 以相同 request 复核为 `no-op`、
 `would_write=false`。本次只生成本地卡片和阅读版预览，没有上传到墨墨。
+
+## 2026-10-14 Rust 第 01、02 课记录与卡片
+
+Rust 课程的日志与卡片目录在这一次第一次用到时登记进 `study-log` 与 `memo-cards` 的配置：结构化记录在
+`rust-learning/logs/`，同名原文在 `rust-learning/logs-raw/`，卡片在 `rust-learning/cards/`。两课都在同一个
+会话 `claude:a955cb4c` 里进行，提取用的是对进行中的会话文件所做的同一个快照。
+
+第 01 课在 10 月 8 日结课时没有整理记录，这次补整理。结构化日志保留 61 条：41 条要点、6 条纠错、7 条转折、
+1 条高价值问题和 6 条遗留。范围从开课到学习者结课后的两点反馈及其回复：反馈改变了此后的讲法（先指路、名词
+渐进引入），回复里补上了第 01 课的阅读指引和名词解释。两课之间改 Skill、建名词表和处理 PlanA 的对话不在范围内。
+第 02 课结构化日志保留 133 条：89 条要点、13 条纠错、8 条转折、15 条高价值问题和 8 条遗留，止于确认结课的
+回复，提交和整理记录的对话不在范围内。两份日志引用的消息 ID 都在各自范围内，学习者的原话与提取正文逐句核对；
+临时提取正文在蒸馏后删除。
+
+两份原文都是 `final`，各为一段连续范围，配对校验通过。扫描没有发现凭据或个人标识；`proprietary` 类别分别
+命中 49 和 65 处，都是代码块，来自 Rust by Example、Rust 标准库、`safetensors`、`ROCm/ATOM`、`AMD-AGI/Infera`
+这几个公开仓库，以及本仓库的练习与测试代码。原文按学习者确认保留编辑器提示里的本机路径、第 02 课里贴出的
+一段终端输出中的主机名、三个图解页的私有链接、1 条客户端额度提示和 1 条 `/compact` 记录，未做手工润色或脱敏。
+`.gitattributes` 对 `rust-learning/logs-raw/` 下日期命名的原文同样关闭了行尾空格告警。
+
+根据两份受管日志精选 63 张卡片。第 01 课 21 张：14 张技术问答、5 张真实纠错、2 张综合口述，14 张为 A、7 张为 B；
+覆盖 `println!` 为什么是宏、与 `printf` 的取舍、`Display` 与 `Debug`、`fmt` 往 `Formatter` 里写、宽度怎样生效、
+写失败 panic 与全局锁，以及孤儿规则、`let _ =` 吞掉错误等真实错误。第 02 课 42 张：29 张技术问答、10 张真实纠错、
+3 张综合口述，31 张为 A、11 张为 B；覆盖数值转换与溢出、切片与胖指针、struct 布局、enum 的布局与模式、`Box`、
+`const` 与 `static`、引用与 `*`、移动与 `Copy`，以及练习和综合验收里的真实错误。遗留和只是推断的结论没有制卡；一次性的
+细节（如 `hello` 的体积、`if` 的写法、`{:02X}` 补零）评为 C。`#[non_exhaustive]` 只并进了下划线兜底那张卡的
+边界；字段私有与构造校验、类型别名与 newtype、教程链表的实际问题、先乘位数再除以 8 的纠错这几项暂缓。跨既有 inventory 未发现重复、冲突或依赖漂移；两套卡片的 Markdown 与各 3 个 XLSX 以相同
+request 复核为 `no-op`、`would_write=false`。阅读版预览在 [Rust 复习卡片预览](rust-learning/cards/previews/README.md)。
+
+随后按学习者的明确请求，通过墨墨官方 API 上传到学习者新建的私有牌组 `Rust`，按课分章节：
+
+| 牌库 | 章节 | 新增卡片 |
+| --- | --- | ---: |
+| Rust | 字符串格式化（第 01 课） | 21 |
+| Rust | 数据类型（第 02 课） | 42 |
+
+上传预览确认两个章节都是空的，63 张均为 `create`；语法版本取自同账号已上传的 `Triton 07` 章节，为 3。实际结果为
+新增 63 张、跳过 0 张，每张卡均完成完整内容、语法版本和章节归属的读回验证；随后独立只读核对，两个章节分别
+恰好包含这 21 张和 42 张卡，且只出现语法版本 3。恢复回执保存在仓库外，不含 token 或卡片全文；API 验证不代替
+客户端视觉渲染检查。

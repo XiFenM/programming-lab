@@ -1,0 +1,1687 @@
+{
+ "schema": "memo-cards.request/v1",
+ "output_collection": "rust-cards",
+ "target": "docs/rust-learning/cards/rust-lesson-01-hello-formatting.md",
+ "selection": "selected",
+ "sources": [
+  {
+   "id": "hello-formatting-log",
+   "collection": "rust-study-logs",
+   "path": "docs/rust-learning/logs/2026-10-08-hello-formatting.md",
+   "sha256": "c454612d7411b14e66c04969987f922f3a322d5d36fad571407f33b28b823c43",
+   "summary": "10/7–10/8：println! 的六步、Display 与 Debug、格式说明、手写 Display 的纠错与答疑"
+  }
+ ],
+ "cards": [
+  {
+   "key": "why-println-is-macro",
+   "rank": 1,
+   "domain": "rust-formatting",
+   "recall_target": "Rust 的 println! 为什么必须是宏, 编译期和运行期各做什么?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 的 println! 末尾带感叹号，是宏而不是函数。它为什么必须是宏？对着一行 println!(\"{} days, {:?}\", days, Structure(3))，编译期做了哪几件事，运行期还剩什么？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "因为它要在编译期读懂格式串：格式对不对、参数个数对不对、类型能不能这样打印，都在编译期解决，运行期只剩加锁和按模板写出。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "为什么不能是函数",
+       "parts": [
+        {
+         "type": "text",
+         "text": "函数只能拿到运行期的值，看不到格式串的内容，也看不到参数的个数和类型；普通的 Rust 函数还没有可变参数和重载。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "编译期",
+       "parts": [
+        {
+         "type": "text",
+         "text": "宏展开成 _print(format_args!(…))；解析格式串并核对占位符与参数的个数；按占位符选 trait，{} 要 Display，{:?} 要 Debug，类型没实现就是编译错误；最后把格式串编成模板，连同参数表装进 fmt::Arguments。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "运行期",
+       "parts": [
+        {
+         "type": "text",
+         "text": "锁住标准输出，顺着模板写，遇到占位符就调用那个类型的 fmt。参数是以引用的形式放进参数表的，打印不会拿走它们。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "代价是格式串必须是写在源码里的字面量，把它存进变量再传给 println! 编译不过。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "编译期读格式串：展开、解析、选 trait、生成模板；运行期只按模板写",
+    "来源": "格式化输出 学习记录 10-08 · println! 为什么是宏"
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "println! 必须在编译期读格式串所以是宏；编译期四步，运行期只加锁按模板写",
+   "depends_on": []
+  },
+  {
+   "key": "printf-cout-rust-tradeoff",
+   "rank": 2,
+   "domain": "rust-formatting",
+   "recall_target": "少传一个参数这个错误在 printf、cout 和 Rust 里各何时暴露, Rust 换来与付出了什么?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "打印时少传了一个参数：格式串里有两个占位符，却只给了一个值。这个错误在 C 的 printf、C++ 的 cout <<、Rust 的 println!（以及 C++20 的 std::format）里各在什么时候暴露？由此说明 Rust 这条路换来了什么、付出了什么。",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "printf 要到运行期才出问题，而且可能只是输出乱码；cout 没有格式串；Rust 和 std::format 在编译期就报错。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "printf",
+       "parts": [
+        {
+         "type": "text",
+         "text": "格式串是普通的运行期字符串，函数签名只能写成一个字符串加若干类型未知的参数，个数和类型对不上语言本身发现不了。gcc 的 -Wformat 警告是编译器额外做的检查，把格式串放进变量后连警告也没有。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "cout",
+       "parts": [
+        {
+         "type": "text",
+         "text": "放弃格式串，每个值用一次重载的 <<。类型安全有了，自定义类型也能接入，但输出长什么样不再集中写在一处，宽度和精度要靠有状态的操纵符。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Rust",
+       "parts": [
+        {
+         "type": "text",
+         "text": "格式串留下，但要求是字面量，由宏在编译期读它；类型怎样接入交给 trait，每种占位符对应一个 trait。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "换来与付出",
+       "parts": [
+        {
+         "type": "text",
+         "text": "换来的是格式和参数对不上的错误不可能留到运行期，运行期也不必再解析格式串。付出的是格式串必须写死在源码里，每一种打印方式都要逐个类型实现。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "“运行期才发现”还依赖两个前提：那一行真的被执行到；运行期有专门的检查。Python 会抛 IndexError，C 则表现为乱码。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "printf 运行期、cout 无格式串、Rust 编译期；代价是格式串必须是字面量",
+    "来源": "格式化输出 学习记录 10-08 · println! 为什么是宏"
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "同一个少传参数的错误: printf 运行期乱码, cout 无格式串, Rust 编译错误; 代价是格式串必须是字面量",
+   "depends_on": []
+  },
+  {
+   "key": "display-vs-debug-derive",
+   "rank": 3,
+   "domain": "rust-formatting",
+   "recall_target": "为什么 Debug 可以 derive 而 Display 必须手写, 标准库为什么不给 Vec 实现 Display?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 里 {:?} 用的 Debug 可以写 #[derive(Debug)] 让编译器生成，{} 用的 Display 却必须手写，标准库甚至不给 Vec 实现 Display。为什么？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Debug 的输出有一条不需要理解含义的机械规则；Display 是给用户看的，怎么写取决于含义。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Debug",
+       "parts": [
+        {
+         "type": "text",
+         "text": "照着类型的定义，写出类型名，再依次写出每个字段的名字和字段自己的 Debug 输出，所以每个字段都必须有 Debug。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Display",
+       "parts": [
+        {
+         "type": "text",
+         "text": "同一个 Vec<T> 没有对所有元素类型都合适的写法：路径列表也许该用冒号分隔，数字列表也许该用逗号。标准库不替你决定，所以用 {} 打印 vec![1, 2, 3] 是编译错误，用 {:?} 则打印 [1, 2, 3]。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "日常分工",
+       "parts": [
+        {
+         "type": "text",
+         "text": "几乎每个类型都顺手 derive 一个 Debug，只有要给人看的少数类型才手写 Display，多数是状态枚举和错误类型。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "要让别人的类型（如 Vec）按你的方式用 {} 打印，得包一层自己的类型，再为它实现 Display。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "Debug 照定义机械生成；Display 的写法取决于含义",
+    "来源": "格式化输出 学习记录 10-08 · Display 与 Debug"
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "Debug 的输出照类型定义机械生成所以能 derive; Display 的写法取决于含义, Vec 没有通用写法",
+   "depends_on": []
+  },
+  {
+   "key": "display-debug-contract",
+   "rank": 4,
+   "domain": "rust-formatting",
+   "recall_target": "Display 与 Debug 对输出各作了什么承诺, 这对测试和协议意味着什么?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 把给用户看的输出和给开发者看的输出分成 Display 和 Debug 两个 trait，而不是一个。两者对输出各作了什么承诺？这对写测试和协议意味着什么？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Display 的输出算作类型对外行为的一部分；derive 出来的 Debug 只供调试，格式不稳定。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Display",
+       "parts": [
+        {
+         "type": "text",
+         "text": "面向用户，写出值的内容，写法由类型的作者决定并负责。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Debug",
+       "parts": [
+        {
+         "type": "text",
+         "text": "把值写成它在源码里的样子，比如字符串带引号、制表符写成反斜杠加 t；格式可能随 Rust 版本变化。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "后果",
+       "parts": [
+        {
+         "type": "text",
+         "text": "不要让程序去解析 Debug 的输出，也不要把它的精确文本写进测试断言或协议。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Python 的 __str__ 和 __repr__ 是同样的分工。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "Display 是对外行为，Debug 只供调试且不稳定",
+    "来源": "格式化输出 学习记录 10-08 · Display 与 Debug"
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "Display 输出是类型对外行为; derive 的 Debug 只供调试且格式不稳定, 不该被解析或写进断言",
+   "depends_on": []
+  },
+  {
+   "key": "derive-debug-leaks-secrets",
+   "rank": 5,
+   "domain": "rust-formatting",
+   "recall_target": "带密钥字段的结构体 derive 了 Debug, 用 {:?} 打日志会怎样, 怎么改?",
+   "assessment": "recall",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "一个结构体里有密钥或令牌字段，定义上写了 #[derive(Debug)]。把它用 {:?} 打进日志会发生什么？应该怎么改？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "密钥会原样出现在日志里：derive 的 Debug 会打印所有字段。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "原因",
+       "parts": [
+        {
+         "type": "text",
+         "text": "derive 生成的 fmt 很机械，写出类型名后依次写出每个字段的名字和它的 Debug 输出，不会区分哪些字段敏感。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "改法",
+       "parts": [
+        {
+         "type": "text",
+         "text": "手写 Debug，只列出想公开的字段，例如用 f.debug_struct(\"Router\").field(…) 逐个挑。推理路由器 ATOMesh 的 Router 就是这样手写的。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "同理，不要依赖 Debug 输出的精确文本，它不保证稳定。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "derive 的 Debug 打印所有字段；敏感类型手写 Debug",
+    "来源": "格式化输出 学习记录 10-08 · Display 与 Debug"
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "derive 的 Debug 打印所有字段, 密钥会进日志; 敏感类型要手写 Debug 只列出可公开字段",
+   "depends_on": []
+  },
+  {
+   "key": "fmt-writes-into-formatter",
+   "rank": 6,
+   "domain": "rust-formatting",
+   "recall_target": "手写 Display 时 fmt 为什么往 f 里写而不是返回字符串, 为什么返回 Result?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "为自己的类型实现 Display 时，要写的是 fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result，在里面用 write!(f, …) 往 f 里写。为什么设计成往 f 里写，而不是返回一个字符串？格式化本身不会失败，为什么还要返回 Result？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "往同一个 f 里写，内容一路直通目的地，中间不产生临时字符串；返回 Result 只是为了把底层写入的失败传回去。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "不返回字符串",
+       "parts": [
+        {
+         "type": "text",
+         "text": "返回字符串意味着每一层都要分配一块内存再拼接，嵌套的类型层层如此。往 f 里写则没有中间分配，同一个 fmt 还能同时服务 println!、format! 和写文件，它不需要知道目的地是什么。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Result",
+       "parts": [
+        {
+         "type": "text",
+         "text": "格式化本身是不会失败的操作，可能失败的是往底层的流里写。所以规矩是只传递 f 报的错，不要自己制造错误。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "怎么传",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Rust 没有异常，错误是普通的返回值：中间的 write! 后面加问号，失败就立刻带着错误返回；最后一个 write! 不加分号，直接作为返回值。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "实现了 Display 就自动有 to_string()，标准库为所有实现了 Display 的类型提供了它。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "往 f 里写：无中间分配、不关心目的地；Result 只传递写入失败",
+    "来源": "格式化输出 学习记录 10-08 · 自己实现 Display"
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "fmt 往 Formatter 里写避免中间字符串并与目的地无关; 返回 Result 只为传递底层写入失败",
+   "depends_on": []
+  },
+  {
+   "key": "width-reaches-fmt-through-f",
+   "rank": 7,
+   "domain": "rust-formatting",
+   "recall_target": "手写 Display 时, 调用方给的宽度和对齐怎样才会生效?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "struct Id(u32) 手写了 Display。调用方写 println!(\"[{:>10}]\", Id(7))，希望右对齐到 10 个字符宽。fmt 的函数体有四种写法：一是 write!(f, \"{}\", self.0)；二是 fmt::Display::fmt(&self.0, f)；三是 write!(f, \"{:>6}\", self.0)；四是 f.pad(&self.0.to_string())。四种写法各输出什么？为什么？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "宽度、对齐这些格式说明记在 f 里，由每个类型自己的 fmt 执行。只有把同一个 f 交下去，或者用 f.pad，外层的要求才会生效。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "写法一",
+       "parts": [
+        {
+         "type": "text",
+         "text": "输出 [7]。write! 另起了一个格式串，里面的 {} 是不带宽度的新占位符，没有人去看 f 里的 10。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "写法二",
+       "parts": [
+        {
+         "type": "text",
+         "text": "把带着宽度的同一个 f 交给 u32 的 fmt，右对齐到 10 位，没有额外的分配。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "写法三",
+       "parts": [
+        {
+         "type": "text",
+         "text": "右对齐到 6 位：用的是自己格式串里写死的宽度，调用方的 10 被忽略。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "写法四",
+       "parts": [
+        {
+         "type": "text",
+         "text": "先转成字符串，再让 f.pad 按 f 里的宽度、对齐和填充字符写出，右对齐到 10 位，但多一个临时字符串。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "标准库的类型都会执行格式说明；自己写的 Display 默认不会，需要对齐时要么这样处理，要么让调用方先 to_string() 再打印。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "格式说明记在 f 里；谁拿着 f，谁决定是否执行",
+    "来源": "格式化输出 学习记录 10-08 · 综合验收与复查"
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "宽度记在 Formatter 里; write! 新写的占位符不继承它, 转发同一个 f 或用 f.pad 才会生效",
+   "depends_on": []
+  },
+  {
+   "key": "who-executes-format-spec",
+   "rank": 8,
+   "domain": "rust-formatting",
+   "recall_target": "格式说明为什么交给各类型自己的 fmt 执行, 而不是由 println! 统一补空格?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "println!(\"{:>8.3}\", x) 里的宽度和精度，为什么设计成交给 x 的类型自己的 fmt 去执行，而不是由 println! 拿到输出后统一补空格？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "因为同一个说明对不同类型含义不同，而且统一补空格必须先把输出存进临时字符串。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "含义不同",
+       "parts": [
+        {
+         "type": "text",
+         "text": "{:05} 打印 -7 得到 -0007，0 要补在符号后面；{:.2} 对浮点数是保留两位小数，对字符串 abcdef 则是截成 ab。只有类型自己知道该怎么做。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "临时字符串",
+       "parts": [
+        {
+         "type": "text",
+         "text": "统一补空格需要先拿到这个参数的完整输出才知道长度，那就得先把它存起来，和直接往目的地写的设计冲突。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "流程",
+       "parts": [
+        {
+         "type": "text",
+         "text": "编译器在编译期解析说明并写进模板，运行期它经由 f 交到每个类型的 fmt 手里。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "所以自己写的 Display 默认不理会宽度和对齐，需要时用 f.pad，或者把 f 转交给字段的 fmt。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "含义因类型而异；统一补齐需要临时字符串",
+    "来源": "格式化输出 学习记录 10-08 · 格式说明"
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "格式说明由类型自己的 fmt 执行: 含义因类型而异, 统一补齐需要临时字符串",
+   "depends_on": []
+  },
+  {
+   "key": "width-from-variable-shape-vs-value",
+   "rank": 9,
+   "domain": "rust-formatting",
+   "recall_target": "为什么宽度可以取自变量而格式串本身不能是变量?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 的格式串必须是字面量，但 println!(\"{id:>width$}\") 里的宽度却可以取自变量 width。为什么宽度可以到运行期才确定，格式串本身不行？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "形状必须在编译期确定，数值可以留到运行期。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "宽度取自变量",
+       "parts": [
+        {
+         "type": "text",
+         "text": "这个占位符的形状是固定的：一个占位符，带一个宽度，变的只是一个数。编译器仍然知道有几个占位符、各自用哪个 trait。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "格式串是变量",
+       "parts": [
+        {
+         "type": "text",
+         "text": "那样编译器连有几个占位符、各自要哪个 trait 都不知道，个数和类型的检查就做不了。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "占位符里的名字也在编译期解析，作用域里没有这个名字时是编译错误。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "形状在编译期，数值可在运行期",
+    "来源": "格式化输出 学习记录 10-08 · 格式说明"
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "占位符的形状必须编译期确定, 宽度这样的数值可以留到运行期",
+   "depends_on": []
+  },
+  {
+   "key": "when-to-buffer-before-padding",
+   "rank": 10,
+   "domain": "rust-formatting",
+   "recall_target": "手写 Display 时什么情况下先写进缓冲区是合理的, Ipv4Addr 怎么做?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "snapshot",
+    "product": "rust",
+    "version": "1.97.1"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "手写 Display 时，通常应该直接往 f 里写，而不是先拼成字符串。什么情况下先把内容放到一个缓冲区里反而是合理的？Rust 1.97.1 标准库的 Ipv4Addr 是怎样做的？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "要把整段输出当作一个整体来对齐的时候。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "原因",
+       "parts": [
+        {
+         "type": "text",
+         "text": "补多少空格取决于总长度，而总长度要等全部内容写完才知道，所以必须先放在某个地方，再交给 f.pad。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Ipv4Addr",
+       "parts": [
+        {
+         "type": "text",
+         "text": "它先看调用方有没有给宽度或精度：没有就直接 write!；有的话先写进一个 15 字节的栈上缓冲区，再 f.pad。15 是最长地址 255.255.255.255 的长度。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "启示",
+       "parts": [
+        {
+         "type": "text",
+         "text": "最大长度已知时可以用固定大小的栈上缓冲区，连堆分配都省了。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "不需要整体对齐时，先 format! 再写是白白多一次堆分配和一次拷贝。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "整体对齐要先知道总长度；长度有上界就用栈上缓冲区",
+    "来源": "格式化输出 学习记录 10-08 · 综合验收与复查"
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "整体对齐需要先知道总长度所以要先缓冲; Ipv4Addr 用 15 字节栈上缓冲区再 pad",
+   "depends_on": []
+  },
+  {
+   "key": "placeholder-trait-per-kind",
+   "rank": 11,
+   "domain": "rust-formatting",
+   "recall_target": "一种占位符对应一个 trait 换来了什么, 为什么 {:x} 不能打印浮点数?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Rust 里 println!(\"{:x}\", 255) 输出 ff，而 println!(\"{:x}\", 1.5f32) 是编译错误。为什么？“一种占位符对应一个 trait”这种设计换来了什么？想看浮点数的位模式该怎么做？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "{:x} 需要 LowerHex，标准库只为整数实现了它；类型只声明自己支持的写法，不支持的在编译期就被拦下。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "对应关系",
+       "parts": [
+        {
+         "type": "text",
+         "text": "{} 是 Display，{:?} 是 Debug，{:x} {:X} {:o} {:b} 是 LowerHex 等四个，{:e} 是 LowerExp，{:p} 是 Pointer。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "换来什么",
+       "parts": [
+        {
+         "type": "text",
+         "text": "同一个值换一种写法是安全的：能不能这样打印由类型有没有实现对应的 trait 决定，不会把浮点数的字节当成整数来读。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "位模式",
+       "parts": [
+        {
+         "type": "text",
+         "text": "先转成整数再打印：1.5f32.to_bits() 用 {:x} 打印是 3fc00000。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "f32 和 LowerHex 都属于标准库，自己也不能替 f32 补上这个实现。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "每种占位符一个 trait，不支持的写法是编译错误",
+    "来源": "格式化输出 学习记录 10-08 · Display 与 Debug"
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "每种占位符对应一个 trait; 类型没实现就编译错误, 浮点数没有 LowerHex, 看位模式先 to_bits",
+   "depends_on": []
+  },
+  {
+   "key": "println-panics-on-write-failure",
+   "rank": 12,
+   "domain": "rust-formatting",
+   "recall_target": "println! 写失败时会怎样, 管道关闭和磁盘写满各是什么表现, 怎么改?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "一个导出工具在循环里用 println! 输出 100 万行，使用者把它接到 head -n 20 上只看前 20 行，结果看到一段崩溃信息。发生了什么？如果是标准输出被重定向到的磁盘写满了，又会怎样？应该怎么改？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "println! 写失败时不把错误交给你，而是直接 panic。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "管道",
+       "parts": [
+        {
+         "type": "text",
+         "text": "head 读够 20 行就退出，管道的读端关闭；工具下一次写时操作系统返回 Broken pipe，println! 内部拿到这个错误就 panic。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "磁盘写满",
+       "parts": [
+        {
+         "type": "text",
+         "text": "同样是写失败，信息变成 No space left on device。panic 发生在主线程，整个进程以退出码 101 结束；发生在别的线程，默认只有那个线程终止，它正在处理的请求就丢了。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "改法",
+       "parts": [
+        {
+         "type": "text",
+         "text": "改用 writeln!，它把 Result 交还给你：先锁住标准输出 let mut out = io::stdout().lock();，循环里判断 writeln!(out, …) 是否出错，出错时自己决定怎么办，比如安静地结束循环。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "诊断和进度信息用 eprintln! 写到标准错误，不要和要交给管道的数据混在一起。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "println! 写失败就 panic；要处理就用 writeln! 拿 Result",
+    "来源": "格式化输出 学习记录 10-08 · 综合验收与复查"
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "println! 写失败直接 panic: 管道关闭 Broken pipe, 磁盘写满; 改用 writeln! 处理 Result",
+   "depends_on": []
+  },
+  {
+   "key": "stdout-lock-and-line-buffering",
+   "rank": 13,
+   "domain": "rust-formatting",
+   "recall_target": "多线程里每个请求用 println! 打一行日志会带来什么问题, 原因和改法是什么?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "snapshot",
+    "product": "rust",
+    "version": "1.97.1"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "一个推理路由器用 64 个线程处理请求，每处理完一个请求就用 println! 打一行访问日志。请求量很大时这一行会带来什么问题？对照 Rust 1.97.1 标准输出的实现说明原因，并给出改法。",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "标准输出在整个进程里只有一个，每次 println! 都要先拿到它的锁，而且每行做一次系统调用。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "锁",
+       "parts": [
+        {
+         "type": "text",
+         "text": "本来互不相干的 64 个线程到了这一行要排成一队，日志写得多慢，请求就被拖多慢。等锁的线程是阻塞，前一个写完就能继续，不是死锁。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "按行缓冲",
+       "parts": [
+        {
+         "type": "text",
+         "text": "标准输出外面包着一层按行缓冲的写入器，每遇到一个换行就把这一行真正交给操作系统，也就是每行一次系统调用。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "改法",
+       "parts": [
+        {
+         "type": "text",
+         "text": "需要大量输出时自己先把锁拿住，再用 writeln! 往里写，整个循环只加一次锁；要减少系统调用，再包一层更大的缓冲区。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "只锁住句柄并不能减少系统调用，因为它仍然按行缓冲。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "全进程一把锁，按行缓冲；只锁一次并加大缓冲",
+    "来源": "格式化输出 学习记录 10-08 · 综合验收与复查"
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "标准输出全进程一把锁且按行缓冲: 多线程在 println! 处排队, 每行一次系统调用",
+   "depends_on": []
+  },
+  {
+   "key": "testing-error-propagation-with-failing-writer",
+   "rank": 14,
+   "domain": "rust-formatting",
+   "recall_target": "怎样测出一个 Display 实现丢掉了写入错误?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "一个 Display 实现把写入错误悄悄丢掉了，但所有比较输出文字的测试都通过。为什么这类测试发现不了？怎样设计测试，才能测到“写入失败时返回 Err 并且不再继续写”？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "往字符串里写永远不会失败，错误路径从来没有被走到；要自己造一个会失败的输出目的地。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "造目的地",
+       "parts": [
+        {
+         "type": "text",
+         "text": "fmt::Write 是只要求 write_str 一个方法的 trait，实现了它的类型就能当 write! 的目的地。让它记录被写了几次，并在指定的第几次返回 Err(fmt::Error)。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "拆分",
+       "parts": [
+        {
+         "type": "text",
+         "text": "一个 write! 会拆成好几次 write_str：字面文字和每个占位符的内容是分开写的。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "判据",
+       "parts": [
+        {
+         "type": "text",
+         "text": "让第 1 次到最后一次写入轮流失败；每次都要求 fmt 返回 Err，并且失败之后没有再写。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "这种测试检查的是出错时的行为；输出文字是否正确仍然要另外测。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "自造会失败的 fmt::Write，逐次注入失败",
+    "来源": "格式化输出 学习记录 10-08 · 练习与 Review"
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "比较输出文字的测试走不到错误路径; 用自造的会失败的 fmt::Write 逐次注入失败来测",
+   "depends_on": []
+  },
+  {
+   "key": "runtime-format-string-flexibility",
+   "rank": 15,
+   "domain": "rust-formatting",
+   "recall_target": "把 println 做成运行期解析的函数, 换来的灵活性到底是什么?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "correction",
+   "fields": {
+    "意图": "假设 Rust 把 println 做成普通函数，像 C 的 printf 那样到运行期才解析格式串。这样做反过来能换来什么现在得不到的灵活性？",
+    "场景": "第 01 课节点 2 的检查题第 3 问。",
+    "正确": "格式串本身可以是运行期的值，来自配置文件、翻译文件或用户输入。",
+    "错误": "由于此时编译期不检查个数和类型对不对的上，可以将某些参数以另一种类型的方式进行打印出来。",
+    "说明": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "运行期解析换来的是格式串可以到运行期才确定，而不是可以把参数当成别的类型打印。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "换一种写法",
+       "parts": [
+        {
+         "type": "text",
+         "text": "同一个值换一种写法，比如十进制、十六进制，现在的设计就能安全做到：用 {:x} 打印 255 输出 ff。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "当成别的类型",
+       "parts": [
+        {
+         "type": "text",
+         "text": "把一种类型的字节当成另一种类型来读，例如 printf(\"%s\", 42)，是未定义行为，不是一种能力；Python 的运行期方案同样不允许。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Rust 里怎么办",
+       "parts": [
+        {
+         "type": "text",
+         "text": "格式要到运行期才确定时，交给运行期的模板引擎；推理路由器里的 chat template 就是运行时才从模型配置读到的数据。占位符写错只能在运行期发现，稳妥的做法是在启动读入配置时就解析模板并试着渲染一次。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "把一个变量当作格式串传给 println! 是编译错误：format argument must be a string literal。"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "运行期解析换来的是格式串可为运行期的值, 不是把参数当别的类型打印; Rust 里交给模板引擎",
+   "depends_on": []
+  },
+  {
+   "key": "format-then-write-does-not-align",
+   "rank": 16,
+   "domain": "rust-formatting",
+   "recall_target": "先 format! 成字符串再 write!(f, \"{}\", s) 能让外层的宽度生效吗?",
+   "assessment": "discrimination",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "correction",
+   "fields": {
+    "意图": "Worker 的 Display 里，先写 let s = format!(\"w{}: {:.1}\", self.id, self.load); 再写 write!(f, \"{}\", s)。调用方用 println!(\"[{:>12}]\", w) 要求右对齐到 12 个字符宽。这个实现能对齐吗？最小的改动是什么？",
+    "场景": "第 01 课综合验收第 3 题：比较先拼字符串的版本和直接 write! 的版本。",
+    "正确": "不能对齐，两种写法都输出 [w7: 0.5]；保留 format!，把最后一行换成 f.pad(&s)。",
+    "错误": "同事写的这个版本由于先转成了字符串，而字符串可以对齐。但我改后的版本不行。最小的改动是使用f.pad，改成write!(f, f.pad(“w{}: {:.1}”), self.id, self.load)。",
+    "说明": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "宽度 12 记在 f 里。先拼成字符串并不会让它生效，关键是谁手里拿着那个宽度。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "先拼再 write!",
+       "parts": [
+        {
+         "type": "text",
+         "text": "最后一行 write!(f, \"{}\", s) 里的 {} 是新写的、不带宽度的占位符，没有人去看 f 里的 12。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "f.pad 的用法",
+       "parts": [
+        {
+         "type": "text",
+         "text": "f.pad 接收一段已经写好的文字，按 f 里的要求把它写出去；它不是套在格式串外面的东西，而且格式串必须是字面量，把 f.pad(…) 写在格式串的位置编译不过。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "何时先拼",
+       "parts": [
+        {
+         "type": "text",
+         "text": "要把整段输出当作一个整体来对齐时，先拼出来是合理的：补多少空格取决于总长度，要等全部内容写完才知道。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "调用方先 to_string() 再配 {:>12} 能对齐，是因为那时拿着宽度的是 String 自己的 fmt。"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "先拼成字符串再 write! 仍不对齐: 宽度在 f 里; 用 f.pad(&s) 才按 f 的要求写出",
+   "depends_on": []
+  },
+  {
+   "key": "orphan-rule-vec-display",
+   "rank": 17,
+   "domain": "rust-formatting",
+   "recall_target": "能不能为 Vec<自己的类型> 实现 Display, 为什么, 出路是什么?",
+   "assessment": "discrimination",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "correction",
+   "fields": {
+    "意图": "Shard 是自己定义的类型，pool.shards 的类型是 Vec<Shard>。println!(\"{}\", pool.shards) 编译不过，因为 Vec<Shard> 没有 Display。最小的修法是什么？能不能直接为 Vec<Shard> 实现 Display？",
+    "场景": "第 01 课综合验收第 2 题与随后的复查题。",
+    "正确": "不能为 Vec<Shard> 实现 Display；改用 {:?}，或者包一层自己的类型，在它的 fmt 里逐个写出。",
+    "错误": "最小的修法就是为Vec<Shard>实现Display trait和derive struct Pool Debug trait。",
+    "说明": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "实现一个 trait 时，trait 和类型里至少有一个必须是自己的 crate 定义的。Display 和 Vec 都属于标准库，哪怕里面装的 Shard 是自己的也不行，编译器报 E0117。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "为什么有这条规则",
+       "parts": [
+        {
+         "type": "text",
+         "text": "没有它，两个互不知情的库可以各写一份 Display for Vec，编译器无法决定用哪一份；标准库以后想补一份通用的实现，也会和你的冲突。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "两条出路",
+       "parts": [
+        {
+         "type": "text",
+         "text": "改用 {:?}，Vec<Shard> 已经有 Debug；或者为包着它的自己的类型实现 Display，在 fmt 里逐个写出元素。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "同一条规则",
+       "parts": [
+        {
+         "type": "text",
+         "text": "为元组 (u32, u32) 实现 Display 也被拒绝，因为元组不是任何 crate 自己定义的类型；为自己的 Worker 实现标准库的 LowerHex 则可以，因为类型是自己的。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "教程里把 Vec<i32> 包进一个新的元组结构体 List 再实现 Display，原因就在这里。"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "trait 和类型至少一个是自己 crate 的; 不能为 Vec<Shard> 实现 Display, 改用 Debug 或包一层",
+   "depends_on": []
+  },
+  {
+   "key": "let-underscore-drops-write-error",
+   "rank": 18,
+   "domain": "rust-formatting",
+   "recall_target": "fmt 里用 let _ = write!(…) 消掉 unused Result 警告有什么问题, 该怎么写?",
+   "assessment": "discrimination",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "correction",
+   "fields": {
+    "意图": "List 的 Display 要分多次 write! 写出各个元素。编译器对没人用的 Result 给了警告，并提示可以写成 let _ = write!(f, …); 来消掉它。照着改之后测试全过。这样写有什么问题？只把 let _ = 去掉行不行？",
+    "场景": "第 01 课练习的 Review：List 的 fmt 把每次写入的结果都丢掉了。",
+    "正确": "只去掉不行；中间的 write! 后面加问号把错误传出去，最后一个 write! 不加问号也不加分号，作为返回值。",
+    "错误": "但我该怎么改呢？就去掉“let _ = ”就可以了吗？",
+    "说明": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "let _ = 只是让警告闭嘴，写入错误照样丢了：中间丢了一段内容，函数却报告成功。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "证据",
+       "parts": [
+        {
+         "type": "text",
+         "text": "用一个第 3 次写入会失败的输出目的地打印 List(vec![1, 2, 3])：原实现一直写完 12 次，留下 [0, 1: 2, 2: 3]，返回 Ok；用问号的实现在第 3 次后停止并返回 Err。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "三种去处",
+       "parts": [
+        {
+         "type": "text",
+         "text": "一个 Result 可以丢掉（let _ =）、传出去（问号）、或当场处理（if 或 match）。fmt 的规矩是把 f 报的错传出去。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "只去掉为什么不行",
+       "parts": [
+        {
+         "type": "text",
+         "text": "去掉后 Result 既没被用到也没被传出去，编译器照样警告，把警告当错误的检查过不了。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "往字符串里写永远不会失败，所以只检查输出文字的测试发现不了这个问题。"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "let _ = 只消警告不传错误: 输出残缺却返回 Ok; fmt 里中间的 write! 要用问号传出错误",
+   "depends_on": []
+  },
+  {
+   "key": "string-heap-allocation-reason",
+   "rank": 19,
+   "domain": "rust-formatting",
+   "recall_target": "先 format! 再 f.pad 的写法为什么有堆分配, 能不能省?",
+   "assessment": "discrimination",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "correction",
+   "fields": {
+    "意图": "WorkerId(u32) 的 Display 为了支持对齐，先 format!(\"w{}\", self.0) 再 f.pad。这里有堆分配吗？原因是什么？能不能省掉？",
+    "场景": "第 01 课练习 A7 的说明。",
+    "正确": "有堆分配；因为 format! 返回的 String 的内容总是放在堆上，和长度定不定无关。",
+    "错误": "因为长度不定，有堆分配。",
+    "说明": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "是否堆分配取决于用的容器类型，不取决于长度是否已知。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "长度其实有上界",
+       "parts": [
+        {
+         "type": "text",
+         "text": "u32 最大是 4294967295，加上前面的 w 一共 11 个字节。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "怎么省",
+       "parts": [
+        {
+         "type": "text",
+         "text": "像标准库的 Ipv4Addr 那样，先写进一个固定大小的栈上缓冲区，再 f.pad。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "长度没有上界时，才必须用 String 这类把内容放在堆上的容器。"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "format! 有堆分配是因为返回 String, 与长度是否确定无关; 长度有上界可用栈上缓冲区",
+   "depends_on": []
+  },
+  {
+   "key": "oral-rust-formatting-design",
+   "rank": 20,
+   "domain": "rust-formatting",
+   "recall_target": "用 60–90 秒讲清 Rust 格式化输出的设计: 编译期与运行期、类型怎样接入、与 printf 的取舍、使用边界。",
+   "assessment": "oral",
+   "layer": "oral",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "oral",
+   "fields": {
+    "问题": "请用 60–90 秒向面试官讲清 Rust 的格式化输出是怎样设计的：一行 println! 在编译期和运行期各做什么；一个类型怎样接入；和 C 的 printf 相比换来了什么、付出了什么；实际使用时要小心什么。",
+    "参考回答": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "println! 是宏，编译期读懂格式串并核对参数，运行期只按模板写出；类型通过实现 Display 或 Debug 接入。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "编译期",
+       "parts": [
+        {
+         "type": "text",
+         "text": "宏展开后由编译器内建的 format_args! 解析格式串，核对占位符和参数的个数，再按占位符选 trait，类型没实现就是编译错误；结果是一段模板加一张参数表。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "运行期",
+       "parts": [
+        {
+         "type": "text",
+         "text": "锁住标准输出按模板写，遇到占位符就调用那个类型的 fmt；fmt 往传进来的 Formatter 里写，不返回字符串，所以没有中间分配。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "接入",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Debug 面向开发者，输出照类型定义机械生成，可以 derive；Display 面向用户，写法取决于含义，必须手写。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "取舍",
+       "parts": [
+        {
+         "type": "text",
+         "text": "和 printf 比，格式和参数对不上的错误不会留到运行期，运行期也不必解析格式串；代价是格式串必须是字面量。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "使用时要小心：每次调用都要锁标准输出，写失败会直接 panic，需要处理时改用 writeln!。"
+        }
+       ]
+      }
+     ]
+    },
+    "评分锚点": [
+     "说出它是宏，以及编译期的解析、核对个数、按占位符选 trait",
+     "说明运行期只是加锁并按模板调用各类型的 fmt",
+     "区分 Debug 可以 derive 与 Display 必须手写，并说出原因",
+     "说出相对 printf 的收益和“格式串必须是字面量”这一代价",
+     "至少说出一条使用边界：加锁，或写失败会 panic"
+    ],
+    "来源": "格式化输出 学习记录 10-08 · 全流程串联"
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "口述 println! 的编译期四步与运行期、Debug 与 Display 的接入方式、与 printf 的取舍和使用边界",
+   "depends_on": [
+    "why-println-is-macro",
+    "printf-cout-rust-tradeoff",
+    "display-vs-debug-derive",
+    "fmt-writes-into-formatter",
+    "println-panics-on-write-failure"
+   ]
+  },
+  {
+   "key": "oral-println-in-production",
+   "rank": 21,
+   "domain": "rust-formatting",
+   "recall_target": "用约 60 秒讲清在服务和命令行工具里直接用 println! 输出日志与数据要小心的三件事及处理办法。",
+   "assessment": "oral",
+   "layer": "oral",
+   "fact_scope": {
+    "kind": "snapshot",
+    "product": "rust",
+    "version": "1.97.1"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "oral",
+   "fields": {
+    "问题": "面试官问：你的 Rust 推理服务和命令行工具里直接用 println! 打日志、输出数据，有哪些要小心的地方？各自怎么处理？请用约 60 秒回答。",
+    "参考回答": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "三件事：写失败会 panic；每次调用都要抢同一把锁，并且按行写出；用 {:?} 可能把敏感字段打进日志。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "写失败",
+       "parts": [
+        {
+         "type": "text",
+         "text": "管道被对方关闭或磁盘写满时 println! 直接 panic；要自己处理，就锁住标准输出后用 writeln!，拿到 Result 再决定。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "锁与缓冲",
+       "parts": [
+        {
+         "type": "text",
+         "text": "标准输出全进程只有一个，多线程在这一行排队，每行还是一次系统调用；大量输出时只加一次锁，并加大缓冲。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "泄露",
+       "parts": [
+        {
+         "type": "text",
+         "text": "derive 的 Debug 打印所有字段，带密钥的类型要手写 Debug，只列出想公开的字段。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "panic 发生在工作线程时，默认只终止那个线程，它正在处理的请求会丢。"
+        }
+       ]
+      }
+     ]
+    },
+    "评分锚点": [
+     "指出写失败会 panic，并给出管道关闭或磁盘写满这样的触发场景",
+     "给出改用 writeln! 并处理 Result 的做法",
+     "说明全局锁和按行缓冲对多线程吞吐的影响及缓解办法",
+     "指出 derive 的 Debug 会泄露敏感字段，以及手写 Debug 的做法"
+    ],
+    "来源": "格式化输出 学习记录 10-08 · 运行期边界"
+   },
+   "source_ids": [
+    "hello-formatting-log"
+   ],
+   "content_summary": "口述 println! 在生产中的三个风险: 写失败 panic、全局锁与按行缓冲、Debug 泄露字段",
+   "depends_on": [
+    "println-panics-on-write-failure",
+    "stdout-lock-and-line-buffering",
+    "derive-debug-leaks-secrets"
+   ]
+  }
+ ]
+}
