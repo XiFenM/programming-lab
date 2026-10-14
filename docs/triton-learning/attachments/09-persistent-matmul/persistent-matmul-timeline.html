@@ -1,0 +1,2111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Triton 第 09 课节点 3 图解：逐 tile 发射、持久化、持久化加 flatten 三种写法在同一个 SM 上的时间线，循环合并后一次迭代里发生什么，flatten 在共享内存上的代价与适用条件，怎样自己查看编译产物，grouped GEMM 怎样改成能跨 tile 流水的形状，四种目标硬件上由谁搬数据、由谁计算，warp 专用化怎样分工，epilogue 拆半与共享内存的预算，以及编译器怎样判断下标取值连续、tl.max_contiguous 与 tl.multiple_of 两条声明的用法。">
+<title>持久化矩阵乘时间线</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&display=swap">
+<style>
+[hidden]{display:none!important}
+body{margin:0}
+/* 布局：单栏长页，顶部固定导航；每节先给一句结论，再给图，图下是读图要点。沿用第 07、08 课图解页的色板与组件。 */
+:root{
+  --bg:#f3f4ef;--surface:#ffffff;--surface-2:#eceee6;--ink:#1b222c;--muted:#5a6370;--line:#d3d8cc;
+  --accent:#c2530a;--accent-soft:#fbe5d3;--accent-ink:#ffffff;
+  --lib:#3f4fb8;--lib-soft:#e4e7fb;
+  --epi:#8a6d00;--epi-soft:#f3e8c8;
+  --sans:"Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  --serif:"Noto Serif SC","Songti SC","SimSun",serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#11151b;--surface:#1a2028;--surface-2:#222a34;--ink:#e5e9ee;--muted:#a2acb8;--line:#343e4a;
+    --accent:#ff9a57;--accent-soft:#4a2a17;--accent-ink:#1b1208;
+    --lib:#aab5ff;--lib-soft:#262c52;
+    --epi:#e6c65a;--epi-soft:#3d3520;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#11151b;--surface:#1a2028;--surface-2:#222a34;--ink:#e5e9ee;--muted:#a2acb8;--line:#343e4a;
+  --accent:#ff9a57;--accent-soft:#4a2a17;--accent-ink:#1b1208;
+  --lib:#aab5ff;--lib-soft:#262c52;
+  --epi:#e6c65a;--epi-soft:#3d3520;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.8}
+button{font:inherit;color:inherit}
+code,pre,.mono{font-family:var(--mono)}
+code{font-size:.9em;background:var(--surface-2);padding:.08em .35em;border-radius:4px}
+a{color:var(--accent)}
+h1,h2,h3{text-wrap:balance;line-height:1.35}
+h1,h2{font-family:var(--serif);font-weight:700}
+h1{font-size:clamp(1.9rem,4.4vw,2.7rem);margin:0}
+h2{font-size:clamp(1.4rem,3vw,1.85rem);margin:0}
+h3{font-size:1.08rem;margin:0}
+p{margin:0;max-width:46em}
+ul,ol{margin:0;padding-left:1.4em;display:grid;gap:6px;max-width:48em}
+.wrap{max-width:1060px;margin-inline:auto;padding-inline:20px}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:10px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:.95rem;letter-spacing:.02em}
+.brand span{font-family:var(--mono);color:var(--accent);margin-right:.5em}
+.topbar nav{display:flex;gap:18px;flex-wrap:wrap;font-size:.9rem}
+.topbar nav a{color:var(--muted);text-decoration:none}
+.topbar nav a:hover,.topbar nav a:focus-visible{color:var(--ink)}
+main{display:grid;gap:64px;padding-block:40px 72px}
+section{display:grid;gap:20px}
+.eyebrow{font-size:.8rem;letter-spacing:.12em;color:var(--muted);font-weight:500}
+.lede{font-size:1.06rem;color:var(--muted)}
+.keyline{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 18px;max-width:52em}
+.keyline b{color:var(--accent)}
+.sec-head{display:grid;gap:8px}
+.sec-head .tag{font-family:var(--mono);font-size:.8rem;color:var(--accent);letter-spacing:.06em}
+figure{margin:0;display:grid;gap:10px}
+figcaption{font-size:.9rem;color:var(--muted);max-width:52em}
+.fig-scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
+.fig-scroll svg{display:block;height:auto}
+.fig-scroll.fit svg{width:100%;min-width:640px}
+svg.dia{color:var(--ink);font-family:var(--sans);font-size:13px}
+svg.dia text{fill:currentColor}
+svg.dia .sm{font-size:11.5px}
+svg.dia .xs{font-size:10.5px}
+svg.dia .b{font-weight:700}
+svg.dia .m{font-family:var(--mono);font-size:11px}
+svg.dia .mu{fill:var(--muted)}
+svg.dia .ac{fill:var(--accent)}
+svg.dia .s-launch{fill:var(--surface-2);stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
+svg.dia .s-pro{fill:var(--lib-soft);stroke:var(--lib);stroke-width:1.2}
+svg.dia .s-wait{fill:none;stroke:var(--muted);stroke-width:1;stroke-dasharray:2 3}
+svg.dia .s-mma{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.2}
+svg.dia .s-epi{fill:var(--epi-soft);stroke:var(--epi);stroke-width:1.2}
+svg.dia .l-fly{fill:none;stroke:var(--lib);stroke-width:1.2;stroke-dasharray:4 3}
+svg.dia .l-held{fill:var(--lib-soft);stroke:var(--lib);stroke-width:1.2}
+svg.dia .tc-on{fill:var(--accent);stroke:var(--accent);stroke-width:1}
+svg.dia .tc-off{fill:var(--surface-2);stroke:var(--line);stroke-width:1}
+svg.dia .bound{stroke:var(--muted);stroke-width:1;stroke-dasharray:5 4}
+svg.dia .rowline{stroke:var(--line);stroke-width:1}
+svg.dia .limit{stroke:var(--accent);stroke-width:1.6;stroke-dasharray:6 4}
+svg.dia .slot{fill:var(--lib-soft);stroke:var(--lib);stroke-width:1.2}
+svg.dia .scratch{fill:var(--epi-soft);stroke:var(--epi);stroke-width:1.2}
+svg.dia .scratch-ghost{fill:none;stroke:var(--epi);stroke-width:1.2;stroke-dasharray:5 4}
+.concepts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:grid;gap:12px;align-content:start;min-width:0}
+.card h3{display:flex;gap:10px;align-items:baseline}
+.card h3 .n{font-family:var(--mono);color:var(--accent);font-size:.85rem}
+.card p{font-size:.95rem}
+pre{margin:0;background:var(--surface-2);border-radius:8px;padding:12px 14px;overflow-x:auto;font-size:.82rem;line-height:1.65}
+pre .c{color:var(--muted)}
+pre .keep{color:var(--accent);font-weight:600}
+.controls{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.9rem;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:0;background:var(--surface);padding:6px 14px;cursor:pointer;font-size:.9rem;color:var(--ink)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px}
+.readout div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:grid;gap:2px}
+.readout span{font-size:.82rem;color:var(--muted)}
+.readout b{font-family:var(--mono);font-weight:600;font-variant-numeric:tabular-nums;font-size:1.02rem}
+.readout .e b{color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.84rem;color:var(--muted)}
+.legend i{display:inline-block;width:18px;height:12px;border-radius:2px;margin-right:6px;vertical-align:-1px;border:1.2px solid var(--muted)}
+.legend .k-launch{background:var(--surface-2);border-style:dashed}
+.legend .k-pro{background:var(--lib-soft);border-color:var(--lib)}
+.legend .k-wait{border-style:dotted}
+.legend .k-mma{background:var(--accent-soft);border-color:var(--accent)}
+.legend .k-epi{background:var(--epi-soft);border-color:var(--epi)}
+.legend .k-fly{border-color:var(--lib);border-style:dashed}
+.legend .k-held{background:var(--lib-soft);border-color:var(--lib)}
+.note{font-size:.93rem;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px;max-width:52em}
+.note b{color:var(--accent)}
+.tbl-scroll{overflow-x:auto}
+table{border-collapse:collapse;min-width:640px;font-size:.9rem;background:var(--surface)}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;vertical-align:top}
+th{background:var(--surface-2);font-weight:500}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+tr.hl td{background:var(--accent-soft)}
+td .ahead{color:var(--lib);font-weight:500}
+td .now{color:var(--accent);font-weight:500}
+details{max-width:100%}
+details summary{cursor:pointer;color:var(--accent);font-size:.93rem}
+details pre{margin-top:10px}
+footer{border-top:1px solid var(--line);padding-block:24px 40px;font-size:.84rem;color:var(--muted)}
+footer ul{margin-top:8px;gap:4px}
+section{grid-template-columns:minmax(0,1fr)}
+code,pre,.mono{font-variant-ligatures:none}
+.skel{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,470px),1fr));gap:18px}
+.skel .card{gap:10px;padding:16px 14px}
+.skel .card h3{justify-content:space-between;flex-wrap:wrap;padding-inline:6px}
+.skel .card h3 small{font-family:var(--mono);font-weight:400;font-size:.78rem;color:var(--muted)}
+.rows{display:grid;gap:2px;font-size:.85rem;line-height:1.55}
+.row{display:grid;grid-template-columns:4.9em minmax(0,1fr);gap:10px;align-items:baseline;padding:4px 8px 4px 6px;border-radius:6px;border-left:3px solid transparent;transition:opacity .15s}
+.row .ln{font-family:var(--mono);color:var(--muted);font-size:.76rem;text-align:right;font-variant-numeric:tabular-nums}
+.row .tx{padding-left:calc(var(--d,0) * 14px)}
+.row .tx code{background:none;padding:0;font-size:.82rem;font-weight:600;overflow-wrap:anywhere}
+.row .tx>span{color:var(--muted)}
+.row .tx .src{font-family:var(--mono);font-size:.74rem;white-space:nowrap}
+.row.r-loop{border-left-color:var(--ink)}
+.row.r-warm{background:var(--lib-soft);border-left-color:var(--lib)}
+.row.r-drain{background:var(--accent-soft);border-left-color:var(--accent)}
+.row.r-epi{background:var(--epi-soft);border-left-color:var(--epi)}
+.row.r-pro{background:var(--surface-2);border-left-color:var(--muted)}
+.row.r-warm .tx>span,.row.r-drain .tx>span,.row.r-epi .tx>span,.row.r-pro .tx>span{color:var(--ink)}
+.skel[data-focus="warm"] .row:not(.r-warm),.skel[data-focus="drain"] .row:not(.r-drain),.skel[data-focus="epi"] .row:not(.r-epi),.skel[data-focus="pro"] .row:not(.r-pro),.skel[data-focus="body"] .row:not(.r-body),.skel[data-focus="alloc"] .row:not(.r-alloc){opacity:.3}
+.skel[data-focus="warm"] .row.r-loop,.skel[data-focus="drain"] .row.r-loop,.skel[data-focus="epi"] .row.r-loop,.skel[data-focus="pro"] .row.r-loop,.skel[data-focus="body"] .row.r-loop,.skel[data-focus="alloc"] .row.r-loop{opacity:1}
+pre.ir{font-size:.74rem;line-height:1.5;max-height:520px;overflow:auto;padding:10px 0;white-space:normal}
+pre.ir span{display:block;padding-inline:12px;white-space:pre}
+pre.ir i{font-style:normal;color:var(--muted);user-select:none}
+pre.ir span.hit{background:var(--accent-soft)}
+pre.cmd{white-space:pre;max-width:100%}
+td code,th code{white-space:nowrap}
+td.wrap-ok code{white-space:normal;overflow-wrap:anywhere}
+td.nw,th.nw{white-space:nowrap}
+svg.dia .hw-box{fill:var(--surface-2);stroke:var(--muted);stroke-width:1.2}
+svg.dia .hw-chip{fill:none;stroke:var(--muted);stroke-width:1.2;stroke-dasharray:4 3}
+svg.dia .hw-chip.on{fill:var(--accent-soft);stroke:var(--accent);stroke-dasharray:none}
+svg.dia .hw-chiptext{fill:var(--muted)}
+svg.dia .hw-chiptext.on{fill:var(--ink);font-weight:700}
+svg.dia .hw-arrow{stroke:var(--ink);stroke-width:1.6;fill:none}
+svg.dia .hw-arrow.hard{stroke:var(--accent);stroke-width:2.4}
+svg.dia .hw-head{fill:var(--ink)}
+svg.dia .hw-head.hard{fill:var(--accent)}
+svg.dia .hw-num{font-weight:700}
+svg.dia .hw-dim{opacity:.28}
+.hw-steps{display:grid;gap:8px;max-width:none;padding:0;list-style:none}
+.hw-steps li{display:grid;grid-template-columns:1.9em minmax(0,1fr);gap:8px;align-items:baseline;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--muted);border-radius:8px;padding:8px 12px;font-size:.93rem}
+.hw-steps li.hard{border-left-color:var(--accent)}
+.hw-steps li>b{font-family:var(--mono);color:var(--muted)}
+.hw-steps li.hard>b{color:var(--accent)}
+.hw-steps .tagline{display:inline-block;margin-left:.4em;font-size:.78rem;color:var(--accent);font-weight:700;white-space:nowrap}
+pre.sig{white-space:pre;font-size:.76rem}
+.lanes{display:grid;gap:10px}
+.lane{display:grid;grid-template-columns:minmax(150px,220px) minmax(0,1fr);gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--muted);border-radius:10px;padding:10px 14px}
+.lane.l-move{border-left-color:var(--lib)}
+.lane.l-mma{border-left-color:var(--accent)}
+.lane.l-epi{border-left-color:var(--epi)}
+.lane .who{display:grid;gap:2px;font-size:.9rem}
+.lane .who b{font-size:.95rem}
+.lane .who span{color:var(--muted);font-size:.82rem}
+.lane .steps{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.86rem}
+.lane .steps i{font-style:normal;background:var(--surface-2);border-radius:6px;padding:3px 9px;white-space:nowrap}
+.lane .steps i.w{background:none;border:1px dashed var(--muted);color:var(--muted)}
+.lane .steps i.s{background:var(--accent-soft);color:var(--ink)}
+.lane .steps em{font-style:normal;color:var(--muted)}
+@media (max-width:640px){.lane{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){
+  .wrap{padding-inline:16px}
+  main{gap:48px;padding-block:28px 56px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+svg.dia .h-ok{fill:var(--lib-soft);stroke:var(--lib);stroke-width:1.1}
+svg.dia .h-out{fill:var(--surface-2);stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
+svg.dia .h-zero{fill:var(--muted)}
+svg.dia .h-run{fill:none;stroke:var(--accent);stroke-width:1.8}
+ul,ol{grid-template-columns:minmax(0,1fr)}
+li code{overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand"><span>09</span>持久化矩阵乘时间线</div>
+    <nav aria-label="本页章节">
+      <a href="#concepts">两个前置概念</a>
+      <a href="#timeline">时间线</a>
+      <a href="#iteration">一次迭代</a>
+      <a href="#cost">代价与条件</a>
+      <a href="#inspect">查看产物</a>
+      <a href="#grouped">迁移</a>
+      <a href="#hardware">搬与算</a>
+      <a href="#ws">专用化</a>
+      <a href="#budget">预算</a>
+      <a href="#hints">声明</a>
+    </nav>
+  </div>
+</div>
+
+<main class="wrap">
+  <section>
+    <div class="eyebrow">Triton 第 09 课 · 节点 3–6 与练习答疑</div>
+    <h1>把等待叠进计算</h1>
+    <p class="lede">持久化把 tile 之间的交接放进了同一段代码，但交接处的等待还在。<code>flatten</code> 让编译器把“tile 循环套 K 循环”合成一层，软件流水于是能跨过 tile 的边界：下一个 tile 的数据，在当前 tile 还没算完时就已经上路。</p>
+    <p class="keyline"><b>合并之前，流水每个 tile 重新预热一次；合并之后，整个 CTA 只预热一次。</b>代价是 epilogue 写回时输入缓冲还被占着，共享内存要多留一块。</p>
+    <p>全页沿用课上的例子：<code>M = N = 8192</code>、<code>K = 512</code>、fp16；块是 <code>128 × 128 × 64</code>，所以每个 tile 的 K 循环是 8 轮，下面记作 n；<code>num_stages = 3</code>，记作 S，意思是读入比乘加提前 2 轮。编译数字来自 sm_89，B 按教程 benchmark 的传法（<code>b.T</code>）。</p>
+  </section>
+
+  <section id="concepts">
+    <div class="sec-head">
+      <div class="tag">前置</div>
+      <h2>两个前置概念</h2>
+      <p>都是普通的循环改写，用 C 就能写出来。编译器做的是同样的事，只是自动完成。</p>
+    </div>
+    <div class="concepts">
+      <div class="card">
+        <h3><span class="n">A</span>软件流水</h3>
+        <p>一轮循环有两步：发出读入，用数据计算。流水是把第一步提前：算第 k 轮时，第 k+2 轮的数据已经在路上。数据要有地方放，所以要 S−1 个轮换使用的缓冲槽。第 02 课的 <code>num_stages</code> 就是它。</p>
+<pre><span class="c">// S = 3：读入比计算提前两轮，两个缓冲槽轮换</span>
+start_load(slot[0], 0);   <span class="c">// 预热：循环开始之前</span>
+start_load(slot[1], 1);   <span class="c">// 先发出头两轮的读入</span>
+for (k = 0; k &lt; n; k++) {
+    wait_arrived(slot[k % 2]);   <span class="c">// 等第 k 轮的数据到齐</span>
+    compute(slot[k % 2]);        <span class="c">// 乘加</span>
+    if (k + 2 &lt; n)               <span class="c">// 腾出的槽马上给后面用</span>
+        start_load(slot[k % 2], k + 2);
+}</pre>
+        <p>关键限制：流水只在<b>一个循环内部</b>生效。循环一结束，在路上的东西就清空了；下次再进这个循环，要重新预热。</p>
+      </div>
+      <div class="card">
+        <h3><span class="n">B</span>循环合并</h3>
+        <p>两层循环可以改写成一层，办法是加一个计数器 T，记住“现在是这个 tile 的第几轮”。T 为 0 时顺手做外层开头的事，T 到末尾时做外层结尾的事。</p>
+<pre><span class="c">// 两层</span>
+for (i = 0; i &lt; tiles; i++) {
+    prologue(i);
+    for (k = 0; k &lt; n; k++) body(i, k);
+    epilogue(i);
+}
+
+<span class="c">// 合成一层</span>
+T = 0; i = -1;
+for (it = 0; it &lt; tiles * n; it++) {
+    <span class="keep">if (T == 0)</span>     { i++; prologue(i); k = 0; }
+    body(i, k); k++;
+    <span class="keep">if (T == n - 1)</span> epilogue(i);
+    T = (T == n - 1) ? 0 : T + 1;
+}</pre>
+        <p>两种写法算的东西完全一样。区别只在形状：下面这种是一个循环，流水可以一直转下去，不会在 tile 之间断开。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="timeline">
+    <div class="sec-head">
+      <div class="tag">时间线</div>
+      <h2>同一个 SM 上的三种写法</h2>
+      <p>下图画的是一个 SM 连续处理三个 tile。切换写法，看哪一段消失了；再改 K 循环的轮数和流水深度，看比例怎样变。</p>
+    </div>
+    <div class="controls">
+      <div class="ctl">写法
+        <div class="seg" id="seg-mode" role="group" aria-label="写法">
+          <button type="button" id="mode-naive" data-v="naive" aria-pressed="false">逐 tile 发射</button>
+          <button type="button" id="mode-pers" data-v="pers" aria-pressed="false">持久化</button>
+          <button type="button" id="mode-flat" data-v="flat" aria-pressed="true">持久化 + flatten</button>
+        </div>
+      </div>
+      <div class="ctl">K 循环轮数 n
+        <div class="seg" id="seg-n" role="group" aria-label="K 循环轮数">
+          <button type="button" id="n-2" data-v="2" aria-pressed="false">2</button>
+          <button type="button" id="n-4" data-v="4" aria-pressed="false">4</button>
+          <button type="button" id="n-8" data-v="8" aria-pressed="true">8</button>
+          <button type="button" id="n-16" data-v="16" aria-pressed="false">16</button>
+        </div>
+      </div>
+      <div class="ctl">流水深度 S
+        <div class="seg" id="seg-s" role="group" aria-label="流水深度">
+          <button type="button" id="s-2" data-v="2" aria-pressed="false">2</button>
+          <button type="button" id="s-3" data-v="3" aria-pressed="true">3</button>
+          <button type="button" id="s-4" data-v="4" aria-pressed="false">4</button>
+        </div>
+      </div>
+    </div>
+    <figure>
+      <div class="fig-scroll" tabindex="0" aria-label="时间线，可横向滚动">
+        <svg id="tl" class="dia" role="img" aria-label="一个 SM 连续处理三个 tile 的时间线"></svg>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span><i class="k-launch"></i>发射与退出</span>
+        <span><i class="k-pro"></i>prologue</span>
+        <span><i class="k-wait"></i>等数据</span>
+        <span><i class="k-mma"></i>乘加（数字是第几轮）</span>
+        <span><i class="k-epi"></i>epilogue</span>
+        <span><i class="k-fly"></i>读入在路上</span>
+        <span><i class="k-held"></i>数据在槽里</span>
+      </div>
+      <figcaption id="tl-cap">示意模型。各段长度是为了看清结构取的：发射加退出 2 格，prologue 1 格，一轮乘加 2 格，读入在路上 2 格，epilogue 2 格。它们不是测量值，真实的比例要靠实测。</figcaption>
+    </figure>
+    <div class="readout" id="tl-read" aria-live="polite">
+      <div><span>稳定后每个 tile 占用</span><b id="r-span">—</b></div>
+      <div class="e"><span>其中张量核心在算</span><b id="r-busy">—</b></div>
+      <div><span>每个 tile 的固定成本</span><b id="r-fixed">—</b></div>
+      <div><span>缓冲槽</span><b id="r-slots">—</b></div>
+    </div>
+    <div class="note">
+      <ul>
+        <li>切到<b>持久化</b>：发射块只剩开头一个，但每个 tile 开头“等数据”的空档还在。</li>
+        <li>切到<b>持久化 + flatten</b>：读入的虚线条越过了 tile 的分界线，“等数据”只在最开头出现一次。prologue 和 epilogue 还在，它们是这个 CTA 自己要执行的代码，合并循环消不掉。</li>
+        <li>看缓冲槽那几行：flatten 之后，epilogue 期间槽里已经装着下一个 tile 的数据。这就是“代价”一节多出来的那块共享内存。</li>
+        <li>把 n 调到 2：K 循环变短，固定成本的占比明显变大。把 S 调到 2：读入只提前一轮，每一轮乘加之前都要等。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="iteration">
+    <div class="sec-head">
+      <div class="tag">一次迭代</div>
+      <h2>合并并流水之后，一次迭代里有两个 tile</h2>
+      <p>流水把“为两轮之后做准备”和“做本轮的计算”放进了同一次迭代。到了 tile 的末尾，这两件事分属不同的 tile。下表取 n = 4、S = 3，看 tile i 和 tile i+1 交接的那几次迭代。</p>
+    </div>
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr><th>迭代</th><th>① 先为两轮之后做准备</th><th>② 本轮乘加</th><th>③ 发出读入</th><th>④ 收尾</th><th><code>tile_id</code> 指向</th><th><code>tile_id_c</code> 指向</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>i 的第 0 轮</td><td>—</td><td><span class="now">tile i，第 0 轮</span></td><td>tile i，第 2 轮</td><td>—</td><td>i</td><td>i−1</td></tr>
+          <tr><td>i 的第 1 轮</td><td>—</td><td><span class="now">tile i，第 1 轮</span></td><td>tile i，第 3 轮</td><td>—</td><td>i</td><td>i−1</td></tr>
+          <tr class="hl"><td>i 的第 2 轮</td><td><span class="ahead">tile i+1 的 prologue</span>：<code>tile_id</code> 前进，算出新的行列偏移</td><td><span class="now">tile i，第 2 轮</span></td><td><span class="ahead">tile i+1，第 0 轮</span></td><td>—</td><td>i+1</td><td>i−1</td></tr>
+          <tr class="hl"><td>i 的第 3 轮</td><td>—</td><td><span class="now">tile i，第 3 轮</span></td><td><span class="ahead">tile i+1，第 1 轮</span></td><td><span class="now">tile i 的 epilogue</span>：<code>tile_id_c</code> 前进，写回 C</td><td>i+1</td><td>i</td></tr>
+          <tr><td>i+1 的第 0 轮</td><td>—</td><td><span class="now">tile i+1，第 0 轮</span></td><td>tile i+1，第 2 轮</td><td>—</td><td>i+1</td><td>i</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>高亮的两行里，<code>tile_id</code> 已经指向下一个 tile，而乘加和写回还在处理当前这个。所以写回的坐标不能再用 <code>tile_id</code> 算。教程让 epilogue 自己维护一个计数器 <code>tile_id_c</code>，在收尾时才前进。这和环形缓冲区里读指针、写指针分开走是一回事。</p>
+<pre><span class="c"># 教程第 307–343 行，只留骨架</span>
+tile_id_c = start_pid - NUM_SMS
+for tile_id in tl.range(start_pid, num_tiles, NUM_SMS, flatten=True):
+    pid_m, pid_n = _compute_pid(<span class="keep">tile_id</span>, ...)        <span class="c"># prologue：会被提前执行</span>
+    ...
+    for ki in range(k_tiles):
+        ...                                       <span class="c"># 读入 A、B，tl.dot</span>
+    <span class="keep">tile_id_c</span> += NUM_SMS
+    pid_m, pid_n = _compute_pid(<span class="keep">tile_id_c</span>, ...)      <span class="c"># epilogue：用自己的游标重算坐标</span>
+    ...                                           <span class="c"># 写回 C</span></pre>
+    <details>
+      <summary>看编译器实际生成的合并循环（Triton v3.7.1）</summary>
+<pre><span class="c">// 按 tritongpu-fuse-nested-loops 之后的 IR 整理：操作名和结构照原样，</span>
+<span class="c">// 变量换成了可读的名字，省略了类型标注和地址计算。</span>
+total = ceildiv(num_tiles − start_pid, 128) × max(1, k_tiles)   <span class="c">// 这个 CTA 的 tile 数 × 每个 tile 的轮数</span>
+scf.for it = 0 to total step 1
+        iter_args(T = 0, tile_id = start_pid − 128, tile_id_c = start_pid − 128, acc = 0, …) {
+  <span class="keep">scf.if (T == 0) {</span>                         <span class="c">// prologue</span>
+    tile_id = arith.addi tile_id, 128        <span class="c">// tile_id += NUM_SMS</span>
+    …                                        <span class="c">// pid_m、pid_n、offs_am、offs_bn</span>
+  } else { … }                               <span class="c">// 否则沿用上一轮的值</span>
+  offs_k = arith.muli ki, 64                 <span class="c">// K 循环体</span>
+  a = tt.load …
+  b = tt.load …
+  acc = tt.dot a, b, acc
+  <span class="keep">scf.if (T == k_tiles − 1) {</span>               <span class="c">// epilogue</span>
+    tile_id_c = arith.addi tile_id_c, 128    <span class="c">// tile_id_c += NUM_SMS</span>
+    c = arith.truncf acc                     <span class="c">// fp32 → fp16</span>
+    c = ttg.convert_layout c                 <span class="c">// 换成写回用的布局，要借共享内存中转</span>
+    tt.store …, c, mask
+    acc = 0
+  } else { … }
+  T = arith.select (T == k_tiles − 1), 0, T + 1
+}</pre>
+    </details>
+    <p>如果不设 <code>tile_id_c</code>，让 epilogue 直接用 prologue 算好的坐标，在 v3.7.1 上以 sm_89、sm_90、sm_100 为目标都能编译，读入方式和共享内存不变；这时由编译器自己把那几个值多保留两轮，sm_100 上每线程的寄存器从 104 个变成 114 个。教程的注释说 Blackwell 的流水在这种写法上有 bug，所以才复制了一份计数器。只编译无法判断那个 bug 是否存在。</p>
+  </section>
+
+  <section id="cost">
+    <div class="sec-head">
+      <div class="tag">代价与条件</div>
+      <h2>多出来的 32,768 字节是什么</h2>
+      <p>epilogue 要把累加器从张量核心的布局换成写回用的布局，这一步借共享内存做中转。本例里中转的大小正好是一个 fp16 的输出块：128 × 128 × 2 = 32,768 字节。不合并时，输入缓冲这时已经用完，中转可以借它们的地方。合并之后，下一个 tile 的读入已经在途，输入缓冲借不了，只能另开一块。</p>
+      <p>中转的大小不是固定的规律。换一种块或 warp 数，编译器可能把转换分成几批做，每批用同一块更小的中转区：同样是 128 × 128 的块，4 个 warp 时是 16,384 字节；<code>BLOCK_N</code> 为 256、8 个 warp 时是 8,192 字节。</p>
+    </div>
+    <figure>
+      <div class="fig-scroll fit">
+        <svg class="dia" viewBox="0 0 760 236" role="img" aria-label="sm_89 上共享内存的占用：不合并 65,536 字节，合并 98,304 字节，上限 101,376 字节">
+          <text x="0" y="16" class="b">sm_89：一个 CTA 的共享内存</text>
+          <text x="0" y="58" class="sm">flatten 关</text>
+          <rect x="96" y="40" width="98" height="30" class="slot"/><text x="145" y="60" text-anchor="middle" class="xs">A 槽 0</text>
+          <rect x="194" y="40" width="98" height="30" class="slot"/><text x="243" y="60" text-anchor="middle" class="xs">A 槽 1</text>
+          <rect x="292" y="40" width="98" height="30" class="slot"/><text x="341" y="60" text-anchor="middle" class="xs">B 槽 0</text>
+          <rect x="390" y="40" width="98" height="30" class="slot"/><text x="439" y="60" text-anchor="middle" class="xs">B 槽 1</text>
+          <rect x="96" y="76" width="196" height="20" class="scratch-ghost"/><text x="194" y="90" text-anchor="middle" class="xs">写回中转，借用已空出的输入槽</text>
+          <text x="498" y="60" class="m">65,536</text>
+          <text x="0" y="146" class="sm">flatten 开</text>
+          <rect x="96" y="128" width="98" height="30" class="slot"/><text x="145" y="148" text-anchor="middle" class="xs">A 槽 0</text>
+          <rect x="194" y="128" width="98" height="30" class="slot"/><text x="243" y="148" text-anchor="middle" class="xs">A 槽 1</text>
+          <rect x="292" y="128" width="98" height="30" class="slot"/><text x="341" y="148" text-anchor="middle" class="xs">B 槽 0</text>
+          <rect x="390" y="128" width="98" height="30" class="slot"/><text x="439" y="148" text-anchor="middle" class="xs">B 槽 1</text>
+          <rect x="488" y="128" width="196" height="30" class="scratch"/><text x="586" y="148" text-anchor="middle" class="xs">写回中转 32,768</text>
+          <text x="96" y="178" class="m">98,304</text>
+          <line x1="704" y1="30" x2="704" y2="168" class="limit"/>
+          <text x="704" y="186" text-anchor="middle" class="xs ac">上限 101,376</text>
+          <text x="704" y="200" text-anchor="middle" class="xs ac">（99 KB）</text>
+          <line x1="96" y1="212" x2="704" y2="212" class="rowline"/>
+          <text x="96" y="228" class="xs mu">0</text>
+          <text x="390" y="228" text-anchor="middle" class="xs mu">每个输入槽 16,384 字节（128 × 64 × 2）</text>
+        </svg>
+      </div>
+      <figcaption>条件是 3 个 stage。离上限只剩 3,072 字节，所以流水再深一级（4 个 stage）在 sm_89 上就放不下了。sm_90 上相同的差额是 98,304 对 131,072，上限是 227 KB。</figcaption>
+    </figure>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>目标</th><th><code>flatten</code></th><th>共享内存（字节）</th><th>每线程寄存器</th><th>A、B 的读入</th></tr></thead>
+        <tbody>
+          <tr><td rowspan="2">sm_89</td><td>关</td><td class="num">65,536</td><td class="num">166</td><td rowspan="2">都是 16 字节一组的异步拷贝</td></tr>
+          <tr class="hl"><td>开</td><td class="num">98,304</td><td class="num">160</td></tr>
+          <tr><td rowspan="2">sm_90</td><td>关</td><td class="num">98,304</td><td class="num">118</td><td rowspan="2">同上</td></tr>
+          <tr class="hl"><td>开</td><td class="num">131,072</td><td class="num">116</td></tr>
+          <tr><td rowspan="2">sm_100</td><td>关</td><td class="num">98,320</td><td class="num">101</td><td rowspan="2">同上</td></tr>
+          <tr class="hl"><td>开</td><td class="num">106,512</td><td class="num">104</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>什么时候它不起作用</h3>
+    <ul>
+      <li><b>只认最简单的嵌套</b>：一个外层 <code>for</code> 里正好套一个内层 <code>for</code>。三层不行，两层之间隔着 <code>while</code> 或 <code>if</code> 也不行。</li>
+      <li><b>内层的次数默认要在进入外层之前就能算出来。</b>实验：把 K 循环的次数改成随 tile 变化，<code>flatten=True</code> 被忽略，产物与不写它完全相同，没有报错也没有警告。v3.7.1 另留了一条路：用 <code>tl.assume</code> 保证内层至少执行一次，且次数只由外层的循环变量经标量运算得到时，编译器先用一个小循环求出总迭代数，再合并（见“迁移”一节）。</li>
+      <li><b>它是请求，不是保证</b>。要确认它生效，看产物：共享内存是否多了一块，IR 里是否出现了 <code>scf.if</code>，预热和排空是否移到了循环外面。怎样看，见“查看产物”一节。</li>
+      <li><b>Hopper 上不能和 warp 专用化同时用</b>。合并后的循环里有带 else 的 <code>scf.if</code>，Hopper 的 warp 专用化遇到它就放弃。教程第 592 行因此把 <code>flatten</code> 关掉。</li>
+      <li><b>v3.7.1 的一个边界</b>：B 按普通的行主序 <code>[K, N]</code> 存放时，合并后只有 A 保持异步拷贝，B 变成同步读入。原因是带连续性声明的列偏移变成了 <code>scf.if</code> 的输出，流水挑选读入时取不到这条声明。教程的 benchmark 传入的是 <code>b.T</code>，不受影响。声明为什么会丢、怎样写才保得住，见“<a href="#hints">声明</a>”一节。</li>
+    </ul>
+  </section>
+  <section id="inspect">
+    <div class="sec-head">
+      <div class="tag">动手</div>
+      <h2>自己查看编译产物</h2>
+      <p>前面几节里“编译产物显示……”的说法，都可以自己打开文件核对。Triton 每编译一个 kernel，会留下几个阶段的文本，各自回答不同的问题。</p>
+    </div>
+    <h3>产物从哪里拿</h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>途径</th><th>怎么做</th><th>什么时候用</th></tr></thead>
+        <tbody>
+          <tr><td class="nw">调用的返回值</td><td class="wrap-ok"><code>k = my_kernel[grid](...)</code> 返回的就是编译结果：<code>k.metadata.shared</code> 是共享内存字节数，<code>k.asm["ttgir"]</code>、<code>k.asm["ptx"]</code> 是各阶段的文本，<code>k.n_regs</code> 是每线程寄存器数</td><td>自己写的 kernel，最直接。要在 GPU 上运行</td></tr>
+          <tr><td class="nw">缓存目录</td><td class="wrap-ok">默认在 <code>~/.triton/cache/</code>，每一种特化（参数类型、常量、配置的一种组合）一个子目录。运行前设 <code>TRITON_CACHE_DIR=/tmp/t09</code> 指向一个空目录，就不会和以前的混在一起</td><td>不想改代码时，例如直接跑教程脚本。要在 GPU 上运行</td></tr>
+          <tr><td class="nw">只编译不运行</td><td class="wrap-ok"><code>triton.compile(ASTSource(...), target=GPUTarget("cuda", 89, 32))</code>，自己指定目标硬件</td><td>没有 GPU，或者想看别的硬件代际会编出什么。第 08 课的测试文件就是这样做的</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>每个文件回答什么</h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>文件</th><th>是什么</th><th>用来回答</th></tr></thead>
+        <tbody>
+          <tr><td><code>.ttir</code></td><td>源码逐句翻成的张量运算，还没有做任何硬件相关的决定</td><td>源码被理解成了什么：mask 有没有带上，循环是什么形状</td></tr>
+          <tr><td><code>.ttgir</code></td><td>做完 GPU 相关决定之后的版本：数据怎样分给线程，流水怎样排，共享内存里开了哪些缓冲</td><td>流水有没有生效，循环有没有被合并，预热和排空在哪里</td></tr>
+          <tr><td><code>.ptx</code></td><td>NVIDIA 的汇编，相当于 <code>gcc -S</code> 的输出</td><td>最终用了哪些指令：<code>cp.async</code>、<code>mma.sync</code>、<code>ld.global</code></td></tr>
+          <tr><td><code>.json</code></td><td>这次编译的元数据</td><td><code>shared</code>：共享内存字节数；还有 <code>num_warps</code>、<code>num_stages</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>另有 <code>.llir</code>（LLVM IR）和 <code>.cubin</code>（二进制），平时不用看。</p>
+    <h3>读 TTGIR 要认得的几个词</h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>写法</th><th>意思</th></tr></thead>
+        <tbody>
+          <tr><td><code>scf.for</code>、<code>scf.while</code>、<code>scf.if</code></td><td>循环与分支。缩进表示嵌套，和 C 的花括号一样</td></tr>
+          <tr><td><code>ttg.local_alloc</code></td><td>在共享内存里开一块缓冲。后面的 <code>2x128x64xf16</code> 读作 2 个槽，每槽一个 128 × 64 的 fp16 块；<code>ttg.local_dealloc</code> 是归还</td></tr>
+          <tr><td><code>ttg.async_copy_global_to_local</code></td><td>发出一轮异步读入，对应 PTX 里的 <code>cp.async</code></td></tr>
+          <tr><td><code>ttg.async_wait {num = N}</code></td><td>等到在途的读入不超过 N 批。<code>num = 2</code> 是流水里的正常等待；<code>num = 0</code> 是把在途的全部等完，也就是排空</td></tr>
+          <tr><td><code>ttg.local_load</code></td><td>从共享内存取出数据，交给乘加</td></tr>
+          <tr><td><code>tt.dot</code></td><td>乘加，对应 PTX 里的 <code>mma.sync</code></td></tr>
+          <tr><td><code>ttg.convert_layout</code> 接 <code>tt.store</code></td><td>epilogue：累加器换成写回用的布局，再写回 C</td></tr>
+          <tr><td>行尾的 <code>loc(#loc119)</code></td><td>这一行来自源码哪里。文件末尾有对照表，能查到教程的行号</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>对照：同一个 kernel，<code>flatten</code> 关与开</h3>
+    <p>两份产物都来自教程的 <code>matmul_kernel_persistent</code>，条件同全页；左边只把第 312 行的 <code>flatten=True</code> 改成了 <code>False</code>。每行开头是它在 <code>.ttgir</code> 文件里的行号，缩进表示嵌套。</p>
+    <div class="controls">
+      <div class="ctl">只看
+        <div class="seg" id="seg-focus" role="group" aria-label="突出显示一类操作">
+          <button type="button" data-v="" aria-pressed="true">全部</button>
+          <button type="button" data-v="warm" aria-pressed="false">预热</button>
+          <button type="button" data-v="drain" aria-pressed="false">排空</button>
+          <button type="button" data-v="pro" aria-pressed="false">prologue</button>
+          <button type="button" data-v="body" aria-pressed="false">K 循环体</button>
+          <button type="button" data-v="epi" aria-pressed="false">epilogue</button>
+          <button type="button" data-v="alloc" aria-pressed="false">缓冲的开与还</button>
+        </div>
+      </div>
+    </div>
+    <figure>
+      <div class="skel" id="skel">
+        <div class="card">
+          <h3><span><code>flatten</code> 关</span><small>共 379 行 · shared = 65,536</small></h3>
+          <div class="rows">
+          <div class="row r-loop" style="--d:0"><span class="ln">64</span><span class="tx"><code>scf.for</code> <span>tile 循环：每转一圈处理一个 tile</span> <span class="src">教程 312</span></span></div>
+          <div class="row r-pro" style="--d:1"><span class="ln">65</span><span class="tx"><code>arith.…</code> <span>prologue：第 65–88 行的整数运算，算出 pid_m、pid_n 和行列偏移</span> <span class="src">教程 313–321</span></span></div>
+          <div class="row r-alloc" style="--d:1"><span class="ln">89–90</span><span class="tx"><code>ttg.local_alloc</code> <span>A、B 的缓冲，各 2 个槽，合计 65,536 字节</span> <span class="src">教程 329、330</span></span></div>
+          <div class="row r-warm" style="--d:1"><span class="ln">104 · 112</span><span class="tx"><code>ttg.async_copy_global_to_local</code> <span>预热：发出第 0 轮的 A、B</span></span></div>
+          <div class="row r-warm" style="--d:1"><span class="ln">132 · 140</span><span class="tx"><code>ttg.async_copy_global_to_local</code> <span>预热：发出第 1 轮的 A、B</span></span></div>
+          <div class="row r-loop" style="--d:1"><span class="ln">142</span><span class="tx"><code>scf.for</code> <span>K 循环</span> <span class="src">教程 324</span></span></div>
+          <div class="row r-body" style="--d:2"><span class="ln">148</span><span class="tx"><code>ttg.async_wait {num = 2}</code> <span>等本轮的数据到齐</span></span></div>
+          <div class="row r-body" style="--d:2"><span class="ln">150 · 152</span><span class="tx"><code>ttg.local_load</code> <span>从共享内存取出 A、B</span></span></div>
+          <div class="row r-body" style="--d:2"><span class="ln">153</span><span class="tx"><code>tt.dot</code> <span>乘加</span> <span class="src">教程 331</span></span></div>
+          <div class="row r-body" style="--d:2"><span class="ln">178 · 186</span><span class="tx"><code>ttg.async_copy_global_to_local</code> <span>为两轮之后发出 A、B 的读入</span></span></div>
+          <div class="row r-drain" style="--d:1"><span class="ln">190</span><span class="tx"><code>ttg.async_wait {num = 0}</code> <span>排空：等在途的读入全部到达</span></span></div>
+          <div class="row r-alloc" style="--d:1"><span class="ln">191–192</span><span class="tx"><code>ttg.local_dealloc</code> <span>归还 A、B 的缓冲。之后的中转可以用这块地方</span></span></div>
+          <div class="row r-epi" style="--d:1"><span class="ln">221</span><span class="tx"><code>ttg.convert_layout</code> <span>epilogue：累加器换成写回的布局，要借共享内存中转</span> <span class="src">教程 343</span></span></div>
+          <div class="row r-epi" style="--d:1"><span class="ln">222</span><span class="tx"><code>tt.store</code> <span>epilogue：写回 C</span> <span class="src">教程 343</span></span></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3><span><code>flatten</code> 开</span><small>共 493 行 · shared = 98,304</small></h3>
+          <div class="rows">
+          <div class="row r-spec" style="--d:0"><span class="ln">58</span><span class="tx"><code>scf.if</code> <span>特例：K 循环一轮都没有时走第 59–88 行，只把 C 写成 0</span></span></div>
+          <div class="row r-spec" style="--d:0"><span class="ln">90</span><span class="tx"><code>} else {</code> <span>正常路径从这里开始</span></span></div>
+          <div class="row r-loop" style="--d:1"><span class="ln">91–94</span><span class="tx"><code>arith.…</code> <span>第 91–94 行算出总迭代数：本 CTA 的 tile 数 × 每个 tile 的轮数</span></span></div>
+          <div class="row r-alloc" style="--d:1"><span class="ln">102–103</span><span class="tx"><code>ttg.local_alloc</code> <span>A、B 的缓冲，和左边完全相同，合计 65,536 字节</span> <span class="src">教程 329、330</span></span></div>
+          <div class="row r-warm" style="--d:1"><span class="ln">141 · 149</span><span class="tx"><code>ttg.async_copy_global_to_local</code> <span>预热：发出第 0 轮的 A、B</span></span></div>
+          <div class="row r-pro" style="--d:1"><span class="ln">155</span><span class="tx"><code>scf.if</code> <span>预热的第 1 轮属于哪个 tile：K 只有 1 轮时，先做下一个 tile 的 prologue</span></span></div>
+          <div class="row r-warm" style="--d:1"><span class="ln">205 · 213</span><span class="tx"><code>ttg.async_copy_global_to_local</code> <span>预热：发出第 1 轮的 A、B</span></span></div>
+          <div class="row r-loop" style="--d:1"><span class="ln">215</span><span class="tx"><code>scf.for</code> <span>合并后的循环：从 0 数到总迭代数</span> <span class="src">教程 312</span></span></div>
+          <div class="row r-pro" style="--d:2"><span class="ln">222</span><span class="tx"><code>scf.if</code> <span>prologue：计数器回到 0 时推进 tile_id，算新的行列偏移，供两轮之后的读入使用</span> <span class="src">教程 313–321</span></span></div>
+          <div class="row r-body" style="--d:2"><span class="ln">249</span><span class="tx"><code>ttg.async_wait {num = 2}</code> <span>等本轮的数据到齐</span></span></div>
+          <div class="row r-body" style="--d:2"><span class="ln">251 · 253</span><span class="tx"><code>ttg.local_load</code> <span>从共享内存取出 A、B</span></span></div>
+          <div class="row r-body" style="--d:2"><span class="ln">254</span><span class="tx"><code>tt.dot</code> <span>乘加</span> <span class="src">教程 331</span></span></div>
+          <div class="row r-body" style="--d:2"><span class="ln">286 · 294</span><span class="tx"><code>ttg.async_copy_global_to_local</code> <span>为两轮之后发出 A、B 的读入</span></span></div>
+          <div class="row r-epi" style="--d:2"><span class="ln">298</span><span class="tx"><code>scf.if</code> <span>epilogue：计数器到末尾时才执行</span></span></div>
+          <div class="row r-epi" style="--d:3"><span class="ln">327</span><span class="tx"><code>ttg.convert_layout</code> <span>累加器换成写回的布局。输入缓冲还占着，中转要另开 32,768 字节</span> <span class="src">教程 343</span></span></div>
+          <div class="row r-epi" style="--d:3"><span class="ln">328</span><span class="tx"><code>tt.store</code> <span>写回 C</span> <span class="src">教程 343</span></span></div>
+          <div class="row r-drain" style="--d:1"><span class="ln">335</span><span class="tx"><code>ttg.async_wait {num = 0}</code> <span>排空：整个 CTA 只有这一次</span></span></div>
+          <div class="row r-alloc" style="--d:1"><span class="ln">336–337</span><span class="tx"><code>ttg.local_dealloc</code> <span>循环全部结束后才归还 A、B 的缓冲</span></span></div>
+          </div>
+        </div>
+      </div>
+      <figcaption>左边的预热和排空在 tile 循环的里面，每个 tile 执行一次；右边在合并后的循环外面，整个 CTA 只执行一次。epilogue 在两边都是每个 tile 一次。</figcaption>
+    </figure>
+    <ul>
+      <li><b>数“出现几次”分不出来。</b>两份里 <code>ttg.async_copy_global_to_local</code> 都是 6 处，<code>ttg.async_wait</code> 都是 2 处。区别在位置：它们在哪个循环的里面。</li>
+      <li><b>合并的直接标志是 <code>scf.if</code>。</b>左边一个也没有，右边有 4 个：特例分支、预热里的一个、循环里的 prologue 和 epilogue。</li>
+      <li><b>共享内存要看 <code>.json</code>。</b>两份的 <code>ttg.local_alloc</code> 完全相同，合计 65,536 字节，<code>shared</code> 却是 65,536 对 98,304。多出的 32,768 字节没有单独一行，它是右边第 327 行那次布局转换要用的中转。</li>
+      <li><b>为什么左边不用多开。</b>左边在第 191–192 行就归还了输入缓冲，之后才做 epilogue，中转可以用同一块地方；右边要到第 336–337 行、循环全部结束后才归还。</li>
+      <li><b>行尾的位置也是线索。</b>排空那一行，左边记的是教程第 324 行（K 循环），右边记的是第 312 行（tile 循环）。它属于哪个循环，编译器自己写在那里。</li>
+    </ul>
+    <details>
+      <summary>展开 TTGIR 原文：<code>flatten</code> 关（第 1–227 行）</summary>
+<pre class="ir"><span><i>  1</i> #blocked = #ttg.blocked&lt;{sizePerThread = [8, 1], threadsPerWarp = [8, 4], warpsPerCTA = [1, 8], order = [0, 1]}&gt;</span>
+<span><i>  2</i> #blocked1 = #ttg.blocked&lt;{sizePerThread = [1, 8], threadsPerWarp = [4, 8], warpsPerCTA = [8, 1], order = [1, 0]}&gt;</span>
+<span><i>  3</i> #blocked2 = #ttg.blocked&lt;{sizePerThread = [1, 8], threadsPerWarp = [2, 16], warpsPerCTA = [8, 1], order = [1, 0]}&gt;</span>
+<span><i>  4</i> #loc = loc("docs/triton-tutorials/official/09-persistent-matmul.py":288:0)</span>
+<span><i>  5</i> #mma = #ttg.nvidia_mma&lt;{versionMajor = 2, versionMinor = 0, warpsPerCTA = [2, 4], instrShape = [16, 8]}&gt;</span>
+<span><i>  6</i> #shared = #ttg.swizzled_shared&lt;{vec = 8, perPhase = 1, maxPhase = 8, order = [1, 0]}&gt;</span>
+<span><i>  7</i> #shared1 = #ttg.swizzled_shared&lt;{vec = 8, perPhase = 1, maxPhase = 8, order = [0, 1]}&gt;</span>
+<span><i>  8</i> #smem = #ttg.shared_memory</span>
+<span><i>  9</i> #loc70 = loc("a_ptr"(#loc))</span>
+<span><i> 10</i> #loc71 = loc("b_ptr"(#loc))</span>
+<span><i> 11</i> #loc72 = loc("c_ptr"(#loc))</span>
+<span><i> 12</i> #loc73 = loc("M"(#loc))</span>
+<span><i> 13</i> #loc74 = loc("N"(#loc))</span>
+<span><i> 14</i> #loc75 = loc("K"(#loc))</span>
+<span><i> 15</i> #loc76 = loc("stride_am"(#loc))</span>
+<span><i> 16</i> #loc77 = loc("stride_bn"(#loc))</span>
+<span><i> 17</i> #loc78 = loc("stride_cm"(#loc))</span>
+<span><i> 18</i> module attributes {"ttg.num-ctas" = 1 : i32, "ttg.num-warps" = 8 : i32, ttg.target = "cuda:89", "ttg.threads-per-warp" = 32 : i32} {</span>
+<span><i> 19</i>   tt.func public @matmul_kernel_persistent(%a_ptr: !tt.ptr&lt;f16&gt; {tt.divisibility = 16 : i32} loc("a_ptr"(#loc)), %b_ptr: !tt.ptr&lt;f16&gt; {tt.divisibility = 16 : i32} loc("b_ptr"(#loc)), %c_ptr: !tt.ptr&lt;f16&gt; {tt.divisibility = 16 : i32} loc("c_ptr"(#loc)), %M: i32 {tt.divisibility = 16 : i32} loc("M"(#loc)), %N: i32 {tt.divisibility = 16 : i32} loc("N"(#loc)), %K: i32 {tt.divisibility = 16 : i32} loc("K"(#loc)), %stride_am: i32 {tt.divisibility = 16 : i32} loc("stride_am"(#loc)), %stride_bn: i32 {tt.divisibility = 16 : i32} loc("stride_bn"(#loc)), %stride_cm: i32 {tt.divisibility = 16 : i32} loc("stride_cm"(#loc))) attributes {noinline = false} {</span>
+<span><i> 20</i>     %cst = arith.constant dense&lt;0.000000e+00&gt; : tensor&lt;128x128xf32, #mma&gt; loc(#loc1)</span>
+<span><i> 21</i>     %c63_i32 = arith.constant 63 : i32 loc(#loc1)</span>
+<span><i> 22</i>     %c127_i32 = arith.constant 127 : i32 loc(#loc1)</span>
+<span><i> 23</i>     %c1_i32 = arith.constant 1 : i32 loc(#loc1)</span>
+<span><i> 24</i>     %c0_i32 = arith.constant 0 : i32 loc(#loc1)</span>
+<span><i> 25</i>     %c64_i32 = arith.constant 64 : i32 loc(#loc1)</span>
+<span><i> 26</i>     %cst_0 = arith.constant dense&lt;0.000000e+00&gt; : tensor&lt;64x128xf16, #blocked&gt; loc(#loc1)</span>
+<span><i> 27</i>     %cst_1 = arith.constant dense&lt;0.000000e+00&gt; : tensor&lt;128x64xf16, #blocked1&gt; loc(#loc1)</span>
+<span><i> 28</i>     %c128_i32 = arith.constant 128 : i32 loc(#loc1)</span>
+<span><i> 29</i>     %c8_i32 = arith.constant 8 : i32 loc(#loc1)</span>
+<span><i> 30</i>     %cst_2 = arith.constant dense&lt;0&gt; : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc1)</span>
+<span><i> 31</i>     %cst_3 = arith.constant dense&lt;0&gt; : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc1)</span>
+<span><i> 32</i>     %c-1_i32 = arith.constant -1 : i32 loc(#loc1)</span>
+<span><i> 33</i>     %c2_i32 = arith.constant 2 : i32 loc(#loc1)</span>
+<span><i> 34</i>     %cst_4 = arith.constant dense&lt;64&gt; : tensor&lt;64xi32, #ttg.slice&lt;{dim = 0, parent = #blocked1}&gt;&gt; loc(#loc1)</span>
+<span><i> 35</i>     %cst_5 = arith.constant dense&lt;64&gt; : tensor&lt;64xi32, #ttg.slice&lt;{dim = 1, parent = #blocked}&gt;&gt; loc(#loc1)</span>
+<span><i> 36</i>     %start_pid = tt.get_program_id x : i32 loc(#loc79)</span>
+<span><i> 37</i>     %num_pid_m = arith.addi %M, %c127_i32 : i32 loc(#loc140)</span>
+<span><i> 38</i>     %num_pid_m_6 = arith.divsi %num_pid_m, %c128_i32 : i32 loc(#loc141)</span>
+<span><i> 39</i>     %num_pid_n = arith.addi %N, %c127_i32 : i32 loc(#loc142)</span>
+<span><i> 40</i>     %num_pid_n_7 = arith.divsi %num_pid_n, %c128_i32 : i32 loc(#loc143)</span>
+<span><i> 41</i>     %k_tiles = arith.addi %K, %c63_i32 : i32 loc(#loc144)</span>
+<span><i> 42</i>     %k_tiles_8 = arith.divsi %k_tiles, %c64_i32 : i32 loc(#loc145)</span>
+<span><i> 43</i>     %num_tiles = arith.muli %num_pid_m_6, %num_pid_n_7 : i32 loc(#loc83)</span>
+<span><i> 44</i>     %tile_id_c = arith.subi %start_pid, %c128_i32 : i32 loc(#loc84)</span>
+<span><i> 45</i>     %offs_k_for_mask = tt.make_range {end = 64 : i32, start = 0 : i32} : tensor&lt;64xi32, #ttg.slice&lt;{dim = 0, parent = #blocked1}&gt;&gt; loc(#loc85)</span>
+<span><i> 46</i>     %offs_k_for_mask_9 = tt.make_range {end = 64 : i32, start = 0 : i32} : tensor&lt;64xi32, #ttg.slice&lt;{dim = 1, parent = #blocked}&gt;&gt; loc(#loc85)</span>
+<span><i> 47</i>     %num_pid_in_group = arith.muli %num_pid_n_7, %c8_i32 : i32 loc(#loc86)</span>
+<span><i> 48</i>     %offs_am = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc87)</span>
+<span><i> 49</i>     %offs_am_10 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked2}&gt;&gt; loc(#loc87)</span>
+<span><i> 50</i>     %offs_am_11 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc87)</span>
+<span><i> 51</i>     %offs_am_12 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked2}&gt;&gt; loc(#loc87)</span>
+<span><i> 52</i>     %offs_am_13 = tt.splat %M : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc88)</span>
+<span><i> 53</i>     %offs_bn = tt.splat %N : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc89)</span>
+<span><i> 54</i>     %a_ptrs = tt.splat %stride_am : i32 -&gt; tensor&lt;128x1xi32, #blocked1&gt; loc(#loc90)</span>
+<span><i> 55</i>     %a_ptrs_14 = tt.splat %a_ptr : !tt.ptr&lt;f16&gt; -&gt; tensor&lt;128x64x!tt.ptr&lt;f16&gt;, #blocked1&gt; loc(#loc91)</span>
+<span><i> 56</i>     %b_ptrs = tt.splat %stride_bn : i32 -&gt; tensor&lt;1x128xi32, #blocked&gt; loc(#loc92)</span>
+<span><i> 57</i>     %b_ptrs_15 = tt.splat %b_ptr : !tt.ptr&lt;f16&gt; -&gt; tensor&lt;64x128x!tt.ptr&lt;f16&gt;, #blocked&gt; loc(#loc93)</span>
+<span><i> 58</i>     %a = tt.expand_dims %offs_k_for_mask {axis = 0 : i32} : tensor&lt;64xi32, #ttg.slice&lt;{dim = 0, parent = #blocked1}&gt;&gt; -&gt; tensor&lt;1x64xi32, #blocked1&gt; loc(#loc94)</span>
+<span><i> 59</i>     %b = tt.expand_dims %offs_k_for_mask_9 {axis = 1 : i32} : tensor&lt;64xi32, #ttg.slice&lt;{dim = 1, parent = #blocked}&gt;&gt; -&gt; tensor&lt;64x1xi32, #blocked&gt; loc(#loc95)</span>
+<span><i> 60</i>     %c_ptrs = tt.splat %stride_cm : i32 -&gt; tensor&lt;128x1xi32, #blocked2&gt; loc(#loc96)</span>
+<span><i> 61</i>     %c_ptrs_16 = tt.splat %c_ptr : !tt.ptr&lt;f16&gt; -&gt; tensor&lt;128x1x!tt.ptr&lt;f16&gt;, #blocked2&gt; loc(#loc97)</span>
+<span><i> 62</i>     %c_mask = tt.splat %M : i32 -&gt; tensor&lt;128x1xi32, #blocked2&gt; loc(#loc98)</span>
+<span><i> 63</i>     %c_mask_17 = tt.splat %N : i32 -&gt; tensor&lt;1x128xi32, #blocked2&gt; loc(#loc99)</span>
+<span class="hit"><i> 64</i>     %tile_id_c_18 = scf.for %tile_id = %start_pid to %num_tiles step %c128_i32 iter_args(%tile_id_c_19 = %tile_id_c) -&gt; (i32)  : i32 {</span>
+<span class="hit"><i> 65</i>       %group_id = arith.divsi %tile_id, %num_pid_in_group : i32 loc(#loc146)</span>
+<span><i> 66</i>       %first_pid_m = arith.muli %group_id, %c8_i32 : i32 loc(#loc147)</span>
+<span><i> 67</i>       %group_size_m = arith.subi %num_pid_m_6, %first_pid_m : i32 loc(#loc148)</span>
+<span><i> 68</i>       %group_size_m_20 = arith.minsi %group_size_m, %c8_i32 : i32 loc(#loc149)</span>
+<span><i> 69</i>       %pid_m = arith.remsi %tile_id, %group_size_m_20 : i32 loc(#loc150)</span>
+<span><i> 70</i>       %pid_m_21 = arith.addi %first_pid_m, %pid_m : i32 loc(#loc151)</span>
+<span><i> 71</i>       %pid_n = arith.remsi %tile_id, %num_pid_in_group : i32 loc(#loc152)</span>
+<span><i> 72</i>       %pid_n_22 = arith.divsi %pid_n, %group_size_m_20 : i32 loc(#loc153)</span>
+<span><i> 73</i>       %start_m = arith.muli %pid_m_21, %c128_i32 : i32 loc(#loc109)</span>
+<span><i> 74</i>       %start_n = arith.muli %pid_n_22, %c128_i32 : i32 loc(#loc110)</span>
+<span><i> 75</i>       %offs_am_23 = tt.splat %start_m : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc111)</span>
+<span><i> 76</i>       %offs_am_24 = arith.addi %offs_am_23, %offs_am : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc111)</span>
+<span><i> 77</i>       %offs_bn_25 = tt.splat %start_n : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc112)</span>
+<span><i> 78</i>       %offs_bn_26 = arith.addi %offs_bn_25, %offs_am_11 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc112)</span>
+<span><i> 79</i>       %offs_am_27 = arith.cmpi slt, %offs_am_24, %offs_am_13 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc88)</span>
+<span><i> 80</i>       %offs_am_28 = arith.select %offs_am_27, %offs_am_24, %cst_2 {tt.contiguity = dense&lt;128&gt; : tensor&lt;1xi32&gt;, tt.divisibility = dense&lt;128&gt; : tensor&lt;1xi32&gt;} : tensor&lt;128xi1, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc113)</span>
+<span><i> 81</i>       %offs_bn_29 = arith.cmpi slt, %offs_bn_26, %offs_bn : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc89)</span>
+<span><i> 82</i>       %offs_bn_30 = arith.select %offs_bn_29, %offs_bn_26, %cst_3 {tt.contiguity = dense&lt;128&gt; : tensor&lt;1xi32&gt;, tt.divisibility = dense&lt;128&gt; : tensor&lt;1xi32&gt;} : tensor&lt;128xi1, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc114)</span>
+<span><i> 83</i>       %a_ptrs_31 = tt.expand_dims %offs_am_28 {axis = 1 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; -&gt; tensor&lt;128x1xi32, #blocked1&gt; loc(#loc115)</span>
+<span><i> 84</i>       %a_ptrs_32 = arith.muli %a_ptrs_31, %a_ptrs : tensor&lt;128x1xi32, #blocked1&gt; loc(#loc90)</span>
+<span><i> 85</i>       %a_ptrs_33 = tt.broadcast %a_ptrs_32 : tensor&lt;128x1xi32, #blocked1&gt; -&gt; tensor&lt;128x64xi32, #blocked1&gt; loc(#loc116)</span>
+<span><i> 86</i>       %b_ptrs_34 = tt.expand_dims %offs_bn_30 {axis = 0 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; -&gt; tensor&lt;1x128xi32, #blocked&gt; loc(#loc117)</span>
+<span><i> 87</i>       %b_ptrs_35 = arith.muli %b_ptrs_34, %b_ptrs : tensor&lt;1x128xi32, #blocked&gt; loc(#loc92)</span>
+<span><i> 88</i>       %b_ptrs_36 = tt.broadcast %b_ptrs_35 : tensor&lt;1x128xi32, #blocked&gt; -&gt; tensor&lt;64x128xi32, #blocked&gt; loc(#loc118)</span>
+<span class="hit"><i> 89</i>       %a_37 = ttg.local_alloc : () -&gt; !ttg.memdesc&lt;2x128x64xf16, #shared, #smem, mutable&gt; loc(#loc119)</span>
+<span class="hit"><i> 90</i>       %b_38 = ttg.local_alloc : () -&gt; !ttg.memdesc&lt;2x64x128xf16, #shared1, #smem, mutable&gt; loc(#loc120)</span>
+<span><i> 91</i>       %accumulator = arith.cmpi sgt, %k_tiles_8, %c0_i32 : i32 loc(#loc121)</span>
+<span><i> 92</i>       %a_ptrs_39 = tt.broadcast %a : tensor&lt;1x64xi32, #blocked1&gt; -&gt; tensor&lt;128x64xi32, #blocked1&gt; loc(#loc116)</span>
+<span><i> 93</i>       %a_ptrs_40 = arith.addi %a_ptrs_33, %a_ptrs_39 : tensor&lt;128x64xi32, #blocked1&gt; loc(#loc116)</span>
+<span><i> 94</i>       %a_ptrs_41 = tt.addptr %a_ptrs_14, %a_ptrs_40 : tensor&lt;128x64x!tt.ptr&lt;f16&gt;, #blocked1&gt;, tensor&lt;128x64xi32, #blocked1&gt; loc(#loc91)</span>
+<span><i> 95</i>       %b_ptrs_42 = tt.broadcast %b : tensor&lt;64x1xi32, #blocked&gt; -&gt; tensor&lt;64x128xi32, #blocked&gt; loc(#loc118)</span>
+<span><i> 96</i>       %b_ptrs_43 = arith.addi %b_ptrs_42, %b_ptrs_36 : tensor&lt;64x128xi32, #blocked&gt; loc(#loc118)</span>
+<span><i> 97</i>       %b_ptrs_44 = tt.addptr %b_ptrs_15, %b_ptrs_43 : tensor&lt;64x128x!tt.ptr&lt;f16&gt;, #blocked&gt;, tensor&lt;64x128xi32, #blocked&gt; loc(#loc93)</span>
+<span><i> 98</i>       %a_45 = tt.splat %K : i32 -&gt; tensor&lt;1x64xi32, #blocked1&gt; loc(#loc122)</span>
+<span><i> 99</i>       %a_46 = arith.cmpi slt, %a, %a_45 : tensor&lt;1x64xi32, #blocked1&gt; loc(#loc122)</span>
+<span><i>100</i>       %a_47 = tt.broadcast %a_46 : tensor&lt;1x64xi1, #blocked1&gt; -&gt; tensor&lt;128x64xi1, #blocked1&gt; loc(#loc119)</span>
+<span><i>101</i>       %a_48 = ttg.memdesc_index %a_37[%c0_i32] : !ttg.memdesc&lt;2x128x64xf16, #shared, #smem, mutable&gt; -&gt; !ttg.memdesc&lt;128x64xf16, #shared, #smem, mutable&gt; loc(#loc119)</span>
+<span><i>102</i>       %accumulator_49 = tt.splat %accumulator : i1 -&gt; tensor&lt;128x64xi1, #blocked1&gt; loc(#loc121)</span>
+<span><i>103</i>       %accumulator_50 = arith.andi %accumulator_49, %a_47 : tensor&lt;128x64xi1, #blocked1&gt; loc(#loc121)</span>
+<span class="hit"><i>104</i>       %a_51 = ttg.async_copy_global_to_local %a_ptrs_41, %a_48 mask %accumulator_50 other %cst_1 {contiguity = 8 : i32} : tensor&lt;128x64x!tt.ptr&lt;f16&gt;, #blocked1&gt; -&gt; &lt;128x64xf16, #shared, #smem, mutable&gt; loc(#loc119)</span>
+<span><i>105</i>       %a_52 = ttg.async_commit_group tokens %a_51 loc(#loc119)</span>
+<span><i>106</i>       %b_53 = tt.splat %K : i32 -&gt; tensor&lt;64x1xi32, #blocked&gt; loc(#loc123)</span>
+<span><i>107</i>       %b_54 = arith.cmpi slt, %b, %b_53 : tensor&lt;64x1xi32, #blocked&gt; loc(#loc123)</span>
+<span><i>108</i>       %b_55 = tt.broadcast %b_54 : tensor&lt;64x1xi1, #blocked&gt; -&gt; tensor&lt;64x128xi1, #blocked&gt; loc(#loc120)</span>
+<span><i>109</i>       %b_56 = ttg.memdesc_index %b_38[%c0_i32] : !ttg.memdesc&lt;2x64x128xf16, #shared1, #smem, mutable&gt; -&gt; !ttg.memdesc&lt;64x128xf16, #shared1, #smem, mutable&gt; loc(#loc120)</span>
+<span><i>110</i>       %accumulator_57 = tt.splat %accumulator : i1 -&gt; tensor&lt;64x128xi1, #blocked&gt; loc(#loc121)</span>
+<span><i>111</i>       %accumulator_58 = arith.andi %accumulator_57, %b_55 : tensor&lt;64x128xi1, #blocked&gt; loc(#loc121)</span>
+<span class="hit"><i>112</i>       %b_59 = ttg.async_copy_global_to_local %b_ptrs_44, %b_56 mask %accumulator_58 other %cst_0 {contiguity = 8 : i32} : tensor&lt;64x128x!tt.ptr&lt;f16&gt;, #blocked&gt; -&gt; &lt;64x128xf16, #shared1, #smem, mutable&gt; loc(#loc120)</span>
+<span><i>113</i>       %b_60 = ttg.async_commit_group tokens %b_59 loc(#loc120)</span>
+<span><i>114</i>       %accumulator_61 = arith.cmpi sgt, %k_tiles_8, %c1_i32 : i32 loc(#loc121)</span>
+<span><i>115</i>       %offs_k = arith.addi %offs_k_for_mask, %cst_4 : tensor&lt;64xi32, #ttg.slice&lt;{dim = 0, parent = #blocked1}&gt;&gt; loc(#loc124)</span>
+<span><i>116</i>       %offs_k_62 = arith.addi %offs_k_for_mask_9, %cst_5 : tensor&lt;64xi32, #ttg.slice&lt;{dim = 1, parent = #blocked}&gt;&gt; loc(#loc124)</span>
+<span><i>117</i>       %a_ptrs_63 = tt.expand_dims %offs_k {axis = 0 : i32} : tensor&lt;64xi32, #ttg.slice&lt;{dim = 0, parent = #blocked1}&gt;&gt; -&gt; tensor&lt;1x64xi32, #blocked1&gt; loc(#loc125)</span>
+<span><i>118</i>       %a_ptrs_64 = tt.broadcast %a_ptrs_63 : tensor&lt;1x64xi32, #blocked1&gt; -&gt; tensor&lt;128x64xi32, #blocked1&gt; loc(#loc116)</span>
+<span><i>119</i>       %a_ptrs_65 = arith.addi %a_ptrs_33, %a_ptrs_64 : tensor&lt;128x64xi32, #blocked1&gt; loc(#loc116)</span>
+<span><i>120</i>       %a_ptrs_66 = tt.addptr %a_ptrs_14, %a_ptrs_65 : tensor&lt;128x64x!tt.ptr&lt;f16&gt;, #blocked1&gt;, tensor&lt;128x64xi32, #blocked1&gt; loc(#loc91)</span>
+<span><i>121</i>       %b_ptrs_67 = tt.expand_dims %offs_k_62 {axis = 1 : i32} : tensor&lt;64xi32, #ttg.slice&lt;{dim = 1, parent = #blocked}&gt;&gt; -&gt; tensor&lt;64x1xi32, #blocked&gt; loc(#loc126)</span>
+<span><i>122</i>       %b_ptrs_68 = tt.broadcast %b_ptrs_67 : tensor&lt;64x1xi32, #blocked&gt; -&gt; tensor&lt;64x128xi32, #blocked&gt; loc(#loc118)</span>
+<span><i>123</i>       %b_ptrs_69 = arith.addi %b_ptrs_68, %b_ptrs_36 : tensor&lt;64x128xi32, #blocked&gt; loc(#loc118)</span>
+<span><i>124</i>       %b_ptrs_70 = tt.addptr %b_ptrs_15, %b_ptrs_69 : tensor&lt;64x128x!tt.ptr&lt;f16&gt;, #blocked&gt;, tensor&lt;64x128xi32, #blocked&gt; loc(#loc93)</span>
+<span><i>125</i>       %a_71 = arith.subi %K, %c64_i32 : i32 loc(#loc127)</span>
+<span><i>126</i>       %a_72 = tt.splat %a_71 : i32 -&gt; tensor&lt;1x64xi32, #blocked1&gt; loc(#loc122)</span>
+<span><i>127</i>       %a_73 = arith.cmpi slt, %a, %a_72 : tensor&lt;1x64xi32, #blocked1&gt; loc(#loc122)</span>
+<span><i>128</i>       %a_74 = tt.broadcast %a_73 : tensor&lt;1x64xi1, #blocked1&gt; -&gt; tensor&lt;128x64xi1, #blocked1&gt; loc(#loc119)</span>
+<span><i>129</i>       %a_75 = ttg.memdesc_index %a_37[%c1_i32] : !ttg.memdesc&lt;2x128x64xf16, #shared, #smem, mutable&gt; -&gt; !ttg.memdesc&lt;128x64xf16, #shared, #smem, mutable&gt; loc(#loc119)</span>
+<span><i>130</i>       %accumulator_76 = tt.splat %accumulator_61 : i1 -&gt; tensor&lt;128x64xi1, #blocked1&gt; loc(#loc121)</span>
+<span><i>131</i>       %accumulator_77 = arith.andi %accumulator_76, %a_74 : tensor&lt;128x64xi1, #blocked1&gt; loc(#loc121)</span>
+<span class="hit"><i>132</i>       %a_78 = ttg.async_copy_global_to_local %a_ptrs_66, %a_75 mask %accumulator_77 other %cst_1 {contiguity = 8 : i32} : tensor&lt;128x64x!tt.ptr&lt;f16&gt;, #blocked1&gt; -&gt; &lt;128x64xf16, #shared, #smem, mutable&gt; loc(#loc119)</span>
+<span><i>133</i>       %a_79 = ttg.async_commit_group tokens %a_78 loc(#loc119)</span>
+<span><i>134</i>       %b_80 = tt.splat %a_71 : i32 -&gt; tensor&lt;64x1xi32, #blocked&gt; loc(#loc123)</span>
+<span><i>135</i>       %b_81 = arith.cmpi slt, %b, %b_80 : tensor&lt;64x1xi32, #blocked&gt; loc(#loc123)</span>
+<span><i>136</i>       %b_82 = tt.broadcast %b_81 : tensor&lt;64x1xi1, #blocked&gt; -&gt; tensor&lt;64x128xi1, #blocked&gt; loc(#loc120)</span>
+<span><i>137</i>       %b_83 = ttg.memdesc_index %b_38[%c1_i32] : !ttg.memdesc&lt;2x64x128xf16, #shared1, #smem, mutable&gt; -&gt; !ttg.memdesc&lt;64x128xf16, #shared1, #smem, mutable&gt; loc(#loc120)</span>
+<span><i>138</i>       %accumulator_84 = tt.splat %accumulator_61 : i1 -&gt; tensor&lt;64x128xi1, #blocked&gt; loc(#loc121)</span>
+<span><i>139</i>       %accumulator_85 = arith.andi %accumulator_84, %b_82 : tensor&lt;64x128xi1, #blocked&gt; loc(#loc121)</span>
+<span class="hit"><i>140</i>       %b_86 = ttg.async_copy_global_to_local %b_ptrs_70, %b_83 mask %accumulator_85 other %cst_0 {contiguity = 8 : i32} : tensor&lt;64x128x!tt.ptr&lt;f16&gt;, #blocked&gt; -&gt; &lt;64x128xf16, #shared1, #smem, mutable&gt; loc(#loc120)</span>
+<span><i>141</i>       %b_87 = ttg.async_commit_group tokens %b_86 loc(#loc120)</span>
+<span class="hit"><i>142</i>       %accumulator_88:7 = scf.for %accumulator_115 = %c0_i32 to %k_tiles_8 step %c1_i32 iter_args(%arg12 = %cst, %arg13 = %c1_i32, %arg14 = %c-1_i32, %a_116 = %a_52, %a_117 = %a_79, %b_118 = %b_60, %b_119 = %b_87) -&gt; (tensor&lt;128x128xf32, #mma&gt;, i32, i32, !ttg.async.token, !ttg.async.token, !ttg.async.token, !ttg.async.token)  : i32 {</span>
+<span><i>143</i>         %accumulator_120 = arith.subi %k_tiles_8, %c2_i32 : i32 loc(#loc121)</span>
+<span><i>144</i>         %accumulator_121 = arith.cmpi slt, %accumulator_115, %accumulator_120 : i32 loc(#loc121)</span>
+<span><i>145</i>         %accumulator_122 = arith.addi %arg14, %c1_i32 : i32 loc(#loc121)</span>
+<span><i>146</i>         %accumulator_123 = arith.cmpi sge, %accumulator_122, %c2_i32 : i32 loc(#loc121)</span>
+<span><i>147</i>         %accumulator_124 = arith.select %accumulator_123, %c0_i32, %accumulator_122 : i32 loc(#loc121)</span>
+<span class="hit"><i>148</i>         %a_125 = ttg.async_wait %a_116, %b_118 {num = 2 : i32} loc(#loc119)</span>
+<span><i>149</i>         %a_126 = ttg.memdesc_index %a_37[%accumulator_124] : !ttg.memdesc&lt;2x128x64xf16, #shared, #smem, mutable&gt; -&gt; !ttg.memdesc&lt;128x64xf16, #shared, #smem, mutable&gt; loc(#loc119)</span>
+<span class="hit"><i>150</i>         %a_127 = ttg.local_load %a_126 token %a_125 : !ttg.memdesc&lt;128x64xf16, #shared, #smem, mutable&gt; -&gt; tensor&lt;128x64xf16, #ttg.dot_op&lt;{opIdx = 0, parent = #mma, kWidth = 2}&gt;&gt; loc(#loc119)</span>
+<span><i>151</i>         %b_128 = ttg.memdesc_index %b_38[%accumulator_124] : !ttg.memdesc&lt;2x64x128xf16, #shared1, #smem, mutable&gt; -&gt; !ttg.memdesc&lt;64x128xf16, #shared1, #smem, mutable&gt; loc(#loc120)</span>
+<span class="hit"><i>152</i>         %b_129 = ttg.local_load %b_128 token %a_125 : !ttg.memdesc&lt;64x128xf16, #shared1, #smem, mutable&gt; -&gt; tensor&lt;64x128xf16, #ttg.dot_op&lt;{opIdx = 1, parent = #mma, kWidth = 2}&gt;&gt; loc(#loc120)</span>
+<span class="hit"><i>153</i>         %accumulator_130 = tt.dot %a_127, %b_129, %arg12, inputPrecision = tf32 : tensor&lt;128x64xf16, #ttg.dot_op&lt;{opIdx = 0, parent = #mma, kWidth = 2}&gt;&gt; * tensor&lt;64x128xf16, #ttg.dot_op&lt;{opIdx = 1, parent = #mma, kWidth = 2}&gt;&gt; -&gt; tensor&lt;128x128xf32, #mma&gt; loc(#loc128)</span>
+<span><i>154</i>         %accumulator_131 = arith.addi %arg13, %c1_i32 : i32 loc(#loc121)</span>
+<span><i>155</i>         %accumulator_132 = arith.cmpi sge, %accumulator_131, %c2_i32 : i32 loc(#loc121)</span>
+<span><i>156</i>         %accumulator_133 = arith.select %accumulator_132, %c0_i32, %accumulator_131 : i32 loc(#loc121)</span>
+<span><i>157</i>         %accumulator_134 = arith.addi %accumulator_115, %c2_i32 : i32 loc(#loc121)</span>
+<span><i>158</i>         %offs_k_135 = arith.muli %accumulator_134, %c64_i32 : i32 loc(#loc129)</span>
+<span><i>159</i>         %offs_k_136 = tt.splat %offs_k_135 : i32 -&gt; tensor&lt;64xi32, #ttg.slice&lt;{dim = 0, parent = #blocked1}&gt;&gt; loc(#loc124)</span>
+<span><i>160</i>         %offs_k_137 = tt.splat %offs_k_135 : i32 -&gt; tensor&lt;64xi32, #ttg.slice&lt;{dim = 1, parent = #blocked}&gt;&gt; loc(#loc124)</span>
+<span><i>161</i>         %offs_k_138 = arith.addi %offs_k_136, %offs_k_for_mask : tensor&lt;64xi32, #ttg.slice&lt;{dim = 0, parent = #blocked1}&gt;&gt; loc(#loc124)</span>
+<span><i>162</i>         %offs_k_139 = arith.addi %offs_k_137, %offs_k_for_mask_9 : tensor&lt;64xi32, #ttg.slice&lt;{dim = 1, parent = #blocked}&gt;&gt; loc(#loc124)</span>
+<span><i>163</i>         %a_ptrs_140 = tt.expand_dims %offs_k_138 {axis = 0 : i32} : tensor&lt;64xi32, #ttg.slice&lt;{dim = 0, parent = #blocked1}&gt;&gt; -&gt; tensor&lt;1x64xi32, #blocked1&gt; loc(#loc125)</span>
+<span><i>164</i>         %a_ptrs_141 = tt.broadcast %a_ptrs_140 : tensor&lt;1x64xi32, #blocked1&gt; -&gt; tensor&lt;128x64xi32, #blocked1&gt; loc(#loc116)</span>
+<span><i>165</i>         %a_ptrs_142 = arith.addi %a_ptrs_33, %a_ptrs_141 : tensor&lt;128x64xi32, #blocked1&gt; loc(#loc116)</span>
+<span><i>166</i>         %a_ptrs_143 = tt.addptr %a_ptrs_14, %a_ptrs_142 : tensor&lt;128x64x!tt.ptr&lt;f16&gt;, #blocked1&gt;, tensor&lt;128x64xi32, #blocked1&gt; loc(#loc91)</span>
+<span><i>167</i>         %b_ptrs_144 = tt.expand_dims %offs_k_139 {axis = 1 : i32} : tensor&lt;64xi32, #ttg.slice&lt;{dim = 1, parent = #blocked}&gt;&gt; -&gt; tensor&lt;64x1xi32, #blocked&gt; loc(#loc126)</span>
+<span><i>168</i>         %b_ptrs_145 = tt.broadcast %b_ptrs_144 : tensor&lt;64x1xi32, #blocked&gt; -&gt; tensor&lt;64x128xi32, #blocked&gt; loc(#loc118)</span>
+<span><i>169</i>         %b_ptrs_146 = arith.addi %b_ptrs_145, %b_ptrs_36 : tensor&lt;64x128xi32, #blocked&gt; loc(#loc118)</span>
+<span><i>170</i>         %b_ptrs_147 = tt.addptr %b_ptrs_15, %b_ptrs_146 : tensor&lt;64x128x!tt.ptr&lt;f16&gt;, #blocked&gt;, tensor&lt;64x128xi32, #blocked&gt; loc(#loc93)</span>
+<span><i>171</i>         %a_148 = arith.subi %K, %offs_k_135 : i32 loc(#loc127)</span>
+<span><i>172</i>         %a_149 = tt.splat %a_148 : i32 -&gt; tensor&lt;1x64xi32, #blocked1&gt; loc(#loc122)</span>
+<span><i>173</i>         %a_150 = arith.cmpi slt, %a, %a_149 : tensor&lt;1x64xi32, #blocked1&gt; loc(#loc122)</span>
+<span><i>174</i>         %a_151 = tt.broadcast %a_150 : tensor&lt;1x64xi1, #blocked1&gt; -&gt; tensor&lt;128x64xi1, #blocked1&gt; loc(#loc119)</span>
+<span><i>175</i>         %a_152 = ttg.memdesc_index %a_37[%accumulator_133] : !ttg.memdesc&lt;2x128x64xf16, #shared, #smem, mutable&gt; -&gt; !ttg.memdesc&lt;128x64xf16, #shared, #smem, mutable&gt; loc(#loc119)</span>
+<span><i>176</i>         %accumulator_153 = tt.splat %accumulator_121 : i1 -&gt; tensor&lt;128x64xi1, #blocked1&gt; loc(#loc121)</span>
+<span><i>177</i>         %accumulator_154 = arith.andi %accumulator_153, %a_151 : tensor&lt;128x64xi1, #blocked1&gt; loc(#loc121)</span>
+<span class="hit"><i>178</i>         %a_155 = ttg.async_copy_global_to_local %a_ptrs_143, %a_152 mask %accumulator_154 other %cst_1 {contiguity = 8 : i32} : tensor&lt;128x64x!tt.ptr&lt;f16&gt;, #blocked1&gt; -&gt; &lt;128x64xf16, #shared, #smem, mutable&gt; loc(#loc119)</span>
+<span><i>179</i>         %a_156 = ttg.async_commit_group tokens %a_155 loc(#loc119)</span>
+<span><i>180</i>         %b_157 = tt.splat %a_148 : i32 -&gt; tensor&lt;64x1xi32, #blocked&gt; loc(#loc123)</span>
+<span><i>181</i>         %b_158 = arith.cmpi slt, %b, %b_157 : tensor&lt;64x1xi32, #blocked&gt; loc(#loc123)</span>
+<span><i>182</i>         %b_159 = tt.broadcast %b_158 : tensor&lt;64x1xi1, #blocked&gt; -&gt; tensor&lt;64x128xi1, #blocked&gt; loc(#loc120)</span>
+<span><i>183</i>         %b_160 = ttg.memdesc_index %b_38[%accumulator_133] : !ttg.memdesc&lt;2x64x128xf16, #shared1, #smem, mutable&gt; -&gt; !ttg.memdesc&lt;64x128xf16, #shared1, #smem, mutable&gt; loc(#loc120)</span>
+<span><i>184</i>         %accumulator_161 = tt.splat %accumulator_121 : i1 -&gt; tensor&lt;64x128xi1, #blocked&gt; loc(#loc121)</span>
+<span><i>185</i>         %accumulator_162 = arith.andi %accumulator_161, %b_159 : tensor&lt;64x128xi1, #blocked&gt; loc(#loc121)</span>
+<span class="hit"><i>186</i>         %b_163 = ttg.async_copy_global_to_local %b_ptrs_147, %b_160 mask %accumulator_162 other %cst_0 {contiguity = 8 : i32} : tensor&lt;64x128x!tt.ptr&lt;f16&gt;, #blocked&gt; -&gt; &lt;64x128xf16, #shared1, #smem, mutable&gt; loc(#loc120)</span>
+<span><i>187</i>         %b_164 = ttg.async_commit_group tokens %b_163 loc(#loc120)</span>
+<span><i>188</i>         scf.yield %accumulator_130, %accumulator_133, %accumulator_124, %a_117, %a_156, %b_119, %b_164 : tensor&lt;128x128xf32, #mma&gt;, i32, i32, !ttg.async.token, !ttg.async.token, !ttg.async.token, !ttg.async.token loc(#loc121)</span>
+<span><i>189</i>       } loc(#loc121)</span>
+<span class="hit"><i>190</i>       %accumulator_89 = ttg.async_wait {num = 0 : i32} loc(#loc121)</span>
+<span class="hit"><i>191</i>       ttg.local_dealloc %b_38 : !ttg.memdesc&lt;2x64x128xf16, #shared1, #smem, mutable&gt; loc(#loc121)</span>
+<span class="hit"><i>192</i>       ttg.local_dealloc %a_37 : !ttg.memdesc&lt;2x128x64xf16, #shared, #smem, mutable&gt; loc(#loc121)</span>
+<span><i>193</i>       %tile_id_c_90 = arith.addi %tile_id_c_19, %c128_i32 : i32 loc(#loc130)</span>
+<span><i>194</i>       %group_id_91 = arith.divsi %tile_id_c_90, %num_pid_in_group : i32 loc(#loc154)</span>
+<span><i>195</i>       %first_pid_m_92 = arith.muli %group_id_91, %c8_i32 : i32 loc(#loc155)</span>
+<span><i>196</i>       %group_size_m_93 = arith.subi %num_pid_m_6, %first_pid_m_92 : i32 loc(#loc156)</span>
+<span><i>197</i>       %group_size_m_94 = arith.minsi %group_size_m_93, %c8_i32 : i32 loc(#loc157)</span>
+<span><i>198</i>       %pid_m_95 = arith.remsi %tile_id_c_90, %group_size_m_94 : i32 loc(#loc158)</span>
+<span><i>199</i>       %pid_m_96 = arith.addi %first_pid_m_92, %pid_m_95 : i32 loc(#loc159)</span>
+<span><i>200</i>       %pid_n_97 = arith.remsi %tile_id_c_90, %num_pid_in_group : i32 loc(#loc160)</span>
+<span><i>201</i>       %pid_n_98 = arith.divsi %pid_n_97, %group_size_m_94 : i32 loc(#loc161)</span>
+<span><i>202</i>       %offs_cm = arith.muli %pid_m_96, %c128_i32 : i32 loc(#loc131)</span>
+<span><i>203</i>       %offs_cm_99 = tt.splat %offs_cm : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked2}&gt;&gt; loc(#loc132)</span>
+<span><i>204</i>       %offs_cm_100 = arith.addi %offs_cm_99, %offs_am_10 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked2}&gt;&gt; loc(#loc132)</span>
+<span><i>205</i>       %offs_cn = arith.muli %pid_n_98, %c128_i32 : i32 loc(#loc133)</span>
+<span><i>206</i>       %offs_cn_101 = tt.splat %offs_cn : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked2}&gt;&gt; loc(#loc134)</span>
+<span><i>207</i>       %offs_cn_102 = arith.addi %offs_cn_101, %offs_am_12 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked2}&gt;&gt; loc(#loc134)</span>
+<span><i>208</i>       %c_ptrs_103 = tt.expand_dims %offs_cm_100 {axis = 1 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked2}&gt;&gt; -&gt; tensor&lt;128x1xi32, #blocked2&gt; loc(#loc135)</span>
+<span><i>209</i>       %c_ptrs_104 = arith.muli %c_ptrs, %c_ptrs_103 : tensor&lt;128x1xi32, #blocked2&gt; loc(#loc96)</span>
+<span><i>210</i>       %c_ptrs_105 = tt.addptr %c_ptrs_16, %c_ptrs_104 : tensor&lt;128x1x!tt.ptr&lt;f16&gt;, #blocked2&gt;, tensor&lt;128x1xi32, #blocked2&gt; loc(#loc97)</span>
+<span><i>211</i>       %c_ptrs_106 = tt.expand_dims %offs_cn_102 {axis = 0 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked2}&gt;&gt; -&gt; tensor&lt;1x128xi32, #blocked2&gt; loc(#loc136)</span>
+<span><i>212</i>       %c_ptrs_107 = tt.broadcast %c_ptrs_105 : tensor&lt;128x1x!tt.ptr&lt;f16&gt;, #blocked2&gt; -&gt; tensor&lt;128x128x!tt.ptr&lt;f16&gt;, #blocked2&gt; loc(#loc137)</span>
+<span><i>213</i>       %c_ptrs_108 = tt.broadcast %c_ptrs_106 : tensor&lt;1x128xi32, #blocked2&gt; -&gt; tensor&lt;128x128xi32, #blocked2&gt; loc(#loc137)</span>
+<span><i>214</i>       %c_ptrs_109 = tt.addptr %c_ptrs_107, %c_ptrs_108 : tensor&lt;128x128x!tt.ptr&lt;f16&gt;, #blocked2&gt;, tensor&lt;128x128xi32, #blocked2&gt; loc(#loc137)</span>
+<span><i>215</i>       %c_mask_110 = arith.cmpi slt, %c_ptrs_103, %c_mask : tensor&lt;128x1xi32, #blocked2&gt; loc(#loc98)</span>
+<span><i>216</i>       %c_mask_111 = arith.cmpi slt, %c_ptrs_106, %c_mask_17 : tensor&lt;1x128xi32, #blocked2&gt; loc(#loc99)</span>
+<span><i>217</i>       %c_mask_112 = tt.broadcast %c_mask_110 : tensor&lt;128x1xi1, #blocked2&gt; -&gt; tensor&lt;128x128xi1, #blocked2&gt; loc(#loc138)</span>
+<span><i>218</i>       %c_mask_113 = tt.broadcast %c_mask_111 : tensor&lt;1x128xi1, #blocked2&gt; -&gt; tensor&lt;128x128xi1, #blocked2&gt; loc(#loc138)</span>
+<span><i>219</i>       %c_mask_114 = arith.andi %c_mask_112, %c_mask_113 : tensor&lt;128x128xi1, #blocked2&gt; loc(#loc138)</span>
+<span><i>220</i>       %c = arith.truncf %accumulator_88#0 : tensor&lt;128x128xf32, #mma&gt; to tensor&lt;128x128xf16, #mma&gt; loc(#loc139)</span>
+<span class="hit"><i>221</i>       %0 = ttg.convert_layout %c : tensor&lt;128x128xf16, #mma&gt; -&gt; tensor&lt;128x128xf16, #blocked2&gt; loc(#loc67)</span>
+<span class="hit"><i>222</i>       tt.store %c_ptrs_109, %0, %c_mask_114 : tensor&lt;128x128x!tt.ptr&lt;f16&gt;, #blocked2&gt; loc(#loc67)</span>
+<span><i>223</i>       scf.yield %tile_id_c_90 : i32 loc(#loc68)</span>
+<span><i>224</i>     } loc(#loc100)</span>
+<span><i>225</i>     tt.return loc(#loc69)</span>
+<span><i>226</i>   } loc(#loc)</span>
+<span><i>227</i> } loc(#loc)</span></pre>
+    </details>
+    <details>
+      <summary>展开 TTGIR 原文：<code>flatten</code> 开（第 1–341 行）</summary>
+<pre class="ir"><span><i>  1</i> #blocked = #ttg.blocked&lt;{sizePerThread = [8, 1], threadsPerWarp = [8, 4], warpsPerCTA = [1, 8], order = [0, 1]}&gt;</span>
+<span><i>  2</i> #blocked1 = #ttg.blocked&lt;{sizePerThread = [1, 8], threadsPerWarp = [4, 8], warpsPerCTA = [8, 1], order = [1, 0]}&gt;</span>
+<span><i>  3</i> #blocked2 = #ttg.blocked&lt;{sizePerThread = [1, 8], threadsPerWarp = [2, 16], warpsPerCTA = [8, 1], order = [1, 0]}&gt;</span>
+<span><i>  4</i> #loc = loc("docs/triton-tutorials/official/09-persistent-matmul.py":288:0)</span>
+<span><i>  5</i> #mma = #ttg.nvidia_mma&lt;{versionMajor = 2, versionMinor = 0, warpsPerCTA = [2, 4], instrShape = [16, 8]}&gt;</span>
+<span><i>  6</i> #shared = #ttg.swizzled_shared&lt;{vec = 8, perPhase = 1, maxPhase = 8, order = [1, 0]}&gt;</span>
+<span><i>  7</i> #shared1 = #ttg.swizzled_shared&lt;{vec = 8, perPhase = 1, maxPhase = 8, order = [0, 1]}&gt;</span>
+<span><i>  8</i> #smem = #ttg.shared_memory</span>
+<span><i>  9</i> #loc70 = loc("a_ptr"(#loc))</span>
+<span><i> 10</i> #loc71 = loc("b_ptr"(#loc))</span>
+<span><i> 11</i> #loc72 = loc("c_ptr"(#loc))</span>
+<span><i> 12</i> #loc73 = loc("M"(#loc))</span>
+<span><i> 13</i> #loc74 = loc("N"(#loc))</span>
+<span><i> 14</i> #loc75 = loc("K"(#loc))</span>
+<span><i> 15</i> #loc76 = loc("stride_am"(#loc))</span>
+<span><i> 16</i> #loc77 = loc("stride_bn"(#loc))</span>
+<span><i> 17</i> #loc78 = loc("stride_cm"(#loc))</span>
+<span><i> 18</i> module attributes {"ttg.num-ctas" = 1 : i32, "ttg.num-warps" = 8 : i32, ttg.target = "cuda:89", "ttg.threads-per-warp" = 32 : i32} {</span>
+<span><i> 19</i>   tt.func public @matmul_kernel_persistent(%a_ptr: !tt.ptr&lt;f16&gt; {tt.divisibility = 16 : i32} loc("a_ptr"(#loc)), %b_ptr: !tt.ptr&lt;f16&gt; {tt.divisibility = 16 : i32} loc("b_ptr"(#loc)), %c_ptr: !tt.ptr&lt;f16&gt; {tt.divisibility = 16 : i32} loc("c_ptr"(#loc)), %M: i32 {tt.divisibility = 16 : i32} loc("M"(#loc)), %N: i32 {tt.divisibility = 16 : i32} loc("N"(#loc)), %K: i32 {tt.divisibility = 16 : i32} loc("K"(#loc)), %stride_am: i32 {tt.divisibility = 16 : i32} loc("stride_am"(#loc)), %stride_bn: i32 {tt.divisibility = 16 : i32} loc("stride_bn"(#loc)), %stride_cm: i32 {tt.divisibility = 16 : i32} loc("stride_cm"(#loc))) attributes {noinline = false} {</span>
+<span><i> 20</i>     %cst = arith.constant dense&lt;0.000000e+00&gt; : tensor&lt;128x128xf32, #mma&gt; loc(#loc1)</span>
+<span><i> 21</i>     %c63_i32 = arith.constant 63 : i32 loc(#loc1)</span>
+<span><i> 22</i>     %c127_i32 = arith.constant 127 : i32 loc(#loc1)</span>
+<span><i> 23</i>     %c1_i32 = arith.constant 1 : i32 loc(#loc1)</span>
+<span><i> 24</i>     %c0_i32 = arith.constant 0 : i32 loc(#loc1)</span>
+<span><i> 25</i>     %c64_i32 = arith.constant 64 : i32 loc(#loc1)</span>
+<span><i> 26</i>     %cst_0 = arith.constant dense&lt;0.000000e+00&gt; : tensor&lt;64x128xf16, #blocked&gt; loc(#loc1)</span>
+<span><i> 27</i>     %cst_1 = arith.constant dense&lt;0.000000e+00&gt; : tensor&lt;128x64xf16, #blocked1&gt; loc(#loc1)</span>
+<span><i> 28</i>     %c128_i32 = arith.constant 128 : i32 loc(#loc1)</span>
+<span><i> 29</i>     %c8_i32 = arith.constant 8 : i32 loc(#loc1)</span>
+<span><i> 30</i>     %cst_2 = arith.constant dense&lt;0&gt; : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc1)</span>
+<span><i> 31</i>     %cst_3 = arith.constant dense&lt;0&gt; : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc1)</span>
+<span><i> 32</i>     %cst_4 = arith.constant dense&lt;0.000000e+00&gt; : tensor&lt;128x128xf16, #blocked2&gt; loc(#loc1)</span>
+<span><i> 33</i>     %c-1_i32 = arith.constant -1 : i32 loc(#loc1)</span>
+<span><i> 34</i>     %c2_i32 = arith.constant 2 : i32 loc(#loc1)</span>
+<span><i> 35</i>     %start_pid = tt.get_program_id x : i32 loc(#loc79)</span>
+<span><i> 36</i>     %num_pid_m = arith.addi %M, %c127_i32 : i32 loc(#loc140)</span>
+<span><i> 37</i>     %num_pid_m_5 = arith.divsi %num_pid_m, %c128_i32 : i32 loc(#loc141)</span>
+<span><i> 38</i>     %num_pid_n = arith.addi %N, %c127_i32 : i32 loc(#loc142)</span>
+<span><i> 39</i>     %num_pid_n_6 = arith.divsi %num_pid_n, %c128_i32 : i32 loc(#loc143)</span>
+<span><i> 40</i>     %k_tiles = arith.addi %K, %c63_i32 : i32 loc(#loc144)</span>
+<span><i> 41</i>     %k_tiles_7 = arith.divsi %k_tiles, %c64_i32 : i32 loc(#loc145)</span>
+<span><i> 42</i>     %num_tiles = arith.muli %num_pid_m_5, %num_pid_n_6 : i32 loc(#loc83)</span>
+<span><i> 43</i>     %tile_id_c = arith.subi %start_pid, %c128_i32 : i32 loc(#loc84)</span>
+<span><i> 44</i>     %offs_k_for_mask = tt.make_range {end = 64 : i32, start = 0 : i32} : tensor&lt;64xi32, #ttg.slice&lt;{dim = 0, parent = #blocked1}&gt;&gt; loc(#loc85)</span>
+<span><i> 45</i>     %offs_k_for_mask_8 = tt.make_range {end = 64 : i32, start = 0 : i32} : tensor&lt;64xi32, #ttg.slice&lt;{dim = 1, parent = #blocked}&gt;&gt; loc(#loc85)</span>
+<span><i> 46</i>     %num_pid_in_group = arith.muli %num_pid_n_6, %c8_i32 : i32 loc(#loc86)</span>
+<span><i> 47</i>     %offs_am = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc87)</span>
+<span><i> 48</i>     %offs_am_9 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked2}&gt;&gt; loc(#loc87)</span>
+<span><i> 49</i>     %offs_am_10 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc87)</span>
+<span><i> 50</i>     %offs_am_11 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked2}&gt;&gt; loc(#loc87)</span>
+<span><i> 51</i>     %offs_am_12 = tt.splat %M : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc88)</span>
+<span><i> 52</i>     %offs_bn = tt.splat %N : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc89)</span>
+<span><i> 53</i>     %c_ptrs = tt.splat %stride_cm : i32 -&gt; tensor&lt;128x1xi32, #blocked2&gt; loc(#loc90)</span>
+<span><i> 54</i>     %c_ptrs_13 = tt.splat %c_ptr : !tt.ptr&lt;f16&gt; -&gt; tensor&lt;128x1x!tt.ptr&lt;f16&gt;, #blocked2&gt; loc(#loc91)</span>
+<span><i> 55</i>     %c_mask = tt.splat %M : i32 -&gt; tensor&lt;128x1xi32, #blocked2&gt; loc(#loc92)</span>
+<span><i> 56</i>     %c_mask_14 = tt.splat %N : i32 -&gt; tensor&lt;1x128xi32, #blocked2&gt; loc(#loc93)</span>
+<span><i> 57</i>     %accumulator = arith.cmpi eq, %k_tiles_7, %c0_i32 : i32 loc(#loc94)</span>
+<span class="hit"><i> 58</i>     scf.if %accumulator {</span>
+<span><i> 59</i>       %tile_id_c_15 = scf.for %tile_id = %start_pid to %num_tiles step %c128_i32 iter_args(%tile_id_c_16 = %tile_id_c) -&gt; (i32)  : i32 {</span>
+<span><i> 60</i>         %tile_id_c_17 = arith.addi %tile_id_c_16, %c128_i32 : i32 loc(#loc96)</span>
+<span><i> 61</i>         %group_id = arith.divsi %tile_id_c_17, %num_pid_in_group : i32 loc(#loc146)</span>
+<span><i> 62</i>         %first_pid_m = arith.muli %group_id, %c8_i32 : i32 loc(#loc147)</span>
+<span><i> 63</i>         %group_size_m = arith.subi %num_pid_m_5, %first_pid_m : i32 loc(#loc148)</span>
+<span><i> 64</i>         %group_size_m_18 = arith.minsi %group_size_m, %c8_i32 : i32 loc(#loc149)</span>
+<span><i> 65</i>         %pid_m = arith.remsi %tile_id_c_17, %group_size_m_18 : i32 loc(#loc150)</span>
+<span><i> 66</i>         %pid_m_19 = arith.addi %first_pid_m, %pid_m : i32 loc(#loc151)</span>
+<span><i> 67</i>         %pid_n = arith.remsi %tile_id_c_17, %num_pid_in_group : i32 loc(#loc152)</span>
+<span><i> 68</i>         %pid_n_20 = arith.divsi %pid_n, %group_size_m_18 : i32 loc(#loc153)</span>
+<span><i> 69</i>         %offs_cm = arith.muli %pid_m_19, %c128_i32 : i32 loc(#loc105)</span>
+<span><i> 70</i>         %offs_cm_21 = tt.splat %offs_cm : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked2}&gt;&gt; loc(#loc106)</span>
+<span><i> 71</i>         %offs_cm_22 = arith.addi %offs_cm_21, %offs_am_9 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked2}&gt;&gt; loc(#loc106)</span>
+<span><i> 72</i>         %offs_cn = arith.muli %pid_n_20, %c128_i32 : i32 loc(#loc107)</span>
+<span><i> 73</i>         %offs_cn_23 = tt.splat %offs_cn : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked2}&gt;&gt; loc(#loc108)</span>
+<span><i> 74</i>         %offs_cn_24 = arith.addi %offs_cn_23, %offs_am_11 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked2}&gt;&gt; loc(#loc108)</span>
+<span><i> 75</i>         %c_ptrs_25 = tt.expand_dims %offs_cm_22 {axis = 1 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked2}&gt;&gt; -&gt; tensor&lt;128x1xi32, #blocked2&gt; loc(#loc109)</span>
+<span><i> 76</i>         %c_ptrs_26 = arith.muli %c_ptrs, %c_ptrs_25 : tensor&lt;128x1xi32, #blocked2&gt; loc(#loc90)</span>
+<span><i> 77</i>         %c_ptrs_27 = tt.addptr %c_ptrs_13, %c_ptrs_26 : tensor&lt;128x1x!tt.ptr&lt;f16&gt;, #blocked2&gt;, tensor&lt;128x1xi32, #blocked2&gt; loc(#loc91)</span>
+<span><i> 78</i>         %c_ptrs_28 = tt.expand_dims %offs_cn_24 {axis = 0 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked2}&gt;&gt; -&gt; tensor&lt;1x128xi32, #blocked2&gt; loc(#loc110)</span>
+<span><i> 79</i>         %c_ptrs_29 = tt.broadcast %c_ptrs_27 : tensor&lt;128x1x!tt.ptr&lt;f16&gt;, #blocked2&gt; -&gt; tensor&lt;128x128x!tt.ptr&lt;f16&gt;, #blocked2&gt; loc(#loc111)</span>
+<span><i> 80</i>         %c_ptrs_30 = tt.broadcast %c_ptrs_28 : tensor&lt;1x128xi32, #blocked2&gt; -&gt; tensor&lt;128x128xi32, #blocked2&gt; loc(#loc111)</span>
+<span><i> 81</i>         %c_ptrs_31 = tt.addptr %c_ptrs_29, %c_ptrs_30 : tensor&lt;128x128x!tt.ptr&lt;f16&gt;, #blocked2&gt;, tensor&lt;128x128xi32, #blocked2&gt; loc(#loc111)</span>
+<span><i> 82</i>         %c_mask_32 = arith.cmpi slt, %c_ptrs_25, %c_mask : tensor&lt;128x1xi32, #blocked2&gt; loc(#loc92)</span>
+<span><i> 83</i>         %c_mask_33 = arith.cmpi slt, %c_ptrs_28, %c_mask_14 : tensor&lt;1x128xi32, #blocked2&gt; loc(#loc93)</span>
+<span><i> 84</i>         %c_mask_34 = tt.broadcast %c_mask_32 : tensor&lt;128x1xi1, #blocked2&gt; -&gt; tensor&lt;128x128xi1, #blocked2&gt; loc(#loc112)</span>
+<span><i> 85</i>         %c_mask_35 = tt.broadcast %c_mask_33 : tensor&lt;1x128xi1, #blocked2&gt; -&gt; tensor&lt;128x128xi1, #blocked2&gt; loc(#loc112)</span>
+<span><i> 86</i>         %c_mask_36 = arith.andi %c_mask_34, %c_mask_35 : tensor&lt;128x128xi1, #blocked2&gt; loc(#loc112)</span>
+<span><i> 87</i>         tt.store %c_ptrs_31, %cst_4, %c_mask_36 : tensor&lt;128x128x!tt.ptr&lt;f16&gt;, #blocked2&gt; loc(#loc39)</span>
+<span><i> 88</i>         scf.yield %tile_id_c_17 : i32 loc(#loc40)</span>
+<span><i> 89</i>       } {tt.flatten} loc(#loc95)</span>
+<span class="hit"><i> 90</i>     } else {</span>
+<span class="hit"><i> 91</i>       %tile_id_c_15 = arith.subi %num_tiles, %start_pid : i32 loc(#loc95)</span>
+<span><i> 92</i>       %tile_id_c_16 = arith.ceildivsi %tile_id_c_15, %c128_i32 : i32 loc(#loc95)</span>
+<span><i> 93</i>       %tile_id_c_17 = arith.maxsi %k_tiles_7, %c1_i32 : i32 loc(#loc95)</span>
+<span class="hit"><i> 94</i>       %tile_id_c_18 = arith.muli %tile_id_c_16, %tile_id_c_17 : i32 loc(#loc95)</span>
+<span><i> 95</i>       %a_ptrs = tt.splat %stride_am : i32 -&gt; tensor&lt;128x1xi32, #blocked1&gt; loc(#loc113)</span>
+<span><i> 96</i>       %a_ptrs_19 = tt.splat %a_ptr : !tt.ptr&lt;f16&gt; -&gt; tensor&lt;128x64x!tt.ptr&lt;f16&gt;, #blocked1&gt; loc(#loc114)</span>
+<span><i> 97</i>       %b_ptrs = tt.splat %stride_bn : i32 -&gt; tensor&lt;1x128xi32, #blocked&gt; loc(#loc115)</span>
+<span><i> 98</i>       %b_ptrs_20 = tt.splat %b_ptr : !tt.ptr&lt;f16&gt; -&gt; tensor&lt;64x128x!tt.ptr&lt;f16&gt;, #blocked&gt; loc(#loc116)</span>
+<span><i> 99</i>       %a = tt.expand_dims %offs_k_for_mask {axis = 0 : i32} : tensor&lt;64xi32, #ttg.slice&lt;{dim = 0, parent = #blocked1}&gt;&gt; -&gt; tensor&lt;1x64xi32, #blocked1&gt; loc(#loc117)</span>
+<span><i>100</i>       %b = tt.expand_dims %offs_k_for_mask_8 {axis = 1 : i32} : tensor&lt;64xi32, #ttg.slice&lt;{dim = 1, parent = #blocked}&gt;&gt; -&gt; tensor&lt;64x1xi32, #blocked&gt; loc(#loc118)</span>
+<span><i>101</i>       %tile_id_c_21 = arith.subi %tile_id_c_17, %c1_i32 : i32 loc(#loc95)</span>
+<span class="hit"><i>102</i>       %a_22 = ttg.local_alloc : () -&gt; !ttg.memdesc&lt;2x128x64xf16, #shared, #smem, mutable&gt; loc(#loc119)</span>
+<span class="hit"><i>103</i>       %b_23 = ttg.local_alloc : () -&gt; !ttg.memdesc&lt;2x64x128xf16, #shared1, #smem, mutable&gt; loc(#loc120)</span>
+<span><i>104</i>       %tile_id_c_24 = arith.cmpi sgt, %tile_id_c_18, %c0_i32 : i32 loc(#loc95)</span>
+<span><i>105</i>       %group_id = arith.divsi %start_pid, %num_pid_in_group : i32 loc(#loc154)</span>
+<span><i>106</i>       %first_pid_m = arith.muli %group_id, %c8_i32 : i32 loc(#loc155)</span>
+<span><i>107</i>       %group_size_m = arith.subi %num_pid_m_5, %first_pid_m : i32 loc(#loc156)</span>
+<span><i>108</i>       %group_size_m_25 = arith.minsi %group_size_m, %c8_i32 : i32 loc(#loc157)</span>
+<span><i>109</i>       %pid_m = arith.remsi %start_pid, %group_size_m_25 : i32 loc(#loc158)</span>
+<span><i>110</i>       %pid_m_26 = arith.addi %first_pid_m, %pid_m : i32 loc(#loc159)</span>
+<span><i>111</i>       %pid_n = arith.remsi %start_pid, %num_pid_in_group : i32 loc(#loc160)</span>
+<span><i>112</i>       %pid_n_27 = arith.divsi %pid_n, %group_size_m_25 : i32 loc(#loc161)</span>
+<span><i>113</i>       %start_m = arith.muli %pid_m_26, %c128_i32 : i32 loc(#loc121)</span>
+<span><i>114</i>       %start_n = arith.muli %pid_n_27, %c128_i32 : i32 loc(#loc122)</span>
+<span><i>115</i>       %offs_am_28 = tt.splat %start_m : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc123)</span>
+<span><i>116</i>       %offs_am_29 = arith.addi %offs_am_28, %offs_am : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc123)</span>
+<span><i>117</i>       %offs_bn_30 = tt.splat %start_n : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc124)</span>
+<span><i>118</i>       %offs_bn_31 = arith.addi %offs_bn_30, %offs_am_10 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc124)</span>
+<span><i>119</i>       %offs_am_32 = arith.cmpi slt, %offs_am_29, %offs_am_12 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc88)</span>
+<span><i>120</i>       %offs_am_33 = arith.select %offs_am_32, %offs_am_29, %cst_2 {tt.contiguity = dense&lt;128&gt; : tensor&lt;1xi32&gt;, tt.divisibility = dense&lt;128&gt; : tensor&lt;1xi32&gt;} : tensor&lt;128xi1, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc125)</span>
+<span><i>121</i>       %offs_bn_34 = arith.cmpi slt, %offs_bn_31, %offs_bn : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc89)</span>
+<span><i>122</i>       %offs_bn_35 = arith.select %offs_bn_34, %offs_bn_31, %cst_3 {tt.contiguity = dense&lt;128&gt; : tensor&lt;1xi32&gt;, tt.divisibility = dense&lt;128&gt; : tensor&lt;1xi32&gt;} : tensor&lt;128xi1, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc126)</span>
+<span><i>123</i>       %a_ptrs_36 = tt.expand_dims %offs_am_33 {axis = 1 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; -&gt; tensor&lt;128x1xi32, #blocked1&gt; loc(#loc127)</span>
+<span><i>124</i>       %a_ptrs_37 = arith.muli %a_ptrs_36, %a_ptrs : tensor&lt;128x1xi32, #blocked1&gt; loc(#loc113)</span>
+<span><i>125</i>       %a_ptrs_38 = tt.broadcast %a_ptrs_37 : tensor&lt;128x1xi32, #blocked1&gt; -&gt; tensor&lt;128x64xi32, #blocked1&gt; loc(#loc128)</span>
+<span><i>126</i>       %a_ptrs_39 = tt.broadcast %a : tensor&lt;1x64xi32, #blocked1&gt; -&gt; tensor&lt;128x64xi32, #blocked1&gt; loc(#loc128)</span>
+<span><i>127</i>       %a_ptrs_40 = arith.addi %a_ptrs_38, %a_ptrs_39 : tensor&lt;128x64xi32, #blocked1&gt; loc(#loc128)</span>
+<span><i>128</i>       %a_ptrs_41 = tt.addptr %a_ptrs_19, %a_ptrs_40 : tensor&lt;128x64x!tt.ptr&lt;f16&gt;, #blocked1&gt;, tensor&lt;128x64xi32, #blocked1&gt; loc(#loc114)</span>
+<span><i>129</i>       %b_ptrs_42 = tt.expand_dims %offs_bn_35 {axis = 0 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; -&gt; tensor&lt;1x128xi32, #blocked&gt; loc(#loc129)</span>
+<span><i>130</i>       %b_ptrs_43 = arith.muli %b_ptrs_42, %b_ptrs : tensor&lt;1x128xi32, #blocked&gt; loc(#loc115)</span>
+<span><i>131</i>       %b_ptrs_44 = tt.broadcast %b : tensor&lt;64x1xi32, #blocked&gt; -&gt; tensor&lt;64x128xi32, #blocked&gt; loc(#loc130)</span>
+<span><i>132</i>       %b_ptrs_45 = tt.broadcast %b_ptrs_43 : tensor&lt;1x128xi32, #blocked&gt; -&gt; tensor&lt;64x128xi32, #blocked&gt; loc(#loc130)</span>
+<span><i>133</i>       %b_ptrs_46 = arith.addi %b_ptrs_44, %b_ptrs_45 : tensor&lt;64x128xi32, #blocked&gt; loc(#loc130)</span>
+<span><i>134</i>       %b_ptrs_47 = tt.addptr %b_ptrs_20, %b_ptrs_46 : tensor&lt;64x128x!tt.ptr&lt;f16&gt;, #blocked&gt;, tensor&lt;64x128xi32, #blocked&gt; loc(#loc116)</span>
+<span><i>135</i>       %a_48 = tt.splat %K : i32 -&gt; tensor&lt;1x64xi32, #blocked1&gt; loc(#loc131)</span>
+<span><i>136</i>       %a_49 = arith.cmpi slt, %a, %a_48 : tensor&lt;1x64xi32, #blocked1&gt; loc(#loc131)</span>
+<span><i>137</i>       %a_50 = tt.broadcast %a_49 : tensor&lt;1x64xi1, #blocked1&gt; -&gt; tensor&lt;128x64xi1, #blocked1&gt; loc(#loc119)</span>
+<span><i>138</i>       %a_51 = ttg.memdesc_index %a_22[%c0_i32] : !ttg.memdesc&lt;2x128x64xf16, #shared, #smem, mutable&gt; -&gt; !ttg.memdesc&lt;128x64xf16, #shared, #smem, mutable&gt; loc(#loc119)</span>
+<span><i>139</i>       %tile_id_c_52 = tt.splat %tile_id_c_24 : i1 -&gt; tensor&lt;128x64xi1, #blocked1&gt; loc(#loc95)</span>
+<span><i>140</i>       %tile_id_c_53 = arith.andi %tile_id_c_52, %a_50 : tensor&lt;128x64xi1, #blocked1&gt; loc(#loc95)</span>
+<span class="hit"><i>141</i>       %a_54 = ttg.async_copy_global_to_local %a_ptrs_41, %a_51 mask %tile_id_c_53 other %cst_1 {contiguity = 8 : i32} : tensor&lt;128x64x!tt.ptr&lt;f16&gt;, #blocked1&gt; -&gt; &lt;128x64xf16, #shared, #smem, mutable&gt; loc(#loc119)</span>
+<span><i>142</i>       %a_55 = ttg.async_commit_group tokens %a_54 loc(#loc119)</span>
+<span><i>143</i>       %b_56 = tt.splat %K : i32 -&gt; tensor&lt;64x1xi32, #blocked&gt; loc(#loc132)</span>
+<span><i>144</i>       %b_57 = arith.cmpi slt, %b, %b_56 : tensor&lt;64x1xi32, #blocked&gt; loc(#loc132)</span>
+<span><i>145</i>       %b_58 = tt.broadcast %b_57 : tensor&lt;64x1xi1, #blocked&gt; -&gt; tensor&lt;64x128xi1, #blocked&gt; loc(#loc120)</span>
+<span><i>146</i>       %b_59 = ttg.memdesc_index %b_23[%c0_i32] : !ttg.memdesc&lt;2x64x128xf16, #shared1, #smem, mutable&gt; -&gt; !ttg.memdesc&lt;64x128xf16, #shared1, #smem, mutable&gt; loc(#loc120)</span>
+<span><i>147</i>       %tile_id_c_60 = tt.splat %tile_id_c_24 : i1 -&gt; tensor&lt;64x128xi1, #blocked&gt; loc(#loc95)</span>
+<span><i>148</i>       %tile_id_c_61 = arith.andi %tile_id_c_60, %b_58 : tensor&lt;64x128xi1, #blocked&gt; loc(#loc95)</span>
+<span class="hit"><i>149</i>       %b_62 = ttg.async_copy_global_to_local %b_ptrs_47, %b_59 mask %tile_id_c_61 other %cst_0 {contiguity = 8 : i32} : tensor&lt;64x128x!tt.ptr&lt;f16&gt;, #blocked&gt; -&gt; &lt;64x128xf16, #shared1, #smem, mutable&gt; loc(#loc120)</span>
+<span><i>150</i>       %b_63 = ttg.async_commit_group tokens %b_62 loc(#loc120)</span>
+<span><i>151</i>       %tile_id_c_64 = arith.cmpi sgt, %tile_id_c_18, %c1_i32 : i32 loc(#loc95)</span>
+<span><i>152</i>       %tile_id_c_65 = arith.cmpi ne, %tile_id_c_21, %c0_i32 : i32 loc(#loc95)</span>
+<span><i>153</i>       %tile_id_c_66 = arith.extui %tile_id_c_65 : i1 to i32 loc(#loc95)</span>
+<span><i>154</i>       %tile_id_c_67 = arith.cmpi eq, %tile_id_c_66, %c0_i32 : i32 loc(#loc95)</span>
+<span class="hit"><i>155</i>       %tile_id_c_68:3 = scf.if %tile_id_c_67 -&gt; (tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt;, i32) {</span>
+<span><i>156</i>         %tile_id_c_106 = arith.addi %start_pid, %c128_i32 : i32 loc(#loc95)</span>
+<span><i>157</i>         %group_id_107 = arith.divsi %tile_id_c_106, %num_pid_in_group : i32 loc(#loc154)</span>
+<span><i>158</i>         %first_pid_m_108 = arith.muli %group_id_107, %c8_i32 : i32 loc(#loc155)</span>
+<span><i>159</i>         %group_size_m_109 = arith.subi %num_pid_m_5, %first_pid_m_108 : i32 loc(#loc156)</span>
+<span><i>160</i>         %group_size_m_110 = arith.minsi %group_size_m_109, %c8_i32 : i32 loc(#loc157)</span>
+<span><i>161</i>         %pid_m_111 = arith.remsi %tile_id_c_106, %group_size_m_110 : i32 loc(#loc158)</span>
+<span><i>162</i>         %pid_m_112 = arith.addi %first_pid_m_108, %pid_m_111 : i32 loc(#loc159)</span>
+<span><i>163</i>         %pid_n_113 = arith.remsi %tile_id_c_106, %num_pid_in_group : i32 loc(#loc160)</span>
+<span><i>164</i>         %pid_n_114 = arith.divsi %pid_n_113, %group_size_m_110 : i32 loc(#loc161)</span>
+<span><i>165</i>         %start_m_115 = arith.muli %pid_m_112, %c128_i32 : i32 loc(#loc121)</span>
+<span><i>166</i>         %start_n_116 = arith.muli %pid_n_114, %c128_i32 : i32 loc(#loc122)</span>
+<span><i>167</i>         %offs_am_117 = tt.splat %start_m_115 : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc123)</span>
+<span><i>168</i>         %offs_am_118 = arith.addi %offs_am_117, %offs_am : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc123)</span>
+<span><i>169</i>         %offs_bn_119 = tt.splat %start_n_116 : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc124)</span>
+<span><i>170</i>         %offs_bn_120 = arith.addi %offs_bn_119, %offs_am_10 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc124)</span>
+<span><i>171</i>         %offs_am_121 = arith.cmpi slt, %offs_am_118, %offs_am_12 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc88)</span>
+<span><i>172</i>         %offs_am_122 = arith.select %offs_am_121, %offs_am_118, %cst_2 {tt.contiguity = dense&lt;128&gt; : tensor&lt;1xi32&gt;, tt.divisibility = dense&lt;128&gt; : tensor&lt;1xi32&gt;} : tensor&lt;128xi1, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc125)</span>
+<span><i>173</i>         %offs_bn_123 = arith.cmpi slt, %offs_bn_120, %offs_bn : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc89)</span>
+<span><i>174</i>         %offs_bn_124 = arith.select %offs_bn_123, %offs_bn_120, %cst_3 {tt.contiguity = dense&lt;128&gt; : tensor&lt;1xi32&gt;, tt.divisibility = dense&lt;128&gt; : tensor&lt;1xi32&gt;} : tensor&lt;128xi1, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc126)</span>
+<span><i>175</i>         scf.yield %offs_am_122, %offs_bn_124, %tile_id_c_106 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt;, i32 loc(#loc95)</span>
+<span><i>176</i>       } else {</span>
+<span><i>177</i>         scf.yield %offs_am_33, %offs_bn_35, %start_pid : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt;, i32 loc(#loc95)</span>
+<span><i>178</i>       } loc(#loc95)</span>
+<span><i>179</i>       %offs_k = arith.muli %tile_id_c_66, %c64_i32 : i32 loc(#loc133)</span>
+<span><i>180</i>       %offs_k_69 = tt.splat %offs_k : i32 -&gt; tensor&lt;64xi32, #ttg.slice&lt;{dim = 0, parent = #blocked1}&gt;&gt; loc(#loc134)</span>
+<span><i>181</i>       %offs_k_70 = tt.splat %offs_k : i32 -&gt; tensor&lt;64xi32, #ttg.slice&lt;{dim = 1, parent = #blocked}&gt;&gt; loc(#loc134)</span>
+<span><i>182</i>       %offs_k_71 = arith.addi %offs_k_69, %offs_k_for_mask : tensor&lt;64xi32, #ttg.slice&lt;{dim = 0, parent = #blocked1}&gt;&gt; loc(#loc134)</span>
+<span><i>183</i>       %offs_k_72 = arith.addi %offs_k_70, %offs_k_for_mask_8 : tensor&lt;64xi32, #ttg.slice&lt;{dim = 1, parent = #blocked}&gt;&gt; loc(#loc134)</span>
+<span><i>184</i>       %a_ptrs_73 = tt.expand_dims %tile_id_c_68#0 {axis = 1 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; -&gt; tensor&lt;128x1xi32, #blocked1&gt; loc(#loc127)</span>
+<span><i>185</i>       %a_ptrs_74 = arith.muli %a_ptrs_73, %a_ptrs : tensor&lt;128x1xi32, #blocked1&gt; loc(#loc113)</span>
+<span><i>186</i>       %a_ptrs_75 = tt.expand_dims %offs_k_71 {axis = 0 : i32} : tensor&lt;64xi32, #ttg.slice&lt;{dim = 0, parent = #blocked1}&gt;&gt; -&gt; tensor&lt;1x64xi32, #blocked1&gt; loc(#loc135)</span>
+<span><i>187</i>       %a_ptrs_76 = tt.broadcast %a_ptrs_74 : tensor&lt;128x1xi32, #blocked1&gt; -&gt; tensor&lt;128x64xi32, #blocked1&gt; loc(#loc128)</span>
+<span><i>188</i>       %a_ptrs_77 = tt.broadcast %a_ptrs_75 : tensor&lt;1x64xi32, #blocked1&gt; -&gt; tensor&lt;128x64xi32, #blocked1&gt; loc(#loc128)</span>
+<span><i>189</i>       %a_ptrs_78 = arith.addi %a_ptrs_76, %a_ptrs_77 : tensor&lt;128x64xi32, #blocked1&gt; loc(#loc128)</span>
+<span><i>190</i>       %a_ptrs_79 = tt.addptr %a_ptrs_19, %a_ptrs_78 : tensor&lt;128x64x!tt.ptr&lt;f16&gt;, #blocked1&gt;, tensor&lt;128x64xi32, #blocked1&gt; loc(#loc114)</span>
+<span><i>191</i>       %b_ptrs_80 = tt.expand_dims %offs_k_72 {axis = 1 : i32} : tensor&lt;64xi32, #ttg.slice&lt;{dim = 1, parent = #blocked}&gt;&gt; -&gt; tensor&lt;64x1xi32, #blocked&gt; loc(#loc136)</span>
+<span><i>192</i>       %b_ptrs_81 = tt.expand_dims %tile_id_c_68#1 {axis = 0 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; -&gt; tensor&lt;1x128xi32, #blocked&gt; loc(#loc129)</span>
+<span><i>193</i>       %b_ptrs_82 = arith.muli %b_ptrs_81, %b_ptrs : tensor&lt;1x128xi32, #blocked&gt; loc(#loc115)</span>
+<span><i>194</i>       %b_ptrs_83 = tt.broadcast %b_ptrs_80 : tensor&lt;64x1xi32, #blocked&gt; -&gt; tensor&lt;64x128xi32, #blocked&gt; loc(#loc130)</span>
+<span><i>195</i>       %b_ptrs_84 = tt.broadcast %b_ptrs_82 : tensor&lt;1x128xi32, #blocked&gt; -&gt; tensor&lt;64x128xi32, #blocked&gt; loc(#loc130)</span>
+<span><i>196</i>       %b_ptrs_85 = arith.addi %b_ptrs_83, %b_ptrs_84 : tensor&lt;64x128xi32, #blocked&gt; loc(#loc130)</span>
+<span><i>197</i>       %b_ptrs_86 = tt.addptr %b_ptrs_20, %b_ptrs_85 : tensor&lt;64x128x!tt.ptr&lt;f16&gt;, #blocked&gt;, tensor&lt;64x128xi32, #blocked&gt; loc(#loc116)</span>
+<span><i>198</i>       %a_87 = arith.subi %K, %offs_k : i32 loc(#loc137)</span>
+<span><i>199</i>       %a_88 = tt.splat %a_87 : i32 -&gt; tensor&lt;1x64xi32, #blocked1&gt; loc(#loc131)</span>
+<span><i>200</i>       %a_89 = arith.cmpi slt, %a, %a_88 : tensor&lt;1x64xi32, #blocked1&gt; loc(#loc131)</span>
+<span><i>201</i>       %a_90 = tt.broadcast %a_89 : tensor&lt;1x64xi1, #blocked1&gt; -&gt; tensor&lt;128x64xi1, #blocked1&gt; loc(#loc119)</span>
+<span><i>202</i>       %a_91 = ttg.memdesc_index %a_22[%c1_i32] : !ttg.memdesc&lt;2x128x64xf16, #shared, #smem, mutable&gt; -&gt; !ttg.memdesc&lt;128x64xf16, #shared, #smem, mutable&gt; loc(#loc119)</span>
+<span><i>203</i>       %tile_id_c_92 = tt.splat %tile_id_c_64 : i1 -&gt; tensor&lt;128x64xi1, #blocked1&gt; loc(#loc95)</span>
+<span><i>204</i>       %tile_id_c_93 = arith.andi %tile_id_c_92, %a_90 : tensor&lt;128x64xi1, #blocked1&gt; loc(#loc95)</span>
+<span class="hit"><i>205</i>       %a_94 = ttg.async_copy_global_to_local %a_ptrs_79, %a_91 mask %tile_id_c_93 other %cst_1 {contiguity = 8 : i32} : tensor&lt;128x64x!tt.ptr&lt;f16&gt;, #blocked1&gt; -&gt; &lt;128x64xf16, #shared, #smem, mutable&gt; loc(#loc119)</span>
+<span><i>206</i>       %a_95 = ttg.async_commit_group tokens %a_94 loc(#loc119)</span>
+<span><i>207</i>       %b_96 = tt.splat %a_87 : i32 -&gt; tensor&lt;64x1xi32, #blocked&gt; loc(#loc132)</span>
+<span><i>208</i>       %b_97 = arith.cmpi slt, %b, %b_96 : tensor&lt;64x1xi32, #blocked&gt; loc(#loc132)</span>
+<span><i>209</i>       %b_98 = tt.broadcast %b_97 : tensor&lt;64x1xi1, #blocked&gt; -&gt; tensor&lt;64x128xi1, #blocked&gt; loc(#loc120)</span>
+<span><i>210</i>       %b_99 = ttg.memdesc_index %b_23[%c1_i32] : !ttg.memdesc&lt;2x64x128xf16, #shared1, #smem, mutable&gt; -&gt; !ttg.memdesc&lt;64x128xf16, #shared1, #smem, mutable&gt; loc(#loc120)</span>
+<span><i>211</i>       %tile_id_c_100 = tt.splat %tile_id_c_64 : i1 -&gt; tensor&lt;64x128xi1, #blocked&gt; loc(#loc95)</span>
+<span><i>212</i>       %tile_id_c_101 = arith.andi %tile_id_c_100, %b_98 : tensor&lt;64x128xi1, #blocked&gt; loc(#loc95)</span>
+<span class="hit"><i>213</i>       %b_102 = ttg.async_copy_global_to_local %b_ptrs_86, %b_99 mask %tile_id_c_101 other %cst_0 {contiguity = 8 : i32} : tensor&lt;64x128x!tt.ptr&lt;f16&gt;, #blocked&gt; -&gt; &lt;64x128xf16, #shared1, #smem, mutable&gt; loc(#loc120)</span>
+<span><i>214</i>       %b_103 = ttg.async_commit_group tokens %b_102 loc(#loc120)</span>
+<span class="hit"><i>215</i>       %tile_id_c_104:14 = scf.for %tile_id_c_106 = %c0_i32 to %tile_id_c_18 step %c1_i32 iter_args(%tile_id_c_107 = %tile_id_c_66, %tile_id_c_108 = %tile_id_c_68#2, %tile_id_c_109 = %tile_id_c, %arg13 = %cst, %tile_id_c_110 = %tile_id_c_68#0, %tile_id_c_111 = %tile_id_c_68#1, %arg16 = %c1_i32, %arg17 = %c-1_i32, %a_112 = %a_55, %a_113 = %a_95, %b_114 = %b_63, %b_115 = %b_103, %tile_id_c_116 = %tile_id_c_66, %arg23 = %c0_i32) -&gt; (i32, i32, i32, tensor&lt;128x128xf32, #mma&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt;, i32, i32, !ttg.async.token, !ttg.async.token, !ttg.async.token, !ttg.async.token, i32, i32)  : i32 {</span>
+<span><i>216</i>         %tile_id_c_117 = arith.subi %tile_id_c_18, %c2_i32 : i32 loc(#loc95)</span>
+<span><i>217</i>         %tile_id_c_118 = arith.cmpi slt, %tile_id_c_106, %tile_id_c_117 : i32 loc(#loc95)</span>
+<span><i>218</i>         %tile_id_c_119 = arith.addi %tile_id_c_107, %c1_i32 : i32 loc(#loc95)</span>
+<span><i>219</i>         %tile_id_c_120 = arith.cmpi eq, %tile_id_c_107, %tile_id_c_21 : i32 loc(#loc95)</span>
+<span><i>220</i>         %tile_id_c_121 = arith.select %tile_id_c_120, %c0_i32, %tile_id_c_119 : i32 loc(#loc95)</span>
+<span><i>221</i>         %tile_id_c_122 = arith.cmpi eq, %tile_id_c_121, %c0_i32 : i32 loc(#loc95)</span>
+<span class="hit"><i>222</i>         %tile_id_c_123:3 = scf.if %tile_id_c_122 -&gt; (tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt;, i32) {</span>
+<span><i>223</i>           %tile_id_c_177 = arith.addi %tile_id_c_108, %c128_i32 : i32 loc(#loc95)</span>
+<span><i>224</i>           %group_id_178 = arith.divsi %tile_id_c_177, %num_pid_in_group : i32 loc(#loc154)</span>
+<span><i>225</i>           %first_pid_m_179 = arith.muli %group_id_178, %c8_i32 : i32 loc(#loc155)</span>
+<span><i>226</i>           %group_size_m_180 = arith.subi %num_pid_m_5, %first_pid_m_179 : i32 loc(#loc156)</span>
+<span><i>227</i>           %group_size_m_181 = arith.minsi %group_size_m_180, %c8_i32 : i32 loc(#loc157)</span>
+<span><i>228</i>           %pid_m_182 = arith.remsi %tile_id_c_177, %group_size_m_181 : i32 loc(#loc158)</span>
+<span><i>229</i>           %pid_m_183 = arith.addi %first_pid_m_179, %pid_m_182 : i32 loc(#loc159)</span>
+<span><i>230</i>           %pid_n_184 = arith.remsi %tile_id_c_177, %num_pid_in_group : i32 loc(#loc160)</span>
+<span><i>231</i>           %pid_n_185 = arith.divsi %pid_n_184, %group_size_m_181 : i32 loc(#loc161)</span>
+<span><i>232</i>           %start_m_186 = arith.muli %pid_m_183, %c128_i32 : i32 loc(#loc121)</span>
+<span><i>233</i>           %start_n_187 = arith.muli %pid_n_185, %c128_i32 : i32 loc(#loc122)</span>
+<span><i>234</i>           %offs_am_188 = tt.splat %start_m_186 : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc123)</span>
+<span><i>235</i>           %offs_am_189 = arith.addi %offs_am_188, %offs_am : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc123)</span>
+<span><i>236</i>           %offs_bn_190 = tt.splat %start_n_187 : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc124)</span>
+<span><i>237</i>           %offs_bn_191 = arith.addi %offs_bn_190, %offs_am_10 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc124)</span>
+<span><i>238</i>           %offs_am_192 = arith.cmpi slt, %offs_am_189, %offs_am_12 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc88)</span>
+<span><i>239</i>           %offs_am_193 = arith.select %offs_am_192, %offs_am_189, %cst_2 {tt.contiguity = dense&lt;128&gt; : tensor&lt;1xi32&gt;, tt.divisibility = dense&lt;128&gt; : tensor&lt;1xi32&gt;} : tensor&lt;128xi1, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; loc(#loc125)</span>
+<span><i>240</i>           %offs_bn_194 = arith.cmpi slt, %offs_bn_191, %offs_bn : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc89)</span>
+<span><i>241</i>           %offs_bn_195 = arith.select %offs_bn_194, %offs_bn_191, %cst_3 {tt.contiguity = dense&lt;128&gt; : tensor&lt;1xi32&gt;, tt.divisibility = dense&lt;128&gt; : tensor&lt;1xi32&gt;} : tensor&lt;128xi1, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; loc(#loc126)</span>
+<span><i>242</i>           scf.yield %offs_am_193, %offs_bn_195, %tile_id_c_177 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt;, i32 loc(#loc95)</span>
+<span><i>243</i>         } else {</span>
+<span><i>244</i>           scf.yield %tile_id_c_110, %tile_id_c_111, %tile_id_c_108 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt;, i32 loc(#loc95)</span>
+<span><i>245</i>         } loc(#loc95)</span>
+<span><i>246</i>         %tile_id_c_124 = arith.addi %arg17, %c1_i32 : i32 loc(#loc95)</span>
+<span><i>247</i>         %tile_id_c_125 = arith.cmpi sge, %tile_id_c_124, %c2_i32 : i32 loc(#loc95)</span>
+<span><i>248</i>         %tile_id_c_126 = arith.select %tile_id_c_125, %c0_i32, %tile_id_c_124 : i32 loc(#loc95)</span>
+<span class="hit"><i>249</i>         %a_127 = ttg.async_wait %a_112, %b_114 {num = 2 : i32} loc(#loc119)</span>
+<span><i>250</i>         %a_128 = ttg.memdesc_index %a_22[%tile_id_c_126] : !ttg.memdesc&lt;2x128x64xf16, #shared, #smem, mutable&gt; -&gt; !ttg.memdesc&lt;128x64xf16, #shared, #smem, mutable&gt; loc(#loc119)</span>
+<span class="hit"><i>251</i>         %a_129 = ttg.local_load %a_128 token %a_127 : !ttg.memdesc&lt;128x64xf16, #shared, #smem, mutable&gt; -&gt; tensor&lt;128x64xf16, #ttg.dot_op&lt;{opIdx = 0, parent = #mma, kWidth = 2}&gt;&gt; loc(#loc119)</span>
+<span><i>252</i>         %b_130 = ttg.memdesc_index %b_23[%tile_id_c_126] : !ttg.memdesc&lt;2x64x128xf16, #shared1, #smem, mutable&gt; -&gt; !ttg.memdesc&lt;64x128xf16, #shared1, #smem, mutable&gt; loc(#loc120)</span>
+<span class="hit"><i>253</i>         %b_131 = ttg.local_load %b_130 token %a_127 : !ttg.memdesc&lt;64x128xf16, #shared1, #smem, mutable&gt; -&gt; tensor&lt;64x128xf16, #ttg.dot_op&lt;{opIdx = 1, parent = #mma, kWidth = 2}&gt;&gt; loc(#loc120)</span>
+<span class="hit"><i>254</i>         %accumulator_132 = tt.dot %a_129, %b_131, %arg13, inputPrecision = tf32 : tensor&lt;128x64xf16, #ttg.dot_op&lt;{opIdx = 0, parent = #mma, kWidth = 2}&gt;&gt; * tensor&lt;64x128xf16, #ttg.dot_op&lt;{opIdx = 1, parent = #mma, kWidth = 2}&gt;&gt; -&gt; tensor&lt;128x128xf32, #mma&gt; loc(#loc138)</span>
+<span><i>255</i>         %tile_id_c_133 = arith.addi %tile_id_c_116, %c1_i32 : i32 loc(#loc95)</span>
+<span><i>256</i>         %tile_id_c_134 = arith.addi %arg16, %c1_i32 : i32 loc(#loc95)</span>
+<span><i>257</i>         %tile_id_c_135 = arith.cmpi sge, %tile_id_c_134, %c2_i32 : i32 loc(#loc95)</span>
+<span><i>258</i>         %tile_id_c_136 = arith.select %tile_id_c_135, %c0_i32, %tile_id_c_134 : i32 loc(#loc95)</span>
+<span><i>259</i>         %tile_id_c_137 = arith.select %tile_id_c_122, %c0_i32, %tile_id_c_133 : i32 loc(#loc95)</span>
+<span><i>260</i>         %offs_k_138 = arith.muli %tile_id_c_137, %c64_i32 : i32 loc(#loc133)</span>
+<span><i>261</i>         %offs_k_139 = tt.splat %offs_k_138 : i32 -&gt; tensor&lt;64xi32, #ttg.slice&lt;{dim = 0, parent = #blocked1}&gt;&gt; loc(#loc134)</span>
+<span><i>262</i>         %offs_k_140 = tt.splat %offs_k_138 : i32 -&gt; tensor&lt;64xi32, #ttg.slice&lt;{dim = 1, parent = #blocked}&gt;&gt; loc(#loc134)</span>
+<span><i>263</i>         %offs_k_141 = arith.addi %offs_k_139, %offs_k_for_mask : tensor&lt;64xi32, #ttg.slice&lt;{dim = 0, parent = #blocked1}&gt;&gt; loc(#loc134)</span>
+<span><i>264</i>         %offs_k_142 = arith.addi %offs_k_140, %offs_k_for_mask_8 : tensor&lt;64xi32, #ttg.slice&lt;{dim = 1, parent = #blocked}&gt;&gt; loc(#loc134)</span>
+<span><i>265</i>         %a_ptrs_143 = tt.expand_dims %tile_id_c_123#0 {axis = 1 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt; -&gt; tensor&lt;128x1xi32, #blocked1&gt; loc(#loc127)</span>
+<span><i>266</i>         %a_ptrs_144 = arith.muli %a_ptrs_143, %a_ptrs : tensor&lt;128x1xi32, #blocked1&gt; loc(#loc113)</span>
+<span><i>267</i>         %a_ptrs_145 = tt.expand_dims %offs_k_141 {axis = 0 : i32} : tensor&lt;64xi32, #ttg.slice&lt;{dim = 0, parent = #blocked1}&gt;&gt; -&gt; tensor&lt;1x64xi32, #blocked1&gt; loc(#loc135)</span>
+<span><i>268</i>         %a_ptrs_146 = tt.broadcast %a_ptrs_144 : tensor&lt;128x1xi32, #blocked1&gt; -&gt; tensor&lt;128x64xi32, #blocked1&gt; loc(#loc128)</span>
+<span><i>269</i>         %a_ptrs_147 = tt.broadcast %a_ptrs_145 : tensor&lt;1x64xi32, #blocked1&gt; -&gt; tensor&lt;128x64xi32, #blocked1&gt; loc(#loc128)</span>
+<span><i>270</i>         %a_ptrs_148 = arith.addi %a_ptrs_146, %a_ptrs_147 : tensor&lt;128x64xi32, #blocked1&gt; loc(#loc128)</span>
+<span><i>271</i>         %a_ptrs_149 = tt.addptr %a_ptrs_19, %a_ptrs_148 : tensor&lt;128x64x!tt.ptr&lt;f16&gt;, #blocked1&gt;, tensor&lt;128x64xi32, #blocked1&gt; loc(#loc114)</span>
+<span><i>272</i>         %b_ptrs_150 = tt.expand_dims %offs_k_142 {axis = 1 : i32} : tensor&lt;64xi32, #ttg.slice&lt;{dim = 1, parent = #blocked}&gt;&gt; -&gt; tensor&lt;64x1xi32, #blocked&gt; loc(#loc136)</span>
+<span><i>273</i>         %b_ptrs_151 = tt.expand_dims %tile_id_c_123#1 {axis = 0 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt; -&gt; tensor&lt;1x128xi32, #blocked&gt; loc(#loc129)</span>
+<span><i>274</i>         %b_ptrs_152 = arith.muli %b_ptrs_151, %b_ptrs : tensor&lt;1x128xi32, #blocked&gt; loc(#loc115)</span>
+<span><i>275</i>         %b_ptrs_153 = tt.broadcast %b_ptrs_150 : tensor&lt;64x1xi32, #blocked&gt; -&gt; tensor&lt;64x128xi32, #blocked&gt; loc(#loc130)</span>
+<span><i>276</i>         %b_ptrs_154 = tt.broadcast %b_ptrs_152 : tensor&lt;1x128xi32, #blocked&gt; -&gt; tensor&lt;64x128xi32, #blocked&gt; loc(#loc130)</span>
+<span><i>277</i>         %b_ptrs_155 = arith.addi %b_ptrs_153, %b_ptrs_154 : tensor&lt;64x128xi32, #blocked&gt; loc(#loc130)</span>
+<span><i>278</i>         %b_ptrs_156 = tt.addptr %b_ptrs_20, %b_ptrs_155 : tensor&lt;64x128x!tt.ptr&lt;f16&gt;, #blocked&gt;, tensor&lt;64x128xi32, #blocked&gt; loc(#loc116)</span>
+<span><i>279</i>         %a_157 = arith.subi %K, %offs_k_138 : i32 loc(#loc137)</span>
+<span><i>280</i>         %a_158 = tt.splat %a_157 : i32 -&gt; tensor&lt;1x64xi32, #blocked1&gt; loc(#loc131)</span>
+<span><i>281</i>         %a_159 = arith.cmpi slt, %a, %a_158 : tensor&lt;1x64xi32, #blocked1&gt; loc(#loc131)</span>
+<span><i>282</i>         %a_160 = tt.broadcast %a_159 : tensor&lt;1x64xi1, #blocked1&gt; -&gt; tensor&lt;128x64xi1, #blocked1&gt; loc(#loc119)</span>
+<span><i>283</i>         %a_161 = ttg.memdesc_index %a_22[%tile_id_c_136] : !ttg.memdesc&lt;2x128x64xf16, #shared, #smem, mutable&gt; -&gt; !ttg.memdesc&lt;128x64xf16, #shared, #smem, mutable&gt; loc(#loc119)</span>
+<span><i>284</i>         %tile_id_c_162 = tt.splat %tile_id_c_118 : i1 -&gt; tensor&lt;128x64xi1, #blocked1&gt; loc(#loc95)</span>
+<span><i>285</i>         %tile_id_c_163 = arith.andi %tile_id_c_162, %a_160 : tensor&lt;128x64xi1, #blocked1&gt; loc(#loc95)</span>
+<span class="hit"><i>286</i>         %a_164 = ttg.async_copy_global_to_local %a_ptrs_149, %a_161 mask %tile_id_c_163 other %cst_1 {contiguity = 8 : i32} : tensor&lt;128x64x!tt.ptr&lt;f16&gt;, #blocked1&gt; -&gt; &lt;128x64xf16, #shared, #smem, mutable&gt; loc(#loc119)</span>
+<span><i>287</i>         %a_165 = ttg.async_commit_group tokens %a_164 loc(#loc119)</span>
+<span><i>288</i>         %b_166 = tt.splat %a_157 : i32 -&gt; tensor&lt;64x1xi32, #blocked&gt; loc(#loc132)</span>
+<span><i>289</i>         %b_167 = arith.cmpi slt, %b, %b_166 : tensor&lt;64x1xi32, #blocked&gt; loc(#loc132)</span>
+<span><i>290</i>         %b_168 = tt.broadcast %b_167 : tensor&lt;64x1xi1, #blocked&gt; -&gt; tensor&lt;64x128xi1, #blocked&gt; loc(#loc120)</span>
+<span><i>291</i>         %b_169 = ttg.memdesc_index %b_23[%tile_id_c_136] : !ttg.memdesc&lt;2x64x128xf16, #shared1, #smem, mutable&gt; -&gt; !ttg.memdesc&lt;64x128xf16, #shared1, #smem, mutable&gt; loc(#loc120)</span>
+<span><i>292</i>         %tile_id_c_170 = tt.splat %tile_id_c_118 : i1 -&gt; tensor&lt;64x128xi1, #blocked&gt; loc(#loc95)</span>
+<span><i>293</i>         %tile_id_c_171 = arith.andi %tile_id_c_170, %b_168 : tensor&lt;64x128xi1, #blocked&gt; loc(#loc95)</span>
+<span class="hit"><i>294</i>         %b_172 = ttg.async_copy_global_to_local %b_ptrs_156, %b_169 mask %tile_id_c_171 other %cst_0 {contiguity = 8 : i32} : tensor&lt;64x128x!tt.ptr&lt;f16&gt;, #blocked&gt; -&gt; &lt;64x128xf16, #shared1, #smem, mutable&gt; loc(#loc120)</span>
+<span><i>295</i>         %b_173 = ttg.async_commit_group tokens %b_172 loc(#loc120)</span>
+<span><i>296</i>         %tile_id_c_174 = arith.cmpi eq, %arg23, %tile_id_c_21 : i32 loc(#loc95)</span>
+<span><i>297</i>         %tile_id_c_175 = arith.select %tile_id_c_174, %cst, %accumulator_132 : tensor&lt;128x128xf32, #mma&gt; loc(#loc95)</span>
+<span class="hit"><i>298</i>         %tile_id_c_176 = scf.if %tile_id_c_174 -&gt; (i32) {</span>
+<span><i>299</i>           %tile_id_c_177 = arith.addi %tile_id_c_109, %c128_i32 : i32 loc(#loc96)</span>
+<span><i>300</i>           %group_id_178 = arith.divsi %tile_id_c_177, %num_pid_in_group : i32 loc(#loc146)</span>
+<span><i>301</i>           %first_pid_m_179 = arith.muli %group_id_178, %c8_i32 : i32 loc(#loc147)</span>
+<span><i>302</i>           %group_size_m_180 = arith.subi %num_pid_m_5, %first_pid_m_179 : i32 loc(#loc148)</span>
+<span><i>303</i>           %group_size_m_181 = arith.minsi %group_size_m_180, %c8_i32 : i32 loc(#loc149)</span>
+<span><i>304</i>           %pid_m_182 = arith.remsi %tile_id_c_177, %group_size_m_181 : i32 loc(#loc150)</span>
+<span><i>305</i>           %pid_m_183 = arith.addi %first_pid_m_179, %pid_m_182 : i32 loc(#loc151)</span>
+<span><i>306</i>           %pid_n_184 = arith.remsi %tile_id_c_177, %num_pid_in_group : i32 loc(#loc152)</span>
+<span><i>307</i>           %pid_n_185 = arith.divsi %pid_n_184, %group_size_m_181 : i32 loc(#loc153)</span>
+<span><i>308</i>           %offs_cm = arith.muli %pid_m_183, %c128_i32 : i32 loc(#loc105)</span>
+<span><i>309</i>           %offs_cm_186 = tt.splat %offs_cm : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked2}&gt;&gt; loc(#loc106)</span>
+<span><i>310</i>           %offs_cm_187 = arith.addi %offs_cm_186, %offs_am_9 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked2}&gt;&gt; loc(#loc106)</span>
+<span><i>311</i>           %offs_cn = arith.muli %pid_n_185, %c128_i32 : i32 loc(#loc107)</span>
+<span><i>312</i>           %offs_cn_188 = tt.splat %offs_cn : i32 -&gt; tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked2}&gt;&gt; loc(#loc108)</span>
+<span><i>313</i>           %offs_cn_189 = arith.addi %offs_cn_188, %offs_am_11 : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked2}&gt;&gt; loc(#loc108)</span>
+<span><i>314</i>           %c_ptrs_190 = tt.expand_dims %offs_cm_187 {axis = 1 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked2}&gt;&gt; -&gt; tensor&lt;128x1xi32, #blocked2&gt; loc(#loc109)</span>
+<span><i>315</i>           %c_ptrs_191 = arith.muli %c_ptrs, %c_ptrs_190 : tensor&lt;128x1xi32, #blocked2&gt; loc(#loc90)</span>
+<span><i>316</i>           %c_ptrs_192 = tt.addptr %c_ptrs_13, %c_ptrs_191 : tensor&lt;128x1x!tt.ptr&lt;f16&gt;, #blocked2&gt;, tensor&lt;128x1xi32, #blocked2&gt; loc(#loc91)</span>
+<span><i>317</i>           %c_ptrs_193 = tt.expand_dims %offs_cn_189 {axis = 0 : i32} : tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked2}&gt;&gt; -&gt; tensor&lt;1x128xi32, #blocked2&gt; loc(#loc110)</span>
+<span><i>318</i>           %c_ptrs_194 = tt.broadcast %c_ptrs_192 : tensor&lt;128x1x!tt.ptr&lt;f16&gt;, #blocked2&gt; -&gt; tensor&lt;128x128x!tt.ptr&lt;f16&gt;, #blocked2&gt; loc(#loc111)</span>
+<span><i>319</i>           %c_ptrs_195 = tt.broadcast %c_ptrs_193 : tensor&lt;1x128xi32, #blocked2&gt; -&gt; tensor&lt;128x128xi32, #blocked2&gt; loc(#loc111)</span>
+<span><i>320</i>           %c_ptrs_196 = tt.addptr %c_ptrs_194, %c_ptrs_195 : tensor&lt;128x128x!tt.ptr&lt;f16&gt;, #blocked2&gt;, tensor&lt;128x128xi32, #blocked2&gt; loc(#loc111)</span>
+<span><i>321</i>           %c_mask_197 = arith.cmpi slt, %c_ptrs_190, %c_mask : tensor&lt;128x1xi32, #blocked2&gt; loc(#loc92)</span>
+<span><i>322</i>           %c_mask_198 = arith.cmpi slt, %c_ptrs_193, %c_mask_14 : tensor&lt;1x128xi32, #blocked2&gt; loc(#loc93)</span>
+<span><i>323</i>           %c_mask_199 = tt.broadcast %c_mask_197 : tensor&lt;128x1xi1, #blocked2&gt; -&gt; tensor&lt;128x128xi1, #blocked2&gt; loc(#loc112)</span>
+<span><i>324</i>           %c_mask_200 = tt.broadcast %c_mask_198 : tensor&lt;1x128xi1, #blocked2&gt; -&gt; tensor&lt;128x128xi1, #blocked2&gt; loc(#loc112)</span>
+<span><i>325</i>           %c_mask_201 = arith.andi %c_mask_199, %c_mask_200 : tensor&lt;128x128xi1, #blocked2&gt; loc(#loc112)</span>
+<span><i>326</i>           %c = arith.truncf %accumulator_132 : tensor&lt;128x128xf32, #mma&gt; to tensor&lt;128x128xf16, #mma&gt; loc(#loc139)</span>
+<span class="hit"><i>327</i>           %0 = ttg.convert_layout %c : tensor&lt;128x128xf16, #mma&gt; -&gt; tensor&lt;128x128xf16, #blocked2&gt; loc(#loc39)</span>
+<span class="hit"><i>328</i>           tt.store %c_ptrs_196, %0, %c_mask_201 : tensor&lt;128x128x!tt.ptr&lt;f16&gt;, #blocked2&gt; loc(#loc39)</span>
+<span><i>329</i>           scf.yield %tile_id_c_177 : i32 loc(#loc95)</span>
+<span><i>330</i>         } else {</span>
+<span><i>331</i>           scf.yield %tile_id_c_109 : i32 loc(#loc95)</span>
+<span><i>332</i>         } loc(#loc95)</span>
+<span><i>333</i>         scf.yield %tile_id_c_121, %tile_id_c_123#2, %tile_id_c_176, %tile_id_c_175, %tile_id_c_123#0, %tile_id_c_123#1, %tile_id_c_136, %tile_id_c_126, %a_113, %a_165, %b_115, %b_173, %tile_id_c_137, %tile_id_c_107 : i32, i32, i32, tensor&lt;128x128xf32, #mma&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 1, parent = #blocked1}&gt;&gt;, tensor&lt;128xi32, #ttg.slice&lt;{dim = 0, parent = #blocked}&gt;&gt;, i32, i32, !ttg.async.token, !ttg.async.token, !ttg.async.token, !ttg.async.token, i32, i32 loc(#loc95)</span>
+<span><i>334</i>       } loc(#loc95)</span>
+<span class="hit"><i>335</i>       %tile_id_c_105 = ttg.async_wait {num = 0 : i32} loc(#loc95)</span>
+<span class="hit"><i>336</i>       ttg.local_dealloc %b_23 : !ttg.memdesc&lt;2x64x128xf16, #shared1, #smem, mutable&gt; loc(#loc95)</span>
+<span class="hit"><i>337</i>       ttg.local_dealloc %a_22 : !ttg.memdesc&lt;2x128x64xf16, #shared, #smem, mutable&gt; loc(#loc95)</span>
+<span><i>338</i>     } loc(#loc94)</span>
+<span><i>339</i>     tt.return loc(#loc69)</span>
+<span><i>340</i>   } loc(#loc)</span>
+<span><i>341</i> } loc(#loc)</span></pre>
+    </details>
+    <p class="note">原文里高亮的是上面骨架引用的行。变量名由编译器从 Python 变量名派生，合并之后会出现一大片 <code>%tile_id_c_…</code>，它们不都和 <code>tile_id_c</code> 有关，读的时候看操作名和嵌套，不要看变量名。文件末尾的位置对照表略去了。</p>
+    <h3>不用 GPU 就能试的例子</h3>
+    <p>在仓库根目录、课程的 Python 环境里运行。它把第 08 课的 <code>grouped_matmul_kernel</code> 按 sm_89 编译，报出共享内存，把三个阶段的文本写到 <code>/tmp/lesson08-sm89/</code>，再列出骨架。</p>
+<pre class="cmd">python - &lt;&lt;'PY'
+import pathlib
+import triton
+from triton.backends.compiler import GPUTarget
+from triton.compiler import ASTSource
+from gpu.triton.lesson08_grouped_gemm import grouped_matmul_kernel
+
+signature = {"group_a_ptrs": "*i64", "group_b_ptrs": "*i64", "group_c_ptrs": "*i64",
+             "group_gemm_sizes": "*i32", "g_lds": "*i32", "group_size": "i32"}
+constexprs = {"NUM_SM": 36, "BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K": 64, "RAGGED_NK": False}
+k = triton.compile(ASTSource(fn=grouped_matmul_kernel, signature=signature, constexprs=constexprs),
+                   target=GPUTarget("cuda", 89, 32), options={"num_stages": 3, "num_warps": 8})
+print("shared memory:", k.metadata.shared, "bytes")
+out = pathlib.Path("/tmp/lesson08-sm89")
+out.mkdir(parents=True, exist_ok=True)
+for ext in ("ttir", "ttgir", "ptx"):
+    (out / f"grouped.{ext}").write_text(k.asm[ext])
+print("written:", sorted(p.name for p in out.iterdir()))
+PY
+grep -n "scf\.\(for\|while\|if\)\|ttg\.local_alloc\|ttg\.async_copy_global_to_local\|ttg\.async_wait\|tt\.dot\|ttg\.convert_layout\|tt\.store" \
+    /tmp/lesson08-sm89/grouped.ttgir | cut -c1-96</pre>
+    <p>以仓库里现在的实现，输出是 <code>shared memory: 65536 bytes</code>；骨架里 <code>scf.while</code> 的里面依次是两处 <code>ttg.local_alloc</code>、四处预热的 <code>ttg.async_copy_global_to_local</code>、K 循环、<code>ttg.async_wait {num = 0}</code>、<code>ttg.convert_layout</code> 和 <code>tt.store</code>。形状和上图左边一样：每个 tile 预热一次、排空一次。</p>
+    <p>跑过教程脚本之后，想知道缓存目录里有哪些 kernel、各用了多少共享内存，可以这样列出来（目录换成你设的 <code>TRITON_CACHE_DIR</code>）：</p>
+<pre class="cmd">python - &lt;&lt;'PY'
+import json, pathlib
+for f in sorted(pathlib.Path("/tmp/t09").glob("*/*.json")):
+    if f.name.startswith("__grp__"):
+        continue
+    m = json.loads(f.read_text())
+    print(f.parent.name[:8], m["name"], "| warps", m["num_warps"], "| stages", m["num_stages"], "| shared", m["shared"])
+PY</pre>
+  </section>
+  <section id="grouped">
+    <div class="sec-head">
+      <div class="tag">迁移</div>
+      <h2>grouped GEMM 能不能跨 tile 流水</h2>
+      <p>能，但要先把循环改成编译器认得的形状。只把第 08 课的 <code>while</code> 换成 <code>for</code> 不够。</p>
+    </div>
+    <h3>编译器按什么找可以合并的循环</h3>
+    <ul>
+      <li><b>正好两层。</b>带 <code>flatten=True</code> 的 <code>for</code> 必须是这组嵌套的最外层，里面正好有一个 <code>for</code>，再往里没有别的循环。</li>
+      <li><b>中间不能隔着别的结构。</b>找循环时遇到 <code>while</code> 或 <code>if</code> 就停下，里面的循环另算一组。</li>
+      <li><b>内层的次数要提前知道。</b>默认要求它在进入外层之前就能算出来。次数随外层变化时还有一条路：用 <code>tl.assume</code> 保证内层至少执行一次，并且次数只由外层的循环变量经标量运算（包括读一个标量）得到；这时编译器先用一个小循环把总迭代数加出来。</li>
+    </ul>
+    <h3>六种写法的编译结果</h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>写法</th><th>循环的形状</th><th>加 <code>flatten=True</code> 之后</th><th class="nw">共享内存</th></tr></thead>
+        <tbody>
+          <tr><td>① 第 08 课的写法</td><td><code>for</code> 问题 → <code>while</code> 领取 tile → <code>for</code> K</td><td>没有变化</td><td class="num">65,536</td></tr>
+          <tr><td>② 只把 <code>while</code> 换成 <code>for</code></td><td><code>for</code> 问题 → <code>for</code> tile → <code>for</code> K，三层</td><td>没有变化</td><td class="num">65,536</td></tr>
+          <tr><td>③ 一个 <code>for</code> 遍历本 CTA 的全部 tile，问题号查表；K 是所有问题共用的标量；行列偏移在 tile 开头算</td><td><code>for</code> tile → <code>for</code> K</td><td>合并了，但 B 退回同步读入：A 是 12 条 <code>cp.async</code>，B 是 32 条逐元素的读</td><td class="num">65,536</td></tr>
+          <tr class="hl"><td>④ 同 ③，行列偏移挪到 K 循环里算</td><td>同上</td><td>合并，A、B 都是异步拷贝（24 条 <code>cp.async</code>）</td><td class="num">98,304</td></tr>
+          <tr><td>⑤ 同 ④，但 K 逐问题不同，每个 tile 读一次</td><td>同上</td><td>没有变化</td><td class="num">65,536</td></tr>
+          <tr><td>⑥ 同 ⑤，加 <code>tl.assume</code>（K 循环次数大于 0）</td><td>同上</td><td>合并，A、B 都是异步拷贝</td><td class="num">98,304</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>写法 ③ 到 ⑥ 里，“这个 tile 属于哪个问题”不再靠循环去找，而是由主机预先建一张“tile 号 → 问题号”的表，kernel 里读一次。真实系统里的对应物是 CUTLASS grouped GEMM 的 <code>kHostPrecompute</code> 调度模式：主机先算好每个线程块依次要处理的问题序列。</p>
+    <h3>改成写法 ④ 要一起带上的</h3>
+    <ul>
+      <li><b>epilogue 要有自己的游标，并再查一次表。</b>道理和 <code>tile_id_c</code> 相同：prologue 的游标已经提前走到下一个 tile 了。</li>
+      <li><b>行列偏移放在 K 循环里算。</b>这是 v3.7.1 的边界：在 tile 开头算出的偏移经过 <code>scf.if</code> 传出后，连续性信息丢失，对应的读入就退回同步。</li>
+      <li><b>K 循环外面不能再包 <code>if</code>。</b></li>
+      <li><b>代价。</b>共享内存多 32,768 字节；主机多建一张表；每个 tile 多几次标量读表。</li>
+    </ul>
+    <p class="note"><b>边界。</b>这些都是只编译看到的结构，没有在设备上验证数值，也没有测过性能。K 循环越长，跨 tile 流水省下的那一段占比越小；MoE 的 K 是隐藏维度，一个 tile 往往有几十轮，值不值得要实测。写法 ② 的 tile 循环外面再包一层 <code>if</code>，里面两层会被单独合并（98,304），但流水在每个问题的边界仍要重新预热；这是当前实现的副作用，源码里标着待改进，不宜依赖。</p>
+  </section>
+  <section id="hardware">
+    <div class="sec-head">
+      <div class="tag">节点 4</div>
+      <h2>谁在搬数据，谁在算</h2>
+      <p>同一轮 K 循环，在四种目标上由谁完成。通用线程身上原本有三件事：算地址搬数据，把操作数取进寄存器，在寄存器里攒累加器。新的硬件把它们一件件接走。</p>
+    </div>
+    <div class="controls">
+      <div class="ctl">目标
+        <div class="seg" id="seg-cap" role="group" aria-label="选择目标硬件">
+          <button type="button" data-v="89" aria-pressed="true">sm_89</button>
+          <button type="button" data-v="90" aria-pressed="false">sm_90</button>
+          <button type="button" data-v="100" aria-pressed="false">sm_100</button>
+          <button type="button" data-v="120" aria-pressed="false">sm_120</button>
+        </div>
+      </div>
+      <div class="ctl">写法
+        <div class="seg" id="seg-kern" role="group" aria-label="选择 kernel 的写法">
+          <button type="button" data-v="ptr" aria-pressed="true">指针版</button>
+          <button type="button" data-v="desc" aria-pressed="false">描述符版</button>
+        </div>
+      </div>
+    </div>
+    <figure>
+      <div class="fig-scroll fit">
+        <svg class="dia" id="hw" viewBox="0 0 940 262" role="img" aria-label="一轮 K 循环里数据走的路：显存到共享内存，再到张量核心；操作数是否经过寄存器、累加器放在寄存器还是 TMEM，随目标硬件变化">
+          <defs>
+            <marker id="hw-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="hw-head"/></marker>
+            <marker id="hw-ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="hw-head hard"/></marker>
+          </defs>
+          <rect x="16" y="140" width="150" height="96" rx="8" class="hw-box"/>
+          <text x="91" y="172" text-anchor="middle" class="b">显存</text>
+          <text x="91" y="194" text-anchor="middle" class="sm mu">A、B 的块</text>
+          <text x="91" y="212" text-anchor="middle" class="sm mu">各 16,384 字节</text>
+          <rect x="306" y="140" width="170" height="96" rx="8" class="hw-box"/>
+          <text x="391" y="172" text-anchor="middle" class="b">共享内存</text>
+          <text x="391" y="194" text-anchor="middle" class="sm mu" id="hw-slots"></text>
+          <text x="391" y="212" text-anchor="middle" class="sm mu" id="hw-shared"></text>
+          <rect x="620" y="140" width="150" height="96" rx="8" class="hw-box"/>
+          <text x="695" y="182" text-anchor="middle" class="b">张量核心</text>
+          <text x="695" y="204" text-anchor="middle" class="sm mu" id="hw-mma"></text>
+          <rect x="476" y="12" width="294" height="84" rx="8" class="hw-box"/>
+          <text x="623" y="36" text-anchor="middle" class="b">寄存器<tspan class="sm mu" dx="8" font-weight="400">每个线程自己的</tspan></text>
+          <rect x="490" y="50" width="124" height="34" rx="6" class="hw-chip" id="hw-chip-ops"/>
+          <text x="552" y="72" text-anchor="middle" class="sm hw-chiptext" id="hw-chip-ops-t">操作数</text>
+          <rect x="632" y="50" width="124" height="34" rx="6" class="hw-chip" id="hw-chip-acc"/>
+          <text x="694" y="72" text-anchor="middle" class="sm hw-chiptext" id="hw-chip-acc-t">累加器</text>
+          <g id="hw-tmem">
+            <rect x="822" y="140" width="102" height="96" rx="8" class="hw-box"/>
+            <text x="873" y="166" text-anchor="middle" class="b">TMEM</text>
+            <rect x="834" y="182" width="78" height="34" rx="6" class="hw-chip" id="hw-chip-tm"/>
+            <text x="873" y="204" text-anchor="middle" class="sm hw-chiptext" id="hw-chip-tm-t">累加器</text>
+          </g>
+          <line x1="166" y1="188" x2="304" y2="188" class="hw-arrow" id="hw-a1" marker-end="url(#hw-ah)"/>
+          <text x="235" y="178" text-anchor="middle" class="hw-num">①</text>
+          <g id="hw-via">
+            <line x1="430" y1="140" x2="520" y2="86" class="hw-arrow" marker-end="url(#hw-ah)"/>
+            <line x1="590" y1="84" x2="668" y2="138" class="hw-arrow" marker-end="url(#hw-ah)"/>
+            <text x="456" y="108" text-anchor="middle" class="hw-num">②</text>
+          </g>
+          <g id="hw-direct">
+            <line x1="476" y1="188" x2="618" y2="188" class="hw-arrow hard" marker-end="url(#hw-ah-acc)"/>
+            <text x="547" y="178" text-anchor="middle" class="hw-num ac">②</text>
+          </g>
+          <g id="hw-acc-reg">
+            <line x1="716" y1="138" x2="700" y2="86" class="hw-arrow" marker-end="url(#hw-ah)" marker-start="url(#hw-ah)"/>
+            <text x="732" y="118" text-anchor="middle" class="hw-num">④</text>
+          </g>
+          <g id="hw-acc-tm">
+            <line x1="770" y1="188" x2="820" y2="188" class="hw-arrow hard" marker-end="url(#hw-ah-acc)" marker-start="url(#hw-ah-acc)"/>
+            <text x="795" y="178" text-anchor="middle" class="hw-num ac">④</text>
+          </g>
+          <text x="695" y="254" text-anchor="middle" class="hw-num">③</text>
+        </svg>
+      </div>
+      <figcaption>粗的橙色箭头是由硬件直接完成、不再经过线程寄存器的路。切换目标和写法，看哪一步换了做法。</figcaption>
+    </figure>
+    <ol class="hw-steps" id="hw-steps">
+      <li id="hw-s1"><b>①</b><span></span></li>
+      <li id="hw-s2"><b>②</b><span></span></li>
+      <li id="hw-s3"><b>③</b><span></span></li>
+      <li id="hw-s4"><b>④</b><span></span></li>
+    </ol>
+    <div class="readout">
+      <div class="e"><span>每线程寄存器</span><b id="hw-r-regs"></b></div>
+      <div><span>共享内存（字节）</span><b id="hw-r-shared"></b></div>
+      <div><span>TMEM</span><b id="hw-r-tmem"></b></div>
+      <div><span>备注</span><b id="hw-r-note" style="font-family:var(--sans);font-weight:500;font-size:.9rem"></b></div>
+    </div>
+    <h3>八种组合放在一起</h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>写法</th><th>目标</th><th>① 搬入</th><th>② 操作数</th><th>③ 乘加</th><th>④ 累加器</th><th class="nw">寄存器</th><th class="nw">共享内存</th></tr></thead>
+        <tbody>
+          <tr><td rowspan="4">指针版<br><code>matmul_kernel</code></td><td>sm_89</td><td><code>cp.async</code> 24 条</td><td>经寄存器</td><td><code>mma.sync</code> 64 条</td><td>寄存器</td><td class="num">135</td><td class="num">65,536</td></tr>
+          <tr><td>sm_90</td><td><code>cp.async</code> 24 条</td><td>直接读共享内存</td><td><code>wgmma</code> 4 条</td><td>寄存器</td><td class="num">111</td><td class="num">98,304</td></tr>
+          <tr><td>sm_100</td><td><code>cp.async</code> 32 条</td><td>直接读共享内存</td><td><code>tcgen05.mma</code> 8 条</td><td>TMEM，128 列</td><td class="num">94</td><td class="num">98,320</td></tr>
+          <tr><td>sm_120</td><td><code>cp.async</code> 24 条</td><td>经寄存器</td><td><code>mma.sync</code> 64 条</td><td>寄存器</td><td class="num">158</td><td class="num">65,536</td></tr>
+          <tr><td rowspan="4">描述符版<br><code>matmul_kernel_tma</code></td><td>sm_89</td><td>逐元素同步读，64 条</td><td>经寄存器</td><td><code>mma.sync</code> 64 条</td><td>寄存器</td><td class="num">255</td><td class="num">32,768</td></tr>
+          <tr class="hl"><td>sm_90</td><td>TMA，6 条读加 1 条写回</td><td>直接读共享内存</td><td><code>wgmma</code> 4 条</td><td>寄存器</td><td class="num">90</td><td class="num">98,328</td></tr>
+          <tr class="hl"><td>sm_100</td><td>TMA，8 条读加 1 条写回</td><td>直接读共享内存</td><td><code>tcgen05.mma</code> 8 条</td><td>TMEM，128 列</td><td class="num">71</td><td class="num">98,352</td></tr>
+          <tr><td>sm_120</td><td>TMA，6 条读加 1 条写回</td><td>经寄存器</td><td><code>mma.sync</code> 64 条</td><td>寄存器</td><td class="num">118</td><td class="num">65,552</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul>
+      <li><b>搬一个 16,384 字节的块。</b><code>cp.async</code> 一条搬 16 字节，256 个线程各发 4 条，每个线程自己算地址。TMA 由选出的一个线程发一条 <code>cp.async.bulk.tensor.2d</code>，地址由硬件按描述符里的形状和步长去算，搬完通过屏障（<code>mbarrier</code>）通知。</li>
+      <li><b>乘加指令的粒度。</b><code>mma.sync</code> 一条算 16 × 8 的一小片，每个 warp 每轮发 64 条；<code>wgmma</code> 一条算 64 × 128，由 4 个 warp 组成的 warpgroup 一起执行，每轮 4 条；<code>tcgen05.mma</code> 由一个线程发起。</li>
+      <li><b>直接读共享内存的代价。</b>sm_90 的输入缓冲是每个操作数 3 个槽，sm_89 是 2 个：乘加是异步的，正在被读的槽在算完之前不能被下一轮覆盖。共享内存因此从 65,536 变成 98,304。</li>
+      <li><b>TMEM。</b>128 列 × 128 行 × 4 字节，正好放下 128 × 128 的 fp32 累加器。线程只在 epilogue 把结果读回来。</li>
+      <li><b>sm_120 是混合的。</b>搬运用上了 TMA，计算仍是 <code>mma.sync</code>，操作数和累加器还在寄存器里。</li>
+    </ul>
+    <h3>三条乘加指令各算多大一块</h3>
+    <p>指令名里的 <code>m16n8k16</code> 就是形状：M = 16、N = 8、K = 16，意思是一条指令完成 D[M × N] += A[M × K] · B[K × N]。本例一个 tile 是 128 × 128，一轮 K 循环是 64。</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>指令</th><th>一条算什么</th><th>谁来执行</th><th>本例一轮要几条</th><th>操作数在哪</th><th>结果在哪</th></tr></thead>
+        <tbody>
+          <tr><td><code>mma.sync</code><br><code>m16n8k16</code></td><td>D[16 × 8] += A[16 × 16] · B[16 × 8]</td><td>一个 warp，32 个线程各持一小份；同步，指令返回时已算完</td><td>(128 ÷ 16) × (128 ÷ 8) × (64 ÷ 16) = 512 次，8 个 warp 各 64 条</td><td>寄存器</td><td>寄存器</td></tr>
+          <tr><td><code>wgmma.mma_async</code><br><code>m64n128k16</code></td><td>D[64 × 128] += A[64 × 16] · B[16 × 128]</td><td>一个 warpgroup，4 个 warp 一起；异步，发出后要另行等待</td><td>(128 ÷ 64) × (64 ÷ 16) = 8 次，两个 warpgroup 各 4 条</td><td>共享内存（A 也允许在寄存器）</td><td>寄存器</td></tr>
+          <tr><td><code>tcgen05.mma</code><br><code>kind::f16</code></td><td>形状不写在名字里，由指令的描述参数给出。本例是 D[128 × 128] += A[128 × 16] · B[16 × 128]</td><td>一个线程发起；异步，完成后通过屏障通知</td><td>64 ÷ 16 = 4 条</td><td>共享内存</td><td>TMEM</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>三条指令的 K 都是 16，变的是一条指令覆盖的输出面积：16 × 8，64 × 128，128 × 128。面积越大，需要线程亲手发的指令越少，线程手里要拿的数据也越少。<code>mma.sync</code> 的每个线程要拿 A 的 8 个元素、B 的 4 个元素和 4 个累加值；<code>tcgen05.mma</code> 的线程什么都不用拿。</p>
+    <h3>为什么 sm_90 要多一个输入槽</h3>
+    <p>每轮搬进来的数据量没有变，都是 A、B 各一块。变的是一个槽要被占多久。下面是 <code>num_stages = 3</code> 时第 k 轮里发生的事。</p>
+    <div class="concepts">
+      <div class="card">
+        <h3><span class="n">sm_89</span>先取走，再计算</h3>
+        <ol>
+          <li>等第 k 轮的数据到齐。</li>
+          <li><code>ldmatrix</code> 把它从槽里取进寄存器。<b>这个槽空了。</b></li>
+          <li><code>mma.sync</code> 在寄存器上计算。</li>
+          <li>发出第 k+2 轮的读入，写进刚空出来的槽。</li>
+        </ol>
+        <p>同时被占的只有第 k+1、k+2 两轮的数据：<b>2 个槽</b>。</p>
+      </div>
+      <div class="card">
+        <h3><span class="n">sm_90</span>就地读，边读边算</h3>
+        <ol>
+          <li>等第 k 轮的数据到齐。</li>
+          <li>发出 <code>wgmma</code>，它直接读这个槽，发出后立刻返回。<b>这个槽还在被读。</b></li>
+          <li>发出第 k+2 轮的读入。第 k 轮的槽不能用，第 k+1 轮的槽里有数据，只能用第三个槽。</li>
+        </ol>
+        <p>同时被占的是第 k、k+1、k+2 三轮的数据：<b>3 个槽</b>，共享内存从 65,536 变成 98,304。</p>
+      </div>
+    </div>
+    <p>所以槽数取决于乘加是不是就地、异步地读共享内存，和用不用 TMA 无关。sm_120 用 TMA 搬运、用 <code>mma.sync</code> 计算，仍然是 2 个槽。</p>
+    <h3>B 为什么按 [N, K] 存放</h3>
+    <ul>
+      <li><b>沿 K 方向连续。</b>描述符要求最后一维连续。按 <code>[N, K]</code> 存，取出的 B 块在内存里就是沿 K 连续的，这正是乘加指令默认要的摆法（K 为主）。kernel 里用 <code>b.T</code> 表达数学上的 B。</li>
+      <li><b>fp8 没有转置这个选项。</b>PTX 文档规定，<code>wgmma</code> 的转置参数只支持 fp16 和 bf16。fp16 时 B 按 <code>[K, N]</code> 存也行，指令带一个转置标志就够了；fp8 时编译器只能先把 B 取进寄存器、重排后再存回共享内存。</li>
+      <li><b>编译对照</b>（sm_90，描述符版，fp8）：按 <code>[N, K]</code> 存是 90 个寄存器；按 <code>[K, N]</code> 存是 113 个，并多出 32 条逐字节写共享内存的指令。fp16 时两种存法的指令构成相同。</li>
+    </ul>
+    <h3>两种描述符</h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th></th><th>主机侧：<code>TensorDescriptor.from_tensor</code></th><th>设备侧：<code>tl.make_tensor_descriptor</code></th></tr></thead>
+        <tbody>
+          <tr><td class="nw">谁来建</td><td>Python 包装函数；发射前由驱动填好</td><td>每个 CTA 在 kernel 开头自己填，每个描述符 13 条 <code>tensormap.replace</code></td></tr>
+          <tr><td class="nw">块形状</td><td>建描述符时就要给。autotune 每试一组配置，由 <code>pre_hook</code> 改写 <code>block_shape</code>（教程第 183–193 行）</td><td>源码里的编译期常量</td></tr>
+          <tr><td class="nw">额外开销</td><td>无</td><td>每个描述符 128 字节的全局暂存，要先 <code>triton.set_allocator</code>（教程第 585–589 行）</td></tr>
+          <tr><td class="nw">能描述</td><td>发射前就确定的一个张量</td><td>运行中才知道的张量，例如 grouped GEMM 里每个问题各自的矩阵</td></tr>
+          <tr><td class="nw">没有 TMA 时</td><td>逐元素同步读写，寄存器 255 个</td><td>改写成普通的指针读写，仍是 24 条 <code>cp.async</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>最后一行的差别来自编译器还能看见什么。主机侧描述符在 sm_89 上被展开成一串运行时参数，基地址不带对齐保证，步长是运行时才知道的数：</p>
+<pre class="sig"><span class="c">// sm_90：描述符是一个不透明的句柄</span>
+tt.func @matmul_kernel_tma(%a_desc: !tt.tensordesc&lt;tensor&lt;128x64xf16, #shared&gt;&gt;, …)
+<span class="c">// sm_89：展开成基地址、形状、步长等十一个参数，基地址没有 tt.divisibility</span>
+tt.func @matmul_kernel_tma(%a_desc: !tt.ptr&lt;f16&gt;, %a_desc_0: i64, %a_desc_1: i64, %a_desc_2: i64, %a_desc_3: i64, …)
+<span class="c">// 设备侧描述符的 kernel 在 sm_89：指针带着对齐保证，步长 [K, 1] 写在源码里</span>
+tt.func @matmul_kernel_descriptor_persistent(%a_ptr: !tt.ptr&lt;f16&gt; {tt.divisibility = 16 : i32}, …)</pre>
+    <p class="note">教程脚本只在 capability 主版本不小于 9 的设备上运行描述符版，所以 sm_89 那两行是“强行编译会得到什么”，不是教程的实际路径。全部数字来自只编译，没有任何实机结果。</p>
+  </section>
+  <section id="ws">
+    <div class="sec-head">
+      <div class="tag">节点 5</div>
+      <h2>warp 专用化：让不同的 warp 各管一件事</h2>
+      <p>不专用化时，同一批 warp 轮流做搬运、乘加和写回。专用化把循环体按角色拆开，分给不同的 warp 分区，每个分区有自己的循环，靠屏障交接。这就是生产者与消费者：共享内存里的输入槽是环形缓冲，每个槽配两个信号，一个表示“数据到了”，一个表示“槽空了”。</p>
+    </div>
+    <div class="controls">
+      <div class="ctl">目标
+        <div class="seg" id="seg-ws" role="group" aria-label="选择目标硬件">
+          <button type="button" data-v="90" aria-pressed="false">sm_90</button>
+          <button type="button" data-v="100" aria-pressed="true">sm_100</button>
+          <button type="button" data-v="120" aria-pressed="false">sm_120</button>
+        </div>
+      </div>
+    </div>
+    <figure>
+      <div class="lanes" id="ws-90" hidden>
+        <div class="lane l-move"><div class="who"><b>默认分区 · 4 个 warp</b><span>搬运。tile 循环套 K 循环都还在，但里面只剩算坐标、等空槽、发读入</span></div><div class="steps"><em>循环：</em><i class="w">等一个空槽</i><em>→</em><i class="">发 TMA，搬 A、B</i></div></div>
+        <div class="lane l-mma"><div class="who"><b>分区 0 · 4 个 warp</b><span>乘加，算 tile 的一半（64 行），并写回这一半</span></div><div class="steps"><em>循环：</em><i class="w">等数据到</i><em>→</em><i class=""><code>wgmma</code></i><em>→</em><i class="s">通知：槽空了</i><em>　tile 结束：</em><i class="">写回 64 × 128</i></div></div>
+        <div class="lane l-mma"><div class="who"><b>分区 1 · 4 个 warp</b><span>乘加，算 tile 的另一半</span></div><div class="steps"><em>循环：</em><i class="w">等数据到</i><em>→</em><i class=""><code>wgmma</code></i><em>→</em><i class="s">通知：槽空了</i><em>　tile 结束：</em><i class="">写回 64 × 128</i></div></div>
+      </div>
+      <div class="lanes" id="ws-100">
+        <div class="lane l-move"><div class="who"><b>分区 1 · 2 个 warp</b><span>搬运。教程在持久版里开了 flatten，两层循环已合成一层</span></div><div class="steps"><em>循环：</em><i class="w">等一个空槽</i><em>→</em><i class="">发 TMA，搬 A、B</i></div></div>
+        <div class="lane l-mma"><div class="who"><b>分区 0 · 1 个 warp</b><span>乘加。只负责发起，计算在张量核心里，结果进 TMEM</span></div><div class="steps"><em>循环：</em><i class="w">等数据到</i><em>→</em><i class="">发起 <code>tcgen05.mma</code></i></div></div>
+        <div class="lane l-epi"><div class="who"><b>默认分区 · 8 个 warp</b><span>epilogue。K 循环期间什么都不做</span></div><div class="steps"><em>每个 tile：</em><i class="w">等这个 tile 算完</i><em>→</em><i class="">从 TMEM 读出</i><em>→</em><i class="s">通知：累加器空了</i><em>→</em><i class="">写回 C</i></div></div>
+      </div>
+      <div class="lanes" id="ws-120" hidden>
+        <div class="lane l-move"><div class="who"><b>分区 0 · 2 个 warp</b><span>搬运</span></div><div class="steps"><em>循环：</em><i class="w">等一个空槽</i><em>→</em><i class="">发 TMA，搬 A、B</i></div></div>
+        <div class="lane l-mma"><div class="who"><b>默认分区 · 8 个 warp</b><span>乘加和 epilogue 都还在这里</span></div><div class="steps"><em>循环：</em><i class="w">等数据到</i><em>→</em><i class="">取进寄存器</i><em>→</em><i class="s">通知：槽空了</i><em>→</em><i class=""><code>mma.sync</code></i><em>　tile 结束：</em><i class="">写回 C</i></div></div>
+      </div>
+      <figcaption>每一行是一个 warp 分区和它自己的循环，按编译出的 IR 整理。虚线框是等待，橙色是发给别的分区的通知。三种目标启用后都发射 12 个 warp。</figcaption>
+    </figure>
+    <ul>
+      <li><b>乘加分到几个 warp，由那一代的乘加指令决定。</b><code>mma.sync</code> 每个 warp 只能算自己那一份，所以 sm_120 的乘加留在原来的 8 个 warp 里；<code>wgmma</code> 以 warpgroup 为单位，一条算 64 行，sm_90 用两个 warpgroup 各算一半；<code>tcgen05.mma</code> 一个线程就能发起，sm_100 只分 1 个 warp。</li>
+      <li><b>每个分区各拿一份同样形状的循环，里面只留自己的操作。</b>Hopper 上搬运分区仍是 tile 循环套 K 循环，但两个 K 循环之间没有排空，也没有 epilogue，只有下一个 tile 的坐标计算。所以它不会在 tile 的边界停下来，关掉 <code>flatten</code> 并不丢掉跨 tile 的预取。各分区的循环各数各的，只靠屏障对齐。</li>
+      <li><b>sm_100 上三件事真正并行。</b>持久版在 TMEM 里开了两个累加器（256 列）：默认分区读出并写回上一个 tile 时，下一个 tile 的乘加写进另一个累加器。</li>
+    </ul>
+    <h3>“分区”是什么</h3>
+    <p>分区就是 CTA 里一段编号连续的 warp，被指定去跑同一段代码。硬件只认 warp，不认分区；分区是编译器划的。kernel 的入口处，每个线程先算出自己在第几个 warp，再跳到那个分区的循环。用 C 写是这样：</p>
+<pre><span class="c">// 12 个 warp、384 个线程都从这里进来，跑的是同一份二进制</span>
+int warp = thread_id / 32;
+if (warp &lt; 8)  default_partition();      <span class="c">// 默认分区：原来申请的那 8 个 warp</span>
+else           jump_table[warp - 8]();   <span class="c">// 其余的 warp 各自跳到自己分区的循环</span></pre>
+    <p>sm_100 的产物里对应的就是这几行：</p>
+<pre class="sig">.reqntid 384                           <span class="c">// 申请 384 个线程</span>
+mov.u32  %r1, %tid.x;
+shr.u32  %r2, %r1, 5;                  <span class="c">// 线程号除以 32，得到 warp 号</span>
+setp.lt.u32  %p1, %r3, 8;
+@%p1 bra  $L__BB0_15;                  <span class="c">// warp 号小于 8：去默认分区的代码</span>
+brx.idx  %r9, $L_brx_0;                <span class="c">// 否则按 warp 号查跳转表</span>
+setmaxnreg.inc.sync.aligned.u32  24;   <span class="c">// 进了分区先声明：这里每个线程只要 24 个寄存器</span></pre>
+    <p>“默认分区”特殊在它还负责专用化那段循环之外的代码，例如开头的准备和结尾的写回。别的分区只在那段循环里存在。</p>
+    <h3>启用前后</h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>目标</th><th>kernel</th><th class="nw">warp</th><th class="nw">共享内存</th><th>TMEM</th></tr></thead>
+        <tbody>
+          <tr><td>sm_90</td><td><code>matmul_kernel_descriptor_persistent</code>，4 个 warp，<code>flatten</code> 关</td><td class="num">4 → 12</td><td class="num">131,096 → 131,544</td><td>—</td></tr>
+          <tr><td rowspan="2">sm_100</td><td><code>matmul_kernel_tma</code></td><td class="num">8 → 12</td><td class="num">98,352 → 98,524</td><td>128 列</td></tr>
+          <tr><td><code>matmul_kernel_tma_persistent</code></td><td class="num">8 → 12</td><td class="num">131,120 → 131,172</td><td>256 列</td></tr>
+          <tr><td rowspan="2">sm_120</td><td><code>matmul_kernel_tma</code></td><td class="num">8 → 12</td><td class="num">65,552 → 98,572</td><td>—</td></tr>
+          <tr class="hl"><td><code>matmul_kernel_tma_persistent</code></td><td class="num">8 → 12</td><td class="num">98,320 → 131,196</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>sm_120 的共享内存涨得最多：专用化之后每个操作数是 3 个槽，原来是 2 个。高亮那一行超过了 sm_120 每个 CTA 的上限 101,376 字节，这组配置在 RTX 5090 上装不上。</p>
+    <h3>它是请求，而且前提很多</h3>
+    <ul>
+      <li><b>教程只在 capability 主版本不小于 9 时启用。</b>sm_89 的设备上不运行这些版本。</li>
+      <li><b>Hopper 的实现要求恰好 4 个 warp。</b>写 8 个时 <code>warp_specialize=True</code> 被忽略，产物不变，没有报错。</li>
+      <li><b>Hopper 上不能和 <code>flatten</code> 同用。</b>合并后的循环里有带 else 的 <code>scf.if</code>，Hopper 的实现遇到它就放弃。教程第 592 行因此关掉 <code>flatten</code>。</li>
+      <li><b>Hopper 上教程只对设备侧描述符的版本启用</b>（第 673、713 行）。主机侧描述符的 <code>matmul_kernel_tma</code> 配 4 个 warp 强行启用，编译失败。</li>
+      <li><b>Triton 的文档写的是“只支持 Blackwell，且只对简单的矩阵乘循环有效”。</b></li>
+    </ul>
+    <p class="note">真实系统的对应物是 CUTLASS 3 的 Hopper kernel：线程块分成生产者 warp 组和消费者 warp 组，生产者等缓冲被标记为空再用 TMA 填，消费者等缓冲被标记为满再做乘加。它的文档还说明 Blackwell 的分工结构与 Hopper 差别很大，但“生产者与消费者分开”的思路相同。本节全部来自只编译，没有实机结果，也没有测过它带来多少收益。</p>
+  </section>
+  <section id="budget">
+    <div class="sec-head">
+      <div class="tag">节点 6</div>
+      <h2>epilogue 拆半与共享内存的预算</h2>
+      <p>描述符版写回 C 时，要先把整块结果放进共享内存，TMA 再从那里搬走。这块输出缓冲和输入槽争同一份共享内存。把输出切成左右两半、分两次写回，输出缓冲就只要一半，省下的地方可以换成多一级流水。</p>
+    </div>
+    <figure>
+      <div class="fig-scroll fit">
+        <svg class="dia" viewBox="0 0 760 196" role="img" aria-label="sm_90 上块 128 乘 256 乘 64、4 个 stage 时的共享内存：不拆半 262,176 字节超过上限 232,448，拆半后 229,408 字节放得下">
+          <text x="0" y="16" class="b">sm_90，块 128 × 256 × 64，4 个 stage</text>
+          <text x="0" y="62" class="sm">不拆半</text>
+          <rect x="96" y="44" width="464.9" height="30" class="slot"/><text x="328.45" y="64" text-anchor="middle" class="xs">输入槽 196,608</text>
+          <rect x="560.9" y="44" width="155.0" height="30" class="scratch"/><text x="568.9" y="64" class="xs">输出缓冲</text>
+          <text x="715.9" y="92" text-anchor="end" class="xs">65,536</text>
+          <text x="96" y="92" class="m">262,176，装不上</text>
+          <text x="0" y="134" class="sm">拆半</text>
+          <rect x="96" y="116" width="464.9" height="30" class="slot"/><text x="328.45" y="136" text-anchor="middle" class="xs">输入槽 196,608</text>
+          <rect x="560.9" y="116" width="77.5" height="30" class="scratch"/><text x="599.65" y="136" text-anchor="middle" class="xs">32,768</text>
+          <text x="96" y="164" class="m">229,408，放得下</text>
+          <line x1="645.7" y1="34" x2="645.7" y2="156" class="limit"/>
+          <text x="645.7" y="176" text-anchor="middle" class="xs ac">上限 232,448</text>
+          <text x="645.7" y="190" text-anchor="middle" class="xs ac">（227 KB）</text>
+        </svg>
+      </div>
+      <figcaption>输入槽是 4 个槽，每个槽放一个 A 块（128 × 64 × 2 = 16,384 字节）和一个 B 块（256 × 64 × 2 = 32,768 字节）。同样的块在 3 个 stage 时是 213,016 对 180,248，两种都放得下。</figcaption>
+    </figure>
+    <h3>源码里怎样切成两半</h3>
+<pre><span class="c"># 教程第 435–442 行</span>
+acc = tl.reshape(accumulator, (BLOCK_SIZE_M, 2, BLOCK_SIZE_N // 2))  <span class="c"># 把 N 方向看成“2 段 × 每段 N/2 列”</span>
+acc = tl.permute(acc, (0, 2, 1))                                    <span class="c"># 把“段”换到最后一维</span>
+acc0, acc1 = tl.split(acc)                                          <span class="c"># 沿最后一维拆成两个 M × N/2 的张量</span>
+c_desc.store([offs_am_c, offs_bn_c], acc0.to(dtype))                         <span class="c"># 左半</span>
+c_desc.store([offs_am_c, offs_bn_c + BLOCK_SIZE_N // 2], acc1.to(dtype))     <span class="c"># 右半</span></pre>
+    <p>绕这一圈是因为 Triton 没有“取一个张量的左半边”这种切片，只有 <code>tl.split</code>：沿大小为 2 的最后一维拆开。C 的描述符的块形状也要跟着改成 <code>[BLOCK_M, BLOCK_N // 2]</code>，这由 <code>pre_hook</code> 完成（第 190–193 行）。</p>
+    <h3>它什么时候改变结果</h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>目标与上限</th><th>块与写法</th><th>stage</th><th class="nw">不拆半</th><th class="nw">拆半</th><th>结论</th></tr></thead>
+        <tbody>
+          <tr><td rowspan="2">sm_90，232,448</td><td rowspan="2">128 × 256 × 64</td><td class="num">3</td><td class="num">213,016</td><td class="num">180,248</td><td>都放得下</td></tr>
+          <tr class="hl"><td class="num">4</td><td class="num">262,176</td><td class="num">229,408</td><td>拆半才放得下</td></tr>
+          <tr><td rowspan="4">sm_120，101,376</td><td rowspan="2">128 × 128 × 64</td><td class="num">3</td><td class="num">98,320</td><td class="num">81,936</td><td>都放得下</td></tr>
+          <tr><td class="num">4</td><td class="num">131,096</td><td class="num">114,712</td><td>都装不上</td></tr>
+          <tr><td rowspan="2">128 × 128 × 64，启用 warp 专用化</td><td class="num">2</td><td class="num">98,372</td><td class="num">81,988</td><td>都放得下</td></tr>
+          <tr><td class="num">3</td><td class="num">131,196</td><td class="num">114,812</td><td>都装不上</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul>
+      <li><b>拆半省的是半个输出块</b>，多一级流水要的是 A、B 各一个块。能不能换到，看这两个数的大小关系：块 128 × 256 × 64 时省 32,768、要 49,152；块 128 × 128 × 64 时省 16,384、要 32,768。</li>
+      <li><b>所以它只在恰好差这么一点时起作用。</b>sm_90 那一行超出上限 29,728 字节，拆半省 32,768，够了。sm_120 装不上的两行超出 29,720 和 29,820 字节，拆半只省 16,384，不够。</li>
+      <li><b>代价</b>是两次写回而不是一次，累加器要多做一次重排。</li>
+      <li><b>指针版也适用。</b>指针版写回前同样要经过共享内存：累加器要先换成写回用的布局（节点 3 的那块中转）。把同样的拆半写法用到 <code>matmul_kernel_persistent</code> 上，<code>flatten</code> 开着时 sm_89 从 98,304 降到 81,920，sm_90 从 131,072 降到 114,688，同样省半个输出块；<code>flatten</code> 关着时没有变化，因为那时中转本来就借用空出的输入槽。两者的区别只在为什么要经过共享内存：指针版是为了换布局，描述符版是因为 TMA 只能从共享内存搬。</li>
+    </ul>
+    <p class="note">全部来自只编译，条件同全页，kernel 是 <code>matmul_kernel_tma_persistent</code>，8 个 warp。教程把 <code>EPILOGUE_SUBTILE</code> 放进 autotune 的配置表，由实测决定用不用；教程的注释说明它的目的是“把 epilogue 占的共享内存省下来，用来增加 stage 数”。</p>
+  </section>
+
+  <section id="hints">
+    <div class="sec-head">
+      <div class="tag">练习答疑</div>
+      <h2>取值连续与两条声明</h2>
+      <p>练习里 B 按行主序存放，N 方向的下标一经 <code>tl.where</code>，B 的读入就退回了同步读。这一节说明编译器怎样判断一个下标“取值连续”，<code>tl.where</code> 为什么让这个判断失效，<code>tl.max_contiguous</code> 和 <code>tl.multiple_of</code> 怎样把信息补回去，以及补回去的承诺在边界 tile 里并不成立、却为什么不出事。</p>
+    </div>
+    <p class="keyline"><b>编译器不知道下标的具体数值，只记得它能证明的几条性质。</b>一次读入能搬多少字节，由这些性质里最弱的一条决定。声明的作用，是替编译器补上它证明不了的那几条。</p>
+
+    <h3>两种“连续”</h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th></th><th>存储连续</th><th>取值连续</th></tr></thead>
+        <tbody>
+          <tr><td class="nw">说的是什么</td><td>张量自己的元素在内存里是不是挨着放</td><td>张量里存的那些数是不是 v, v+1, v+2, …</td></tr>
+          <tr><td class="nw">本课的例子</td><td>约定要求 <code>a</code>、<code>b</code> 连续（<code>is_contiguous()</code>）</td><td><code>offset_n</code> 是不是 192, 193, 194, …</td></tr>
+          <tr><td class="nw">关心它是因为</td><td>决定怎样按步长找到每个元素</td><td>下标指向的地址是不是相邻，能不能一次搬完</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><code>tl.where</code> 新建的张量在存储上没有问题，64 个数一个不少地分在各线程的寄存器里。本节说的都是第二种：这些数作为下标去访问内存时，指向的地址相不相邻。</p>
+
+    <h3>编译器记下的三条性质</h3>
+    <p>这套分析叫轴信息分析（AxisInfo）。它对每个整数张量和指针张量，按维度记三个数，每条操作都有固定的推导规则：</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>性质</th><th>含义</th><th class="nw"><code>tid_n * 64 + tl.arange(0, 64)</code></th><th class="nw"><code>0, 1, 2, 0, 4, 5, 6, 7</code></th></tr></thead>
+        <tbody>
+          <tr><td class="nw">取值连续度</td><td>能切成每组 C 个、组内一路加一的段</td><td class="num">64</td><td class="num">1</td></tr>
+          <tr><td class="nw">组首整除度</td><td>每组第一个元素是 D 的倍数，D 取 2 的幂</td><td class="num">64</td><td class="num">1</td></tr>
+          <tr><td class="nw">恒定度</td><td>能切成每组 C 个、组内全部相等的段</td><td class="num">1</td><td class="num">1</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>右列是源码注释里的例子：中间那个 0 打断了一路加一，取值连续度只剩 1，每个元素自成一组，组首整除度也就只能按 1 算。</p>
+    <p>读入时，一个线程一次搬几个元素，取下面四项里最小的：</p>
+<pre>一次搬的元素数 = min( 取值连续度, 组首对齐, mask 的恒定度, 布局分给每个线程的元素数 )</pre>
+    <p>组首对齐由下标的组首整除度、指针基址（Triton 发射时确认它 16 字节对齐）和行步长一起决定。至少要搬 32 bit 才会改成 <code>cp.async</code>，所以 fp16 要搬满 16 字节，就得 8 个元素同时满足四项。</p>
+
+    <h3><code>tl.where</code> 的规则</h3>
+    <p><code>tl.where(cond, x, y)</code> 逐个位置取值，<code>r[i] = cond[i] ? x[i] : y[i]</code>。编译时不知道 <code>cond</code> 是什么样子，于是不知道 <code>r</code> 的哪些位置来自 x、哪些来自 y，只能取三者的最大公约数：</p>
+<pre>取值连续度(r) = gcd( 取值连续度(x), 取值连续度(y), 恒定度(cond) )</pre>
+    <p>y 是常量 0，所有元素相等，取值连续度是 1。不论 x 多规整，<code>r</code> 的取值连续度都只剩 1，组首整除度也跟着降到 1。这是对任何 N 都必须成立的保守结论，并不是说值真的乱了：完整的 tile 里，值照样一路加一。设 x 是 192 到 199 这 8 个下标，看三种 N：</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th class="nw">N</th><th>cond（这 8 个位置）</th><th><code>r</code></th><th>取值连续吗</th></tr></thead>
+        <tbody>
+          <tr><td class="num">208</td><td>全真</td><td class="mono">192 … 199</td><td>是，就是 x</td></tr>
+          <tr><td class="num">196</td><td>前 4 个真</td><td class="mono">192, 193, 194, 195, 0, 0, 0, 0</td><td>否</td></tr>
+          <tr><td class="num">100</td><td>全假</td><td class="mono">0 … 0</td><td>否，全是常量</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>相比之下，<code>mask_n = offset_n &lt; N</code> 不改动 <code>offset_n</code> 本身，<code>offset_n</code> 的取值连续度仍是 64。只用 mask、不用 <code>tl.where</code> 时不需要声明，原因就在这里。</p>
+
+    <h3>在一个 tile 里试一试</h3>
+    <p>块 64 × 64 × 32，第 3 号 tile 负责第 192–255 列。B 是连续存放的 <code>[K, N]</code>，mask 用改写之前的下标计算，和练习里的写法一样。</p>
+    <div class="controls">
+      <div class="ctl">N
+        <div class="seg" id="seg-hn" role="group" aria-label="矩阵的列数 N">
+          <button type="button" data-v="256" aria-pressed="false">256</button>
+          <button type="button" data-v="208" aria-pressed="true">208</button>
+          <button type="button" data-v="200" aria-pressed="false">200</button>
+          <button type="button" data-v="196" aria-pressed="false">196</button>
+        </div>
+      </div>
+      <div class="ctl">N 方向用 <code>tl.where</code>
+        <div class="seg" id="seg-hw" role="group" aria-label="N 方向是否用 tl.where">
+          <button type="button" data-v="on" aria-pressed="true">用</button>
+          <button type="button" data-v="off" aria-pressed="false">不用</button>
+        </div>
+      </div>
+      <div class="ctl"><code>tl.max_contiguous</code>
+        <div class="seg" id="seg-hc" role="group" aria-label="tl.max_contiguous 声明的值">
+          <button type="button" data-v="none" aria-pressed="false">不写</button>
+          <button type="button" data-v="4" aria-pressed="false">4</button>
+          <button type="button" data-v="64" aria-pressed="true">64</button>
+        </div>
+      </div>
+      <div class="ctl"><code>tl.multiple_of</code>
+        <div class="seg" id="seg-hd" role="group" aria-label="tl.multiple_of 声明的值">
+          <button type="button" data-v="none" aria-pressed="false">不写</button>
+          <button type="button" data-v="4" aria-pressed="false">4</button>
+          <button type="button" data-v="64" aria-pressed="true">64</button>
+        </div>
+      </div>
+    </div>
+    <figure>
+      <div class="fig-scroll fit">
+        <svg class="dia" id="hint-fig" viewBox="0 0 760 288" role="img" aria-label="第 3 号 tile 的 64 个 N 方向下标，按 8 个一组排成 8 行；橙框表示一次读入搬的范围，右侧写出每组实际怎样读">
+          <text x="0" y="14" class="xs mu">格子里是 N 方向下标的取值；虚线格超出了 N；橙框是一条读入指令一次搬的范围</text>
+          <g id="h-runs"></g>
+          <text x="0" y="50" class="sm">第 0 组 · 192–199 列</text><rect id="hc-0-0" x="150" y="34" width="38" height="24" rx="3" class="h-ok"/><text id="ht-0-0" x="169" y="50" text-anchor="middle" class="m">192</text><rect id="hc-0-1" x="192" y="34" width="38" height="24" rx="3" class="h-ok"/><text id="ht-0-1" x="211" y="50" text-anchor="middle" class="m">193</text><rect id="hc-0-2" x="234" y="34" width="38" height="24" rx="3" class="h-ok"/><text id="ht-0-2" x="253" y="50" text-anchor="middle" class="m">194</text><rect id="hc-0-3" x="276" y="34" width="38" height="24" rx="3" class="h-ok"/><text id="ht-0-3" x="295" y="50" text-anchor="middle" class="m">195</text><rect id="hc-0-4" x="318" y="34" width="38" height="24" rx="3" class="h-ok"/><text id="ht-0-4" x="337" y="50" text-anchor="middle" class="m">196</text><rect id="hc-0-5" x="360" y="34" width="38" height="24" rx="3" class="h-ok"/><text id="ht-0-5" x="379" y="50" text-anchor="middle" class="m">197</text><rect id="hc-0-6" x="402" y="34" width="38" height="24" rx="3" class="h-ok"/><text id="ht-0-6" x="421" y="50" text-anchor="middle" class="m">198</text><rect id="hc-0-7" x="444" y="34" width="38" height="24" rx="3" class="h-ok"/><text id="ht-0-7" x="463" y="50" text-anchor="middle" class="m">199</text><text id="ho-0" x="494" y="50" class="sm"></text>
+          <text x="0" y="81" class="sm">第 1 组 · 200–207 列</text><rect id="hc-1-0" x="150" y="65" width="38" height="24" rx="3" class="h-ok"/><text id="ht-1-0" x="169" y="81" text-anchor="middle" class="m">200</text><rect id="hc-1-1" x="192" y="65" width="38" height="24" rx="3" class="h-ok"/><text id="ht-1-1" x="211" y="81" text-anchor="middle" class="m">201</text><rect id="hc-1-2" x="234" y="65" width="38" height="24" rx="3" class="h-ok"/><text id="ht-1-2" x="253" y="81" text-anchor="middle" class="m">202</text><rect id="hc-1-3" x="276" y="65" width="38" height="24" rx="3" class="h-ok"/><text id="ht-1-3" x="295" y="81" text-anchor="middle" class="m">203</text><rect id="hc-1-4" x="318" y="65" width="38" height="24" rx="3" class="h-ok"/><text id="ht-1-4" x="337" y="81" text-anchor="middle" class="m">204</text><rect id="hc-1-5" x="360" y="65" width="38" height="24" rx="3" class="h-ok"/><text id="ht-1-5" x="379" y="81" text-anchor="middle" class="m">205</text><rect id="hc-1-6" x="402" y="65" width="38" height="24" rx="3" class="h-ok"/><text id="ht-1-6" x="421" y="81" text-anchor="middle" class="m">206</text><rect id="hc-1-7" x="444" y="65" width="38" height="24" rx="3" class="h-ok"/><text id="ht-1-7" x="463" y="81" text-anchor="middle" class="m">207</text><text id="ho-1" x="494" y="81" class="sm"></text>
+          <text x="0" y="112" class="sm">第 2 组 · 208–215 列</text><rect id="hc-2-0" x="150" y="96" width="38" height="24" rx="3" class="h-ok"/><text id="ht-2-0" x="169" y="112" text-anchor="middle" class="m">208</text><rect id="hc-2-1" x="192" y="96" width="38" height="24" rx="3" class="h-ok"/><text id="ht-2-1" x="211" y="112" text-anchor="middle" class="m">209</text><rect id="hc-2-2" x="234" y="96" width="38" height="24" rx="3" class="h-ok"/><text id="ht-2-2" x="253" y="112" text-anchor="middle" class="m">210</text><rect id="hc-2-3" x="276" y="96" width="38" height="24" rx="3" class="h-ok"/><text id="ht-2-3" x="295" y="112" text-anchor="middle" class="m">211</text><rect id="hc-2-4" x="318" y="96" width="38" height="24" rx="3" class="h-ok"/><text id="ht-2-4" x="337" y="112" text-anchor="middle" class="m">212</text><rect id="hc-2-5" x="360" y="96" width="38" height="24" rx="3" class="h-ok"/><text id="ht-2-5" x="379" y="112" text-anchor="middle" class="m">213</text><rect id="hc-2-6" x="402" y="96" width="38" height="24" rx="3" class="h-ok"/><text id="ht-2-6" x="421" y="112" text-anchor="middle" class="m">214</text><rect id="hc-2-7" x="444" y="96" width="38" height="24" rx="3" class="h-ok"/><text id="ht-2-7" x="463" y="112" text-anchor="middle" class="m">215</text><text id="ho-2" x="494" y="112" class="sm"></text>
+          <text x="0" y="143" class="sm">第 3 组 · 216–223 列</text><rect id="hc-3-0" x="150" y="127" width="38" height="24" rx="3" class="h-ok"/><text id="ht-3-0" x="169" y="143" text-anchor="middle" class="m">216</text><rect id="hc-3-1" x="192" y="127" width="38" height="24" rx="3" class="h-ok"/><text id="ht-3-1" x="211" y="143" text-anchor="middle" class="m">217</text><rect id="hc-3-2" x="234" y="127" width="38" height="24" rx="3" class="h-ok"/><text id="ht-3-2" x="253" y="143" text-anchor="middle" class="m">218</text><rect id="hc-3-3" x="276" y="127" width="38" height="24" rx="3" class="h-ok"/><text id="ht-3-3" x="295" y="143" text-anchor="middle" class="m">219</text><rect id="hc-3-4" x="318" y="127" width="38" height="24" rx="3" class="h-ok"/><text id="ht-3-4" x="337" y="143" text-anchor="middle" class="m">220</text><rect id="hc-3-5" x="360" y="127" width="38" height="24" rx="3" class="h-ok"/><text id="ht-3-5" x="379" y="143" text-anchor="middle" class="m">221</text><rect id="hc-3-6" x="402" y="127" width="38" height="24" rx="3" class="h-ok"/><text id="ht-3-6" x="421" y="143" text-anchor="middle" class="m">222</text><rect id="hc-3-7" x="444" y="127" width="38" height="24" rx="3" class="h-ok"/><text id="ht-3-7" x="463" y="143" text-anchor="middle" class="m">223</text><text id="ho-3" x="494" y="143" class="sm"></text>
+          <text x="0" y="174" class="sm">第 4 组 · 224–231 列</text><rect id="hc-4-0" x="150" y="158" width="38" height="24" rx="3" class="h-ok"/><text id="ht-4-0" x="169" y="174" text-anchor="middle" class="m">224</text><rect id="hc-4-1" x="192" y="158" width="38" height="24" rx="3" class="h-ok"/><text id="ht-4-1" x="211" y="174" text-anchor="middle" class="m">225</text><rect id="hc-4-2" x="234" y="158" width="38" height="24" rx="3" class="h-ok"/><text id="ht-4-2" x="253" y="174" text-anchor="middle" class="m">226</text><rect id="hc-4-3" x="276" y="158" width="38" height="24" rx="3" class="h-ok"/><text id="ht-4-3" x="295" y="174" text-anchor="middle" class="m">227</text><rect id="hc-4-4" x="318" y="158" width="38" height="24" rx="3" class="h-ok"/><text id="ht-4-4" x="337" y="174" text-anchor="middle" class="m">228</text><rect id="hc-4-5" x="360" y="158" width="38" height="24" rx="3" class="h-ok"/><text id="ht-4-5" x="379" y="174" text-anchor="middle" class="m">229</text><rect id="hc-4-6" x="402" y="158" width="38" height="24" rx="3" class="h-ok"/><text id="ht-4-6" x="421" y="174" text-anchor="middle" class="m">230</text><rect id="hc-4-7" x="444" y="158" width="38" height="24" rx="3" class="h-ok"/><text id="ht-4-7" x="463" y="174" text-anchor="middle" class="m">231</text><text id="ho-4" x="494" y="174" class="sm"></text>
+          <text x="0" y="205" class="sm">第 5 组 · 232–239 列</text><rect id="hc-5-0" x="150" y="189" width="38" height="24" rx="3" class="h-ok"/><text id="ht-5-0" x="169" y="205" text-anchor="middle" class="m">232</text><rect id="hc-5-1" x="192" y="189" width="38" height="24" rx="3" class="h-ok"/><text id="ht-5-1" x="211" y="205" text-anchor="middle" class="m">233</text><rect id="hc-5-2" x="234" y="189" width="38" height="24" rx="3" class="h-ok"/><text id="ht-5-2" x="253" y="205" text-anchor="middle" class="m">234</text><rect id="hc-5-3" x="276" y="189" width="38" height="24" rx="3" class="h-ok"/><text id="ht-5-3" x="295" y="205" text-anchor="middle" class="m">235</text><rect id="hc-5-4" x="318" y="189" width="38" height="24" rx="3" class="h-ok"/><text id="ht-5-4" x="337" y="205" text-anchor="middle" class="m">236</text><rect id="hc-5-5" x="360" y="189" width="38" height="24" rx="3" class="h-ok"/><text id="ht-5-5" x="379" y="205" text-anchor="middle" class="m">237</text><rect id="hc-5-6" x="402" y="189" width="38" height="24" rx="3" class="h-ok"/><text id="ht-5-6" x="421" y="205" text-anchor="middle" class="m">238</text><rect id="hc-5-7" x="444" y="189" width="38" height="24" rx="3" class="h-ok"/><text id="ht-5-7" x="463" y="205" text-anchor="middle" class="m">239</text><text id="ho-5" x="494" y="205" class="sm"></text>
+          <text x="0" y="236" class="sm">第 6 组 · 240–247 列</text><rect id="hc-6-0" x="150" y="220" width="38" height="24" rx="3" class="h-ok"/><text id="ht-6-0" x="169" y="236" text-anchor="middle" class="m">240</text><rect id="hc-6-1" x="192" y="220" width="38" height="24" rx="3" class="h-ok"/><text id="ht-6-1" x="211" y="236" text-anchor="middle" class="m">241</text><rect id="hc-6-2" x="234" y="220" width="38" height="24" rx="3" class="h-ok"/><text id="ht-6-2" x="253" y="236" text-anchor="middle" class="m">242</text><rect id="hc-6-3" x="276" y="220" width="38" height="24" rx="3" class="h-ok"/><text id="ht-6-3" x="295" y="236" text-anchor="middle" class="m">243</text><rect id="hc-6-4" x="318" y="220" width="38" height="24" rx="3" class="h-ok"/><text id="ht-6-4" x="337" y="236" text-anchor="middle" class="m">244</text><rect id="hc-6-5" x="360" y="220" width="38" height="24" rx="3" class="h-ok"/><text id="ht-6-5" x="379" y="236" text-anchor="middle" class="m">245</text><rect id="hc-6-6" x="402" y="220" width="38" height="24" rx="3" class="h-ok"/><text id="ht-6-6" x="421" y="236" text-anchor="middle" class="m">246</text><rect id="hc-6-7" x="444" y="220" width="38" height="24" rx="3" class="h-ok"/><text id="ht-6-7" x="463" y="236" text-anchor="middle" class="m">247</text><text id="ho-6" x="494" y="236" class="sm"></text>
+          <text x="0" y="267" class="sm">第 7 组 · 248–255 列</text><rect id="hc-7-0" x="150" y="251" width="38" height="24" rx="3" class="h-ok"/><text id="ht-7-0" x="169" y="267" text-anchor="middle" class="m">248</text><rect id="hc-7-1" x="192" y="251" width="38" height="24" rx="3" class="h-ok"/><text id="ht-7-1" x="211" y="267" text-anchor="middle" class="m">249</text><rect id="hc-7-2" x="234" y="251" width="38" height="24" rx="3" class="h-ok"/><text id="ht-7-2" x="253" y="267" text-anchor="middle" class="m">250</text><rect id="hc-7-3" x="276" y="251" width="38" height="24" rx="3" class="h-ok"/><text id="ht-7-3" x="295" y="267" text-anchor="middle" class="m">251</text><rect id="hc-7-4" x="318" y="251" width="38" height="24" rx="3" class="h-ok"/><text id="ht-7-4" x="337" y="267" text-anchor="middle" class="m">252</text><rect id="hc-7-5" x="360" y="251" width="38" height="24" rx="3" class="h-ok"/><text id="ht-7-5" x="379" y="267" text-anchor="middle" class="m">253</text><rect id="hc-7-6" x="402" y="251" width="38" height="24" rx="3" class="h-ok"/><text id="ht-7-6" x="421" y="267" text-anchor="middle" class="m">254</text><rect id="hc-7-7" x="444" y="251" width="38" height="24" rx="3" class="h-ok"/><text id="ht-7-7" x="463" y="267" text-anchor="middle" class="m">255</text><text id="ho-7" x="494" y="267" class="sm"></text>
+        </svg>
+      </div>
+      <div class="readout">
+        <div><span>N 的特化</span><b id="hr-spec">tt.divisibility = 16</b></div>
+        <div><span>取值连续度 · 组首整除度</span><b id="hr-cd">64 · 64</b></div>
+        <div><span>mask 的恒定度</span><b id="hr-mask">16</b></div>
+        <div class="e"><span>一次读入</span><b id="hr-vec">16 字节 cp.async</b></div>
+      </div>
+      <p class="note" id="hint-note">声明说每 64 个一路加一，可这个 tile 里第 208 列以后的值都是 0，声明并不成立。</p>
+      <figcaption>一次搬几个元素按上面的规则计算。这套简化规则与下表八组只编译的实测结果一致；图中其他组合是按同一规则推出来的，没有逐一实测。</figcaption>
+    </figure>
+
+    <h3>实测：两条声明缺一不可</h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>写法</th><th>N 是 16 的倍数</th><th>N 不是 16 的倍数</th></tr></thead>
+        <tbody>
+          <tr><td>不用 <code>tl.where</code>，不写声明</td><td>16 字节 <code>cp.async</code></td><td>逐元素同步读</td></tr>
+          <tr><td><code>tl.where</code>，不写声明</td><td>逐元素同步读</td><td>逐元素同步读</td></tr>
+          <tr><td><code>tl.where</code>，只写 <code>max_contiguous(64)</code></td><td>逐元素同步读</td><td>逐元素同步读</td></tr>
+          <tr><td><code>tl.where</code>，只写 <code>multiple_of(64)</code></td><td>逐元素同步读</td><td>逐元素同步读</td></tr>
+          <tr class="hl"><td><code>tl.where</code>，两条都写（64、64）</td><td>16 字节 <code>cp.async</code></td><td>逐元素同步读</td></tr>
+          <tr><td>两条都写，取值连续度改为 4</td><td>8 字节 <code>cp.async</code></td><td>逐元素同步读</td></tr>
+          <tr><td>两条都写，组首整除度改为 4</td><td>8 字节 <code>cp.async</code></td><td>逐元素同步读</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul>
+      <li><b>一次搬 16 字节要同时满足两件事</b>：8 个元素一路加一，并且起点地址 16 字节对齐。<code>max_contiguous</code> 只管前一件，<code>multiple_of</code> 只管后一件，缺一条就退到最弱的那一档。</li>
+      <li><b>声明的值也决定一次搬多少</b>：取值连续度或组首整除度写成 4，一次就只能搬 4 个 fp16，也就是 8 字节。</li>
+      <li><b>声明补不回它不描述的东西</b>：它只描述 <code>offset_n</code> 这一个张量。N 不是 16 的倍数时，B 每一行的行首对不对齐编译器证明不了，声明写得再满也只能逐元素读。</li>
+    </ul>
+
+    <h3>边界 tile 里的承诺为什么不出事</h3>
+    <p>N = 208 时，第 3 号 tile 经过 <code>tl.where</code> 之后是 192, …, 207，再跟 48 个 0。“每 64 个一路加一”在这个 tile 里并不成立。编译器信了声明，对每组发一条 16 字节的拷贝，起点取组里第一个下标。对全是 0 的那几组，它要搬的是这一行的第 0–7 列。这次搬运最终有没有发生、会不会出错，取决于下面三条：</p>
+    <ol>
+      <li><b>N 是 16 的倍数，编译器才会依赖这条承诺。</b>它只在证明得了地址对齐时才成组地搬。N 不是 16 的倍数时，编译器直接逐元素读，声明根本用不上。</li>
+      <li><b>边界一定落在两组之间，这是上一条自动带来的。</b>每组 8 个元素，组首都是 8 的倍数；N 是 16 的倍数，自然也是 8 的倍数，N 本身就是某一组的组首。所以不会出现半组有效、半组越界。</li>
+      <li><b>越界位置的值不影响结果，这一条要靠写代码的人保证。</b>练习的写法里，mask 在 <code>tl.where</code> 之前计算，全是 0 的那几组 mask 全为假，一个字节也不读（见下面的 PTX）。教程的 B 没有 N 方向的 mask，这些组真的会读第 0–7 列，但读到的值只会算出第 N 列以后的输出，写回时被 mask 丢掉。</li>
+    </ol>
+<pre><span class="c">// 练习的实现（第五版）编译到 sm_89、flatten 关时，B 的一条读入</span>
+setp.lt.s32  %p22, %r43, %r49;        <span class="c">// 列下标 &lt; N，即 mask_n</span>
+selp.b32     %r140, 16, 0, %p22;      <span class="c">// N 方向在范围内取 16，否则取 0</span>
+selp.b32     %r110, %r140, 0, %p9;    <span class="c">// 再看 K 方向：%p9 是 k &lt; K</span>
+cp.async.cg.shared.global [ %r109 + 0 ], [ %rd6 + 0 ], 0x10, %r110;
+<span class="c">// 0x10：目标处写 16 字节；%r110：从源地址读多少字节，不足的部分补 0</span></pre>
+    <p>K 方向不一样：越界位置会进入求和。只有 mask 用改写之前的下标计算、把这些位置读成 0，同样的写法才是对的。练习里的 R-01 就出在这里。还有一种边界情况：教程的 kernel 如果接收的是行步长为 16 的倍数、N 却不是的视图，编译器仍会成组地搬，会有一组跨过 N。这一组读到的仍是同一行里第 N 列之后的元素，没有越出这一行，结果又在写回时被丢掉，所以还是靠第 3 条兜住。</p>
+
+    <h3>用法速查</h3>
+    <div class="concepts">
+      <div class="card">
+        <h3>写法与参数</h3>
+<pre>offs = tl.max_contiguous(tl.multiple_of(offs, BLOCK), BLOCK)  <span class="c"># 一维：写一个数</span>
+ptrs = tl.multiple_of(ptrs, [1, 16])                           <span class="c"># 二维：每维一个，1 表示不声明</span></pre>
+        <p>参数必须是编译期整数（<code>constexpr</code>），取 2 的幂。整数下标的整除度按元素算；指针的整除度按字节算，<code>tl.multiple_of(ptr, 16)</code> 的意思是 16 字节对齐。</p>
+      </div>
+      <div class="card">
+        <h3>精确含义</h3>
+        <ul>
+          <li><code>tl.max_contiguous(x, C)</code>：x 能切成每 C 个一组、组内一路加一的段。</li>
+          <li><code>tl.multiple_of(x, D)</code>：每组第一个元素是 D 的倍数。文档写的是“都是倍数”，那只在取值连续度为 1 时准确，比如标量和指针。</li>
+          <li><code>tl.max_constancy(x, C)</code>：每 C 个一组、组内全部相等。</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>贴在哪里</h3>
+        <ul>
+          <li>声明不做计算，只给定义这个值的那条操作挂上 <code>tt.contiguity</code> 或 <code>tt.divisibility</code>，再原样返回这个值。</li>
+          <li>写在哪一行都一样，标签总回到值诞生的地方。值经过 <code>if</code> 或循环的合并点，信息取两边的最大公约数，标签随之丢失。R-03 就是这种情形。</li>
+          <li>冷知识：代码生成器会先把循环体预演一遍，找出跨轮传递的变量。写在循环里、作用于循环携带变量的声明，因此落到了循环前那个值上，并且生效。这是实现细节，不要依赖。</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>教程里的三种用法</h3>
+        <ul>
+          <li>09 第 135–136、320–321 行：<code>tl.where</code> 之后补回取值连续和对齐。</li>
+          <li>06 第 59、70 行：标量，<code>lo = tl.multiple_of(lo, BLOCK_M)</code>，说明运行时算出的循环起点是块的倍数。</li>
+          <li>08 第 148–149 行：从表里读出的指针，编译器不知道是否对齐，只能由人来声明。这两行在 K 循环里、返回值也没接，能起作用靠的正是上面那条冷知识。</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note"><b>编译器不检查声明。</b>它用声明值直接替换自己推出的值。声明不成立、而那些数据又真的被用到时，会读错数据；地址实际不对齐时，运行时会报 misaligned address。原则：只在每个会被用到的组上都成立时才声明；像边界 tile 那样只在用不到的组里不成立时，要能说清它为什么不出事。</p>
+
+    <h3>整数参数也带着一点编译期信息</h3>
+    <p>每次发射，Triton 会看一眼实参，把下面几条信息固化进编译结果，同时写进缓存键：</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>实参</th><th>固化进编译结果的</th><th>IR 里的样子</th></tr></thead>
+        <tbody>
+          <tr><td>整数恰好等于 1</td><td>整个值，当作编译期常量</td><td>参数直接变成常量 1</td></tr>
+          <tr><td>整数是 16 的倍数</td><td>只有“是 16 的倍数”这一条，具体值仍在运行时传入</td><td><code>%N: i32 {tt.divisibility = 16 : i32}</code></td></tr>
+          <tr><td>指针 16 字节对齐</td><td>“16 字节对齐”这一条</td><td><code>%b_ptr: !tt.ptr&lt;f16&gt; {tt.divisibility = 16 : i32}</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>所以 <code>N = 208</code> 和 <code>N = 1024</code> 共用一份编译结果，<code>N = 200</code> 会另编一份，那一份不知道行首对齐。用 <code>@triton.jit(do_not_specialize=[...], do_not_specialize_on_alignment=[...])</code> 可以关掉这种特化。<code>tl.constexpr</code> 则把整个值固化进去，值一变就重新编译，比如练习里的 <code>NUM_SMS</code>：M1 里逐 tile（4096）和持久（170）各编译了一份。这也是验收项 A4 写明“N、K 整块且输入对齐时”、测试特意用 256 × 256 × 128 这样形状的原因。</p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    来源与条件
+    <ul>
+      <li>教程：<code>docs/triton-tutorials/official/09-persistent-matmul.py</code> 第 283–343 行，与 Triton v3.7.1 的同名文件相同。</li>
+      <li>合并后的循环形式与适用条件：Triton v3.7.1 的 <code>lib/Dialect/TritonGPU/Transforms/FuseNestedLoops.cpp</code>。布局转换的中转缓冲：<code>lib/Analysis/Allocation.cpp</code>。</li>
+      <li>所有数字来自本机只编译（<code>triton==3.7.1</code>）：fp16，<code>M = N = 8192</code>、<code>K = 512</code>，块 128 × 128 × 64，3 个 stage，8 个 warp，B 为 <code>b.T</code>。没有任何实机数值或性能结果。</li>
+      <li>时间线是示意模型，用来说明结构，不代表真实的时间比例。</li>
+      <li>“查看产物”一节的两份 TTGIR：教程原文件不作改动地编译得到；<code>flatten</code> 关的一份只把第 312 行的 <code>flatten=True</code> 改为 <code>False</code>。位置信息里的路径改成了仓库相对路径，其余未改。接口依据：<code>python/triton/runtime/jit.py</code>（调用返回编译结果）、<code>python/triton/compiler/compiler.py</code>（<code>asm</code>、<code>metadata</code> 与超限检查）、<code>python/triton/knobs.py</code>（<code>TRITON_CACHE_DIR</code>）。</li>
+      <li>“搬与算”一节：教程的 <code>matmul_kernel</code>（B 为 <code>b.T</code>）与 <code>matmul_kernel_tma</code>（B 按 <code>[N, K]</code> 存放，主机侧描述符）按各自的调用方式编译；条件同全页。指令语义（含各指令支持的形状与 <code>wgmma</code> 的转置限制）依据 PTX ISA 9.4 的 <code>cp.async.bulk.tensor</code>、<code>wgmma.mma_async</code>、<code>tcgen05</code> 与 Tensor Memory 各节；描述符的展开见 Triton v3.7.1 的 <code>third_party/nvidia/backend/driver.py</code>。</li>
+      <li>“专用化”一节：教程的 kernel 按各自的调用方式编译，条件同全页；sm_90 一行用 4 个 warp。分区内容按 TTGIR 的 <code>ttg.warp_specialize</code> 整理。CUTLASS v3.9.2 的 <code>media/docs/cpp/efficient_gemm.md</code>；Triton v3.7.1 的 <code>tl.range</code> 文档与 <code>third_party/nvidia/hopper/lib/Transforms/WarpSpecialization.cpp</code>。</li>
+      <li>“迁移”一节：探查用的 kernel 是按第 08 课实现改写的副本，A、B 都按行主序存放，<code>NUM_SM = 36</code>；只编译，没有运行。CUTLASS v3.9.2 的 <code>include/cutlass/gemm/kernel/grouped_problem_visitor.h</code>。</li>
+      <li>“声明”一节：Triton v3.7.1 的 <code>include/triton/Analysis/AxisInfo.h</code>（三条性质的定义）、<code>lib/Analysis/AxisInfo.cpp</code>（<code>select</code> 的规则第 877–880 行，组首整除度第 40–58 行，比较的恒定度第 767–769 行，声明覆盖推断值第 1138–1149 行，mask 的对齐第 1339–1358 行）、<code>lib/Dialect/TritonGPU/Transforms/Pipeliner/PipeliningUtility.cpp</code>（第 380–406 行，至少 32 bit 才改成 <code>cp.async</code>）、<code>python/triton/language/semantic.py</code> 第 1815–1830 行、<code>python/triton/compiler/code_generator.py</code> 的 <code>_find_carries</code>（第 453–461 行）、<code>python/src/specialize.cc</code> 第 238–247 行与 <code>python/triton/backends/compiler.py</code> 第 75–92 行（整数与指针的特化）；PTX ISA 9.4 第 9.7.10.28.3.1 节 <code>cp.async</code> 的 src-size。实测用一个读行主序 B 的小 kernel 在 sm_89 上只编译（块 64 × 64 × 32、4 个 warp、3 个 stage）；PTX 片段取自练习的实现。</li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var U = { launch: 2, pro: 1, mma: 2, lat: 2, epi: 2 };   // 示意模型里各段的长度，单位是“格”
+  var TILES = 3;
+  var state = { mode: "flat", n: 8, s: 3 };
+  var NS = "http://www.w3.org/2000/svg";
+
+  function simulate(mode, n, S) {
+    var SIM = TILES + 2;                       // 多模拟两个 tile，让第 1 个 tile 处在稳定状态；只画前三个
+    var segs = [], loads = [], bounds = [], t = 0, total = SIM * n, slots = S - 1;
+    function seg(kind, len, tile, k, forTile) {
+      segs.push({ kind: kind, t0: t, t1: t + len, tile: tile, k: k, forTile: forTile });
+      t += len;
+    }
+    function issue(g) {
+      loads[g] = { g: g, tile: Math.floor(g / n), k: g % n, slot: g % slots, issue: t, arrive: t + U.lat };
+    }
+    function compute(g) {
+      var ld = loads[g];
+      if (ld.arrive > t) { seg("wait", ld.arrive - t, ld.tile); }
+      ld.used = t + U.mma;
+      seg("mma", U.mma, ld.tile, ld.k);
+    }
+    var i, k, g, ahead, start;
+    if (mode === "flat") {
+      seg("launch", U.launch, 0);
+      start = t;
+      seg("pro", U.pro, 0, null, 0);
+      for (g = 0; g < Math.min(S - 1, total); g++) {
+        if (g > 0 && g % n === 0) { seg("pro", U.pro, 0, null, g / n); }
+        issue(g);
+      }
+      for (g = 0; g < total; g++) {
+        ahead = g + S - 1;
+        if (ahead < total && ahead % n === 0) { seg("pro", U.pro, Math.floor(g / n), null, ahead / n); }
+        compute(g);
+        if (ahead < total) { issue(ahead); }
+        if (g % n === n - 1) {
+          seg("epi", U.epi, Math.floor(g / n));
+          bounds.push({ tile: Math.floor(g / n), t0: start, t1: t });
+          start = t;
+        }
+      }
+    } else {
+      for (i = 0; i < SIM; i++) {
+        start = t;
+        if (mode === "naive" || i === 0) { seg("launch", U.launch, i); }
+        if (mode !== "naive") { start = t; }
+        seg("pro", U.pro, i, null, i);
+        for (k = 0; k < Math.min(S - 1, n); k++) { issue(i * n + k); }
+        for (k = 0; k < n; k++) {
+          compute(i * n + k);
+          if (k + S - 1 < n) { issue(i * n + k + S - 1); }
+        }
+        seg("epi", U.epi, i);
+        bounds.push({ tile: i, t0: start, t1: t });
+      }
+    }
+    var end = bounds[TILES - 1].t1, steady = bounds[1];
+    var fixed = { launch: 0, pro: 0, wait: 0, epi: 0 }, busy = 0;
+    segs.forEach(function (x) {
+      if (x.t0 >= steady.t0 && x.t1 <= steady.t1) {
+        if (x.kind === "mma") { busy += x.t1 - x.t0; } else { fixed[x.kind] += x.t1 - x.t0; }
+      }
+    });
+    function clip(v) { return Math.min(v, end); }
+    return {
+      segs: segs.filter(function (x) { return x.t0 < end; }).map(function (x) {
+        return { kind: x.kind, t0: x.t0, t1: clip(x.t1), tile: x.tile, k: x.k, forTile: x.forTile };
+      }),
+      loads: loads.filter(function (x) { return x && x.issue < end; }).map(function (x) {
+        return { tile: x.tile, k: x.k, slot: x.slot, issue: x.issue, arrive: clip(x.arrive), used: clip(x.used === undefined ? end : x.used) };
+      }),
+      bounds: bounds.slice(0, TILES), end: end, slots: slots,
+      span: steady.t1 - steady.t0, busy: busy, fixed: fixed
+    };
+  }
+
+  function el(name, attrs, text) {
+    var e = document.createElementNS(NS, name), key;
+    for (key in attrs) { if (Object.prototype.hasOwnProperty.call(attrs, key)) { e.setAttribute(key, attrs[key]); } }
+    if (text !== undefined) { e.textContent = text; }
+    return e;
+  }
+  function tip(node, text) { node.appendChild(el("title", {}, text)); return node; }
+
+  var LABEL = { launch: "发射与退出", pro: "prologue", wait: "等数据", mma: "乘加", epi: "epilogue" };
+
+  function render() {
+    var sim = simulate(state.mode, state.n, state.s);
+    var svg = document.getElementById("tl");
+    var PX = 13, X0 = 92, rowH = 26, top = 30;
+    var W = X0 + sim.end * PX + 16;
+    var ySeg = top, ySlot0 = top + rowH + 16, yTc = ySlot0 + sim.slots * 20 + 14, H = yTc + rowH + 26;
+    while (svg.firstChild) { svg.removeChild(svg.firstChild); }
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.setAttribute("width", W);
+    svg.setAttribute("height", H);
+
+    svg.appendChild(el("text", { x: 0, y: ySeg + 17, "class": "sm" }, "这个 CTA 在做"));
+    var s;
+    for (s = 0; s < sim.slots; s++) {
+      svg.appendChild(el("text", { x: 0, y: ySlot0 + s * 20 + 13, "class": "sm" }, "缓冲槽 " + s));
+    }
+    svg.appendChild(el("text", { x: 0, y: yTc + 17, "class": "sm" }, "张量核心"));
+
+    sim.bounds.forEach(function (b, idx) {
+      var x1 = X0 + b.t1 * PX;
+      if (idx < sim.bounds.length - 1) {
+        svg.appendChild(el("line", { x1: x1, y1: 18, x2: x1, y2: H - 22, "class": "bound" }));
+      }
+      svg.appendChild(el("text", { x: X0 + (b.t0 + b.t1) / 2 * PX, y: 14, "text-anchor": "middle", "class": "xs mu" }, "tile " + b.tile));
+    });
+
+    sim.segs.forEach(function (g) {
+      var x = X0 + g.t0 * PX, w = (g.t1 - g.t0) * PX;
+      var r = el("rect", { x: x + 0.5, y: ySeg, width: Math.max(w - 1, 1), height: rowH, rx: 2, "class": "s-" + g.kind });
+      var what = LABEL[g.kind];
+      if (g.kind === "mma") { what = "乘加：tile " + g.tile + " 的第 " + g.k + " 轮"; }
+      if (g.kind === "pro") { what = "prologue：为 tile " + g.forTile + " 算坐标和偏移"; }
+      if (g.kind === "epi") { what = "epilogue：tile " + g.tile + " 转回 fp16 并写回"; }
+      if (g.kind === "wait") { what = "等数据：读入还没到，张量核心空着"; }
+      svg.appendChild(tip(r, what));
+      if (g.kind === "mma" && state.n <= 8) {
+        svg.appendChild(el("text", { x: x + w / 2, y: ySeg + 17, "text-anchor": "middle", "class": "m" }, String(g.k)));
+      }
+      var on = g.kind === "mma";
+      svg.appendChild(tip(el("rect", { x: x + 0.5, y: yTc, width: Math.max(w - 1, 1), height: rowH, "class": on ? "tc-on" : "tc-off" }),
+        on ? "张量核心在算" : "张量核心空闲"));
+    });
+
+    sim.loads.forEach(function (ld) {
+      var y = ySlot0 + ld.slot * 20;
+      var xa = X0 + ld.issue * PX, xb = X0 + ld.arrive * PX, xc = X0 + ld.used * PX;
+      var name = "tile " + ld.tile + " 第 " + ld.k + " 轮的数据";
+      svg.appendChild(tip(el("rect", { x: xa + 0.5, y: y + 2, width: Math.max(xb - xa - 1, 1), height: 14, rx: 2, "class": "l-fly" }), name + "：在路上"));
+      if (xc > xb) {
+        svg.appendChild(tip(el("rect", { x: xb + 0.5, y: y + 2, width: Math.max(xc - xb - 1, 1), height: 14, rx: 2, "class": "l-held" }), name + "：已在槽里，等待或正在使用"));
+      }
+    });
+
+    var span = sim.span, fixed = sim.fixed, busy = sim.busy;
+    document.getElementById("r-span").textContent = span + " 格";
+    document.getElementById("r-busy").textContent = busy + " 格，" + Math.round(busy / span * 100) + "%";
+    document.getElementById("r-fixed").textContent = "发射 " + fixed.launch + " · prologue " + fixed.pro + " · 等 " + fixed.wait + " · epilogue " + fixed.epi;
+    document.getElementById("r-slots").textContent = sim.slots + " 个（S − 1）";
+  }
+
+  function bind(groupId, key, parse) {
+    var group = document.getElementById(groupId);
+    group.addEventListener("click", function (ev) {
+      var btn = ev.target.closest("button");
+      if (!btn) { return; }
+      state[key] = parse(btn.getAttribute("data-v"));
+      Array.prototype.forEach.call(group.querySelectorAll("button"), function (b) {
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+      render();
+    });
+  }
+  bind("seg-mode", "mode", String);
+  bind("seg-n", "n", Number);
+  bind("seg-s", "s", Number);
+  render();
+
+  var focus = document.getElementById("seg-focus");
+  focus.addEventListener("click", function (ev) {
+    var btn = ev.target.closest("button");
+    if (!btn) { return; }
+    document.getElementById("skel").setAttribute("data-focus", btn.getAttribute("data-v"));
+    Array.prototype.forEach.call(focus.querySelectorAll("button"), function (b) {
+      b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+    });
+  });
+
+  var HW = {
+    "89":  { label: "sm_89（RTX 40 系，例如你的 4070 Laptop）", slots: 2,
+      ptr:  { move: "cp", n: 24, via: true,  mma: "sync", acc: "reg", regs: 135, shared: "65,536", tmem: "没有", note: "三件事都在线程身上" },
+      desc: { move: "scalar", n: 64, via: true, mma: "sync", acc: "reg", regs: 255, shared: "32,768", tmem: "没有", note: "没有 TMA，退回逐元素同步读写；教程不在这一代上运行它" } },
+    "90":  { label: "sm_90（Hopper）", slots: 3,
+      ptr:  { move: "cp", n: 24, via: false, mma: "wg", acc: "reg", regs: 111, shared: "98,304", tmem: "没有", note: "操作数不再进寄存器" },
+      desc: { move: "tma", n: 7, via: false, mma: "wg", acc: "reg", regs: 90, shared: "98,328", tmem: "没有", note: "搬运也交给硬件；多出的 24 字节是屏障" } },
+    "100": { label: "sm_100（Blackwell）", slots: 3,
+      ptr:  { move: "cp", n: 32, via: false, mma: "tc", acc: "tm", regs: 94, shared: "98,320", tmem: "128 列", note: "累加器搬进 TMEM" },
+      desc: { move: "tma", n: 9, via: false, mma: "tc", acc: "tm", regs: 71, shared: "98,352", tmem: "128 列", note: "三件事都被硬件接走" } },
+    "120": { label: "sm_120（RTX 50 系）", slots: 2,
+      ptr:  { move: "cp", n: 24, via: true,  mma: "sync", acc: "reg", regs: 158, shared: "65,536", tmem: "没有", note: "和 sm_89 同一套指令" },
+      desc: { move: "tma", n: 7, via: true, mma: "sync", acc: "reg", regs: 118, shared: "65,552", tmem: "没有", note: "搬运升级了，计算没有" } }
+  };
+  var MOVE = {
+    cp: function (n) { return ["每个线程自己算地址，发 <code>cp.async</code>，一条搬 16 字节；一个块要 256 个线程各发 4 条。整个 kernel 里共 " + n + " 条。", false]; },
+    tma: function (n) { return ["选出的一个线程发一条 <code>cp.async.bulk.tensor.2d</code>，硬件按描述符搬整块，完成后通过屏障通知。整个 kernel 里共 " + n + " 条，含 1 条写回。", true]; },
+    scalar: function (n) { return ["没有 TMA，描述符被展开成普通读写：每个线程逐个元素同步读，共 " + n + " 条 <code>ld.global</code>，不再有异步拷贝。", false]; }
+  };
+  var MMA = {
+    sync: ["<code>mma.sync</code>：每个 warp 自己发，一条算 16 × 8 的一小片，每轮 64 条。", false, "mma.sync"],
+    wg: ["<code>wgmma.mma_async</code>：4 个 warp 组成的 warpgroup 一起执行，一条算 64 × 128，每轮 4 条，异步完成。", true, "wgmma"],
+    tc: ["<code>tcgen05.mma</code>：一个线程发起，共 8 条，异步完成后通过屏障通知。", true, "tcgen05.mma"]
+  };
+  var hw = { cap: "89", kern: "ptr" };
+  function setOn(id, on) { document.getElementById(id).setAttribute("class", "hw-chip" + (on ? " on" : "")); document.getElementById(id + "-t").setAttribute("class", "sm hw-chiptext" + (on ? " on" : "")); }
+  function show(id, on) { document.getElementById(id).setAttribute("display", on ? "inline" : "none"); }
+  function step(id, text, hard) {
+    var li = document.getElementById(id);
+    li.className = hard ? "hard" : "";
+    li.lastElementChild.innerHTML = text + (hard ? '<span class="tagline">硬件接走</span>' : "");
+  }
+  function renderHw() {
+    var t = HW[hw.cap], s = t[hw.kern];
+    var mv = MOVE[s.move](s.n), mm = MMA[s.mma];
+    document.getElementById("hw-slots").textContent = "每个操作数 " + (s.move === "scalar" ? 1 : t.slots) + " 个输入槽";
+    document.getElementById("hw-shared").textContent = "共 " + s.shared + " 字节";
+    document.getElementById("hw-mma").textContent = mm[2];
+    document.getElementById("hw-a1").setAttribute("class", "hw-arrow" + (mv[1] ? " hard" : ""));
+    document.getElementById("hw-a1").setAttribute("marker-end", mv[1] ? "url(#hw-ah-acc)" : "url(#hw-ah)");
+    show("hw-via", s.via); show("hw-direct", !s.via);
+    show("hw-acc-reg", s.acc === "reg"); show("hw-acc-tm", s.acc === "tm");
+    setOn("hw-chip-ops", s.via); setOn("hw-chip-acc", s.acc === "reg"); setOn("hw-chip-tm", s.acc === "tm");
+    document.getElementById("hw-tmem").setAttribute("class", s.acc === "tm" ? "" : "hw-dim");
+    step("hw-s1", "搬入。" + mv[0], mv[1]);
+    step("hw-s2", s.via ? "取操作数。线程用 <code>ldmatrix</code> 把 A、B 从共享内存取进自己的寄存器，再交给张量核心。"
+                        : "取操作数。张量核心直接从共享内存读 A、B，不经过寄存器。", !s.via);
+    step("hw-s3", "乘加。" + mm[0], mm[1]);
+    step("hw-s4", s.acc === "reg" ? "累加器。128 × 128 的 fp32 累加器放在寄存器里，每个线程 64 个。"
+                                  : "累加器。放在张量核心专用的 TMEM 里，占 128 列；线程只在 epilogue 把结果读回。", s.acc === "tm");
+    document.getElementById("hw-r-regs").textContent = s.regs + " 个";
+    document.getElementById("hw-r-shared").textContent = s.shared;
+    document.getElementById("hw-r-tmem").textContent = s.tmem;
+    document.getElementById("hw-r-note").textContent = t.label + "：" + s.note;
+  }
+  function bindHw(groupId, key) {
+    var group = document.getElementById(groupId);
+    group.addEventListener("click", function (ev) {
+      var btn = ev.target.closest("button");
+      if (!btn) { return; }
+      hw[key] = btn.getAttribute("data-v");
+      Array.prototype.forEach.call(group.querySelectorAll("button"), function (b) {
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+      renderHw();
+    });
+  }
+  bindHw("seg-cap", "cap");
+  bindHw("seg-kern", "kern");
+  renderHw();
+
+  var segWs = document.getElementById("seg-ws");
+  segWs.addEventListener("click", function (ev) {
+    var btn = ev.target.closest("button");
+    if (!btn) { return; }
+    ["90", "100", "120"].forEach(function (c) {
+      document.getElementById("ws-" + c).hidden = c !== btn.getAttribute("data-v");
+    });
+    Array.prototype.forEach.call(segWs.querySelectorAll("button"), function (b) {
+      b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+    });
+  });
+
+  // ---- 取值连续与两条声明 ----
+  var hint = { n: 208, where: "on", c: "64", d: "64" };
+  function gcd(a, b) { while (b) { var t = a % b; a = b; b = t; } return a; }
+  function hintModel() {
+    var spec = hint.n % 16 === 0, w = hint.where === "on";
+    var contig = w ? 1 : 64, div = w ? 1 : 64;           // tl.where 之后两者都降到 1
+    if (hint.c !== "none") { contig = Number(hint.c); }    // 声明直接替换推出的值
+    if (hint.d !== "none") { div = Number(hint.d); }
+    var rowBytes = spec ? 32 : 2;                          // 行首 = 第 k 行 × N × 2 字节
+    var alignElems = Math.min(gcd(gcd(16, rowBytes), 2 * div) / 2, contig);
+    var maskConst = gcd(64, spec ? 16 : 1);               // mask 用改写前的下标：gcd(64, 64, N 的整除度)
+    var vec = Math.min(alignElems, maskConst, 8);
+    return { spec: spec, w: w, contig: contig, div: div, maskConst: maskConst, vec: vec, async: vec * 2 >= 4 };
+  }
+  function renderHint() {
+    var m = hintModel(), N = hint.n, runs = document.getElementById("h-runs");
+    while (runs.firstChild) { runs.removeChild(runs.firstChild); }
+    var vals = [];
+    for (var i = 0; i < 64; i++) { var col = 192 + i; vals.push(m.w && col >= N ? 0 : col); }
+    for (var g = 0; g < 8; g++) {
+      var first = 192 + 8 * g, nValid = Math.max(0, Math.min(8, N - first));
+      for (var j = 0; j < 8; j++) {
+        var ok = first + j < N;
+        document.getElementById("hc-" + g + "-" + j).setAttribute("class", ok ? "h-ok" : "h-out");
+        var t = document.getElementById("ht-" + g + "-" + j);
+        t.textContent = String(vals[8 * g + j]);
+        t.setAttribute("class", ok ? "m" : "m h-zero");
+      }
+      if (m.async) {
+        for (var r = 0; r < 8; r += m.vec) {
+          var rect = document.createElementNS(NS, "rect");
+          rect.setAttribute("x", String(150 + r * 42 - 2));
+          rect.setAttribute("y", String(34 + g * 31 - 2));
+          rect.setAttribute("width", String(m.vec * 42 - 4 + 4));
+          rect.setAttribute("height", "28");
+          rect.setAttribute("rx", "5");
+          rect.setAttribute("class", "h-run");
+          runs.appendChild(rect);
+        }
+      }
+      var out;
+      if (nValid === 0) {
+        out = m.async ? "mask 全假：不读，目标处填 0" : "越界：mask 掉，不读";
+      } else if (nValid === 8) {
+        out = m.async ? (m.vec === 8 ? "一次读入 16 字节" : "分 " + 8 / m.vec + " 次，每次 " + 2 * m.vec + " 字节") : "逐个读 8 次，每次 2 字节";
+      } else {
+        out = "前 " + nValid + " 个逐个读，其余 mask 掉";
+      }
+      document.getElementById("ho-" + g).textContent = out;
+    }
+    document.getElementById("hr-spec").textContent = m.spec ? "tt.divisibility = 16" : "不特化（不是 16 的倍数）";
+    document.getElementById("hr-cd").textContent = m.contig + " · " + m.div;
+    document.getElementById("hr-mask").textContent = String(m.maskConst);
+    document.getElementById("hr-vec").textContent = m.async ? (2 * m.vec) + " 字节 cp.async" : "2 字节，逐元素同步读";
+
+    var declared = hint.c !== "none", broken = -1;
+    if (declared) {
+      var C = Number(hint.c);
+      for (var s = 0; s < 64 && broken < 0; s += C) {
+        for (var q = 1; q < C; q++) { if (vals[s + q] !== vals[s] + q) { broken = 192 + s + q; break; } }
+      }
+    }
+    var note;
+    if (!m.spec) {
+      note = "N 不是 16 的倍数：编译器证明不了 B 每一行的行首对齐，mask 的恒定度也只有 1，只能逐元素读。声明只描述 offset_n 这一个张量，补不回行首的对齐。";
+      if (N === 200) { note += "其实 200 × 2 = 400 字节是 16 的倍数，行首在内存里恰好对齐，但 N 没有被特化，编译器拿不到这条信息。"; }
+    } else if (!m.w) {
+      note = "没有 tl.where，下标保持 tid_n × 64 + tl.arange(0, 64) 的样子，编译器自己推得出取值连续度 64、组首整除度 64；越界的列由 mask 挡住。";
+      if (hint.c !== "none" || hint.d !== "none") { note += "这时再写声明，会直接替换推出的值。"; }
+    } else if (hint.c === "none" && hint.d === "none") {
+      note = "tl.where 让取值连续度和组首整除度都降到 1：编译器只能当作每个元素各自成组，一次只搬 2 字节，达不到 cp.async 至少 4 字节的要求。";
+    } else if (hint.c === "none" || hint.d === "none") {
+      note = "两条声明只写了一条。" + (hint.c === "none" ? "取值连续度仍是 1。" : "组首整除度仍是 1，起点只能保证 2 字节对齐。") + "一次搬 16 字节，要同时证明 8 个元素一路加一、并且起点 16 字节对齐。";
+    } else if (N >= 256) {
+      note = "这个 tile 的 64 列都在 N 以内，tl.where 什么也没改，声明在这里成立。";
+    } else {
+      note = "声明说每 " + hint.c + " 个一路加一，可这个 tile 里从第 " + broken + " 列起，值都是 0，声明并不成立。这些组的 mask 全为假（mask 用改写之前的下标计算），拷贝的源字节数是 0，一个字节也不读，只在目标处填 0。";
+      if (m.vec < 8) { note += "声明的值小于 8，一次只能搬 " + 2 * m.vec + " 字节。"; }
+    }
+    document.getElementById("hint-note").textContent = note;
+  }
+  function bindHint(groupId, key) {
+    var group = document.getElementById(groupId);
+    group.addEventListener("click", function (ev) {
+      var btn = ev.target.closest("button");
+      if (!btn) { return; }
+      var v = btn.getAttribute("data-v");
+      hint[key] = key === "n" ? Number(v) : v;
+      Array.prototype.forEach.call(group.querySelectorAll("button"), function (b) {
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+      renderHint();
+    });
+  }
+  bindHint("seg-hn", "n");
+  bindHint("seg-hw", "where");
+  bindHint("seg-hc", "c");
+  bindHint("seg-hd", "d");
+  renderHint();
+})();
+</script>
+</body>
+</html>

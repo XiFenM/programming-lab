@@ -1,6 +1,6 @@
 # 学习复盘材料索引
 
-整理与核对日期：2026-09-14；2026-10-05 补入 Triton 第 06、07 课，2026-10-09 补入第 08 课，2026-10-14 补入 Rust 第 01、02 课，此前各行未重新核对。
+整理与核对日期：2026-09-14；2026-10-05 补入 Triton 第 06、07 课，2026-10-09 补入第 08 课，2026-10-14 补入 Rust 第 01、02 课与 Triton 第 09 课，此前各行未重新核对。
 本页索引已经完成课程的复盘材料及可恢复来源，
 不裁决课程进度或掌握程度；课程状态仍以各轨道的 Program 和 Lesson 为准。
 
@@ -17,6 +17,7 @@
 | Triton 06：Fused Attention | [9 月 14–19 日](triton-learning/logs/2026-09-19-fused-attention.md)、[9 月 20–24 日全貌补充与 FP16 前向实践](triton-learning/logs/2026-09-24-fused-attention.md) | 9 月 14–19 日未保存原文；[9 月 20–24 日 120 条](triton-learning/logs-raw/2026-09-24-fused-attention.md) | [34 张，3 个 XLSX](triton-learning/cards/triton-lesson-06-fused-attention.md)，覆盖两份日志 |
 | Triton 07：外部函数（libdevice） | [9 月 30 日–10 月 5 日](triton-learning/logs/2026-10-05-extern-functions.md) | [开课到确认结课 90 条](triton-learning/logs-raw/2026-10-05-extern-functions.md) | [25 张，3 个 XLSX](triton-learning/cards/triton-lesson-07-extern-functions.md) |
 | Triton 08：Grouped GEMM | [10 月 5–9 日](triton-learning/logs/2026-10-09-grouped-gemm.md) | [开课到确认结课 82 条](triton-learning/logs-raw/2026-10-09-grouped-gemm.md) | [34 张，3 个 XLSX](triton-learning/cards/triton-lesson-08-grouped-gemm.md) |
+| Triton 09：持久化矩阵乘 | [10 月 10–14 日](triton-learning/logs/2026-10-14-persistent-matmul.md) | [开课到确认结课 161 条](triton-learning/logs-raw/2026-10-14-persistent-matmul.md) | [39 张，3 个 XLSX](triton-learning/cards/triton-lesson-09-persistent-matmul.md) |
 | Rust 01：第一个程序与格式化输出 | [10 月 7–8 日，补整理](rust-learning/logs/2026-10-08-hello-formatting.md) | [开课到结课后的反馈 32 条](rust-learning/logs-raw/2026-10-08-hello-formatting.md) | [21 张，3 个 XLSX](rust-learning/cards/rust-lesson-01-hello-formatting.md) |
 | Rust 02：数据的形状 | [10 月 8–14 日](rust-learning/logs/2026-10-14-data-shapes.md) | [开课到确认结课 94 条](rust-learning/logs-raw/2026-10-14-data-shapes.md) | [42 张，3 个 XLSX](rust-learning/cards/rust-lesson-02-data-shapes.md) |
 
@@ -45,6 +46,7 @@
 | Triton 06：全貌补充与 FP16 前向实践 | [2026-09-24](triton-learning/logs-raw/2026-09-24-fused-attention.md) | 120 |
 | Triton 07：开课至确认结课 | [2026-10-05](triton-learning/logs-raw/2026-10-05-extern-functions.md) | 90 |
 | Triton 08：开课至确认结课 | [2026-10-09](triton-learning/logs-raw/2026-10-09-grouped-gemm.md) | 82 |
+| Triton 09：开课至确认结课 | [2026-10-14](triton-learning/logs-raw/2026-10-14-persistent-matmul.md) | 161 |
 | Rust 01：开课至结课后的两点反馈 | [2026-10-08](rust-learning/logs-raw/2026-10-08-hello-formatting.md) | 32 |
 | Rust 02：开课至确认结课 | [2026-10-14](rust-learning/logs-raw/2026-10-14-data-shapes.md) | 94 |
 
@@ -79,6 +81,8 @@ SHA-256、可见内容摘要、稳定消息 ID、起止边界和归档身份；`
 是一段连续范围，其中 4 条是客户端命令留下的记录。扫描未发现凭据或个人标识；`proprietary` 类别命中 22 处，
 分布在 14 条消息里，来自 Triton 开源代码和本仓库的练习、测试代码。原文按学习者确认保留 GPU 机器的容器主机名、
 其上的绝对路径和图解页的私有链接，未做手工润色或脱敏。
+
+第 09 课的原文同样由 `study_log.py` 直接生成在 `logs-raw/`，与结构化日志同名并互相链接，状态为 `final`，是一段连续范围，其中 5 条是客户端留下的记录（2 条 `/compact`、2 条中断、1 条图解页订阅通知）。提取用的是对进行中的会话文件所做的快照，快照在使用后删除。扫描未发现凭据或个人标识；`proprietary` 类别命中 27 处，分布在 19 条消息里，来自 Triton 开源代码，以及本仓库的练习、测试代码和编译出的 IR、PTX。原文按学习者确认保留本机仓库路径、GPU 机器的容器主机名及其上的绝对路径和图解页的私有链接，未做手工润色或脱敏。
 
 ## 历史消息锚点恢复
 
@@ -220,3 +224,9 @@ request 复核为 `no-op`、`would_write=false`。阅读版预览在 [Rust 复�
 新增 63 张、跳过 0 张，每张卡均完成完整内容、语法版本和章节归属的读回验证；随后独立只读核对，两个章节分别
 恰好包含这 21 张和 42 张卡，且只出现语法版本 3。恢复回执保存在仓库外，不含 token 或卡片全文；API 验证不代替
 客户端视觉渲染检查。
+
+## 2026-10-14 持久化矩阵乘记录与卡片
+
+第 09 课结构化日志从当次会话的指定范围蒸馏，保留 61 条：14 条要点、21 条纠错、10 条转折、11 条高价值问题和 5 条遗留，各条目共引用 97 个稳定消息 ID 供回查；学习者的原话逐句与提取正文核对。临时提取正文在蒸馏后删除。同名原文为 161 条可见消息，配对校验通过。
+
+根据该受管日志精选 39 张卡片：20 张技术问答、15 张真实纠错、4 张综合口述，31 张为 A、8 张为 B。覆盖持久化省掉什么、`flatten` 的收益代价与确认方法、搬运与计算在四代目标上的分工与 warp 专用化、越界下标的处理、行主序 B 在循环合并后保住异步拷贝与提前量、下标的取值连续与两条声明、整数参数的特化、受控测量的设计与解释，以及练习、M1 和 A6 中的真实错误。五条遗留不制卡；Hopper 专用化遇到带 else 的分支即放弃这一实现细节、TMA 不能读 TMEM、“tflop16/s 三样东西”的数错评为 C，没有制卡。跨既有 inventory 未发现重复、冲突、依赖漂移或暂缓项；Markdown 与 3 个 XLSX 以相同 request 复核为 `no-op`、`would_write=false`。阅读版预览已加入[Triton 复习卡片预览](triton-learning/cards/previews/README.md)。本次只生成本地卡片，没有上传到墨墨。

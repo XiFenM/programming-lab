@@ -74,7 +74,7 @@ docs/triton-learning/
 | 06 | `06-fused-attention.py` | [lessons/06-fused-attention.md](lessons/06-fused-attention.md) |
 | 07 | `07-extern-functions.py` | [lessons/07-extern-functions.md](lessons/07-extern-functions.md) |
 | 08 | `08-grouped-gemm.py` | [lessons/08-grouped-gemm.md](lessons/08-grouped-gemm.md) |
-| 09 | `09-persistent-matmul.py` | 候选，尚无记录 |
+| 09 | `09-persistent-matmul.py` | [lessons/09-persistent-matmul.md](lessons/09-persistent-matmul.md) |
 | 10 | `10-block-scaled-matmul.py` | 候选，尚无记录 |
 
 获得新 Lesson 授权后，以 `templates/lesson-record.md` 的“核心记录”为基础创建 `lessons/<NN>-<topic>.md`；
@@ -121,11 +121,11 @@ docs/triton-learning/
 | 字段 | 当前值 |
 | --- | --- |
 | Foreground context | `triton-official-tutorials` Program |
-| Semantic position | 第 01–08 课均已关闭；Lesson 08 于 2026-10-09 确认关闭，位于 Lesson 边界，当前没有 active Lesson |
+| Semantic position | 第 01–09 课均已关闭；Lesson 09 于 2026-10-14 确认关闭，位于 Lesson 边界，当前没有 active Lesson |
 | Next action | 学习者选择并授权下一 Lesson |
-| Forward gate | 明确授权后才激活下一 Lesson；当前不会自动启动 Lesson 09 |
-| Latest evidence ref | [Lesson 08 结课](lessons/08-grouped-gemm.md#条件片段结课) |
-| As of | 2026-10-09 |
+| Forward gate | 明确授权后才激活下一 Lesson；当前不会自动启动 Lesson 10 |
+| Latest evidence ref | [Lesson 09 结课](lessons/09-persistent-matmul.md#条件片段结课) |
+| As of | 2026-10-14 |
 
 ## 本课程的记录约定
 
