@@ -40,7 +40,7 @@ Checkpoint、Lesson 目录与练习目录，切换课程不需要修改配置或
 | --- | --- | --- |
 | `docs/rust-learning/lessons/<NN>-<topic>.md` | 单课记录，以 [Lesson 模板](../triton-learning/templates/lesson-record.md)的“核心记录”为基础，把 Program、Lesson ID 前缀和来源换成本课程的 | 学习者授权开课时 |
 | `docs/rust-learning/attachments/<NN>-<topic>/` | 图解、实验数据等补充材料 | 某一课实际产生时 |
-| [`docs/rust-learning/attachments/00-rust-basics/rust-basics.html`](attachments/00-rust-basics/rust-basics.html) | 全课共用的《Rust 基础知识》：名词表与开发环境图解 | 2026-10-08 建立；每课结课时补入该课的新名词 |
+| [`docs/rust-learning/attachments/00-rust-basics/rust-basics.html`](attachments/00-rust-basics/rust-basics.html) | 全课共用的《Rust 基础知识》：名词表、简写对照与开发环境图解 | 2026-10-08 建立；每课结课时补入该课的新名词。2026-10-14 补入第 02 课的 35 个名词（共 84 个）和简写对照表 |
 | `rust/lessonNN_<topic>/` | 正式练习的 crate，每课一个 | 第一份练习约定被接受时 |
 
 - RBE 快照保持原样，不在 `docs/rust-by-example/` 中写笔记或修改示例。
@@ -107,7 +107,7 @@ RBE 开篇这样概括 Rust：一门注重安全、速度与并发的系统编�
 | 课次 | Candidate ID | 能力标题 | 学完要能回答 | RBE 章节 |
 | ---: | --- | --- | --- | --- |
 | [01](lessons/01-hello-formatting.md) | `rust-01-hello-formatting` | 第一个程序与格式化输出 | `println!` 为什么是宏而不是函数？一个类型怎样决定自己被打印成什么样？ | [1 Hello World](../rust-by-example/src/hello.md)（7） |
-| 02 | `rust-02-data-shapes` | 数据的形状：基本类型、struct 与 enum | 切片为什么由指针和长度两部分组成？Rust 的 enum 比 C 的枚举多了什么？ | [2 Primitives](../rust-by-example/src/primitives.md)、[3 Custom Types](../rust-by-example/src/custom_types.md)（11） |
+| [02](lessons/02-data-shapes.md) | `rust-02-data-shapes` | 数据的形状：基本类型、struct 与 enum | 切片为什么由指针和长度两部分组成？Rust 的 enum 比 C 的枚举多了什么？ | [2 Primitives](../rust-by-example/src/primitives.md)、[3 Custom Types](../rust-by-example/src/custom_types.md)（11） |
 | 03 | `rust-03-bindings-types-conversion` | 绑定、类型与转换 | 默认不可变和遮蔽各防住什么？`as` 与 `From`、`TryFrom` 该怎样选？ | [4 Variable Bindings](../rust-by-example/src/variable_bindings.md)、[5 Types](../rust-by-example/src/types.md)、[6 Conversion](../rust-by-example/src/conversion.md)、[7 Expressions](../rust-by-example/src/expression.md)（15） |
 | 04 | `rust-04-control-flow-patterns` | 控制流与模式匹配 | `match` 的穷尽性检查防住了什么？`for` 的三种迭代方式分别对集合做了什么？ | [8 Flow of Control](../rust-by-example/src/flow_control.md)（19） |
 | 05 | `rust-05-functions-closures` | 函数、方法与闭包 | 闭包捕获了什么、以哪种方式捕获？`Fn`、`FnMut`、`FnOnce` 怎样与捕获方式对应？ | [9 Functions](../rust-by-example/src/fn.md)（13） |
@@ -227,11 +227,11 @@ TRPL 指 Rust 官方教材 The Rust Programming Language；各来源的版本见
 | 字段 | 当前值 |
 | --- | --- |
 | Foreground context | `rust-language-and-async` Program |
-| Semantic position | Lesson 01 已确认关闭；当前没有 active Lesson，位于 Lesson 边界等待下一课授权 |
-| Next action | 学习者决定是否授权启动候选 Lesson 02 `rust-02-data-shapes` |
-| Forward gate | 只有学习者明确授权后才创建并激活下一课的记录；关闭 Lesson 01 不自动启动下一课 |
-| Latest evidence ref | [Lesson 01 结课](lessons/01-hello-formatting.md#条件片段结课) |
-| As of | 2026-10-08 |
+| Semantic position | Lesson 02 已确认关闭；当前没有 active Lesson，位于 Lesson 边界等待下一课授权 |
+| Next action | 学习者决定是否授权启动候选 Lesson 03 `rust-03-bindings-types-conversion` |
+| Forward gate | 只有学习者明确授权后才创建并激活下一课的记录；关闭 Lesson 02 不自动启动下一课 |
+| Latest evidence ref | [Lesson 02 结课](lessons/02-data-shapes.md#条件片段结课) |
+| As of | 2026-10-14 |
 
 ## 本课程的记录约定
 
@@ -246,7 +246,8 @@ TRPL 指 Rust 官方教材 The Rust Programming Language；各来源的版本见
 - **名词表**：出现过的名词收在[《Rust 基础知识》](attachments/00-rust-basics/rust-basics.html)的名词表里，按类别排列。
   每个词写明它是什么、对应 C++ 或 Python 里的什么、首次出现和系统展开的课次，并链接到教程的对应页面；每个词有
   固定的锚点 `#term-<英文短名>`。讲解用到表里已有的名词时指向它；每课结课时把这一课的新名词补进去，一个词的
-  解释里不用表里还没有的词。学习者在 2026-10-08 同意建立名词表，并要求把它和原来的工具链图解合成一页、放进本
+  解释里不用表里还没有的词。名词表后面是“简写对照”表（锚点 `#shorthand`），列出平时的简写各自对应的完整写法；
+  学习者在 2026-10-14 说“rust中有好多简写，这还挺令人迷惑的”，并要求把这张表加进去。学习者在 2026-10-08 同意建立名词表，并要求把它和原来的工具链图解合成一页、放进本
   课程的 attachments；原页面 `docs/rust-toolchain-explainer.html` 因此移到这里。
 - **版本锚点**：语言部分的原文、示例行为和输出以固定快照与 Rust 1.97.1 为准，见[来源记录](../rust-by-example/SOURCE.md)。
   引用标准库文档、Rust Reference 或 TRPL 时使用同一版本，即 `https://doc.rust-lang.org/1.97.1/` 下的页面。异步

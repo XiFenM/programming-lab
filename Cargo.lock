@@ -9,3 +9,7 @@ version = "0.1.0"
 [[package]]
 name = "rust-lesson01-hello-formatting"
 version = "0.1.0"
+
+[[package]]
+name = "rust-lesson02-data-shapes"
+version = "0.1.0"

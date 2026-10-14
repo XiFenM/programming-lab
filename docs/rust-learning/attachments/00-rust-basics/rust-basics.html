@@ -14,6 +14,7 @@
 @media(max-width:520px){.container{width:calc(100% - 32px)}.topbar-inner{flex-direction:column;gap:8px;padding-block:12px}.topbar nav{gap:14px;font-size:.84rem}.hero{padding:29px 0}.hero .intro{font-size:1rem}.panel{padding:15px;border-radius:12px}.scope{padding:13px}.node-grid{grid-template-columns:1fr 1fr}.support-grid,.selector-grid,.comparison,.status-grid,.component-detail{grid-template-columns:1fr}.support-grid .scope:last-child{grid-column:auto}.component-detail{gap:6px;padding:16px}.component-detail dl{grid-template-columns:52px minmax(0,1fr)}.command-box{padding:14px;gap:8px}.command-box pre code{font-size:.8rem}.command-box .copy{padding:6px 8px}.step-controls{gap:7px}#step-counter{width:100%;margin-left:0}.scenario-button{font-size:.85rem;padding:9px 10px}.section{margin-bottom:32px}.step-detail{padding:17px}.keyline{padding:15px}.component strong{font-size:.88rem}.component small{font-size:.76rem}.reference-list{padding-left:18px}.learning-path a{font-size:.8rem}.status-item{padding:13px}th,td{padding:8px 5px;font-size:.82rem}.term{padding:14px 15px}.term-filter{padding:6px 12px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.component{transition:none}}
 @media print{body{background:white;color:black;font-size:11pt}.container{width:100%}.topbar,.learning-path,.scenario-buttons,.step-controls,.copy,.preset-row,.selector-grid,.notice,.skip-link{display:none}.panel{box-shadow:none;border:1px solid #aaa;break-inside:avoid}.hero{padding:10px 0}.section{margin-bottom:20px}.architecture,.support-grid{display:block}.scope{margin-bottom:10px}.component{background:white!important;color:black!important;box-shadow:none!important;border-color:#bbb!important}.component small{color:#444!important}.route-layout{display:block}.step-detail{position:static;margin-top:12px}.reference-list{display:block}a{color:#222}.component-detail{background:#f5f5f5}.footer{padding:10px 0}.glossary-controls,.term-count{display:none}#glossary .panel{break-inside:auto}.term{background:white;border-color:#bbb;break-inside:avoid}.term-group>h3{break-after:avoid}.term-meta span,.term-meta .later{background:none;border:1px solid #bbb;color:#444}}
+.shorthand{margin-top:18px}.shorthand h3{margin:0 0 8px;font-size:1.12rem;text-wrap:balance}.shorthand>p{margin:0 0 4px;max-width:78ch}.shorthand .table-wrap{overflow-x:auto}.shorthand table{margin-block:10px 14px}.shorthand th{font-size:.82rem;color:var(--muted);font-weight:650}.shorthand td:nth-child(1){width:32%}.shorthand td:nth-child(2){width:44%}.shorthand td:nth-child(3){font-size:.84rem}@media(max-width:640px){.shorthand thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}.shorthand table,.shorthand tbody{display:block}.shorthand tr{display:grid;gap:6px;padding:12px 0;border-bottom:1px solid var(--line)}.shorthand td{border:0;padding:0}.shorthand td:nth-child(1),.shorthand td:nth-child(2){width:auto}.shorthand td::before{content:attr(data-label);display:block;font-size:.74rem;line-height:1.5;color:var(--muted);letter-spacing:.04em}}
 </style>
 </head>
 <body>
@@ -34,16 +35,16 @@
  </section>
 
  <section class='section' id='glossary' aria-labelledby='glossary-title'>
-  <div class='section-heading'><div><h2 id='glossary-title'><span class='section-number'>01</span>名词表</h2><p>课程里出现过的 Rust 名词。每个词先用一句平实的话说明它是什么，再对上 C++ 或 Python 里你已经熟悉的东西。标签写明它第一次出现在哪一课、哪一课会系统展开；“教程”链接指向与课程同版本（1.97.1）的 Rust by Example 在线页面，仓库里的原文在 <code>docs/rust-by-example/src/</code> 下。</p></div><span class='badge'>收录到第 01 课 · 49 个</span></div>
+  <div class='section-heading'><div><h2 id='glossary-title'><span class='section-number'>01</span>名词表</h2><p>课程里出现过的 Rust 名词。每个词先用一句平实的话说明它是什么，再对上 C++ 或 Python 里你已经熟悉的东西。标签写明它第一次出现在哪一课、哪一课会系统展开；“教程”链接指向与课程同版本（1.97.1）的 Rust by Example 在线页面，仓库里的原文在 <code>docs/rust-by-example/src/</code> 下。平时写的简写各自对应什么完整写法，见名词表后面的<a href='#shorthand'>简写对照</a>。</p></div><span class='badge'>收录到第 02 课 · 84 个</span></div>
   <div class='panel'>
    <!-- 维护方式：每课结课时把这一课的新名词加进对应类别的 .terms 里，每个名词一个 article.term。
         id 写成 term-<英文短名>，供课次记录链接；data-lesson 写首次出现的课次。
         一个名词的解释里不要用到表里还没有的名词。改完后同步更新本节右上角和“来源与适用范围”里的课次与数量。 -->
    <div class='glossary-controls' id='glossary-controls' hidden>
-    <label class='glossary-search' for='term-search'>按名字或解释里的字查找<input type='search' id='term-search' autocomplete='off' placeholder='例如：trait、借用、size_t'></label>
+    <label class='glossary-search' for='term-search'>按名字或解释里的字查找<input type='search' id='term-search' autocomplete='off' placeholder='例如：trait、切片、size_t'></label>
     <div class='term-filters' role='group' aria-label='按类别筛选'><button type='button' class='term-filter' data-cat='all' aria-pressed='true'>全部</button><button type='button' class='term-filter' data-cat='org' aria-pressed='false'>代码组织</button><button type='button' class='term-filter' data-cat='tool' aria-pressed='false'>工具</button><button type='button' class='term-filter' data-cat='syntax' aria-pressed='false'>语法</button><button type='button' class='term-filter' data-cat='data' aria-pressed='false'>类型与数据</button><button type='button' class='term-filter' data-cat='behave' aria-pressed='false'>trait 与方法</button><button type='button' class='term-filter' data-cat='own' aria-pressed='false'>所有权与引用</button><button type='button' class='term-filter' data-cat='error' aria-pressed='false'>错误处理</button><button type='button' class='term-filter' data-cat='fmt' aria-pressed='false'>格式化输出</button></div>
    </div>
-   <p class='term-count' id='term-count' aria-live='polite'>共 49 个名词</p>
+   <p class='term-count' id='term-count' aria-live='polite'>共 84 个名词</p>
    <div id='terms'>
     <div class='term-group' data-cat='org'>
      <h3>代码组织<small>7 个</small></h3>
@@ -93,7 +94,7 @@
      </div>
     </div>
     <div class='term-group' data-cat='tool'>
-     <h3>工具<small>10 个</small></h3>
+     <h3>工具<small>11 个</small></h3>
      <div class='terms'>
      <article class='term' id='term-toolchain' data-lesson='00'>
       <h4>工具链 <small>toolchain</small></h4>
@@ -131,6 +132,12 @@
       <p class='like'><b>对应你熟悉的：</b>C++ 的 <code class='nw'>-std=c++17</code>、<code class='nw'>-std=c++20</code>。</p>
       <div class='term-meta'><span>第 01 课出现</span></div>
      </article>
+     <article class='term' id='term-profile' data-lesson='02'>
+      <h4>调试构建与发布构建 <small>debug 与 release</small></h4>
+      <p><code class='nw'>cargo build</code>、<code class='nw'>cargo test</code> 默认是调试构建：不优化，带额外的检查。加上 <code class='nw'>--release</code> 是发布构建：开优化，整数溢出的检查默认关掉。两种构建的产物分别放在输出目录的 <code class='nw'>debug/</code> 和 <code class='nw'>release/</code> 下。</p>
+      <p class='like'><b>对应你熟悉的：</b>C 和 C++ 的 <code class='nw'>-O0 -g</code> 与 <code class='nw'>-O3</code>。</p>
+      <div class='term-meta'><span>第 02 课出现</span></div>
+     </article>
      <article class='term' id='term-rustfmt' data-lesson='01'>
       <h4>rustfmt</h4>
       <p>自动排版工具，用 <code class='nw'>cargo fmt</code> 调用。加上 <code class='nw'>--check</code> 只检查、不修改。</p>
@@ -158,13 +165,19 @@
      </div>
     </div>
     <div class='term-group' data-cat='syntax'>
-     <h3>语法<small>6 个</small></h3>
+     <h3>语法<small>14 个</small></h3>
      <div class='terms'>
      <article class='term' id='term-let-mut' data-lesson='01'>
       <h4>let 与 mut <small>绑定</small></h4>
       <p><code class='nw'>let x = 5;</code> 给一个值起名字，这叫绑定。绑定默认不能再改；要改就写 <code class='nw'>let mut x = 5;</code>。类型通常由编译器推断，也可以写成 <code class='nw'>let x: i32 = 5;</code>。</p>
       <p class='like'><b>对应你熟悉的：</b>C++ 的 <code class='nw'>const auto x = 5;</code> 与 <code class='nw'>auto x = 5;</code>，只是默认值反过来：Rust 默认不可变。</p>
       <div class='term-meta'><span>第 01 课出现</span><span class='later'>第 03 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/variable_bindings.html'>教程 §4 Variable Bindings</a></div>
+     </article>
+     <article class='term' id='term-literal' data-lesson='02'>
+      <h4>字面量 <small>与类型后缀</small></h4>
+      <p>直接写在代码里的值，例如 <code class='nw'>42</code>、<code class='nw'>1.5</code>、<code class='nw'>'a'</code>、<code class='nw'>true</code>。数字后面可以接类型名作后缀，如 <code class='nw'>8usize</code>、<code class='nw'>0f32</code>；不写时由编译器按上下文推断。还可以写成 <code class='nw'>0xff</code>、<code class='nw'>0b1010</code>、<code class='nw'>1_000_000</code>、<code class='nw'>1e6</code>，其中的下划线只是为了好读。</p>
+      <p class='like'><b>对应你熟悉的：</b>C 的 <code class='nw'>42u</code>、<code class='nw'>1.5f</code>、<code class='nw'>0xff</code>。区别是 Rust 的后缀直接写类型名。</p>
+      <div class='term-meta'><span>第 02 课出现</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/primitives/literals.html'>教程 §2.1 Literals and operators</a></div>
      </article>
      <article class='term' id='term-fn' data-lesson='01'>
       <h4>fn <small>函数签名</small></h4>
@@ -177,6 +190,42 @@
       <p>有值的是表达式，以分号结尾的是语句。函数体最后一个不带分号的表达式就是返回值，不需要写 <code class='nw'>return</code>；<code class='nw'>if</code> 也是表达式，可以有值。</p>
       <p class='like'><b>对应你熟悉的：</b>C++ 里的三目运算符是表达式；在 Rust 里，代码块和 <code class='nw'>if</code> 也都是。</p>
       <div class='term-meta'><span>第 01 课出现</span><span class='later'>第 03 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/expression.html'>教程 §7 Expressions</a></div>
+     </article>
+     <article class='term' id='term-as' data-lesson='02'>
+      <h4>as <small>数值类型转换</small></h4>
+      <p>数值类型之间不会自动转换，要转就写 <code class='nw'>x as u8</code>。<code class='nw'>as</code> 从不报错：整数变窄时只留下低位，<code class='nw'>300i32 as u8</code> 得 44；浮点数转整数超出范围时停在上下限。所以它只适合确定不会丢信息的地方。</p>
+      <p class='like'><b>对应你熟悉的：</b>C 的 <code class='nw'>(uint8_t)x</code>。区别是 C 会在赋值、传参和混合运算时悄悄转换，Rust 一律要写出来。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 03 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/types/cast.html'>教程 §5.1 Casting</a></div>
+     </article>
+     <article class='term' id='term-range' data-lesson='02'>
+      <h4>范围 <small><code class='nw'>a..b</code> 与 <code class='nw'>a..=b</code></small></h4>
+      <p><code class='nw'>1..4</code> 表示 1、2、3，不含 4；<code class='nw'>1..=4</code> 含 4。可以直接放进 <code class='nw'>for</code>，也可以写在方括号里取出一段，如 <code class='nw'>&amp;xs[1..4]</code>；省掉一端表示到头，如 <code class='nw'>..2</code>、<code class='nw'>4..</code>。</p>
+      <p class='like'><b>对应你熟悉的：</b>Python 的 <code class='nw'>range(1, 4)</code> 和 <code class='nw'>xs[1:4]</code>。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 04 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/flow_control/for.html'>教程 §8.4 for and range</a></div>
+     </article>
+     <article class='term' id='term-match' data-lesson='02'>
+      <h4>match <small>与穷尽性检查</small></h4>
+      <p>按值的形状分情况处理。每个分支写成“模式 <code class='nw'>=&gt;</code> 结果”，从上往下取第一个对得上的。所有可能的情况都必须有分支，漏了报 <code class='nw'>E0004</code>，这叫穷尽性检查。<code class='nw'>_</code> 是“其余所有情况”的兜底分支，<code class='nw'>A | B</code> 让两种情况共用一个分支。<code class='nw'>match</code> 是表达式，可以直接当返回值。</p>
+      <p class='like'><b>对应你熟悉的：</b>C 的 <code class='nw'>switch</code>。区别是不会掉进下一个 <code class='nw'>case</code>，能拆出 enum 里带的数据，而且漏写情况编译不过。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 04 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/flow_control/match.html'>教程 §8.5 match</a></div>
+     </article>
+     <article class='term' id='term-pattern' data-lesson='02'>
+      <h4>模式与解构 <small>pattern</small></h4>
+      <p>模式描述“一个值长什么样”，同时给里面的部分起名字。<code>let (start, end) = offsets;</code> 把元组拆成两个变量，<code class='nw'>let Point { x, y } = p;</code> 把 struct 的字段拆出来，这叫解构。模式可以一层套一层；<code class='nw'>..</code> 略过其余字段，<code class='nw'>_</code> 略过一个位置。<code class='nw'>match</code> 的每个分支开头也是一个模式。</p>
+      <p class='like'><b>对应你熟悉的：</b>C++17 的结构化绑定 <code class='nw'>auto [a, b] = pair;</code>；Python 的 <code class='nw'>a, b = pair</code>。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 04 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/flow_control/match/destructuring.html'>教程 §8.5.1 Destructuring</a></div>
+     </article>
+     <article class='term' id='term-if-let' data-lesson='02'>
+      <h4>if let 与 let … else <small>只关心一种情况时</small></h4>
+      <p>只关心一种形状时比 <code class='nw'>match</code> 短的写法。<code>if let Some(x) = opt { … }</code> 在对得上时执行代码块。<code>let Some(x) = opt else { return None; };</code> 对不上就从 <code class='nw'>else</code> 离开，对得上时 <code class='nw'>x</code> 在后面一直可用。只要判断是不是某种形状，用 <code class='nw'>matches!(d, Dtype::U8)</code>。</p>
+      <p class='like'><b>对应你熟悉的：</b>Python 的 <code>if (m := f()) is not None:</code>；C++17 的 <code>if (auto p = get(); p != nullptr)</code>。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 04 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/flow_control/if_let.html'>教程 §8.6 if let</a></div>
+     </article>
+     <article class='term' id='term-const-static' data-lesson='02'>
+      <h4>const 与 static <small>常量与全局变量</small></h4>
+      <p><code class='nw'>const N: usize = 4;</code> 是编译期常量：每个用到的地方都换成这个值，它没有固定的地址，可以用作数组长度。<code class='nw'>static</code> 是整个程序只有一份的全局变量，有固定的地址，活到程序结束。两者都必须写明类型，名字按惯例全大写。可变的 <code class='nw'>static mut</code> 只能在 <code class='nw'>unsafe</code> 里读写，课程不用。</p>
+      <p class='like'><b>对应你熟悉的：</b>C++ 的 <code class='nw'>constexpr</code> 常量与全局变量；C 的 <code class='nw'>#define N 4</code> 与全局变量。</p>
+      <div class='term-meta'><span>第 02 课出现</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/custom_types/constants.html'>教程 §3.3 constants</a></div>
      </article>
      <article class='term' id='term-macro' data-lesson='01'>
       <h4>宏 <small>macro</small></h4>
@@ -196,10 +245,16 @@
       <p class='like'><b>对应你熟悉的：</b>Doxygen 注释；Python 的 docstring。</p>
       <div class='term-meta'><span>第 01 课出现</span><span class='later'>第 16 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/hello/comment.html'>教程 §1.1 Comments</a></div>
      </article>
+     <article class='term' id='term-unsafe' data-lesson='02'>
+      <h4>unsafe <small>不受检查的代码块</small></h4>
+      <p>标出一段由程序员自己保证正确的代码。编译器在里面放开几类平时禁止的操作，例如读写裸指针 <code class='nw'>*const T</code>，也就是和 C 的指针一样、不受检查的指针。本仓库的 Rust 代码禁止使用。</p>
+      <p class='like'><b>对应你熟悉的：</b>整个 C 和 C++ 都相当于写在 <code class='nw'>unsafe</code> 里。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 17 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/unsafe.html'>教程 §22 Unsafe Operations</a></div>
+     </article>
      </div>
     </div>
     <div class='term-group' data-cat='data'>
-     <h3>类型与数据<small>9 个</small></h3>
+     <h3>类型与数据<small>25 个</small></h3>
      <div class='terms'>
      <article class='term' id='term-numeric-types' data-lesson='01'>
       <h4>数值类型 <small><code class='nw'>i32</code>、<code class='nw'>u8</code>、<code class='nw'>f64</code></small></h4>
@@ -213,11 +268,59 @@
       <p class='like'><b>对应你熟悉的：</b>C 和 C++ 的 <code class='nw'>size_t</code>。</p>
       <div class='term-meta'><span>第 01 课出现</span><span class='later'>第 02 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/primitives.html'>教程 §2 Primitives</a></div>
      </article>
+     <article class='term' id='term-scalar' data-lesson='02'>
+      <h4>标量类型 <small><code class='nw'>bool</code>、<code class='nw'>char</code> 与数值</small></h4>
+      <p>只装一个值的基本类型：整数、浮点数、<code class='nw'>bool</code>（<code class='nw'>true</code> 或 <code class='nw'>false</code>，1 字节）和 <code class='nw'>char</code>（一个 Unicode 字符，4 字节）。整数不能当条件用，<code class='nw'>if n</code> 编译不过，要写 <code class='nw'>if n != 0</code>。</p>
+      <p class='like'><b>对应你熟悉的：</b>C++ 的 <code class='nw'>bool</code>、<code class='nw'>char32_t</code> 和各种数值类型。注意 C 的 <code class='nw'>char</code> 对应的是 Rust 的 <code class='nw'>u8</code>。</p>
+      <div class='term-meta'><span>第 02 课出现</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/primitives.html'>教程 §2 Primitives</a></div>
+     </article>
+     <article class='term' id='term-overflow' data-lesson='02'>
+      <h4>整数溢出 <small>panic 或回绕</small></h4>
+      <p>整数算出了类型装不下的结果。调试构建下 panic，信息如 <code>attempt to multiply with overflow</code>；发布构建下回绕，也就是只留下低位、不报错。两种行为都是确定的，但回绕出的数是错的，所以来自外部的数要用 <code class='nw'>checked_*</code> 这类方法来算。</p>
+      <p class='like'><b>对应你熟悉的：</b>C 的无符号整数溢出同样回绕；有符号整数溢出是未定义行为，Rust 没有这种情况。</p>
+      <div class='term-meta'><span>第 02 课出现</span></div>
+     </article>
+     <article class='term' id='term-checked-arith' data-lesson='02'>
+      <h4>checked_* <small>还有 <code class='nw'>wrapping_*</code>、<code class='nw'>saturating_*</code></small></h4>
+      <p>整数自带的几组运算方法，让你自己决定溢出时怎么办。<code class='nw'>a.checked_mul(b)</code> 溢出时返回 <code class='nw'>None</code>，否则返回 <code class='nw'>Some(结果)</code>；<code class='nw'>wrapping_*</code> 明确要回绕；<code class='nw'>saturating_*</code> 停在上下限。<code class='nw'>200u8</code> 加 100，用这三组分别得到 <code class='nw'>None</code>、44、255。</p>
+      <p class='like'><b>对应你熟悉的：</b>GCC 和 Clang 的 <code class='nw'>__builtin_mul_overflow</code>。</p>
+      <div class='term-meta'><span>第 02 课出现</span></div>
+     </article>
      <article class='term' id='term-unit' data-lesson='01'>
       <h4>() <small>单元类型</small></h4>
       <p>只有一个取值的类型，这个值也写作 <code class='nw'>()</code>，表示“没有有意义的值”。<code class='nw'>fmt::Result</code> 就是 <code class='nw'>Result&lt;(), fmt::Error&gt;</code>：成功时没有东西要交回。</p>
       <p class='like'><b>对应你熟悉的：</b>C 和 C++ 的 <code class='nw'>void</code>。区别是 <code class='nw'>()</code> 是一个真正的值，可以放进 <code class='nw'>Result&lt;(), E&gt;</code> 这样的类型里。</p>
       <div class='term-meta'><span>第 01 课出现</span><span class='later'>第 02 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/primitives.html'>教程 §2 Primitives</a></div>
+     </article>
+     <article class='term' id='term-tuple' data-lesson='02'>
+      <h4>元组 <small>tuple</small></h4>
+      <p>把几个值按位置放在一起，类型可以各不相同，例如 <code class='nw'>(usize, usize)</code>、<code class='nw'>(u8, f64, &amp;str)</code>。用 <code class='nw'>.0</code>、<code class='nw'>.1</code> 取出，或者用解构一次拆开。函数想返回多个值时常用它。</p>
+      <p class='like'><b>对应你熟悉的：</b>C++ 的 <code class='nw'>std::tuple</code> 与 <code class='nw'>std::pair</code>；Python 的元组。</p>
+      <div class='term-meta'><span>第 02 课出现</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/primitives/tuples.html'>教程 §2.2 Tuples</a></div>
+     </article>
+     <article class='term' id='term-array' data-lesson='02'>
+      <h4>数组 <small><code class='nw'>[T; N]</code></small></h4>
+      <p>长度写在类型里的一串同类型的值。<code class='nw'>[i32; 5]</code> 占 20 字节，值就是这 5 个元素本身，不是指向它们的指针。<code class='nw'>[0; 5]</code> 表示 5 个 0。长度不同就是不同的类型。</p>
+      <p class='like'><b>对应你熟悉的：</b>C++ 的 <code class='nw'>std::array&lt;int, 5&gt;</code>。和 C 的 <code class='nw'>int a[5]</code> 不同，它传参时不会退化成指针。</p>
+      <div class='term-meta'><span>第 02 课出现</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/primitives/array.html'>教程 §2.3 Arrays and Slices</a></div>
+     </article>
+     <article class='term' id='term-slice' data-lesson='02'>
+      <h4>切片 <small><code class='nw'>&amp;[T]</code></small></h4>
+      <p>借来的连续一段元素，长度到运行时才知道。它由两部分组成：指向第一个元素的指针，加上元素个数，所以 <code class='nw'>&amp;[i32]</code> 占 16 字节。<code class='nw'>&amp;xs[1..4]</code> 从数组或 <code class='nw'>Vec</code> 里取出一段，不复制元素。</p>
+      <p class='like'><b>对应你熟悉的：</b>C 里一起传的指针和长度；C++20 的 <code class='nw'>std::span</code>；NumPy 的视图 <code class='nw'>a[1:4]</code>。</p>
+      <div class='term-meta'><span>第 02 课出现</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/primitives/array.html'>教程 §2.3 Arrays and Slices</a></div>
+     </article>
+     <article class='term' id='term-fat-pointer' data-lesson='02'>
+      <h4>胖指针 <small>fat pointer</small></h4>
+      <p>比普通指针多带 8 字节信息的指针。<code class='nw'>&amp;i32</code> 占 8 字节，<code class='nw'>&amp;[i32]</code> 和 <code class='nw'>&amp;str</code> 占 16 字节，多出来的部分是元素个数或字节数。</p>
+      <p class='like'><b>对应你熟悉的：</b>C++ 的 <code class='nw'>std::span</code> 和 <code class='nw'>std::string_view</code>，里面同样是指针加长度。</p>
+      <div class='term-meta'><span>第 02 课出现</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/primitives/array.html'>教程 §2.3 Arrays and Slices</a></div>
+     </article>
+     <article class='term' id='term-bounds-check' data-lesson='02'>
+      <h4>边界检查 <small>下标与 <code class='nw'>get</code></small></h4>
+      <p>用下标访问数组、切片和 <code class='nw'>Vec</code> 时，运行时会先检查有没有越界。<code class='nw'>xs[i]</code> 越界时 panic；<code class='nw'>xs.get(i)</code> 越界时返回 <code class='nw'>None</code>。两种写法做的是同一个检查，都不会读到别处的内存。<code class='nw'>get</code> 也接受范围，如 <code class='nw'>data.get(2..6)</code>。</p>
+      <p class='like'><b>对应你熟悉的：</b>C++ 的 <code class='nw'>v.at(i)</code> 越界时抛异常；<code class='nw'>v[i]</code> 和 C 的下标都不检查。</p>
+      <div class='term-meta'><span>第 02 课出现</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/primitives/array.html'>教程 §2.3 Arrays and Slices</a></div>
      </article>
      <article class='term' id='term-struct' data-lesson='01'>
       <h4>struct <small>结构体</small></h4>
@@ -230,6 +333,54 @@
       <p>字段没有名字、按位置排列的 struct，例如 <code class='nw'>struct MinMax(i64, i64);</code>，用 <code class='nw'>.0</code>、<code class='nw'>.1</code> 取字段。只包一个字段时，常用来给已有类型起一个有区别的新名字。</p>
       <p class='like'><b>对应你熟悉的：</b>有自己类型名的 <code class='nw'>std::pair</code> 或 <code class='nw'>std::tuple</code>。</p>
       <div class='term-meta'><span>第 01 课出现</span><span class='later'>第 02 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/custom_types/structs.html'>教程 §3.1 Structures</a></div>
+     </article>
+     <article class='term' id='term-unit-struct' data-lesson='02'>
+      <h4>单元结构体 <small>unit struct</small></h4>
+      <p>没有字段的 struct，写作 <code class='nw'>struct Marker;</code>，占 0 字节。它只有类型名有用，常用来给某个 trait 提供实现。</p>
+      <p class='like'><b>对应你熟悉的：</b>C++ 的空类 <code class='nw'>struct Marker {};</code>。</p>
+      <div class='term-meta'><span>第 02 课出现</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/custom_types/structs.html'>教程 §3.1 Structures</a></div>
+     </article>
+     <article class='term' id='term-enum' data-lesson='02'>
+      <h4>enum <small>枚举与变体</small></h4>
+      <p>表示“几种情况里的某一种”的类型，每种情况叫一个变体。变体可以不带数据（<code class='nw'>Cpu</code>）、带按位置排的数据（<code class='nw'>Cuda(u32)</code>），或者带有名字的字段（<code>Loaded { device: Device, bytes: usize }</code>）。用 <code class='nw'>Device::Cuda(0)</code> 这样的写法造出一个值；要读里面的数据，必须先用 <code class='nw'>match</code> 等写法确认是哪个变体。</p>
+      <p class='like'><b>对应你熟悉的：</b>C 的 <code class='nw'>enum</code> 加 <code class='nw'>union</code>，再加一条“先看标签”的约定；C++17 的 <code class='nw'>std::variant</code>。只用不带数据的变体时，就是 C 的 <code class='nw'>enum</code>。</p>
+      <div class='term-meta'><span>第 02 课出现</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/custom_types/enum.html'>教程 §3.2 Enums</a></div>
+     </article>
+     <article class='term' id='term-tag-payload' data-lesson='02'>
+      <h4>标签与载荷 <small>判别值 discriminant</small></h4>
+      <p>enum 的值在内存里有两部分：标签记着现在是哪个变体，也叫判别值；载荷是这个变体带的数据。整个值的大小由最大的变体决定。不带数据的变体可以指定整数值，并用 <code class='nw'>as</code> 转成整数。</p>
+      <p class='like'><b>对应你熟悉的：</b>手写的 <code>struct { int tag; union { … } data; }</code>。</p>
+      <div class='term-meta'><span>第 02 课出现</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/custom_types/enum/c_like.html'>教程 §3.2.2 C-like</a></div>
+     </article>
+     <article class='term' id='term-niche' data-lesson='02'>
+      <h4>不单独占字节的标签 <small>niche 优化</small></h4>
+      <p>载荷里有不可能出现的取值时，编译器拿这些取值当标签用，标签就不再单独占字节。引用和 <code class='nw'>Box</code> 不可能是 0，所以 <code class='nw'>Option&lt;&amp;T&gt;</code>、<code class='nw'>Option&lt;Box&lt;T&gt;&gt;</code> 仍是 8 字节，全 0 表示 <code class='nw'>None</code>。<code class='nw'>u32</code> 的每个取值都可能出现，所以 <code class='nw'>Option&lt;u32&gt;</code> 是 8 字节：4 字节标签加 4 字节的数。</p>
+      <p class='like'><b>对应你熟悉的：</b>C 里用空指针表示“没有”。区别是 Rust 把这件事写进了类型，不先检查就取不出里面的指针。</p>
+      <div class='term-meta'><span>第 02 课出现</span></div>
+     </article>
+     <article class='term' id='term-layout' data-lesson='02'>
+      <h4>大小与对齐 <small><code class='nw'>size_of</code> 与 <code class='nw'>align_of</code></small></h4>
+      <p>每个类型有一个大小和一个对齐值：值的地址必须是对齐值的倍数，大小也要凑成对齐值的倍数，凑出来的空字节叫填充。struct 的对齐值取字段里最大的那个。为了少填充，Rust 默认可以重排字段：<code class='nw'>{ a: u8, b: u32, c: u8 }</code> 占 8 字节。用 <code class='nw'>size_of::&lt;T&gt;()</code>、<code class='nw'>align_of::&lt;T&gt;()</code> 查看。</p>
+      <p class='like'><b>对应你熟悉的：</b>C 的 <code class='nw'>sizeof</code> 与 <code class='nw'>alignof</code>。区别是 C 按声明顺序摆字段，上面的例子在 C 里是 12 字节。</p>
+      <div class='term-meta'><span>第 02 课出现</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/custom_types/structs.html'>教程 §3.1 Structures</a></div>
+     </article>
+     <article class='term' id='term-repr-c' data-lesson='02'>
+      <h4>#[repr(C)] <small>按 C 的规则摆字段</small></h4>
+      <p>写在 struct 上的属性，要求字段按声明顺序、照 C 的规则摆放。要把数据交给 C 代码读，或者要照着固定的文件格式读写时才需要；平时不加，让编译器自己排。</p>
+      <p class='like'><b>对应你熟悉的：</b>C 的 struct 默认就是这种布局。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 17 课展开</span></div>
+     </article>
+     <article class='term' id='term-recursive-type' data-lesson='02'>
+      <h4>递归类型</h4>
+      <p>定义里包含自己的类型，例如链表的节点里有下一个节点。直接包含会让大小无穷大，编译器报 <code class='nw'>E0072</code>；把里面那一个装进 <code class='nw'>Box</code>，这个位置就只占一个指针。</p>
+      <p class='like'><b>对应你熟悉的：</b>C 的 <code>struct Node { int v; struct Node *next; };</code>，同样必须经过指针。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 13 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/custom_types/enum/testcase_linked_list.html'>教程 §3.2.3 Testcase: linked-list</a></div>
+     </article>
+     <article class='term' id='term-type-alias' data-lesson='02'>
+      <h4>类型别名 <small><code class='nw'>type</code></small></h4>
+      <p><code class='nw'>type Bytes = Vec&lt;u8&gt;;</code> 给已有的类型另起一个名字。两个名字完全等价，不产生新类型。</p>
+      <p class='like'><b>对应你熟悉的：</b>C++ 的 <code>using Bytes = std::vector&lt;uint8_t&gt;;</code>；C 的 <code class='nw'>typedef</code>。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 03 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/types/alias.html'>教程 §5.4 Aliasing</a></div>
      </article>
      <article class='term' id='term-generics' data-lesson='01'>
       <h4>泛型 <small>尖括号里的 <code class='nw'>&lt;T&gt;</code></small></h4>
@@ -258,7 +409,7 @@
      </div>
     </div>
     <div class='term-group' data-cat='behave'>
-     <h3>trait 与方法<small>5 个</small></h3>
+     <h3>trait 与方法<small>7 个</small></h3>
      <div class='terms'>
      <article class='term' id='term-trait' data-lesson='01'>
       <h4>trait <small>不翻译</small></h4>
@@ -274,15 +425,27 @@
      </article>
      <article class='term' id='term-method-self' data-lesson='01'>
       <h4>方法与 self</h4>
-      <p>写在 <code class='nw'>impl</code> 块里、第一个参数是 <code class='nw'>self</code> 的函数。<code class='nw'>&amp;self</code> 表示只读地借用调用它的那个值，<code class='nw'>&amp;mut self</code> 表示可以修改它。</p>
+      <p>写在 <code class='nw'>impl</code> 块里、第一个参数是 <code class='nw'>self</code> 的函数，调用写作 <code class='nw'>value.method()</code>。<code class='nw'>&amp;self</code> 表示只读地借用调用它的那个值，<code class='nw'>&amp;mut self</code> 表示可以修改它，只写 <code class='nw'>self</code> 表示把这个值整个拿走。</p>
       <p class='like'><b>对应你熟悉的：</b>C++ 成员函数里的 <code class='nw'>this</code>，<code class='nw'>&amp;self</code> 相当于 <code class='nw'>const</code> 成员函数；Python 的 <code class='nw'>self</code>。</p>
       <div class='term-meta'><span>第 01 课出现</span><span class='later'>第 05 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/fn/methods.html'>教程 §9.1 Methods</a></div>
+     </article>
+     <article class='term' id='term-self-type' data-lesson='02'>
+      <h4>Self <small>当前类型</small></h4>
+      <p>在 <code class='nw'>impl</code> 块里，<code class='nw'>Self</code> 指这个块所属的类型。<code class='nw'>&amp;self</code> 就是 <code class='nw'>self: &amp;Self</code> 的简写。</p>
+      <p class='like'><b>对应你熟悉的：</b>C++ 成员函数里可以直接写自己的类名；Python 的 <code class='nw'>typing.Self</code>。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 05 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/fn/methods.html'>教程 §9.1 Methods</a></div>
      </article>
      <article class='term' id='term-derive' data-lesson='01'>
       <h4>derive <small>派生</small></h4>
       <p>一种属性。<code class='nw'>#[derive(Debug)]</code> 让编译器按类型的定义自动生成 <code class='nw'>impl Debug</code>。只有规则机械的 trait 才能这样生成。</p>
       <p class='like'><b>对应你熟悉的：</b>Python 的 <code class='nw'>@dataclass</code> 自动生成 <code class='nw'>__repr__</code>。</p>
       <div class='term-meta'><span>第 01 课出现</span><span class='later'>第 10 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/trait/derive.html'>教程 §16.1 Derive</a></div>
+     </article>
+     <article class='term' id='term-eq' data-lesson='02'>
+      <h4>PartialEq 与 Eq <small><code class='nw'>==</code> 用的 trait</small></h4>
+      <p><code class='nw'>PartialEq</code> 提供 <code class='nw'>==</code> 和 <code class='nw'>!=</code>，通常用 derive 生成。<code class='nw'>Eq</code> 不增加方法，只多一条承诺：任何值都等于它自己。浮点数的 NaN 不等于自己，所以带浮点字段的类型只能有 <code class='nw'>PartialEq</code>；字段全是整数这类的类型，两个都加。</p>
+      <p class='like'><b>对应你熟悉的：</b>C++ 的 <code class='nw'>operator==</code>，C++20 起可以写 <code class='nw'>= default</code> 让编译器生成；Python 的 <code class='nw'>__eq__</code>。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 10 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/trait/derive.html'>教程 §16.1 Derive</a></div>
      </article>
      <article class='term' id='term-orphan-rule' data-lesson='01'>
       <h4>孤儿规则 <small>orphan rule</small></h4>
@@ -293,13 +456,31 @@
      </div>
     </div>
     <div class='term-group' data-cat='own'>
-     <h3>所有权与引用<small>2 个</small></h3>
+     <h3>所有权与引用<small>8 个</small></h3>
      <div class='terms'>
+     <article class='term' id='term-ownership' data-lesson='02'>
+      <h4>所有权 <small>ownership</small></h4>
+      <p>每个值有且只有一个主人，通常是一个变量或一个字段。主人离开作用域时，值被销毁，它占着的堆内存等资源随之释放。赋值和传参默认把值交给新主人，见“移动”。</p>
+      <p class='like'><b>对应你熟悉的：</b>C++ 的 RAII，加上只能移动的 <code class='nw'>std::unique_ptr</code>。Rust 把这套规则用在所有值上。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 08 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/scope/raii.html'>教程 §15.1 RAII</a></div>
+     </article>
      <article class='term' id='term-borrow' data-lesson='01'>
       <h4>借用 <small>引用 <code class='nw'>&amp;T</code> 与 <code class='nw'>&amp;mut T</code></small></h4>
       <p><code class='nw'>&amp;T</code> 是只读的引用，<code class='nw'>&amp;mut T</code> 是可写的引用。拿着引用只是借着用，值的主人没有变。编译器会检查引用不会比它指向的值活得更久。</p>
       <p class='like'><b>对应你熟悉的：</b>C++ 的 <code class='nw'>const T&amp;</code> 与 <code class='nw'>T&amp;</code>，区别是 Rust 在编译期检查它们的有效性。</p>
       <div class='term-meta'><span>第 01 课出现</span><span class='later'>第 08 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/scope/borrow.html'>教程 §15.3 Borrowing</a></div>
+     </article>
+     <article class='term' id='term-deref' data-lesson='02'>
+      <h4>解引用 <small><code class='nw'>*r</code></small></h4>
+      <p>引用是一个地址，<code class='nw'>*r</code> 顺着地址取出那里的值。要的是 <code class='nw'>u32</code>、手里是 <code class='nw'>&amp;u32</code> 时就要写 <code class='nw'>*</code>，例如 <code class='nw'>n.checked_mul(*s)</code>。用 <code class='nw'>.</code> 取字段或调用方法时不用写，见“自动借用与自动解引用”。</p>
+      <p class='like'><b>对应你熟悉的：</b>C 的 <code class='nw'>*p</code>。C++ 的引用不需要这一步，因为它在每个用到的地方都自动解引用。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 08 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/scope/borrow.html'>教程 §15.3 Borrowing</a></div>
+     </article>
+     <article class='term' id='term-auto-deref' data-lesson='02'>
+      <h4>自动借用与自动解引用 <small><code class='nw'>.</code> 做的事</small></h4>
+      <p>用 <code class='nw'>.</code> 取字段或调用方法时，编译器自动补上需要的 <code class='nw'>&amp;</code> 和 <code class='nw'>*</code>。<code class='nw'>info.byte_len()</code> 就是 <code>TensorInfo::byte_len(&amp;info)</code>；<code class='nw'>self</code> 是引用时，<code class='nw'>self.shape</code> 就是 <code class='nw'>(*self).shape</code>。所以 Rust 没有 <code class='nw'>-&gt;</code>。传参和运算时不会自动补。</p>
+      <p class='like'><b>对应你熟悉的：</b>C 里要自己在 <code class='nw'>.</code> 和 <code class='nw'>-&gt;</code> 之间选；C++ 调用成员函数时自动传入 <code class='nw'>this</code>。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 05 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/fn/methods.html'>教程 §9.1 Methods</a></div>
      </article>
      <article class='term' id='term-move' data-lesson='01'>
       <h4>移动 <small>move</small></h4>
@@ -307,10 +488,28 @@
       <p class='like'><b>对应你熟悉的：</b>C++ 的 <code class='nw'>std::move</code>，区别是 Rust 的编译器禁止再使用被移走的变量。</p>
       <div class='term-meta'><span>第 01 课出现</span><span class='later'>第 08 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/scope/move.html'>教程 §15.2 Ownership and moves</a></div>
      </article>
+     <article class='term' id='term-copy-clone' data-lesson='02'>
+      <h4>Copy 与 Clone <small>两种复制</small></h4>
+      <p><code class='nw'>Copy</code> 标记“把字节照抄一份就算复制好了”的类型：数值、<code class='nw'>bool</code>、<code class='nw'>char</code>，以及字段全是这类类型的 struct 和 enum。这类值赋值和传参之后，原来的还能用，不发生移动。<code class='nw'>Clone</code> 提供 <code class='nw'>.clone()</code>，由你明确要一份副本；对 <code class='nw'>Vec</code> 来说要新分配内存并把元素抄一遍。带 <code class='nw'>Vec</code>、<code class='nw'>String</code>、<code class='nw'>Box</code> 字段的类型不能是 <code class='nw'>Copy</code>，编译器报 <code class='nw'>E0204</code>。</p>
+      <p class='like'><b>对应你熟悉的：</b><code class='nw'>Copy</code> 相当于 C++ 里可以 <code class='nw'>memcpy</code> 的类型；<code class='nw'>.clone()</code> 相当于调用复制构造函数，区别是 Rust 不会悄悄调用它。Python 的 <code class='nw'>copy.deepcopy</code>。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 10 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/trait/clone.html'>教程 §16.7 Clone</a></div>
+     </article>
+     <article class='term' id='term-box' data-lesson='02'>
+      <h4>Box <small><code class='nw'>Box&lt;T&gt;</code></small></h4>
+      <p>指向堆上一个值的指针，并且是这个值的主人：<code class='nw'>Box</code> 被销毁时，堆上的值随之释放。<code class='nw'>Box::new(x)</code> 把 <code class='nw'>x</code> 搬到堆上。<code class='nw'>Box&lt;u32&gt;</code> 本身只占 8 字节，不会是空指针。</p>
+      <p class='like'><b>对应你熟悉的：</b>C++ 的 <code class='nw'>std::unique_ptr&lt;T&gt;</code>；C 里 <code class='nw'>malloc</code> 得到、最后必须 <code class='nw'>free</code> 的指针。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 13 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/std/box.html'>教程 §19.1 Box, stack and heap</a></div>
+     </article>
+     <article class='term' id='term-lifetime' data-lesson='02'>
+      <h4>生命周期标注 <small><code class='nw'>'a</code></small></h4>
+      <p>写在引用类型里、以单引号开头的名字。它不改变任何值能活多久，只是告诉编译器哪几个引用有关联。<code>fn slice&lt;'a&gt;(&amp;self, data: &amp;'a [u8]) -&gt; Option&lt;&amp;'a [u8]&gt;</code> 的意思是：返回的切片指向 <code class='nw'>data</code> 里面，所以不能比 <code class='nw'>data</code> 用得更久。</p>
+      <p class='like'><b>对应你熟悉的：</b>C++ 没有对应的写法。“返回的引用指向哪个参数”在 C++ 里只能写在注释里，由调用方自己小心。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 09 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/scope/lifetime.html'>教程 §15.4 Lifetimes</a></div>
+     </article>
      </div>
     </div>
     <div class='term-group' data-cat='error'>
-     <h3>错误处理<small>3 个</small></h3>
+     <h3>错误处理<small>5 个</small></h3>
      <div class='terms'>
      <article class='term' id='term-result' data-lesson='01'>
       <h4>Result <small><code class='nw'>Ok</code> 与 <code class='nw'>Err</code></small></h4>
@@ -318,11 +517,23 @@
       <p class='like'><b>对应你熟悉的：</b>C 的返回码；C++23 的 <code class='nw'>std::expected</code>。</p>
       <div class='term-meta'><span>第 01 课出现</span><span class='later'>第 12 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/error/result.html'>教程 §18.4 <code class='nw'>Result</code></a></div>
      </article>
+     <article class='term' id='term-option' data-lesson='02'>
+      <h4>Option <small><code class='nw'>Some</code> 与 <code class='nw'>None</code></small></h4>
+      <p>表示“有或没有”的类型，取值是 <code class='nw'>Some(值)</code> 或 <code class='nw'>None</code>。它是标准库里一个普通的 enum，<code class='nw'>Some</code> 和 <code class='nw'>None</code> 不用写 <code class='nw'>Option::</code> 前缀就能用。想用里面的值，必须先处理 <code class='nw'>None</code> 的情况。</p>
+      <p class='like'><b>对应你熟悉的：</b>C++17 的 <code class='nw'>std::optional</code>；Python 里“返回值或 <code class='nw'>None</code>”的函数；C 里可能为空的指针。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 12 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/std/option.html'>教程 §19.4 <code class='nw'>Option</code></a></div>
+     </article>
      <article class='term' id='term-question-mark' data-lesson='01'>
       <h4>? 运算符</h4>
-      <p>写在一个 <code class='nw'>Result</code> 后面：成功就取出里面的值继续往下，失败就让当前函数立刻带着这个错误返回。</p>
+      <p>写在一个 <code class='nw'>Result</code> 或 <code class='nw'>Option</code> 后面：成功就取出里面的值继续往下；遇到 <code class='nw'>Err</code> 或 <code class='nw'>None</code>，就让当前函数立刻带着它返回。</p>
       <p class='like'><b>对应你熟悉的：</b>C 里的 <code class='nw'>if (ret &lt; 0) return ret;</code>。</p>
       <div class='term-meta'><span>第 01 课出现</span><span class='later'>第 12 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/error/result/enter_question_mark.html'>教程 §18.4.4 Introducing <code class='nw'>?</code></a></div>
+     </article>
+     <article class='term' id='term-unwrap' data-lesson='02'>
+      <h4>unwrap 与 expect</h4>
+      <p>取出 <code class='nw'>Some</code> 或 <code class='nw'>Ok</code> 里的值；遇到 <code class='nw'>None</code> 或 <code class='nw'>Err</code> 就 panic。写小试验时方便，但等于把“没有”当成不可能发生。本仓库的 Rust 代码禁止使用，要用 <code class='nw'>match</code>、<code class='nw'>?</code> 等写法处理。</p>
+      <p class='like'><b>对应你熟悉的：</b>C++ 里不检查就写 <code class='nw'>*opt</code>。区别是 Rust 这样做会 panic，而不是未定义行为。</p>
+      <div class='term-meta'><span>第 02 课出现</span><span class='later'>第 12 课展开</span><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/error/option_unwrap.html'>教程 §18.3 <code class='nw'>Option</code> &amp; <code class='nw'>unwrap</code></a></div>
      </article>
      <article class='term' id='term-panic' data-lesson='01'>
       <h4>panic <small>不翻译</small></h4>
@@ -381,6 +592,29 @@
     </div>
    </div>
    <p class='no-terms' id='no-terms' hidden>没有匹配的名词。换一个词试试，或者点“全部”。</p>
+  </div>
+  <div class='panel shorthand' id='shorthand'>
+   <h3>简写对照：你写的和编译器读到的</h3>
+   <p>Rust 只在展开方式唯一的地方允许省略。左边是平时的写法，右边是完整写法，两边完全等价。省掉的基本是 <code class='nw'>&amp;</code>、<code class='nw'>*</code>、类型和重复的名字；复制堆上的数据要写 <code class='nw'>.clone()</code>，数值类型转换要写 <code class='nw'>as</code>，这两样不会被省掉。</p>
+   <div class='table-wrap'>
+    <table>
+     <thead><tr><th scope='col'>你写的</th><th scope='col'>编译器读成</th><th scope='col'>相关名词</th></tr></thead>
+     <tbody>
+      <tr><td data-label='你写的'><code>fn byte_len(&amp;self)</code></td><td data-label='编译器读成'><code>fn byte_len(self: &amp;Self)</code></td><td data-label='相关名词'><a href='#term-method-self'>方法与 self</a>、<a href='#term-self-type'>Self</a></td></tr>
+      <tr><td data-label='你写的'><code>info.byte_len()</code></td><td data-label='编译器读成'><code>TensorInfo::byte_len(&amp;info)</code></td><td data-label='相关名词'><a href='#term-auto-deref'>自动借用与自动解引用</a></td></tr>
+      <tr><td data-label='你写的'><code>self.shape</code>，其中 <code>self</code> 是引用</td><td data-label='编译器读成'><code>(*self).shape</code></td><td data-label='相关名词'><a href='#term-auto-deref'>自动借用与自动解引用</a></td></tr>
+      <tr><td data-label='你写的'><code>for s in &amp;self.shape</code></td><td data-label='编译器读成'><code>for s in self.shape.iter()</code></td><td data-label='相关名词'><a href='#term-iterator'>迭代器</a></td></tr>
+      <tr><td data-label='你写的'><code>n.checked_mul(*s)?</code></td><td data-label='编译器读成'><code>match n.checked_mul(*s) { Some(v) =&gt; v, None =&gt; return None }</code></td><td data-label='相关名词'><a href='#term-question-mark'>? 运算符</a></td></tr>
+      <tr><td data-label='你写的'><code>Rectangle { top_left, bottom_right }</code></td><td data-label='编译器读成'><code>Rectangle { top_left: top_left, bottom_right: bottom_right }</code></td><td data-label='相关名词'><a href='#term-struct'>struct</a></td></tr>
+      <tr><td data-label='你写的'><code>let Point { x, y } = p;</code></td><td data-label='编译器读成'><code>let Point { x: x, y: y } = p;</code></td><td data-label='相关名词'><a href='#term-pattern'>模式与解构</a></td></tr>
+      <tr><td data-label='你写的'><code>format!("cuda:{index}")</code></td><td data-label='编译器读成'><code>format!("cuda:{}", index)</code></td><td data-label='相关名词'><a href='#term-format-string'>格式串与占位符</a></td></tr>
+      <tr><td data-label='你写的'>函数体最后一行写 <code>Some(n)</code></td><td data-label='编译器读成'><code>return Some(n);</code></td><td data-label='相关名词'><a href='#term-expression'>表达式与语句</a></td></tr>
+      <tr><td data-label='你写的'><code>let len = data.len();</code></td><td data-label='编译器读成'><code>let len: usize = data.len();</code></td><td data-label='相关名词'><a href='#term-let-mut'>let 与 mut</a></td></tr>
+      <tr><td data-label='你写的'><code>#[derive(Debug)]</code></td><td data-label='编译器读成'>编译器替你写出 <code>impl Debug for … { … }</code></td><td data-label='相关名词'><a href='#term-derive'>derive</a></td></tr>
+     </tbody>
+    </table>
+   </div>
+   <p class='subtle'>看不清一个变量是什么类型时，临时加一行 <code class='nw'>let probe: () = s;</code>。编译器会在 <code class='nw'>E0308</code> 里报出 <code class='nw'>s</code> 的真实类型，例如 <code>expected `()`, found `&amp;usize`</code>。看完把这一行删掉。</p>
   </div>
  </section>
 
@@ -506,7 +740,7 @@ rustc 生成可执行文件：linker `cc` not found
 
  <section class='section references' id='references' aria-labelledby='references-title'>
   <h2 id='references-title'>来源与适用范围</h2>
-  <p class='subtle'>名词表依据仓库内的 Rust by Example 快照和同版本（Rust 1.97.1）的标准库文档整理，收录到第 01 课，共 49 个。“对应你熟悉的”一栏是帮助理解的类比，不是严格等价；准确的规则以教程和各课的讲解为准。</p>
+  <p class='subtle'>名词表依据仓库内的 Rust by Example 快照和同版本（Rust 1.97.1）的标准库文档整理，收录到第 02 课，共 84 个。“对应你熟悉的”一栏是帮助理解的类比，不是严格等价；准确的规则以教程和各课的讲解为准。</p>
   <p class='subtle'>开发环境部分主要以 rustup 标准安装、官方 Rust 工具链和普通 Linux 原生程序为例。自定义工具链、跨平台编译和特殊构建系统可能采用不同路径。页面不维护课程进度或掌握状态。</p>
   <ol class='reference-list'>
    <li><a href='https://doc.rust-lang.org/1.97.1/rust-by-example/'>Rust by Example（1.97.1）：名词表的教程链接</a></li>

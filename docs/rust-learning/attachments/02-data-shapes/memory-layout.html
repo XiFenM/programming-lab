@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang='zh-CN'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<meta name='color-scheme' content='light dark'>
+<meta name='description' content='Rust 第 02 课图解：数组与切片的两个机器字、从 3.9 GB 的权重文件里取出一个张量、struct 的字段怎样摆放、enum 的标签与载荷、用 Box 串起来的链表。数字都来自 Rust 1.97.1 上的实测和真实的权重文件头。'>
+<title>Rust 值的内存布局</title>
+<style>
+/* 版式：单栏阅读页，最宽 1000px；每节一块可操作的示意图。颜色按角色分配：指针用蓝，长度用橙，数据与字段用绿，填充用斜纹，越界用红。 */
+:root{--bg:#f5f6f8;--surface:#fff;--ink:#203047;--muted:#526174;--line:#d7dfe8;--accent:#a54420;--accent-bg:#fff0e7;--blue:#215e9b;--blue-bg:#edf5ff;--green:#226849;--green-bg:#e9f6ee;--bad:#a3261e;--bad-bg:#fde8e5;--nav:#16283d;--sans:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans CJK SC','Microsoft YaHei',sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace}
+:root[data-theme='light']{color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme='light']){--bg:#121b27;--surface:#1b2736;--ink:#e6edf6;--muted:#b0bfd1;--line:#3c4d61;--accent:#f0a580;--accent-bg:#382a28;--blue:#96c6ff;--blue-bg:#22364d;--green:#8dd9ad;--green-bg:#20392f;--bad:#ffb0a6;--bad-bg:#45211e;--nav:#0e1723;color-scheme:dark}}
+:root[data-theme='dark']{--bg:#121b27;--surface:#1b2736;--ink:#e6edf6;--muted:#b0bfd1;--line:#3c4d61;--accent:#f0a580;--accent-bg:#382a28;--blue:#96c6ff;--blue-bg:#22364d;--green:#8dd9ad;--green-bg:#20392f;--bad:#ffb0a6;--bad-bg:#45211e;--nav:#0e1723;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:76px}
+body{margin:0;font-family:var(--sans);font-size:16px;line-height:1.8;background:var(--bg);color:var(--ink);font-synthesis:none}
+button,select{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:manipulation}
+button:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+a{color:var(--blue);text-underline-offset:3px}
+code,pre,.mono{font-family:var(--mono)}
+code{font-size:.9em;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:0 .3em;overflow-wrap:anywhere}
+h1,h2,h3{margin:0;line-height:1.35;text-wrap:balance}
+h1{font-size:clamp(1.7rem,4vw,2.3rem)}
+h2{font-size:clamp(1.3rem,3vw,1.6rem)}
+h3{font-size:1.02rem}
+p{margin:0;max-width:44em}
+.container{width:min(100% - 32px,1000px);margin-inline:auto}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--nav);color:#e6edf6}
+.topbar-inner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 20px;padding-block:10px}
+.brand{font-weight:700;letter-spacing:.02em;font-size:.95rem}
+.brand span{font-family:var(--mono);color:#f0a580;margin-right:.6em}
+.topbar nav{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:.9rem}
+.topbar nav a{color:#c5d2e2;text-decoration:none}
+.topbar nav a:hover,.topbar nav a:focus-visible{color:#fff}
+main{display:grid;gap:52px;padding-block:36px 64px}
+.hero{display:grid;gap:14px}
+.eyebrow{font-size:.82rem;letter-spacing:.1em;color:var(--muted)}
+.intro{color:var(--muted);font-size:1.03rem}
+section{display:grid;gap:16px;min-width:0}
+.sec-head{display:grid;gap:6px}
+.sec-head .where{font-size:.82rem;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px;display:grid;gap:20px;min-width:0}
+.panel>*{min-width:0}
+.row-label{font-size:.85rem;color:var(--muted);margin-bottom:6px}
+.row-label code{background:transparent;border:0;padding:0;color:var(--ink);font-size:.95em}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 14px;font-size:.88rem;min-height:38px;font-family:var(--mono)}
+.chips.plain button{font-family:var(--sans)}
+.chips button[aria-pressed='true']{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.cells{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;font-variant-numeric:tabular-nums}
+.cell{border:1px solid var(--line);border-radius:8px;padding:6px 2px 5px;text-align:center;display:grid;gap:1px;background:var(--bg);min-width:0}
+.cell small{font-family:var(--mono);font-size:.68rem;color:var(--muted);overflow-wrap:anywhere;line-height:1.5}
+.cell b{font-family:var(--mono);font-size:1.15rem;line-height:1.5}
+.cell.in{background:var(--green-bg);border-color:var(--green)}
+.cell.in b{color:var(--green)}
+.cell.ghost{border-style:dashed}
+.cell.ghost b{color:var(--muted)}
+.cell.hit{outline:3px solid var(--blue);outline-offset:1px}
+.cell.hit.bad{outline-color:var(--bad);background:var(--bad-bg);border-color:var(--bad)}
+.cell.hit.bad b{color:var(--bad)}
+.words{display:flex;flex-wrap:wrap;gap:6px;font-variant-numeric:tabular-nums}
+.word{border:1px solid;border-radius:8px;padding:6px 16px;display:grid;min-width:132px}
+.word small{font-size:.74rem;letter-spacing:.06em}
+.word b{font-family:var(--mono);font-size:1.05rem}
+.word.ptr{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+.word.len{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+.hint{font-size:.9rem;color:var(--muted)}
+.probe{display:grid;gap:10px;border-top:1px solid var(--line);padding-top:18px}
+.probe label{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:.92rem}
+.probe select{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:4px 10px;min-height:38px;font-family:var(--mono)}
+.outs{display:grid;gap:6px;margin:0}
+.outs div{display:grid;grid-template-columns:minmax(0,13.5em) minmax(0,1fr);gap:4px 14px;align-items:baseline;font-size:.92rem}
+.outs dt{color:var(--muted)}
+.outs dd{margin:0;font-family:var(--mono);font-size:.88rem;overflow-wrap:anywhere}
+.outs dd.bad{color:var(--bad)}
+.outs dd.ok{color:var(--green)}
+.table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:.92rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{font-weight:500;color:var(--muted);background:var(--bg);white-space:nowrap}
+td.num{text-align:right;font-family:var(--mono)}
+td:first-child{white-space:nowrap}
+.file{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(0,2.4fr);gap:4px;font-size:.82rem;text-align:center}
+.file div{border:1px solid var(--line);border-radius:8px;padding:8px 6px;background:var(--bg);min-width:0;overflow-wrap:anywhere;line-height:1.5}
+.file div b{display:block;font-family:var(--mono);font-size:.8rem;font-variant-numeric:tabular-nums}
+.file .data{background:var(--green-bg);border-color:var(--green)}
+.scale{position:relative;height:26px;border:1px solid var(--green);border-radius:6px;background:var(--green-bg);overflow:hidden}
+.scale i{position:absolute;top:0;bottom:0;min-width:3px;background:var(--blue)}
+.scale-ends{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.74rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.readout{display:grid;gap:12px;margin:0}
+.readout div{display:grid;gap:3px;min-width:0}
+.readout dt{font-size:.82rem;color:var(--muted)}
+.readout dd{margin:0;font-family:var(--mono);font-size:.86rem;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 12px;overflow-x:auto;white-space:pre;line-height:1.7;font-variant-numeric:tabular-nums}
+.flags{display:flex;flex-wrap:wrap;gap:8px;font-size:.84rem}
+.flags span{border-radius:999px;padding:1px 12px;background:var(--bad-bg);color:var(--bad);border:1px solid var(--bad)}
+.flags span.fine{background:var(--green-bg);color:var(--green);border-color:var(--green)}
+.bytes{display:grid;grid-template-columns:2.6em repeat(8,minmax(0,1fr));gap:3px;font-family:var(--mono);font-size:.72rem;max-width:560px}
+.bytes .off{color:var(--muted);align-self:center;font-variant-numeric:tabular-nums}
+.byte{height:34px;border-radius:5px;border:1px solid var(--line);display:grid;place-items:center;overflow:visible;white-space:nowrap;min-width:0}
+.byte.f0{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+.byte.f1{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+.byte.f2{background:var(--green-bg);border-color:var(--green);color:var(--green)}
+.byte.f3{background:var(--surface);border-color:var(--green);color:var(--green)}
+.byte.pad{background:repeating-linear-gradient(135deg,transparent 0 5px,var(--line) 5px 7px);color:var(--muted)}
+.byte.none{border-color:transparent}
+.legend{display:grid;gap:6px;margin:0;padding:0;list-style:none;font-size:.9rem}
+.legend li{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
+.legend i{width:14px;height:14px;border-radius:4px;border:1px solid;flex:0 0 auto}
+.legend .f0{background:var(--accent-bg);border-color:var(--accent)}
+.legend .f1{background:var(--blue-bg);border-color:var(--blue)}
+.legend .f2{background:var(--green-bg);border-color:var(--green)}
+.legend .f3{background:var(--surface);border-color:var(--green)}
+.legend .pad{background:repeating-linear-gradient(135deg,transparent 0 3px,var(--line) 3px 5px);border-color:var(--line)}
+.legend span{color:var(--muted);font-variant-numeric:tabular-nums}
+.verdict{font-weight:600}
+.bytes.hex .byte{font-variant-numeric:tabular-nums}
+.chain{display:flex;flex-wrap:wrap;gap:10px 8px;align-items:flex-end}
+.node{display:grid;gap:4px;min-width:0}
+.node>small{font-size:.76rem;color:var(--muted)}
+.node>div{display:grid;grid-template-columns:repeat(3,minmax(54px,auto));gap:3px;font-family:var(--mono);font-size:.8rem;text-align:center}
+.node span{border:1px solid;border-radius:6px;padding:5px 6px;display:grid;line-height:1.45}
+.node span small{font-family:var(--sans);font-size:.66rem}
+.node .tag{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+.node .elem{background:var(--green-bg);border-color:var(--green);color:var(--green)}
+.node .next{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+.node .void{border-color:var(--line);border-style:dashed;color:var(--muted)}
+.chain .arrow{align-self:center;color:var(--blue);font-family:var(--mono);padding-top:18px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.actions button{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 14px;min-height:38px;font-size:.9rem}
+.actions button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink);font-family:var(--mono)}
+.actions button:disabled{opacity:.45;cursor:default}
+.versus{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px}
+.versus>div{border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:8px;align-content:start;min-width:0;background:var(--bg)}
+.versus p{font-size:.92rem}
+.versus .no{border-color:var(--bad)}
+.versus .no h3{color:var(--bad)}
+.versus pre{margin:0;font-size:.8rem;line-height:1.6;overflow-x:auto;white-space:pre}
+.sub-head{display:grid;gap:6px}
+.arms{margin:0;font-family:var(--mono);overflow-x:auto;white-space:pre;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 0}
+.versus .arms{font-size:.78rem;line-height:1.75}
+.arms code{display:inline-block;min-width:100%;background:transparent;border:0;border-radius:0;padding:0;font-size:inherit;overflow-wrap:normal}
+.arms span{display:block;padding:0 12px 0 9px;border-left:3px solid transparent;color:var(--muted)}
+.arms .hit{background:var(--accent-bg);border-left-color:var(--accent);color:var(--ink)}
+.def{margin:0;font-family:var(--mono);font-size:.84rem;line-height:1.65;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 14px;overflow-x:auto;white-space:pre;max-width:560px}
+.treefig{border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:10px;min-width:0;background:var(--bg)}
+.treefig p{font-size:.92rem}
+.treefig pre{margin:0;font-size:.8rem;line-height:1.6;overflow-x:auto;white-space:pre}
+.tree{display:grid;gap:10px;min-width:0;max-width:440px}
+.tree .node>div{grid-template-columns:2fr 1fr 1fr}
+.kids{display:grid;gap:12px;margin-left:10px;padding-left:16px;border-left:2px solid var(--blue)}
+.kid{display:grid;gap:4px;min-width:0}
+.kid .via{font-size:.8rem;color:var(--blue)}
+.tree .node>div.two{grid-template-columns:1fr 1fr}
+.sources{font-size:.86rem;color:var(--muted);border-top:1px solid var(--line);padding-top:20px;gap:8px}
+.sources p{max-width:none;overflow-wrap:anywhere}
+@media(max-width:560px){.panel{padding:16px}.outs div{grid-template-columns:1fr}.word{min-width:0;flex:1 1 120px}.file{grid-template-columns:1fr}.cell b{font-size:1rem}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<header class='topbar'>
+ <div class='container topbar-inner'>
+  <div class='brand'><span>RUST 02</span>值的内存布局</div>
+  <nav aria-label='页面导航'><a href='#slice'>数组与切片</a><a href='#tensor'>取出一个张量</a><a href='#struct'>struct 的布局</a><a href='#enum'>enum</a><a href='#list'>链表与 Box</a></nav>
+ </div>
+</header>
+<main class='container'>
+ <section class='hero' aria-labelledby='page-title'>
+  <p class='eyebrow'>第 02 课 · 数据的形状</p>
+  <h1 id='page-title'>Rust 值的内存布局</h1>
+  <p class='intro'>一个值占几个字节，里面装着什么，哪些信息写在类型里、哪些带在值里。每一节都可以动手改一改，看字节怎么变。</p>
+ </section>
+
+ <section id='slice' aria-labelledby='slice-title'>
+  <div class='sec-head'>
+   <p class='where'>节点 3 · 教程 2.3 Arrays and Slices</p>
+   <h2 id='slice-title'>数组与切片</h2>
+   <p>数组的长度写在类型里，值就是那几个元素本身。切片是借来的一段元素，长度不在类型里，和指针一起带在值里。</p>
+  </div>
+  <div class='panel'>
+   <div>
+    <p class='row-label'>切哪一段</p>
+    <div class='chips' id='ranges' role='group' aria-label='切片范围'>
+     <button type='button' data-r='0,5'>&amp;xs</button>
+     <button type='button' data-r='1,4'>&amp;xs[1..4]</button>
+     <button type='button' data-r='0,2'>&amp;xs[..2]</button>
+     <button type='button' data-r='4,5'>&amp;xs[4..]</button>
+     <button type='button' data-r='5,5'>&amp;xs[5..]</button>
+    </div>
+   </div>
+   <div>
+    <p class='row-label'><code>xs: [i32; 5]</code>，栈上 20 字节，起始地址记作 p。虚线格是 xs 之后的内存，不属于它。</p>
+    <div class='cells' id='cells'></div>
+   </div>
+   <div>
+    <p class='row-label'><code>s: &amp;[i32]</code>，16 字节，两个机器字</p>
+    <div class='words'>
+     <div class='word ptr'><small>指针</small><b id='w-ptr'></b></div>
+     <div class='word len'><small>长度</small><b id='w-len'></b></div>
+    </div>
+   </div>
+   <p class='hint' id='slice-note'></p>
+   <div class='probe'>
+    <label for='probe-i'>读这一段的第几个元素：i =
+     <select id='probe-i'><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+    </label>
+    <dl class='outs'>
+     <div><dt>Rust：<code>s[i]</code></dt><dd id='o-index'></dd></div>
+     <div><dt>Rust：<code>s.get(i)</code></dt><dd id='o-get'></dd></div>
+     <div><dt>C：<code>a[i]</code>，<code>a</code> 只是一个指针</dt><dd id='o-c'></dd></div>
+    </dl>
+   </div>
+  </div>
+  <div class='table-scroll'>
+   <table>
+    <thead><tr><th>类型</th><th>字节</th><th>值里装着什么</th></tr></thead>
+    <tbody>
+     <tr><td><code>[i32; 5]</code></td><td class='num'>20</td><td>5 个 i32 本身。长度 5 写在类型里，不占空间</td></tr>
+     <tr><td><code>&amp;[i32; 5]</code></td><td class='num'>8</td><td>一个指针。长度仍然在类型里</td></tr>
+     <tr><td><code>&amp;[i32]</code></td><td class='num'>16</td><td>指针和长度。类型里没有长度，所以值要带着</td></tr>
+     <tr><td><code>&amp;str</code></td><td class='num'>16</td><td>指针和字节数，就是一段保证为 UTF-8 的字节切片</td></tr>
+     <tr><td><code>Vec&lt;i32&gt;</code></td><td class='num'>24</td><td>指针、容量和长度。它拥有堆上的那块数据</td></tr>
+    </tbody>
+   </table>
+  </div>
+ </section>
+
+ <section id='tensor' aria-labelledby='tensor-title'>
+  <div class='sec-head'>
+   <p class='where'>贯穿案例 · safetensors 的 <code>TensorInfo</code> 与 <code>TensorView</code></p>
+   <h2 id='tensor-title'>从 3.9 GB 的文件里取出一个张量</h2>
+   <p>Qwen2.5-7B-Instruct 的第一个权重分片。文件头给每个张量登记了类型、形状和它在数据区里的起止偏移；取张量就是在数据区上切一段，不复制。</p>
+  </div>
+  <div class='panel'>
+   <div>
+    <p class='row-label'>文件的三段（示意，不按比例）</p>
+    <div class='file'>
+     <div>头长 N<b>8 字节</b></div>
+     <div>文件头（JSON），登记 82 个张量<b>9,368 字节</b></div>
+     <div class='data'>数据区：所有张量的字节首尾相接<b>3,945,432,064 字节</b></div>
+    </div>
+   </div>
+   <div>
+    <p class='row-label'>选一个张量</p>
+    <div class='chips' id='tensors' role='group' aria-label='张量'></div>
+   </div>
+   <div>
+    <p class='row-label'>它在数据区里的位置（按比例；太窄的画成 3 像素）</p>
+    <div class='scale' aria-hidden='true'><i id='span'></i></div>
+    <div class='scale-ends'><span>0</span><span>3,945,432,064</span></div>
+   </div>
+   <dl class='readout'>
+    <div><dt>文件头里的这一条</dt><dd id='r-json'></dd></div>
+    <div><dt>读成 <code>TensorInfo</code>（48 字节）</dt><dd id='r-info'></dd></div>
+    <div><dt>校验：形状算出的字节数要等于止减起</dt><dd id='r-check'></dd></div>
+    <div><dt>交给使用者的 <code>TensorView</code> 里的 <code>data</code>（16 字节）</dt><dd id='r-view'></dd></div>
+   </dl>
+   <div class='flags' id='flags'></div>
+  </div>
+ </section>
+
+ <section id='struct' aria-labelledby='struct-title'>
+  <div class='sec-head'>
+   <p class='where'>节点 4 · 教程 3.1 Structures</p>
+   <h2 id='struct-title'>struct 的字段怎样摆</h2>
+   <p>每个字段的地址要满足自己的对齐，空出来的字节是填充。C 按声明顺序摆；Rust 默认只保证字段不重叠、各自对齐，顺序由编译器定。每格一个字节，每行 8 个。</p>
+  </div>
+  <div class='panel'>
+   <div>
+    <p class='row-label'>哪个类型</p>
+    <div class='chips' id='types' role='group' aria-label='类型'>
+     <button type='button' data-t='plain'>Plain { a: u8, b: u32, c: u8 }</button>
+     <button type='button' data-t='tv'>TensorView { dtype, shape, data }</button>
+    </div>
+   </div>
+   <div>
+    <p class='row-label'>怎样摆</p>
+    <div class='chips plain' id='reprs' role='group' aria-label='布局方式'>
+     <button type='button' data-m='rust'>Rust 默认</button>
+     <button type='button' data-m='c'>#[repr(C)]，按声明顺序</button>
+    </div>
+   </div>
+   <div class='bytes' id='bytes'></div>
+   <ul class='legend' id='legend'></ul>
+   <p class='verdict' id='verdict'></p>
+   <p class='hint' id='layout-note'></p>
+  </div>
+ </section>
+
+ <section id='enum' aria-labelledby='enum-title'>
+  <div class='sec-head'>
+   <p class='where'>节点 5 · 教程 3.2 Enums、3.2.2 C-like</p>
+   <h2 id='enum-title'>enum：标签加载荷</h2>
+   <p>一个 enum 的值在任一时刻只是其中一个变体。内存里要记两样：现在是哪个变体，叫标签；这个变体带的数据，叫载荷。所有变体共用同一块空间，所以大小由最大的变体决定。每格一个字节，格里是这个字节的十六进制值。</p>
+  </div>
+  <div class='panel'>
+   <div>
+    <p class='row-label'>哪个类型</p>
+    <div class='chips' id='etypes' role='group' aria-label='enum 类型'></div>
+   </div>
+   <div>
+    <p class='row-label'>定义</p>
+    <pre class='def' id='edef'></pre>
+   </div>
+   <div>
+    <p class='row-label'>现在的值</p>
+    <div class='chips' id='evars' role='group' aria-label='变体'></div>
+   </div>
+   <div class='bytes hex' id='ebytes'></div>
+   <ul class='legend' id='elegend'></ul>
+   <p class='verdict' id='everdict'></p>
+   <p class='hint' id='enote'></p>
+  </div>
+  <div class='panel' id='worker'>
+   <div class='sub-head'>
+    <h3>用 match 读出来：两层判断，一个模式</h3>
+    <p>路由器项目里 worker 的类型。只有 <code>Prefill</code> 带一个端口，而且端口可能没有，所以读它要判断两层：是不是 <code>Prefill</code>，端口是不是 <code>Some</code>。选一个值，看两种写法各走哪个分支。</p>
+   </div>
+   <div>
+    <p class='row-label'>定义</p>
+    <pre class='def'>// atom/mesh/src/core/worker.rs
+pub enum WorkerType {
+    Regular,
+    Prefill { bootstrap_port: Option&lt;u16&gt; },
+    Decode,
+}</pre>
+   </div>
+   <div>
+    <p class='row-label'>现在的值</p>
+    <div class='chips' id='wvals' role='group' aria-label='WorkerType 的值'></div>
+   </div>
+   <div class='bytes hex' id='wbytes'></div>
+   <ul class='legend' id='wlegend'></ul>
+   <div class='versus'>
+    <div>
+     <h3>上游的写法：match 套 match</h3>
+     <pre class='arms'><code id='wnested'></code></pre>
+     <p id='wnested-note'></p>
+    </div>
+    <div>
+     <h3>压平：一个嵌套的模式</h3>
+     <pre class='arms'><code id='wflat'></code></pre>
+     <p id='wflat-note'></p>
+    </div>
+   </div>
+   <p class='verdict' id='wout'></p>
+   <p class='hint'>两种写法输出相同，编译器对两种都检查有没有漏。压平的写法里删掉 <code>None</code> 那个分支，报 E0004，指出 <code>Prefill { bootstrap_port: None }</code> 没有覆盖。字段访问进不了 enum：写 <code>w.bootstrap_port</code> 报 E0609。</p>
+   <p class='hint'>内存里，这两层信息合在开头的 2 个字节里：0 和 1 是 <code>Prefill</code> 的两种情况，2 是 <code>Regular</code>，4 是 <code>Decode</code>。<code>Option&lt;u16&gt;</code> 自己的标签只用 0 和 1，编译器把另外两个变体记在同一个位置上，所以整个值只有 4 字节。</p>
+  </div>
+ </section>
+
+ <section id='list' aria-labelledby='list-title'>
+  <div class='sec-head'>
+   <p class='where'>节点 6 · 教程 3.2.3 Testcase: linked-list</p>
+   <h2 id='list-title'>用 Box 串起来的链表</h2>
+   <p><code>enum List { Cons(u32, Box&lt;List&gt;), Nil }</code>。每个节点 16 字节：标签、元素、指向下一个节点的 <code>Box</code>。<code>Box</code> 是一个 8 字节的指针，指向堆上它独占的那个值。</p>
+  </div>
+  <div class='panel'>
+   <div class='actions'>
+    <button type='button' class='primary' id='prepend'></button>
+    <button type='button' id='reset'>从空链表重来</button>
+   </div>
+   <div class='chain' id='chain'></div>
+   <p class='hint' id='list-note'></p>
+   <div class='versus'>
+    <div class='no'>
+     <h3>不加 Box：大小算不出来</h3>
+     <pre>enum List { Cons(u32, List), Nil }</pre>
+     <p>值就是数据本身。一个 <code>List</code> 里要放下另一个完整的 <code>List</code>，大小 = 4 + 它自己的大小，没有解。编译器报 E0072：recursive type `List` has infinite size。</p>
+    </div>
+    <div>
+     <h3>加 Box：大小固定</h3>
+     <pre>enum List { Cons(u32, Box&lt;List&gt;), Nil }</pre>
+     <p>里面放的不再是另一个 <code>List</code>，而是指向它的指针。指针的大小和它指向什么无关：标签 4 + 元素 4 + 指针 8 = 16 字节。</p>
+    </div>
+   </div>
+   <div class='treefig'>
+    <h3>同一个办法：二叉树</h3>
+    <pre>enum Tree { Leaf(u32), Node(Box&lt;Tree&gt;, Box&lt;Tree&gt;) }
+
+let t = Tree::Node(
+    Box::new(Tree::Leaf(1)),
+    Box::new(Tree::Leaf(2)),
+);</pre>
+    <p>这棵树在内存里是三个 16 字节的值。变量 <code>t</code> 里是两个指针，各指向堆上的一个叶子。格子的宽度按字节数画：指针和标签 8 字节，<code>u32</code> 4 字节。</p>
+    <div class='tree'>
+     <div class='node'><small>栈上，变量 t · 16 字节</small><div class='two'><span class='next'><small>第一个 Box</small>指针</span><span class='next'><small>第二个 Box</small>指针</span></div></div>
+     <div class='kids'>
+      <div class='kid'><p class='via'>第一个 Box 指向</p><div class='node'><small>堆上 · 16 字节</small><div><span class='tag'><small>标签</small>0 Leaf</span><span class='elem'><small>u32</small>1</span><span class='void'><small>用不到</small>·</span></div></div></div>
+      <div class='kid'><p class='via'>第二个 Box 指向</p><div class='node'><small>堆上 · 16 字节</small><div><span class='tag'><small>标签</small>0 Leaf</span><span class='elem'><small>u32</small>2</span><span class='void'><small>用不到</small>·</span></div></div></div>
+     </div>
+    </div>
+    <p class='hint'>叶子的前 8 字节是 0。<code>Box</code> 不会是 0，编译器就用“第一个 Box 的位置是 0”表示 <code>Leaf</code>，不另占标签。树再深，每个 <code>Tree</code> 值也是 16 字节，变多的只是堆上节点的个数。逐字节的样子在上面 enum 一节选 <code>Tree</code> 看。</p>
+   </div>
+  </div>
+ </section>
+
+ <section class='sources' aria-label='来源'>
+  <p>大小、偏移和报错文字实测于 <code>rustc 1.97.1 (8bab26f4f 2026-07-14)</code>，x86_64 Linux，用 <code>size_of</code>、<code>align_of</code>、<code>offset_of!</code> 和 <code>-Zprint-type-sizes</code> 读出。Rust 默认布局不属于语言的承诺，换一个编译器版本可能不同。</p>
+  <p>类型定义与切片那一行来自 safetensors 的 <code>safetensors/src/tensor.rs</code>，tag <code>v0.8.0</code>。文件头数字读自 Hugging Face 上 <code>Qwen/Qwen2.5-7B-Instruct</code> 的 <code>model-00001-of-00004.safetensors</code>，版本 <code>a09a35458c70</code>，2026-10-08。</p>
+  <p>enum 一节里的指针取值、链表一节的标签编号都读自一次真实运行。地址每次运行都不同，图里只是那一次的样子；<code>Cons</code> 记作 0、<code>Nil</code> 记作 1 也是这个编译器版本的选择。<code>RequestState</code> 和 <code>Tree</code> 是本课检查题里的两个类型，字节读自 2026-10-13 的一次运行。</p>
+  <p><code>WorkerType</code> 和 match 套 match 的写法来自 <code>ROCm/ATOM</code> 的 <code>atom/mesh/src/core/worker.rs</code>，提交 <code>43f5393</code>。压平的写法是本页改写的，四种取值上与原写法输出相同；它的 4 个字节同样读自 2026-10-13 的一次运行。</p>
+ </section>
+</main>
+<script>
+(function () {
+  function $(id) { return document.getElementById(id); }
+  function fmt(n) { return n.toLocaleString('en-US'); }
+  function press(group, match) {
+    Array.prototype.forEach.call(group.querySelectorAll('button'), function (b) {
+      b.setAttribute('aria-pressed', String(match(b)));
+    });
+  }
+
+  /* 数组与切片 */
+  var XS = [1, 2, 3, 4, 5];
+  var start = 1, end = 4, probe = 0;
+  function addr(k) { return k === 0 ? 'p' : 'p+' + 4 * k; }
+  function drawSlice() {
+    var len = end - start, k = start + probe, ok = probe < len, html = '';
+    for (var i = 0; i <= 5; i++) {
+      var cls = 'cell';
+      if (i === 5) cls += ' ghost';
+      if (i >= start && i < end) cls += ' in';
+      if (i === Math.min(k, 5)) cls += ' hit' + (ok ? '' : ' bad');
+      html += '<div class="' + cls + '"><small>' + addr(i) + '</small><b>' + (i < 5 ? XS[i] : '?') +
+        '</b><small>' + (i < 5 ? 'xs[' + i + ']' : '之外') + '</small></div>';
+    }
+    $('cells').innerHTML = html;
+    $('w-ptr').textContent = start === 0 ? 'p' : 'p + ' + 4 * start;
+    $('w-len').textContent = len;
+    $('slice-note').textContent = len === 0
+      ? '长度为 0 的切片是合法的。指针停在最后一个元素之后，但任何下标都过不了检查，所以它永远不会被读。'
+      : '这一段是 xs[' + start + '] 到 xs[' + (end - 1) + ']。取它只算出了一个新指针和一个新长度，没有复制任何元素。';
+    var oi = $('o-index'), og = $('o-get'), oc = $('o-c');
+    if (ok) {
+      oi.textContent = XS[k] + '    先比较 ' + probe + ' < ' + len + '，通过后读 指针 + 4×' + probe;
+      og.textContent = 'Some(&' + XS[k] + ')';
+      oc.textContent = XS[k] + '    直接读 a + 4×' + probe + '，不比较';
+    } else {
+      oi.textContent = 'panic：index out of bounds: the len is ' + len + ' but the index is ' + probe;
+      og.textContent = 'None';
+      oc.textContent = k < 5
+        ? XS[k] + '    读到了这一段之外的 xs[' + k + ']，没有任何提示'
+        : '未定义行为：读到 xs 之外的内存，没有任何提示';
+    }
+    oi.className = ok ? 'ok' : 'bad';
+    og.className = ok ? 'ok' : '';
+    oc.className = ok ? '' : 'bad';
+    press($('ranges'), function (b) { return b.dataset.r === start + ',' + end; });
+  }
+  $('ranges').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    var r = b.dataset.r.split(',');
+    start = +r[0]; end = +r[1];
+    drawSlice();
+  });
+  $('probe-i').addEventListener('change', function () { probe = +this.value; drawSlice(); });
+  probe = +$('probe-i').value;
+
+  /* 取出一个张量 */
+  var DATA_LEN = 3945432064, BITS = 16;
+  var TENSORS = [
+    { short: 'embed_tokens', name: 'model.embed_tokens.weight', shape: [152064, 3584], off: [0, 1089994752] },
+    { short: 'layers.0.input_layernorm', name: 'model.layers.0.input_layernorm.weight', shape: [3584], off: [1089994752, 1090001920] },
+    { short: 'layers.0.mlp.down_proj', name: 'model.layers.0.mlp.down_proj.weight', shape: [3584, 18944], off: [1090001920, 1225792512] },
+    { short: 'layers.0.mlp.gate_proj', name: 'model.layers.0.mlp.gate_proj.weight', shape: [18944, 3584], off: [1225792512, 1361583104] },
+    { short: '最后一条：layers.6.self_attn.v_proj', name: 'model.layers.6.self_attn.v_proj.weight', shape: [512, 3584], off: [3941762048, 3945432064] }
+  ];
+  var chosen = 0;
+  $('tensors').innerHTML = TENSORS.map(function (t, i) {
+    return '<button type="button" data-i="' + i + '">' + t.short + '</button>';
+  }).join('');
+  function drawTensor() {
+    var t = TENSORS[chosen], s = t.off[0], e = t.off[1];
+    var numel = t.shape.reduce(function (a, b) { return a * b; }, 1);
+    var bits = numel * BITS, bytes = bits / 8;
+    $('span').style.left = (s / DATA_LEN * 100) + '%';
+    $('span').style.width = ((e - s) / DATA_LEN * 100) + '%';
+    $('r-json').textContent = '"' + t.name + '":\n  {"dtype": "BF16", "shape": [' + t.shape.join(', ') + '], "data_offsets": [' + s + ', ' + e + ']}';
+    $('r-info').textContent = 'dtype:        Dtype::BF16\nshape:        vec![' + t.shape.join(', ') + ']\ndata_offsets: (' + fmt(s) + ', ' + fmt(e) + ')';
+    $('r-check').textContent = '元素数  ' + t.shape.map(fmt).join(' × ') + ' = ' + fmt(numel) +
+      '\n字节数  ' + fmt(numel) + ' × 16 位 ÷ 8 = ' + fmt(bytes) +
+      '\n止 − 起 ' + fmt(e) + ' − ' + fmt(s) + ' = ' + fmt(e - s) + (e - s === bytes ? '   一致' : '   不一致');
+    $('r-view').textContent = '&self.data[' + s + '..' + e + ']\n指针  数据区起点 + ' + fmt(s) + '\n长度  ' + fmt(e - s) + '\n复制  0 字节';
+    var flags = [];
+    if (bits > 4294967295) flags.push('位数 ' + fmt(bits) + ' 超过 u32 的上限 4,294,967,295');
+    if (s > 2147483647) flags.push('起始偏移超过 i32 的上限 2,147,483,647');
+    $('flags').innerHTML = flags.length
+      ? flags.map(function (f) { return '<span>' + f + '</span>'; }).join('')
+      : '<span class="fine">这一条的数字用 u32 也放得下</span>';
+    press($('tensors'), function (b) { return +b.dataset.i === chosen; });
+  }
+  $('tensors').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    chosen = +b.dataset.i;
+    drawTensor();
+  });
+
+  /* struct 的布局：每个字段 [名字, 类型, 偏移, 字节数, 颜色序号]，颜色按声明顺序固定 */
+  var LAYOUTS = {
+    plain: {
+      rust: { size: 8, align: 4, fields: [['b', 'u32', 0, 4, 1], ['a', 'u8', 4, 1, 0], ['c', 'u8', 5, 1, 2]] },
+      c: { size: 12, align: 4, fields: [['a', 'u8', 0, 1, 0], ['b', 'u32', 4, 4, 1], ['c', 'u8', 8, 1, 2]] },
+      verdict: { rust: '共 8 字节。', c: '共 12 字节，比默认多 4 字节。' },
+      note: {
+        rust: '编译器把 4 字节的 b 排到最前，两个 1 字节的字段挨在一起，只在末尾补 2 字节，让整个 struct 的大小是对齐 4 的倍数。',
+        c: 'b 必须落在 4 的倍数上，所以 a 后面空 3 字节；末尾再补 3 字节。同样的声明在 C 里也是 12 字节。'
+      }
+    },
+    tv: {
+      rust: { size: 48, align: 8, fields: [['shape', 'Vec<usize>', 0, 24, 1], ['data', '&[u8]', 24, 16, 2], ['dtype', 'Dtype', 40, 1, 0]] },
+      c: { size: 48, align: 8, fields: [['dtype', 'Dtype', 0, 1, 0], ['shape', 'Vec<usize>', 8, 24, 1], ['data', '&[u8]', 32, 16, 2]] },
+      verdict: { rust: '共 48 字节。', c: '共 48 字节，和默认一样大。' },
+      note: {
+        rust: 'shape 是 Vec 的三个字（指针、容量、长度），data 是切片的两个字，dtype 只有 1 字节，排在最后，后面补 7 字节。',
+        c: '只有一个小字段时，重排省不了空间：7 字节的填充从末尾挪到了 dtype 后面。'
+      }
+    }
+  };
+  var type = 'plain', mode = 'rust';
+  function drawLayout() {
+    var L = LAYOUTS[type][mode], owner = [], i, j, html = '', pad = 0;
+    for (i = 0; i < L.size; i++) owner.push(null);
+    L.fields.forEach(function (f) { for (j = 0; j < f[3]; j++) owner[f[2] + j] = f; });
+    for (i = 0; i < Math.ceil(L.size / 8) * 8; i++) {
+      if (i % 8 === 0) html += '<div class="off">+' + i + '</div>';
+      if (i >= L.size) { html += '<div class="byte none"></div>'; continue; }
+      var f = owner[i];
+      if (!f) { pad++; html += '<div class="byte pad">·</div>'; continue; }
+      html += '<div class="byte f' + f[4] + '">' + (i === f[2] ? f[0] : '') + '</div>';
+    }
+    $('bytes').innerHTML = html;
+    $('legend').innerHTML = L.fields.map(function (f) {
+      return '<li><i class="f' + f[4] + '"></i><code>' + f[0] + ': ' + f[1].replace(/</g, '&lt;') + '</code><span>偏移 ' + f[2] + '，' + f[3] + ' 字节</span></li>';
+    }).join('') + '<li><i class="pad"></i>填充<span>' + pad + ' 字节</span></li>';
+    $('verdict').textContent = LAYOUTS[type].verdict[mode] + ' 对齐 ' + L.align + '。';
+    $('layout-note').textContent = LAYOUTS[type].note[mode];
+    press($('types'), function (b) { return b.dataset.t === type; });
+    press($('reprs'), function (b) { return b.dataset.m === mode; });
+  }
+  $('types').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    type = b.dataset.t;
+    drawLayout();
+  });
+  $('reprs').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    mode = b.dataset.m;
+    drawLayout();
+  });
+
+  /* enum：每个值由若干段组成，段 = [说明, 颜色类, 偏移, 字节数, 值(十六进制字符串), 读作] */
+  function le(hex, n) {
+    var x = BigInt(hex), out = [];
+    for (var i = 0; i < n; i++) { out.push(Number(x & 255n)); x >>= 8n; }
+    return out;
+  }
+  var ENUMS = [
+    { id: 'device', label: 'Device', size: 8,
+      def: 'enum Device { Cpu, Cuda(u32) }',
+      note: '标签占 4 字节，载荷占 4 字节。Cpu 不带数据，这时后 4 个字节没有意义，也没有办法通过 Cpu 读到它们。',
+      values: [
+        { name: 'Device::Cpu', parts: [['标签', 'f0', 0, 4, '0x0', '0，表示 Cpu']] },
+        { name: 'Device::Cuda(3)', parts: [['标签', 'f0', 0, 4, '0x1', '1，表示 Cuda'], ['载荷：u32', 'f2', 4, 4, '0x3', '3']] }
+      ] },
+    { id: 'optu32', label: 'Option<u32>', size: 8,
+      def: '// 标准库的定义，这里 T 填的是 u32\nenum Option<T> { None, Some(T) }',
+      note: 'Option<u32> 本身就是一个 enum，两个变体是 None 和 Some。u32 的每一种取值都有意义，腾不出地方放标签，所以 Option<u32> 比 u32 大一倍。',
+      values: [
+        { name: 'None', parts: [['标签', 'f0', 0, 4, '0x0', '0，表示 None']] },
+        { name: 'Some(7)', parts: [['标签', 'f0', 0, 4, '0x1', '1，表示 Some'], ['载荷：u32', 'f2', 4, 4, '0x7', '7']] }
+      ] },
+    { id: 'optref', label: 'Option<&i32>', size: 8,
+      def: '// 标准库的定义，这里 T 填的是 &i32\nenum Option<T> { None, Some(T) }',
+      note: '引用永远不会是 0，编译器就用 0 表示 None，不另占标签。大小和一个普通指针一样，这就是 C 里可以为空的指针，区别是不先判断就用不了。',
+      values: [
+        { name: 'None', parts: [['指针的位置', 'f1', 0, 8, '0x0', '0，表示 None']] },
+        { name: 'Some(&x)', parts: [['指针', 'f1', 0, 8, '0x00007ffc14bc8a34', 'x 的地址']] }
+      ] },
+    { id: 'tree', label: 'Tree', size: 16,
+      def: 'enum Tree {\n    Leaf(u32),\n    Node(Box<Tree>, Box<Tree>),\n}',
+      note: '和 Option<&i32> 是同一种放法。Box 不会是 0，编译器用“第一个 Box 的位置是 0”表示 Leaf，不另占标签，所以是 16 字节。假如标签要单独放，就是标签 4 + 填充 4 + 两个指针 16 = 24 字节。Node 的两个指针各指向堆上另一个 16 字节的 Tree 值，树有多深都不影响这个值的大小。',
+      values: [
+        { name: 'Leaf(7)', parts: [['标签，占用第一个 Box 的位置', 'f0', 0, 8, '0x0', '0，表示 Leaf'], ['载荷：u32', 'f2', 8, 4, '0x7', '7']] },
+        { name: 'Node(Box::new(Leaf(1)), Box::new(Leaf(2)))', parts: [['载荷：第一个 Box，不是 0 就表示 Node', 'f1', 0, 8, '0x000064706593d1f0', '堆上 Leaf(1) 的地址'], ['载荷：第二个 Box', 'f1', 8, 8, '0x000064706593d1d0', '堆上 Leaf(2) 的地址']] }
+      ] },
+    { id: 'webevent', label: 'WebEvent', size: 24,
+      def: '// 教程 3.2 的例子\nenum WebEvent {\n    PageLoad,\n    PageUnload,\n    KeyPress(char),\n    Paste(String),\n    Click { x: i64, y: i64 },\n}',
+      note: '最大的变体 Paste(String) 占满 24 字节。String 的第一个字是容量，容量不会超过 0x7fff…ffff，更大的取值正好拿来给其余变体当标签，所以整个 enum 不比 String 大。',
+      values: [
+        { name: 'PageLoad', parts: [['标签，占用容量的位置', 'f0', 0, 8, '0x8000000000000000', '0x8000…0000']] },
+        { name: 'PageUnload', parts: [['标签，占用容量的位置', 'f0', 0, 8, '0x8000000000000001', '0x8000…0001']] },
+        { name: "KeyPress('x')", parts: [['标签，占用容量的位置', 'f0', 0, 8, '0x8000000000000002', '0x8000…0002'], ['载荷：char', 'f2', 8, 4, '0x78', "'x'"]] },
+        { name: 'Paste("my text")', parts: [['载荷：String 的容量', 'f2', 0, 8, '0x7', '7'], ['载荷：String 的指针', 'f1', 8, 8, '0x000060bd61d78d80', '堆上那 7 个字节的地址'], ['载荷：String 的长度', 'f2', 16, 8, '0x7', '7']] },
+        { name: 'Click { x: 20, y: 80 }', parts: [['标签，占用容量的位置', 'f0', 0, 8, '0x8000000000000004', '0x8000…0004'], ['载荷：x', 'f2', 8, 8, '0x14', '20'], ['载荷：y', 'f2', 16, 8, '0x50', '80']] }
+      ] },
+    { id: 'reqstate', label: 'RequestState', size: 24,
+      def: '// 检查题里一个请求的四种状态\nenum RequestState {\n    Queuing { enqueued_at: u64 },\n    Running { worker: u32, generated: u32 },\n    Finished { total: u32 },\n    Failed { error: String },\n}',
+      note: '和 WebEvent 是同一种放法：最大的变体 Failed 带一个 String，占满 24 字节，其余三个变体的标签借用 String 容量用不到的取值。字段名只存在于代码里，不占内存：Running 的 worker 和 generated 就是并排的两个 u32。同样的信息写成带 kind: u8 的 struct 是 48 字节。',
+      values: [
+        { name: 'Queuing { enqueued_at: 1791849600 }', parts: [['标签，占用容量的位置', 'f0', 0, 8, '0x8000000000000000', '0x8000…0000'], ['载荷：enqueued_at', 'f2', 8, 8, '0x6acd7480', '1791849600，即 2026-10-13 00:00:00 UTC 的秒数']] },
+        { name: 'Running { worker: 3, generated: 17 }', parts: [['标签，占用容量的位置', 'f0', 0, 8, '0x8000000000000001', '0x8000…0001'], ['载荷：worker', 'f2', 8, 4, '0x3', '3'], ['载荷：generated', 'f3', 12, 4, '0x11', '17']] },
+        { name: 'Finished { total: 500 }', parts: [['标签，占用容量的位置', 'f0', 0, 8, '0x8000000000000002', '0x8000…0002'], ['载荷：total', 'f2', 8, 4, '0x1f4', '500']] },
+        { name: 'Failed { error: "oom" }', parts: [['载荷：error 的容量', 'f2', 0, 8, '0x3', '3'], ['载荷：error 的指针', 'f1', 8, 8, '0x000064706593d010', '堆上那 3 个字节的地址'], ['载荷：error 的长度', 'f2', 16, 8, '0x3', '3']] }
+      ] },
+    { id: 'color', label: 'Color', size: 4,
+      def: '// 教程 3.2.2 的例子\nenum Color {\n    Red = 0xff0000,\n    Green = 0x00ff00,\n    Blue = 0x0000ff,\n}',
+      note: '没有变体带数据时，整个值就是标签，和 C 的枚举一样是一个整数。标签的值可以自己指定；最大的 0xff0000 要 3 个字节才放得下，编译器给了 4 字节。',
+      values: [
+        { name: 'Color::Red', parts: [['标签', 'f0', 0, 4, '0xff0000', '0xff0000']] },
+        { name: 'Color::Green', parts: [['标签', 'f0', 0, 4, '0x00ff00', '0x00ff00']] },
+        { name: 'Color::Blue', parts: [['标签', 'f0', 0, 4, '0x0000ff', '0x0000ff']] }
+      ] }
+  ];
+  var eType = 0, eVal = 1;
+  $('etypes').innerHTML = ENUMS.map(function (t, i) {
+    return '<button type="button" data-i="' + i + '">' + t.label.replace(/</g, '&lt;') + '</button>';
+  }).join('');
+  function drawEnum() {
+    var T = ENUMS[eType], V = T.values[eVal], cells = [], i, used = 0, html = '';
+    for (i = 0; i < T.size; i++) cells.push(null);
+    V.parts.forEach(function (p) {
+      var b = le(p[4], p[3]);
+      for (var j = 0; j < p[3]; j++) cells[p[2] + j] = [p[1], b[j]];
+      used += p[3];
+    });
+    for (i = 0; i < Math.ceil(T.size / 8) * 8; i++) {
+      if (i % 8 === 0) html += '<div class="off">+' + i + '</div>';
+      if (i >= T.size) { html += '<div class="byte none"></div>'; continue; }
+      html += cells[i]
+        ? '<div class="byte ' + cells[i][0] + '">' + ('0' + cells[i][1].toString(16)).slice(-2) + '</div>'
+        : '<div class="byte pad">·</div>';
+    }
+    $('ebytes').innerHTML = html;
+    $('evars').innerHTML = T.values.map(function (v, k) {
+      return '<button type="button" data-k="' + k + '" aria-pressed="' + (k === eVal) + '">' + v.name.replace(/</g, '&lt;') + '</button>';
+    }).join('');
+    $('elegend').innerHTML = V.parts.map(function (p) {
+      return '<li><i class="' + p[1] + '"></i>' + p[0] + '<span>偏移 ' + p[2] + '，' + p[3] + ' 字节，读作 ' + p[5] + '</span></li>';
+    }).join('') + (T.size > used ? '<li><i class="pad"></i>这个变体用不到<span>' + (T.size - used) + ' 字节</span></li>' : '');
+    $('everdict').textContent = '共 ' + T.size + ' 字节，哪个变体都一样大。';
+    $('enote').textContent = T.note;
+    $('edef').textContent = T.def;
+    press($('etypes'), function (b) { return +b.dataset.i === eType; });
+  }
+  $('etypes').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    eType = +b.dataset.i;
+    eVal = ENUMS[eType].values.length > 1 ? 1 : 0;
+    drawEnum();
+  });
+  $('evars').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    eVal = +b.dataset.k;
+    drawEnum();
+  });
+
+  /* WorkerType：同一个值，两种 match 写法各走哪些分支。每个分支是一组行。 */
+  var W_NESTED = [
+    ['match self {'],
+    ['    WorkerType::Regular => write!(f, "Regular"),'],
+    ['    WorkerType::Prefill { bootstrap_port } => match bootstrap_port {'],
+    ['        Some(port) => write!(f, "Prefill(bootstrap:{})", port),'],
+    ['        None => write!(f, "Prefill"),'],
+    ['    },'],
+    ['    WorkerType::Decode => write!(f, "Decode"),'],
+    ['}']
+  ];
+  var W_FLAT = [
+    ['match self {'],
+    ['    WorkerType::Regular => write!(f, "Regular"),'],
+    ['    WorkerType::Prefill { bootstrap_port: Some(port) } =>', '        write!(f, "Prefill(bootstrap:{})", port),'],
+    ['    WorkerType::Prefill { bootstrap_port: None } => write!(f, "Prefill"),'],
+    ['    WorkerType::Decode => write!(f, "Decode"),'],
+    ['}']
+  ];
+  var W_VALS = [
+    { name: 'Regular', tag: '0x2', reads: '2，表示 Regular', port: null, nested: [1], flat: [1], out: 'Regular',
+      nestedNote: '一步：外层的 Regular 分支。', flatNote: '一步：同一个分支。' },
+    { name: 'Prefill { bootstrap_port: Some(8998) }', tag: '0x1', reads: '1，表示 Prefill，并且端口是 Some', port: ['0x2326', '8998'], nested: [2, 3], flat: [2], out: 'Prefill(bootstrap:8998)',
+      nestedNote: '两步：外层分支确认是 Prefill，取出 bootstrap_port；内层分支确认它是 Some，取出 port。', flatNote: '一步：一个模式同时确认 Prefill 和 Some，并把 port 绑到 8998。' },
+    { name: 'Prefill { bootstrap_port: None }', tag: '0x0', reads: '0，表示 Prefill，并且端口是 None', port: null, nested: [2, 4], flat: [3], out: 'Prefill',
+      nestedNote: '两步：外层分支确认是 Prefill，内层走 None 分支。', flatNote: '一步：模式里直接写了 None。' },
+    { name: 'Decode', tag: '0x4', reads: '4，表示 Decode', port: null, nested: [6], flat: [4], out: 'Decode',
+      nestedNote: '一步：外层的 Decode 分支。', flatNote: '一步：同一个分支。' }
+  ];
+  var wVal = 1;
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function armsHtml(arms, hits) {
+    return arms.map(function (lines, i) {
+      var cls = hits.indexOf(i) >= 0 ? ' class="hit"' : '';
+      return lines.map(function (line) { return '<span' + cls + '>' + esc(line) + '</span>'; }).join('');
+    }).join('');
+  }
+  $('wvals').innerHTML = W_VALS.map(function (v, i) {
+    return '<button type="button" data-i="' + i + '">' + esc(v.name) + '</button>';
+  }).join('');
+  function drawWorker() {
+    var V = W_VALS[wVal], tag = le(V.tag, 2), port = V.port ? le(V.port[0], 2) : null, html = '<div class="off">+0</div>', i;
+    for (i = 0; i < 2; i++) html += '<div class="byte f0">' + ('0' + tag[i].toString(16)).slice(-2) + '</div>';
+    for (i = 0; i < 2; i++) html += port ? '<div class="byte f2">' + ('0' + port[i].toString(16)).slice(-2) + '</div>' : '<div class="byte pad">·</div>';
+    for (i = 0; i < 4; i++) html += '<div class="byte none"></div>';
+    $('wbytes').innerHTML = html;
+    $('wlegend').innerHTML = '<li><i class="f0"></i>标签，两层合在一起<span>偏移 0，2 字节，读作 ' + V.reads + '</span></li>' +
+      (port ? '<li><i class="f2"></i>载荷：端口<span>偏移 2，2 字节，读作 ' + V.port[1] + '</span></li>'
+            : '<li><i class="pad"></i>这个值用不到<span>2 字节</span></li>');
+    $('wnested').innerHTML = armsHtml(W_NESTED, V.nested);
+    $('wflat').innerHTML = armsHtml(W_FLAT, V.flat);
+    $('wnested-note').textContent = V.nestedNote;
+    $('wflat-note').textContent = V.flatNote;
+    $('wout').textContent = '两种写法都输出 ' + V.out + '。';
+    press($('wvals'), function (b) { return +b.dataset.i === wVal; });
+  }
+  $('wvals').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    wVal = +b.dataset.i;
+    drawWorker();
+  });
+
+  /* 链表：count 是已经 prepend 的元素个数，最多 4 个 */
+  var count = 3, MAX = 4;
+  function nodeHtml(place, elem, last) {
+    var body = elem === null
+      ? '<span class="tag"><small>标签</small>1 Nil</span><span class="void"><small>用不到</small>·</span><span class="void"><small>用不到</small>·</span>'
+      : '<span class="tag"><small>标签</small>0 Cons</span><span class="elem"><small>元素</small>' + elem + '</span><span class="next"><small>Box</small>指针</span>';
+    return '<div class="node"><small>' + place + ' · 16 字节</small><div>' + body + '</div></div>' + (last ? '' : '<span class="arrow" aria-hidden="true">→</span>');
+  }
+  function drawList() {
+    var html = '';
+    for (var e = count; e >= 1; e--) html += nodeHtml(e === count ? '栈上，变量 list' : '堆上', e, false);
+    html += nodeHtml(count === 0 ? '栈上，变量 list' : '堆上', null, true);
+    $('chain').innerHTML = html;
+    $('prepend').textContent = count < MAX ? 'list = list.prepend(' + (count + 1) + ')' : '演示到 4 个为止';
+    $('prepend').disabled = count >= MAX;
+    $('list-note').textContent = count === 0
+      ? 'List::new() 得到一个 Nil，就放在变量 list 里，还没有用到堆。'
+      : 'prepend 做了两件事：Box::new(self) 把原来的整个头节点搬到堆上，再在变量 list 里放一个新的头节点指向它。现在有 ' + count + ' 个元素，堆上分配了 ' + count + ' 次，其中一次只是为了放末尾的 Nil。';
+  }
+  $('prepend').addEventListener('click', function () { if (count < MAX) { count++; drawList(); } });
+  $('reset').addEventListener('click', function () { count = 0; drawList(); });
+
+  drawSlice();
+  drawTensor();
+  drawLayout();
+  drawEnum();
+  drawWorker();
+  drawList();
+}());
+</script>
+</body>
+</html>
