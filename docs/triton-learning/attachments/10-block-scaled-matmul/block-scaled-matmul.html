@@ -1,0 +1,2307 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Triton 第 10 课图解。节点 1：浮点格式的统一公式与位段，尾数怎样切开一档，FP64 到 FP4、E8M0 的位元探索器（点位看值、输入一个数看舍入与溢出），各格式的范围（按档计）与间距对照，FP8 的 E4M3 与 E5M2、OCP 与 AMD MI300 两种 E4M3，FP4 的全部取值、舍入区间与数档的两种数法。节点 2：三种挑 scale 的办法（含 NVFP4 每张量 scale 只平移、不加宽，块 scale 下溢时整块变 0），每块一个 scale 与整行一个 scale 的对照。节点 4：scale 的 5D 预排布局（逻辑视图与 512 字节块的对应，块在显存、SMEM 与 TMEM 里的排法相同；第 220 行的 reshape 与 trans 只换下标、不动字节，附编译产物）；五维形状逐维看（选一维，看它在存储与逻辑矩阵里怎么走；形状链里每个数字按硬件、TMA 规则、输入大小与分块着色）。节点 5：同一个 tl.dot_scaled 在 B200、RTX 5090、RTX 4090、MI355X、MI300X 上的落地（支持矩阵、数据与 scale 的路径、scale 的位置与选法、代价，均来自编译探测）。">
+<title>块缩放矩阵乘图解</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@700&display=swap">
+
+<style>
+[hidden]{display:none!important}
+body{margin:0}
+/* 布局：单栏长页，顶部固定导航；每节先给一句结论，再给图，图下是读图要点。沿用第 07–09 课图解页的色板与组件；位段配色：符号 epi、指数 lib、尾数 accent。 */
+:root{
+  --bg:#f3f4ef;--surface:#ffffff;--surface-2:#eceee6;--ink:#1b222c;--muted:#5a6370;--line:#d3d8cc;
+  --accent:#c2530a;--accent-soft:#fbe5d3;--accent-ink:#ffffff;
+  --lib:#3f4fb8;--lib-soft:#e4e7fb;
+  --epi:#8a6d00;--epi-soft:#f3e8c8;
+  --blk:#23775a;--blk-soft:#d9efe5;
+  --sans:"Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  --serif:"Noto Serif SC","Songti SC","SimSun",serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#11151b;--surface:#1a2028;--surface-2:#222a34;--ink:#e5e9ee;--muted:#a2acb8;--line:#343e4a;
+    --accent:#ff9a57;--accent-soft:#4a2a17;--accent-ink:#1b1208;
+    --lib:#aab5ff;--lib-soft:#262c52;
+    --epi:#e6c65a;--epi-soft:#3d3520;
+    --blk:#7fd6ae;--blk-soft:#1d3a30;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#11151b;--surface:#1a2028;--surface-2:#222a34;--ink:#e5e9ee;--muted:#a2acb8;--line:#343e4a;
+  --accent:#ff9a57;--accent-soft:#4a2a17;--accent-ink:#1b1208;
+  --lib:#aab5ff;--lib-soft:#262c52;
+  --epi:#e6c65a;--epi-soft:#3d3520;
+  --blk:#7fd6ae;--blk-soft:#1d3a30;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.8}
+button,input{font:inherit;color:inherit}
+code,pre,.mono{font-family:var(--mono);font-variant-ligatures:none}
+code{font-size:.9em;background:var(--surface-2);padding:.08em .35em;border-radius:4px}
+a{color:var(--accent)}
+h1,h2,h3{text-wrap:balance;line-height:1.35}
+h1,h2{font-family:var(--serif);font-weight:700}
+h1{font-size:clamp(1.9rem,4.4vw,2.7rem);margin:0}
+h2{font-size:clamp(1.4rem,3vw,1.85rem);margin:0}
+h3{font-size:1.08rem;margin:0}
+p{margin:0;max-width:46em}
+ul,ol{margin:0;padding-left:1.4em;display:grid;grid-template-columns:minmax(0,1fr);gap:6px;max-width:48em}
+li code{overflow-wrap:anywhere}
+.wrap{max-width:1060px;margin-inline:auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:10px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:.95rem;letter-spacing:.02em}
+.brand span{font-family:var(--mono);color:var(--accent);margin-right:.5em}
+.topbar nav{display:flex;gap:18px;flex-wrap:wrap;font-size:.9rem}
+.topbar nav a{color:var(--muted);text-decoration:none}
+.topbar nav a:hover,.topbar nav a:focus-visible{color:var(--ink)}
+main{display:grid;gap:64px;padding-block:40px 72px}
+section{display:grid;grid-template-columns:minmax(0,1fr);gap:20px}
+.eyebrow{font-size:.8rem;letter-spacing:.12em;color:var(--muted);font-weight:500}
+.lede{font-size:1.06rem;color:var(--muted)}
+.keyline{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 18px;max-width:52em}
+.keyline b{color:var(--accent)}
+.sec-head{display:grid;gap:8px}
+.sec-head .tag{font-family:var(--mono);font-size:.8rem;color:var(--accent);letter-spacing:.06em}
+figure{margin:0;display:grid;gap:10px;min-width:0}
+figcaption{font-size:.9rem;color:var(--muted);max-width:52em}
+.fig-scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
+.fig-scroll svg{display:block;height:auto}
+.fig-scroll.fit svg{width:100%;min-width:640px}
+svg.dia{color:var(--ink);font-family:var(--sans);font-size:13px}
+svg.dia text{fill:currentColor}
+svg.dia .sm{font-size:11.5px}
+svg.dia .xs{font-size:10.5px}
+svg.dia .b{font-weight:700}
+svg.dia .m{font-family:var(--mono);font-size:11px}
+svg.dia .mu{fill:var(--muted)}
+svg.dia .ac{fill:var(--accent)}
+svg.dia .axis{stroke:var(--muted);stroke-width:1;fill:none}
+svg.dia .tick{stroke:var(--line);stroke-width:1;fill:none}
+svg.dia .one{stroke:var(--accent);stroke-width:1;stroke-dasharray:2 3;fill:none}
+svg.dia .guide{stroke:var(--muted);stroke-width:1;stroke-dasharray:4 3;fill:none}
+svg.dia .pt{fill:var(--lib)}
+svg.dia .pt-sub{fill:var(--surface);stroke:var(--lib);stroke-width:1.4}
+svg.dia .pt-cur{fill:none;stroke:var(--accent);stroke-width:2.4}
+svg.dia .mark-in{stroke:var(--accent);stroke-width:1.4;stroke-dasharray:4 3;fill:none}
+svg.dia .band-n{fill:var(--lib)}
+svg.dia .band-s{fill:var(--lib-soft);stroke:var(--lib);stroke-width:1}
+svg.dia .band-x{fill:var(--epi)}
+svg.dia .arrow{fill:var(--muted)}
+svg.dia .seg-s{fill:var(--epi-soft);stroke:var(--epi);stroke-width:1.2}
+svg.dia .seg-e{fill:var(--lib-soft);stroke:var(--lib);stroke-width:1.2}
+svg.dia .seg-m{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.2}
+svg.dia .seg-u{fill:none;stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
+svg.dia .cap-a{fill:var(--accent-soft)}
+svg.dia .cap-b{fill:var(--lib-soft)}
+svg.dia .cap-o{fill:var(--surface-2)}
+svg.dia .tick-in{stroke:var(--muted);stroke-width:.8;fill:none}
+table.steps{min-width:0;width:100%;max-width:56em}
+svg.dia .zone{fill:var(--accent-soft)}
+svg.dia .grid-t{stroke:var(--lib);stroke-width:1.6;fill:none}
+svg.dia .amax{stroke:var(--accent);stroke-width:1.6;stroke-dasharray:5 3;fill:none}
+svg.dia .zx{stroke:var(--accent);stroke-width:1.8;fill:none}
+svg.dia .errl{stroke:var(--accent);stroke-width:1;fill:none;opacity:.7}
+svg.dia .bsep{stroke:var(--muted);stroke-width:1;stroke-dasharray:4 3;fill:none}
+svg.dia .zero{stroke:var(--line);stroke-width:1;fill:none}
+.legend .k-o{border-radius:50%;width:11px;height:11px;background:var(--surface);border-color:var(--lib)}
+.legend .k-d{border-radius:50%;width:9px;height:9px;background:var(--lib);border-color:var(--lib)}
+.legend .k-z{border:0;width:auto;height:auto;margin-right:4px;color:var(--accent);font-style:normal;font-weight:700}
+table.rules{min-width:720px}
+table.steps td:first-child{white-space:nowrap;color:var(--muted);width:11em}
+table.steps td:last-child{font-family:var(--mono);font-size:.84rem;overflow-wrap:anywhere}
+.concepts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:grid;gap:12px;align-content:start;min-width:0}
+.card h3{display:flex;gap:10px;align-items:baseline}
+.card h3 .n{font-family:var(--mono);color:var(--accent);font-size:.85rem}
+.card p{font-size:.95rem}
+pre{margin:0;background:var(--surface-2);border-radius:8px;padding:12px 14px;overflow-x:auto;font-size:.82rem;line-height:1.65}
+pre .c{color:var(--muted)}
+pre .keep{color:var(--accent);font-weight:600}
+.controls{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.9rem;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:0;background:var(--surface);padding:6px 12px;cursor:pointer;font-size:.88rem;color:var(--ink)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.seg button:disabled{color:var(--muted);cursor:not-allowed;opacity:.55}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px}
+.readout div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:grid;gap:2px;min-width:0}
+.readout span{font-size:.82rem;color:var(--muted)}
+.readout b{font-family:var(--mono);font-weight:600;font-variant-numeric:tabular-nums;font-size:1.02rem;overflow-wrap:anywhere}
+.readout .e b{color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.84rem;color:var(--muted)}
+.legend i{display:inline-block;width:18px;height:12px;border-radius:2px;margin-right:6px;vertical-align:-1px;border:1.2px solid var(--muted)}
+.legend .k-s{background:var(--epi-soft);border-color:var(--epi)}
+.legend .k-e{background:var(--lib-soft);border-color:var(--lib)}
+.legend .k-m{background:var(--accent-soft);border-color:var(--accent)}
+.legend .k-u{border-style:dashed}
+.legend .k-n{background:var(--lib);border-color:var(--lib)}
+.legend .k-sub{background:var(--lib-soft);border-color:var(--lib)}
+.legend .k-x{background:var(--epi);border-color:var(--epi)}
+.legend .k-cur{border-color:var(--accent);border-width:2px;border-radius:50%;width:12px}
+.note{font-size:.93rem;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px;max-width:52em}
+.note b{color:var(--accent)}
+.tbl-scroll{overflow-x:auto}
+table{border-collapse:collapse;min-width:640px;font-size:.88rem;background:var(--surface)}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--surface-2);font-weight:500}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+td code,th code{white-space:nowrap}
+tr.hl td{background:var(--accent-soft)}
+table.params{min-width:1120px}
+table.params td:nth-child(9){min-width:8.5em}
+table.params td:last-child{min-width:14em}
+.card.wide{grid-column:1/-1}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px;align-items:start}
+.pair>*{min-width:0}
+footer{border-top:1px solid var(--line);padding-block:24px 40px;font-size:.84rem;color:var(--muted)}
+footer ul{margin-top:8px;gap:4px}
+/* 位元探索器 */
+.bits{display:flex;gap:14px;align-items:flex-start;width:max-content}
+.bits .grp{display:grid;gap:6px;justify-items:start}
+.bits .cells{display:flex;gap:3px}
+.bits .cap{font-size:.78rem;color:var(--muted);white-space:nowrap}
+.bit{width:26px;height:34px;border-radius:5px;border:1.5px solid var(--muted);background:var(--surface);font-family:var(--mono);font-weight:600;font-size:.95rem;cursor:pointer;padding:0;display:grid;place-items:center;font-variant-numeric:tabular-nums;color:var(--muted)}
+.bit.f-s{border-color:var(--epi)}
+.bit.f-e{border-color:var(--lib)}
+.bit.f-m{border-color:var(--accent)}
+.bit.on{color:var(--ink)}
+.bit.f-s.on{background:var(--epi-soft)}
+.bit.f-e.on{background:var(--lib-soft)}
+.bit.f-m.on{background:var(--accent-soft)}
+.inrow{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+.inrow label{font-size:.9rem;color:var(--muted)}
+.inrow input{width:12em;max-width:100%;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;font-family:var(--mono);font-size:.95rem}
+.btn{border:1px solid var(--ink);background:var(--ink);color:var(--bg);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:.9rem}
+pre.formula{white-space:pre;font-size:.84rem}
+.codes{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;min-width:560px}
+.codes div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 4px;display:grid;gap:0;justify-items:center}
+.codes span{font-family:var(--mono);font-size:.76rem;color:var(--muted)}
+.codes b{font-family:var(--mono);font-size:1rem;font-variant-numeric:tabular-nums}
+/* 节点 4：scale 的预排布局 */
+.rng{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--muted)}
+.rng input[type=range]{width:min(200px,52vw);accent-color:var(--accent)}
+.rng output{font-family:var(--mono);color:var(--ink);min-width:2.2em;font-variant-numeric:tabular-nums}
+svg.dia .g0{fill:var(--lib-soft)}
+svg.dia .g1{fill:var(--epi-soft)}
+svg.dia .g2{fill:var(--accent-soft)}
+svg.dia .g3{fill:var(--surface-2)}
+svg.dia .byte{stroke:var(--surface);stroke-width:1}
+svg.dia .cellsep{stroke:var(--surface);stroke-width:1;fill:none}
+svg.dia .wordsep{stroke:var(--muted);stroke-width:1.2;fill:none}
+svg.dia .chunk{stroke:var(--ink);stroke-width:1.4;stroke-dasharray:5 3;fill:none}
+svg.dia .selrow{fill:var(--ink);opacity:.16}
+svg.dia .sel{stroke:var(--ink);stroke-width:2.2;fill:none}
+svg.dia .mma{stroke:var(--accent);stroke-width:1.8;fill:none}
+svg.dia .link{stroke:var(--ink);stroke-width:1.3;stroke-dasharray:4 3;fill:none}
+svg.dia .dot{fill:var(--ink)}
+svg.dia .plate{fill:var(--surface)}
+svg.dia .hit{fill:transparent;cursor:pointer}
+.legend .k-g0{background:var(--lib-soft);border-color:var(--lib)}
+.legend .k-g1{background:var(--epi-soft);border-color:var(--epi)}
+.legend .k-g2{background:var(--accent-soft);border-color:var(--accent)}
+.legend .k-g3{background:var(--surface-2);border-color:var(--muted)}
+.legend .k-chunk{background:transparent;border:1.4px dashed var(--ink)}
+.legend .k-mma{background:transparent;border:1.8px solid var(--accent)}
+table.lysteps{min-width:760px}
+table.lysteps td.same{color:var(--accent);font-family:var(--mono);white-space:nowrap}
+/* 节点 4 补充：五维形状逐维看 */
+svg.dia .dm-box{fill:var(--surface-2);stroke:var(--line);stroke-width:1}
+svg.dia .dm-byte{fill:var(--surface-2);stroke:var(--surface);stroke-width:1}
+svg.dia .dm-cur{fill:var(--accent)}
+svg.dia .dm-fib{fill:var(--ink);opacity:.22}
+svg.dia .dm-fibo{stroke:var(--ink);stroke-width:1.4;fill:none}
+svg.dia .dm-tma{stroke:var(--ink);stroke-width:1.8;stroke-dasharray:5 3;fill:none}
+svg.dia .on-ac{fill:var(--accent-ink)}
+.legend .k-dcur{background:var(--accent);border-color:var(--accent)}
+.legend .k-dfib{background:var(--surface-2);background:color-mix(in srgb,var(--ink) 22%,var(--surface-2));border-color:var(--ink)}
+.legend .k-dbox{background:transparent;border:1.8px dashed var(--ink)}
+.legend .k-chw{background:var(--lib-soft);border-color:var(--lib)}
+.legend .k-ctma{background:var(--epi-soft);border-color:var(--epi)}
+.legend .k-cin{background:var(--accent-soft);border-color:var(--accent)}
+.legend .k-cblk{background:var(--blk-soft);border-color:var(--blk)}
+.legend .k-cph{border-style:dashed}
+.legend .k-con{background:transparent;border:2.4px solid var(--ink)}
+table.chain{min-width:900px}
+table.chain td{vertical-align:middle}
+table.chain td:first-child{min-width:10.5em}
+table.chain td small{display:block;color:var(--muted);font-size:.78rem}
+table.chain td:nth-child(2){min-width:15em}
+table.chain td code{white-space:normal;overflow-wrap:break-word}
+table.chain td.idx{font-family:var(--mono);font-size:.84rem;white-space:nowrap}
+.shape{display:inline-flex;align-items:stretch;gap:4px;font-family:var(--mono)}
+.shape .br{align-self:center;color:var(--muted);font-size:1.1rem}
+.dc{display:inline-grid;justify-items:center;align-content:center;min-width:2.5em;padding:2px 6px;border-radius:6px;border:1.4px solid var(--muted);background:var(--surface);line-height:1.25;font-family:var(--mono)}
+.dc b{font-weight:600;font-size:.95rem;font-variant-numeric:tabular-nums}
+.dc i{font-style:normal;font-size:.7rem;color:var(--muted);white-space:nowrap}
+.dc.hw{border-color:var(--lib);background:var(--lib-soft)}
+.dc.tma{border-color:var(--epi);background:var(--epi-soft)}
+.dc.in{border-color:var(--accent);background:var(--accent-soft)}
+.dc.blk{border-color:var(--blk);background:var(--blk-soft)}
+.dc.ph{border-style:dashed}
+.dc.on{outline:2.4px solid var(--ink);outline-offset:1px}
+button.dc{cursor:pointer}
+button.dc:focus-visible{outline:2.4px solid var(--accent);outline-offset:1px}
+/* 节点 5：五种落地 */
+table.tgt{min-width:820px}
+table.tgt td,table.tgt th{text-align:center;vertical-align:middle}
+table.tgt td:first-child,table.tgt th:first-child{text-align:left;white-space:nowrap}
+table.tgt td:first-child small{display:block;color:var(--muted);font-size:.78rem}
+table.tgt button{display:grid;gap:2px;justify-items:center;width:100%;border:1.4px solid var(--line);border-radius:8px;padding:6px 6px;background:var(--surface);cursor:pointer;font:inherit;color:inherit;line-height:1.3}
+table.tgt button b{font-size:.86rem;font-weight:600}
+table.tgt button i{font-style:normal;font-size:.72rem;color:var(--muted);font-family:var(--mono)}
+table.tgt button.st-N{background:var(--lib-soft);border-color:var(--lib)}
+table.tgt button.st-S{background:var(--epi-soft);border-color:var(--epi)}
+table.tgt button.st-F{background:var(--surface-2);border-style:dashed;border-color:var(--muted)}
+table.tgt button.st-F b{color:var(--muted)}
+table.tgt button[aria-pressed="true"]{outline:2.4px solid var(--ink);outline-offset:1px}
+table.tgt button:focus-visible{outline:2.4px solid var(--accent);outline-offset:1px}
+.legend .k-sn{background:var(--lib-soft);border-color:var(--lib)}
+.legend .k-ss{background:var(--epi-soft);border-color:var(--epi)}
+.legend .k-sf{background:var(--surface-2);border-style:dashed}
+svg.dia .t5-cell{fill:var(--surface-2);stroke:var(--line);stroke-width:1.2}
+svg.dia .t5-skip{fill:none;stroke:var(--line);stroke-width:1.2;stroke-dasharray:4 3}
+svg.dia .t5-unit-N{fill:var(--lib-soft);stroke:var(--lib);stroke-width:1.6}
+svg.dia .t5-unit-S{fill:var(--epi-soft);stroke:var(--epi);stroke-width:1.6}
+svg.dia .t5-conv{fill:var(--epi-soft);stroke:var(--epi);stroke-width:1.6}
+svg.dia .t5-tmem{fill:var(--lib-soft);stroke:var(--lib);stroke-width:1.2}
+svg.dia .t5-fail{fill:var(--surface);stroke:var(--accent);stroke-width:1.8;stroke-dasharray:6 4}
+svg.dia .t5-arrow{stroke:var(--muted);stroke-width:1.4;fill:none}
+svg.dia .t5-dim{opacity:.38}
+.readout .wide{grid-column:1/-1}
+@media (max-width:760px){
+  .wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  main{gap:48px;padding-block:28px 56px}
+}
+@media (max-width:640px){.bit{width:22px;height:30px;font-size:.85rem}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand"><span>10</span>块缩放矩阵乘图解</div>
+    <nav aria-label="本页章节">
+      <a href="#formula">公式</a>
+      <a href="#mantissa">尾数</a>
+      <a href="#explore">探索器</a>
+      <a href="#range">范围与间距</a>
+      <a href="#fp8">FP8</a>
+      <a href="#fp4">FP4 与 E8M0</a>
+      <a href="#scale">挑 scale</a>
+      <a href="#blocks">分块</a>
+      <a href="#layout">scale 布局</a>
+      <a href="#dims">五维形状</a>
+      <a href="#targets">五种落地</a>
+    </nav>
+  </div>
+</div>
+
+<main class="wrap">
+  <section>
+    <div class="eyebrow">Triton 第 10 课 · 节点 1、2、4、5</div>
+    <h1>从 FP64 到块缩放</h1>
+    <p class="lede">所有浮点格式都按同一个公式解码，区别只在三段位数怎么分。指数段管范围：能表示多大、多小的数。尾数段管精度：相邻两个数挨得多近。位宽每砍一半，就要在两者之间重新分配，还要决定留不留 Inf 和 NaN 的编码。</p>
+    <p class="keyline"><b>位宽越窄，格式自己能覆盖的跨度越窄。</b>从最小次正规数到最大值，FP16 跨 40 个 2 的幂，FP8 E4M3 约 18 个，FP4 E2M1 只有 3.6 个。一张真实张量放不进 FP4，所以节点 2 要给每一小块数据配一个 scale。</p>
+    <p>前六节是节点 1：浮点格式本身。接着两节是节点 2：给一块数挑 scale，以及每块一个 scale 与整行一个 scale 的差别。接着两节是节点 4：scale 在显存、SMEM 和 TMEM 里怎样排，以及这串形状的每一维怎么读、每个数字从哪来。最后一节是节点 5：同一个 <code>tl.dot_scaled</code> 在五种硬件上分别落成什么。页上的格式数值都按位枚举核对过，并与 PyTorch 2.13 的 <code>torch.finfo</code> 对照；FP6、FP4 与 E8M0 以 OCP MX 规范 v1.0 的编码表为准。</p>
+  </section>
+
+  <section id="formula">
+    <div class="sec-head">
+      <div class="tag">公式</div>
+      <h2>一个公式，三段位数</h2>
+      <p>一个浮点数的位从高到低分成三段：符号 S、指数段 E、尾数段 M。格式名 E4M3 的意思就是指数 4 位、尾数 3 位。下图把每种格式的三段按位数画成等比例的长条，左端对齐。</p>
+    </div>
+    <figure>
+      <div class="fig-scroll fit"><svg id="layout-svg" class="dia" viewBox="0 0 960 450" role="img" aria-label="各浮点格式的符号、指数、尾数三段位数对照"></svg></div>
+      <div class="legend"><span><i class="k-s"></i>符号</span><span><i class="k-e"></i>指数段</span><span><i class="k-m"></i>尾数段</span><span><i class="k-u"></i>占位但不参与运算</span></div>
+      <figcaption>左端对齐后能直接看出谁是从谁砍出来的：BF16 是 FP32 的高 16 位，TF32 是 FP32 去掉尾数的低 13 位，E5M2 是 FP16 的高 8 位。两种 FNUZ 变体与 E4M3、E5M2 的位段相同，只是 bias 和特殊值不同，见 FP8 一节。E8M0 没有符号位和尾数，只剩 8 位指数。</figcaption>
+    </figure>
+    <div class="concepts">
+      <div class="card">
+        <h3><span class="n">A</span>解码公式</h3>
+        <p>设指数段有 e 位、尾数段有 m 位。指数段存的是无符号整数 E，真实指数是 E − bias。bias 一般取 2<sup>e−1</sup> − 1，让指数正负大致对称。</p>
+<pre><span class="c">// 正规数，E ≥ 1</span>
+v = (−1)^S × 2^(E − bias) × (1 + M / 2^m)
+<span class="c">// 次正规数，E = 0</span>
+v = (−1)^S × 2^(1 − bias) × (0 + M / 2^m)</pre>
+        <p>正规数里的“1 +”叫隐含位：二进制科学计数法的首位总是 1，所以不存。次正规数没有隐含位，指数固定为 1 − bias，用来把 0 和最小正规数之间的空隙均匀填上。第 07 课的 FTZ 就是把它们直接当 0。</p>
+        <p>OCP MX 规范 §5.3 写的就是这条公式。FP8、FP6、FP4 只是 e、m、bias 不同，再加上各自对 Inf、NaN 的规定。</p>
+      </div>
+      <div class="card">
+        <h3><span class="n">B</span>C 里的对应物</h3>
+<pre>float x = 0.1f;
+uint32_t u;
+memcpy(&amp;u, &amp;x, sizeof u);        <span class="c">// 原样取出 32 位</span>
+uint32_t S = u &gt;&gt; 31;            <span class="c">// 1 位符号</span>
+uint32_t E = (u &gt;&gt; 23) &amp; 0xFF;   <span class="c">// 8 位指数，bias = 127</span>
+uint32_t M = u &amp; 0x7FFFFF;       <span class="c">// 23 位尾数</span>
+<span class="c">// S = 0, E = 123, M = 5033165</span>
+<span class="c">// v = 2^(123 − 127) × (1 + 5033165 / 2^23) ≈ 0.100000001</span>
+
+int k;
+double f = frexp(0.1, &amp;k);      <span class="c">// 0.1 = 0.8 × 2^-3</span>
+double y = ldexp(f, k);         <span class="c">// 拼回 0.1</span></pre>
+        <p><code>frexp</code> 把尾数规范到 [0.5, 1)，所以指数比 IEEE 的写法大 1，意思相同。0.1 在二进制里是无限循环小数，FP32 只能存它最近的一个值，相对误差约 1.5 × 10<sup>−8</sup>。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="mantissa">
+    <div class="sec-head">
+      <div class="tag">尾数</div>
+      <h2>尾数怎样切开一档</h2>
+      <p>指数先选出 x 所在的一档：从 2<sup>k</sup> 到 2<sup>k+1</sup>，2<sup>k</sup> 是不超过 x 的最大的 2 的幂，不一定是离 x 最近的那个。尾数再把这一档等分成 2<sup>m</sup> 份，得到 2<sup>m</sup> 个等间距的格点，M 是格点的编号：M = 0 是这一档的左端。右端点属于下一档。下一档的格点数相同，间距翻倍。</p>
+    </div>
+    <div class="controls">
+      <div class="ctl">尾数位数 m
+        <div class="seg" id="mt-m" role="group" aria-label="尾数位数">
+          <button type="button" data-v="1" aria-pressed="false">1</button>
+          <button type="button" data-v="2" aria-pressed="false">2</button>
+          <button type="button" data-v="3" aria-pressed="true">3</button>
+          <button type="button" data-v="4" aria-pressed="false">4</button>
+          <button type="button" data-v="5" aria-pressed="false">5</button>
+        </div>
+      </div>
+    </div>
+    <div class="inrow">
+      <label for="mt-input">x</label>
+      <input id="mt-input" type="text" inputmode="decimal" value="2.6" autocomplete="off" spellcheck="false">
+      <button type="button" class="btn" id="mt-go">切分</button>
+      <div class="seg" id="mt-samples" role="group" aria-label="示例">
+        <button type="button" data-v="2.6">2.6</button>
+        <button type="button" data-v="2.75">2.75</button>
+        <button type="button" data-v="3.9">3.9</button>
+        <button type="button" data-v="0.1">0.1</button>
+        <button type="button" data-v="100">100</button>
+      </div>
+    </div>
+    <figure>
+      <div class="fig-scroll fit"><svg id="mt-svg" class="dia" viewBox="0 0 900 170" role="img" aria-label="x 所在的一档和下一档被尾数切出的格点"></svg></div>
+      <div class="legend"><span><i class="k-cur"></i>存下的格点</span><span>竖虚线：x 本身</span></div>
+      <figcaption>m = 3 时每档 8 个格点，和 E4M3 一样。这一节只看尾数，假设指数够用，不考虑格式的范围上限，也不涉及次正规数。</figcaption>
+    </figure>
+    <div class="tbl-scroll">
+      <table class="steps"><tbody id="mt-steps"></tbody></table>
+    </div>
+    <p class="keyline"><b>每个浮点数都是一个小定点数乘一个 2 的幂。</b>1.M 是那个定点数，指数决定乘哪一个 2 的幂。节点 2 的块缩放，是让一组数再共用一个额外的 scale；在 MX 格式里，这个 scale 也是 2 的幂。</p>
+  </section>
+
+  <section id="explore">
+    <div class="sec-head">
+      <div class="tag">探索器</div>
+      <h2>点位、看值、输入一个数</h2>
+      <p>选一种格式。点任一位可以翻转它，下面立刻给出三段的值和代入公式的结果。也可以输入一个实数，看它被舍入成哪个可表示的值、误差多大、超出范围时怎么处理。切换格式时，输入的数会按新格式重新舍入，便于比较。</p>
+    </div>
+    <div class="controls">
+      <div class="ctl">经典格式
+        <div class="seg" id="seg-fmt-a" role="group" aria-label="经典格式"></div>
+      </div>
+      <div class="ctl">低位格式
+        <div class="seg" id="seg-fmt-b" role="group" aria-label="低位格式"></div>
+      </div>
+    </div>
+    <p class="note" id="ex-note"></p>
+    <div class="fig-scroll" id="ex-bits" aria-label="点击切换各位"></div>
+    <div class="readout">
+      <div><span>三段的值</span><b id="ex-sem"></b></div>
+      <div><span>真实指数</span><b id="ex-exp"></b></div>
+      <div><span>类别</span><b id="ex-cls"></b></div>
+      <div class="e"><span>值</span><b id="ex-val"></b></div>
+      <div><span>这一档相邻两数的间距</span><b id="ex-gap"></b></div>
+    </div>
+    <pre class="formula" id="ex-formula"></pre>
+    <div class="inrow">
+      <label for="ex-input">输入一个数</label>
+      <input id="ex-input" type="text" inputmode="decimal" value="0.1" autocomplete="off" spellcheck="false">
+      <button type="button" class="btn" id="ex-go">转换</button>
+      <div class="seg" id="ex-samples" role="group" aria-label="示例">
+        <button type="button" data-v="0.1">0.1</button>
+        <button type="button" data-v="300">300</button>
+        <button type="button" data-v="70000">70000</button>
+        <button type="button" data-v="1e-8">1e-8</button>
+        <button type="button" data-v="5">5</button>
+        <button type="button" data-v="448">448</button>
+      </div>
+      <div class="ctl">超出最大值时
+        <div class="seg" id="ex-ovf" role="group" aria-label="溢出处理">
+          <button type="button" data-v="sat" aria-pressed="true">饱和</button>
+          <button type="button" data-v="ovf" aria-pressed="false">不饱和</button>
+        </div>
+      </div>
+    </div>
+    <p class="note" id="ex-result" aria-live="polite"></p>
+    <figure>
+      <div class="controls">
+        <div class="ctl">坐标
+          <div class="seg" id="ex-axis" role="group" aria-label="坐标">
+            <button type="button" data-v="log" aria-pressed="true">对数</button>
+            <button type="button" data-v="lin" aria-pressed="false">线性</button>
+          </div>
+        </div>
+      </div>
+      <div class="fig-scroll fit"><svg id="ex-line" class="dia" viewBox="0 0 900 150" role="img" aria-label="当前格式的全部正数取值"></svg></div>
+      <div class="legend"><span><i class="k-n"></i>正规数</span><span><i class="k-sub"></i>次正规数</span><span><i class="k-cur"></i>当前的值</span></div>
+      <figcaption id="ex-cap"></figcaption>
+    </figure>
+  </section>
+
+  <section id="range">
+    <div class="sec-head">
+      <div class="tag">对照</div>
+      <h2>范围与间距</h2>
+      <p>每一行是一种格式能表示的正数范围，横轴按 2 的幂等距。浅色段是次正规数，深色段是正规数。右侧是相对间距 2<sup>−m</sup>，也就是 1 和下一个可表示数的差，衡量这一格式的精度。</p>
+      <p>条形的长度就是这一格式的范围有几档：最大值是最小正值（最小次正规数）的 2 的几次方倍，即 log<sub>2</sub>(最大值 ÷ 最小次正规数)，见表中“范围”一列。例如 E2M1 是 log<sub>2</sub>(6 ÷ 0.5) ≈ 3.58 档，E4M3 是 log<sub>2</sub>(448 ÷ 2⁻⁹) ≈ 17.81 档。数法的细节见 FP4 一节的第二张图。</p>
+    </div>
+    <div class="controls">
+      <div class="ctl">横轴
+        <div class="seg" id="rg-zoom" role="group" aria-label="横轴范围">
+          <button type="button" data-v="all" aria-pressed="true">全范围</button>
+          <button type="button" data-v="zoom" aria-pressed="false">放大到 2⁻²⁰ – 2²⁰</button>
+        </div>
+      </div>
+    </div>
+    <figure>
+      <div class="fig-scroll fit"><svg id="rg-svg" class="dia" viewBox="0 0 960 500" role="img" aria-label="各格式的正数范围对照"></svg></div>
+      <div class="legend"><span><i class="k-n"></i>正规数</span><span><i class="k-sub"></i>次正规数</span><span><i class="k-x"></i>E8M0：只有 2 的幂</span></div>
+      <figcaption>超出画面的一端画成箭头。FP64 的范围是 2⁻¹⁰⁷⁴ 到约 2¹⁰²⁴，全范围视图也画不下。TF32 只画正规数段，它只在张量核内部出现。</figcaption>
+    </figure>
+    <div class="tbl-scroll">
+      <table class="params">
+        <thead>
+          <tr><th>格式</th><th>位宽</th><th>S·E·M</th><th>bias</th><th>最大值</th><th>最小正规数</th><th>最小次正规数</th><th>范围（档）</th><th>相对间距</th><th>Inf ／ NaN</th><th>谁在用</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>FP64</td><td class="num">64</td><td class="num">1·11·52</td><td class="num">1023</td><td class="num">≈1.80×10³⁰⁸</td><td class="num">≈2.23×10⁻³⁰⁸</td><td class="num">≈4.94×10⁻³²⁴</td><td class="num">≈ 2098</td><td class="num">2⁻⁵² ≈ 2.2×10⁻¹⁶</td><td>有 ／ 有</td><td>科学计算</td></tr>
+          <tr><td>FP32</td><td class="num">32</td><td class="num">1·8·23</td><td class="num">127</td><td class="num">≈3.40×10³⁸</td><td class="num">≈1.18×10⁻³⁸</td><td class="num">≈1.40×10⁻⁴⁵</td><td class="num">≈ 277</td><td class="num">2⁻²³ ≈ 1.2×10⁻⁷</td><td>有 ／ 有</td><td>累加器；混合精度训练的主权重</td></tr>
+          <tr><td>TF32</td><td class="num">19</td><td class="num">1·8·10</td><td class="num">127</td><td class="num">≈3.40×10³⁸</td><td class="num">≈1.18×10⁻³⁸</td><td class="num">—</td><td class="num">—</td><td class="num">2⁻¹⁰ ≈ 9.8×10⁻⁴</td><td>—</td><td>张量核内部：FP32 进、FP32 累加</td></tr>
+          <tr><td>FP16</td><td class="num">16</td><td class="num">1·5·10</td><td class="num">15</td><td class="num">65504</td><td class="num">2⁻¹⁴ ≈ 6.10×10⁻⁵</td><td class="num">2⁻²⁴ ≈ 5.96×10⁻⁸</td><td class="num">≈ 40.0</td><td class="num">2⁻¹⁰ ≈ 9.8×10⁻⁴</td><td>有 ／ 有</td><td>混合精度训练（要 loss scaling）、推理</td></tr>
+          <tr><td>BF16</td><td class="num">16</td><td class="num">1·8·7</td><td class="num">127</td><td class="num">≈3.39×10³⁸</td><td class="num">≈1.18×10⁻³⁸</td><td class="num">2⁻¹³³ ≈ 9.18×10⁻⁴¹</td><td class="num">≈ 261.0</td><td class="num">2⁻⁷ ≈ 0.0078</td><td>有 ／ 有</td><td>训练与推理的主流 16 位格式</td></tr>
+          <tr><td>FP8 E5M2</td><td class="num">8</td><td class="num">1·5·2</td><td class="num">15</td><td class="num">57344</td><td class="num">2⁻¹⁴</td><td class="num">2⁻¹⁶</td><td class="num">31.81</td><td class="num">2⁻² = 0.25</td><td>有 ／ 有</td><td>梯度；MXFP8 的元素之一</td></tr>
+          <tr class="hl"><td>FP8 E4M3</td><td class="num">8</td><td class="num">1·4·3</td><td class="num">7</td><td class="num">448</td><td class="num">2⁻⁶</td><td class="num">2⁻⁹</td><td class="num">17.81</td><td class="num">2⁻³ = 0.125</td><td>无 ／ 只有 S.1111.111</td><td>权重与激活；MXFP8 的元素</td></tr>
+          <tr><td>E4M3FNUZ</td><td class="num">8</td><td class="num">1·4·3</td><td class="num">8</td><td class="num">240</td><td class="num">2⁻⁷</td><td class="num">2⁻¹⁰</td><td class="num">17.91</td><td class="num">2⁻³ = 0.125</td><td>无 ／ 只有 0x80</td><td>AMD MI300 系列（CDNA3）</td></tr>
+          <tr><td>E5M2FNUZ</td><td class="num">8</td><td class="num">1·5·2</td><td class="num">16</td><td class="num">57344</td><td class="num">2⁻¹⁵</td><td class="num">2⁻¹⁷</td><td class="num">32.81</td><td class="num">2⁻² = 0.25</td><td>无 ／ 只有 0x80</td><td>AMD MI300 系列（CDNA3）</td></tr>
+          <tr><td>FP6 E3M2</td><td class="num">6</td><td class="num">1·3·2</td><td class="num">3</td><td class="num">28</td><td class="num">0.25</td><td class="num">0.0625</td><td class="num">8.81</td><td class="num">2⁻² = 0.25</td><td>无 ／ 无</td><td>MXFP6 的元素</td></tr>
+          <tr><td>FP6 E2M3</td><td class="num">6</td><td class="num">1·2·3</td><td class="num">1</td><td class="num">7.5</td><td class="num">1</td><td class="num">0.125</td><td class="num">5.91</td><td class="num">2⁻³ = 0.125</td><td>无 ／ 无</td><td>MXFP6 的元素</td></tr>
+          <tr class="hl"><td>FP4 E2M1</td><td class="num">4</td><td class="num">1·2·1</td><td class="num">1</td><td class="num">6</td><td class="num">1</td><td class="num">0.5</td><td class="num">3.58</td><td class="num">2⁻¹ = 0.5</td><td>无 ／ 无</td><td>MXFP4、NVFP4 的元素</td></tr>
+          <tr><td>E8M0</td><td class="num">8</td><td class="num">0·8·0</td><td class="num">127</td><td class="num">2¹²⁷</td><td class="num">2⁻¹²⁷（最小值）</td><td class="num">—</td><td class="num">254</td><td>只有 2 的幂</td><td>无 ／ 只有 0xFF</td><td>MX 格式的块 scale</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="fp8">
+    <div class="sec-head">
+      <div class="tag">FP8</div>
+      <h2>8 位的两种分法，E4M3 的两种变体</h2>
+      <p>8 位除去符号还剩 7 位，指数和尾数只能二选一地多给。同样是 E4M3，OCP／NVIDIA 与 AMD MI300 对特殊值和 bias 的规定也不同。</p>
+    </div>
+    <div class="concepts">
+      <div class="card">
+        <h3><span class="n">A</span>E4M3 还是 E5M2</h3>
+        <p>多给指数就是 E5M2：范围大，含次正规数共 32 个 2 的幂，相对间距 25%。多给尾数就是 E4M3：相对间距 12.5%，范围约 18 个 2 的幂。</p>
+        <p>FP8 论文建议权重和激活用 E4M3，梯度用 E5M2：梯度的数值跨度大，前向的权重和激活更需要精度。DeepSeek-V3 让全部张量都用 E4M3，靠的是细粒度的 scale：一小组元素共用一个 scale，相当于这组元素共享了指数位，单个元素的指数不必覆盖整张张量的跨度。</p>
+      </div>
+      <div class="card">
+        <h3><span class="n">B</span>收回特殊值的编码</h3>
+        <p>E5M2 沿用 IEEE 的规定，指数段全 1 留给 Inf 和 NaN。E4M3 如果也这样，最大值只有 240。OCP 与 NVIDIA 采用的 E4M3 不要 Inf，只把 S.1111.111 当 NaN，指数段全 1 的其余 7 个编码改作普通的数：256、288、320、352、384、416、448。范围因此多出一个 2 的幂，最大值到 448。</p>
+        <p>代价是没有 Inf：超出最大值时，要么夹到 ±448（饱和），要么变成 NaN。OCP 规范要求两种方式都支持。PyTorch 把这种格式叫 <code>float8_e4m3fn</code>，fn 指只有有限值和 NaN。</p>
+      </div>
+      <div class="card wide">
+        <h3><span class="n">C</span>FN 与 FNUZ</h3>
+        <p>AMD MI300 系列（CDNA3）原生支持的是另一种 E4M3：bias 为 8，没有 −0，<code>0x80</code> 是唯一的 NaN，也没有 Inf。PyTorch 叫它 <code>float8_e4m3fnuz</code>。bias 大 1，同样的位表示的值正好减半，最大值是 240。MI350 系列（CDNA4）改用了 OCP 的格式。</p>
+        <div class="pair">
+        <div class="tbl-scroll">
+          <table style="min-width:0;width:100%">
+            <thead><tr><th>字节</th><th>按 E4M3（FN）</th><th>按 E4M3FNUZ</th></tr></thead>
+            <tbody>
+              <tr><td><code>0x38</code></td><td class="num">1</td><td class="num">0.5</td></tr>
+              <tr><td><code>0x7E</code></td><td class="num">448</td><td class="num">224</td></tr>
+              <tr><td><code>0x7F</code></td><td class="num">NaN</td><td class="num">240</td></tr>
+              <tr class="hl"><td><code>0x80</code></td><td class="num">−0</td><td class="num">NaN</td></tr>
+              <tr><td><code>0xFE</code></td><td class="num">−448</td><td class="num">−224</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="display:grid;gap:10px">
+        <p>所以 OCP 格式的 FP8 权重不能直接拿到 MI300 上用。vLLM 的做法是先把 <code>0x80</code> 改成 0，再把同样的位按 FNUZ 解读，并把 scale 乘 2：</p>
+<pre><span class="c"># vllm/model_executor/layers/quantization/utils/w8a8_utils.py（节选）</span>
+weight_as_int8 = weight.view(torch.int8)
+ROCM_FP8_NAN_AS_INT = -128
+weight_as_int8[weight_as_int8 == ROCM_FP8_NAN_AS_INT] = 0
+weight = weight_as_int8.view(torch.float8_e4m3fnuz)
+<span class="c"># For the same bits representation, e4m3fnuz value is half of</span>
+<span class="c"># the e4m3fn value, so we should double the scaling factor to</span>
+<span class="c"># get the same dequantized value.</span>
+weight_scale = weight_scale * 2.0</pre>
+        </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="fp4">
+    <div class="sec-head">
+      <div class="tag">FP4 与 E8M0</div>
+      <h2>4 位只剩 15 个数，E8M0 只剩指数</h2>
+      <p>E2M1 有 16 个编码。+0 和 −0 相等，所以只有 15 个不同的值。下表是全部编码。</p>
+    </div>
+    <div class="tbl-scroll">
+      <div class="codes" id="codes"></div>
+    </div>
+    <figure>
+      <div class="fig-scroll fit"><svg id="fp4-svg" class="dia" viewBox="0 0 900 150" role="img" aria-label="E2M1 的取值与舍入区间"></svg></div>
+      <figcaption>每个值管它两侧到中点的一段，色块就是“落在这里的数都变成这个值”。正好落在中点时，取尾数位为 0 的那一个（就近取偶），所以 0.25 变 0，5 变 4。大于 6 的数都变成 6：OCP 规范要求转换到 FP4 时支持饱和。</figcaption>
+    </figure>
+    <figure>
+      <div class="fig-scroll fit"><svg id="fp4-log-svg" class="dia" viewBox="0 0 900 222" role="img" aria-label="E2M1 的正值画在按 2 的幂等距的轴上，对照数档的两种数法"></svg></div>
+      <figcaption>同样的值画在按 2 的幂等距的轴上，每一格是一档。说 E2M1 有几档，有两种数法：只数正规数用到的指数编码（E = 1、2、3），是 3 档；量它的范围，看最大值是最小正值的 2 的几次方倍，log<sub>2</sub>(6 ÷ 0.5) ≈ 3.58 档。后者比前者多了次正规数 0.5 所在的一档，又少了 6 到 8 之间没用上的 0.42 档。判断一组数装不装得下时用后者：这组数的最大值是最小非零值的几倍，取 log<sub>2</sub>，再和格式的档数比。</figcaption>
+    </figure>
+    <div class="concepts">
+      <div class="card">
+        <h3><span class="n">A</span>间距在每个 2 的幂里翻倍</h3>
+        <p>相邻两值的间距在同一个 2 的幂之内不变，跨过 2 的幂就翻倍：1 到 2 之间是 0.5，2 到 4 之间是 1，4 到 6 之间是 2。所以在正规数范围 1 到 6 之内，相对误差最大是 20%，例如 1.25 变 1、2.5 变 2、5 变 4。</p>
+        <p>1 以下进入次正规数，0 和 1 之间只有 0.5 一个点，误差更大；不到 0.25 的数直接变成 0。</p>
+      </div>
+      <div class="card">
+        <h3><span class="n">B</span>E8M0：只有指数</h3>
+        <p>E8M0 的 8 位全是指数，bias 127：编码 E 表示 2<sup>E−127</sup>，范围从 2⁻¹²⁷ 到 2¹²⁷，<code>0xFF</code> 是 NaN。它没有符号位，也没有 0。</p>
+        <p>它表示不了一般的数，只适合当 scale：乘一个 2 的幂只改指数，只要不越界就不产生舍入误差，硬件上就是一次指数加法。DeepSeek-V3 在需要重新分组量化的激活上也把 scale 限制成 2 的整数次幂，理由同样是不引入额外的量化误差。</p>
+      </div>
+    </div>
+    <p class="keyline"><b>一个 E2M1 数只覆盖 0.5 到 6，最大值是最小非零值的 12 倍。</b>一块数据的跨度比这大，小的那一头就只剩 0.5 或 0。节点 2 讲怎样为每 32 个（或 16 个）数挑一个 scale，让这一块数据尽量落进这 3.58 档的窗口。</p>
+  </section>
+
+  <section id="scale">
+    <div class="sec-head">
+      <div class="tag">节点 2 · 挑 scale</div>
+      <h2>一块数，三种挑 scale 的办法</h2>
+      <p>一块里每个数 V<sub>i</sub> 存成 P<sub>i</sub> = V<sub>i</sub> / X 舍入到 E2M1 的结果，还原时再乘回 X。X 定了，这块数能用的格点就定了：0.5X、X、1.5X、2X、3X、4X、6X。挑 X 的目标是让块里最大的数 amax 正好落在 6X 附近：大了会被截断，小了会浪费最上面的格点，小值也更容易变成 0。</p>
+    </div>
+    <div class="inrow">
+      <label for="sc-amax">这一块的 amax</label>
+      <input id="sc-amax" type="text" inputmode="decimal" value="1.9" autocomplete="off" spellcheck="false">
+      <label for="sc-tmax">整张张量的 amax</label>
+      <input id="sc-tmax" type="text" inputmode="decimal" value="12" autocomplete="off" spellcheck="false">
+      <button type="button" class="btn" id="sc-go">比较</button>
+      <div class="seg" id="sc-samples" role="group" aria-label="示例">
+        <button type="button" data-v="1.9">1.9</button>
+        <button type="button" data-v="1.45">1.45</button>
+        <button type="button" data-v="3.1">3.1</button>
+        <button type="button" data-v="0.96">0.96</button>
+      </div>
+    </div>
+    <figure>
+      <div class="fig-scroll fit"><svg id="sc-svg" class="dia" viewBox="0 0 900 230" role="img" aria-label="三种 scale 下这一块能用的格点"></svg></div>
+      <div class="legend"><span><i class="k-cur"></i>amax 存成的格点</span><span>蓝色竖线：这一块能用的格点 kX</span><span><i class="k-s"></i>这一段里的数会变成 0</span><span>橙色虚线：amax</span></div>
+      <figcaption>三行用同一条数轴。E8M0 的 X 只能是 2 的幂，amax 一般落不到 6X 上：OCP 规则向下取，amax 缩放后落在 4 到 8 之间，超过 6 的部分被截断；向上取则保证不截断，代价是最上面的格点可能用不到。NVFP4 的 X 用 E4M3 存，有 3 位尾数，能把 amax 放到 6X 附近；它的取法按 NVIDIA NVFP4 论文附录 B，含每张量的 FP32 scale。</figcaption>
+    </figure>
+    <div class="tbl-scroll">
+      <table class="rules"><thead><tr><th>办法</th><th>X</th><th>amax ÷ X</th><th>存成</th><th>还原</th><th>amax 的误差</th><th>变成 0 的范围</th></tr></thead><tbody id="sc-rows"></tbody></table>
+    </div>
+    <p class="keyline"><b>每张量的 FP32 scale 只平移，不加宽。</b>它把所有块的 scale 一起乘上 s<sub>enc</sub>，让最大那块的 scale 落在 E4M3 的 448；E4M3 从 448 往下只有 17.8 档。比最大块小 14.8 档以内的块，scale 是正规数；再小约 4 档，scale 落进次正规数或被舍入成最小的 2<sup>−9</sup>，精度变差；更小的块，scale 舍成 0，整块还原成 0。MXFP4 的 E8M0 有 254 档，每块各取各的 scale，没有这个问题。把“整张张量的 amax”填成 30000，再把这一块的 amax 换成 0.1 或 0.002，就能看到后两种情形。</p>
+  </section>
+
+  <section id="blocks">
+    <div class="sec-head">
+      <div class="tag">节点 2 · 分块</div>
+      <h2>每块一个 scale，还是整行一个</h2>
+      <p>沿 K 连续的 64 个数，下标 45 是离群值 12，其余是幅度不到 1.5 的普通值。MXFP4 和 MXFP8 把它分成 2 块（每块 32 个），NVFP4 分成 4 块（每块 16 个）。切到“整行一个 scale”，看离群值的影响怎样从一块扩散到整行。</p>
+    </div>
+    <div class="controls">
+      <div class="ctl">格式
+        <div class="seg" id="bk-fmt" role="group" aria-label="格式">
+          <button type="button" data-v="mxfp4" aria-pressed="true">MXFP4</button>
+          <button type="button" data-v="nvfp4" aria-pressed="false">NVFP4</button>
+          <button type="button" data-v="mxfp8" aria-pressed="false">MXFP8（E4M3）</button>
+        </div>
+      </div>
+      <div class="ctl">scale
+        <div class="seg" id="bk-scope" role="group" aria-label="scale 的范围">
+          <button type="button" data-v="block" aria-pressed="true">每块一个</button>
+          <button type="button" data-v="row" aria-pressed="false">整行一个</button>
+        </div>
+      </div>
+    </div>
+    <figure>
+      <div class="fig-scroll fit"><svg id="bk-svg" class="dia" viewBox="0 0 900 270" role="img" aria-label="64 个数量化前后的对照"></svg></div>
+      <div class="legend"><span><i class="k-o"></i>原值</span><span><i class="k-d"></i>还原值</span><span><i class="k-z">×</i>非零的数变成了 0</span><span>竖虚线：块的边界</span></div>
+      <figcaption id="bk-cap"></figcaption>
+    </figure>
+    <div class="readout">
+      <div class="e"><span>非零的数变成 0（不计离群值，共 61 个非零）</span><b id="bk-zero"></b></div>
+      <div><span>均方根误差（不计离群值）</span><b id="bk-rmse"></b></div>
+      <div><span>平均相对误差（不计离群值和 0）</span><b id="bk-rel"></b></div>
+      <div><span>各块的 scale</span><b id="bk-scales"></b></div>
+    </div>
+    <p class="keyline"><b>FP4 必须分块，FP8 分块是锦上添花。</b>切到 MXFP8 会看到整行一个 scale 也没有数变成 0：E4M3 有约 18 档，装得下 12 和 0.01 之间的跨度；E2M1 只有 3.6 档，一个离群值就把同一个 scale 下的小数压成 0。</p>
+  </section>
+  <section id="layout">
+    <div class="sec-head">
+      <div class="tag">节点 4 · scale 的预排布局</div>
+      <h2>512 字节一块，从显存到 TMEM 原样搬</h2>
+      <p>逻辑上，A 的 scale 是 M 行、K/V 列的矩阵，一个 K 步用到其中 128 行 × BLOCK_K/V 列。教程不按这个形状存：它把每 128 行 × 4 列切成一块 512 字节，块内事先排成 TMEM 要的顺序。左图是一个 K 步的逻辑视图，右图是选中的 scale 所在的那一块。右图同时是显存和 SMEM 里的 32 行 × 16 字节，也是 TMEM 里的 32 个 lane × 4 列：三处的字节顺序相同，所以 <code>tcgen05.cp</code> 拷贝时不用重排。点任一边的格子，或拖动滑块。</p>
+    </div>
+    <div class="controls">
+      <div class="ctl">格式
+        <div class="seg" id="ly-fmt" role="group" aria-label="格式">
+          <button type="button" data-v="nvfp4" aria-pressed="true">NVFP4</button>
+          <button type="button" data-v="mxfp4" aria-pressed="false">MXFP4</button>
+          <button type="button" data-v="mxfp8" aria-pressed="false">MXFP8</button>
+        </div>
+      </div>
+      <label class="rng" for="ly-m">行 m <input id="ly-m" type="range" min="0" max="127" step="1" value="37"><output id="ly-m-v" for="ly-m">37</output></label>
+      <label class="rng" for="ly-j">scale 列 j <input id="ly-j" type="range" min="0" max="15" step="1" value="10"><output id="ly-j-v" for="ly-j">10</output></label>
+    </div>
+    <figure>
+      <div class="fig-scroll fit"><svg id="ly-svg" class="dia" viewBox="0 0 900 478" role="img" aria-label="一个 K 步的 scale：逻辑视图与 512 字节块的对应"></svg></div>
+      <div class="legend"><span><i class="k-g0"></i>行 0–31</span><span><i class="k-g1"></i>行 32–63</span><span><i class="k-g2"></i>行 64–95</span><span><i class="k-g3"></i>行 96–127</span><span><i class="k-chunk"></i>组成右图这一块的 128 行 × 4 列</span><span><i class="k-mma"></i>读选中 scale 的那条 MMA 用到的字节</span></div>
+      <figcaption id="ly-cap"></figcaption>
+    </figure>
+    <div class="readout">
+      <div><span>逻辑位置：行、scale 列、管的 K 元素（这个 K 步内）</span><b id="ly-pos"></b></div>
+      <div><span>5D 下标 [m/128, j/4, m%32, m/32, j%4]</span><b id="ly-5d"></b></div>
+      <div class="e"><span>块内偏移 16r + 4g + c</span><b id="ly-off"></b></div>
+      <div><span>TMEM 里的位置</span><b id="ly-tmem"></b></div>
+      <div><span>读它的 tcgen05.mma：第几条、管的 K、每个字里读的字节</span><b id="ly-mma"></b></div>
+    </div>
+    <div class="sec-head">
+      <h3>第 220 行：下标在变，字节没动</h3>
+      <p>kernel 把 TMA 载入的 SMEM 缓冲换算回 <code>tl.dot_scaled</code> 要的逻辑形状 [BLOCK_M, BLOCK_K/V]。下表跟踪选中的那个 scale：每一步它的下标都变了，在 SMEM 缓冲里的字节偏移始终不变。</p>
+    </div>
+    <div class="tbl-scroll">
+      <table class="lysteps"><thead><tr><th>步骤</th><th>代码</th><th>形状</th><th>选中 scale 的下标</th><th>SMEM 字节偏移</th></tr></thead><tbody id="ly-steps"></tbody></table>
+    </div>
+    <div class="concepts">
+      <div class="card">
+        <h3><span class="n">A</span>C 里的对应物</h3>
+        <p>reshape 和 trans 相当于给同一块缓冲换一个取址函数，不调用 <code>memcpy</code>。下面是 NVFP4 的一个 K 步（rep_m = 1，rep_k = 4）。</p>
+        <pre>uint8_t buf[4][32][4][4];  <span class="c">/* TMA 搬进 SMEM 的一个 K 步 */</span>
+
+<span class="c">/* 逻辑下标 (m, j) → 字节：只算地址 */</span>
+static inline uint8_t scale_at(int m, int j) {
+  int r = m % 32, g = m / 32;  <span class="c">/* 行拆成 lane、字 */</span>
+  int kc = j / 4, c = j % 4;   <span class="c">/* 列拆成块、字节 */</span>
+  return buf[kc][r][g][c];
+  <span class="c">/* 偏移 = 512kc + 16r + 4g + c */</span>
+}</pre>
+      </div>
+      <div class="card">
+        <h3><span class="n">B</span>编译到 sm_100 之后</h3>
+        <p>三步都成了 SMEM 描述符（memdesc）上的视图，只换取址规则。真正搬字节的只有 <code>tmem_copy</code>，它降级为 <code>tcgen05.cp</code>。节选自本机对教程 kernel 的编译探测（NVFP4，名字与类型略写）：</p>
+        <pre>%s1 = ttg.memdesc_reshape %s0
+      : &lt;1x1x4x2x256&gt; -&gt; &lt;1x4x32x4x4&gt;
+%s2 = ttg.memdesc_trans %s1 {order = 0,3,2,1,4}
+      : &lt;1x4x32x4x4&gt; -&gt; &lt;1x4x32x4x4&gt;
+%s3 = ttg.memdesc_reshape %s2
+      : &lt;1x4x32x4x4&gt; -&gt; &lt;128x16, #shared7&gt;
+<span class="keep">ttng.tmem_copy</span> %s3, %tmem   <span class="c">// SMEM → TMEM</span>
+
+#shared7 = #ttg.shared_linear&lt;{offset = [
+  [0,1], [0,2], [32,0], [64,0], [1,0], [2,0],
+  [4,0], [8,0], [16,0], [0,4], [0,8]]}&gt;</pre>
+        <p><code>#shared7</code> 是最后那条取址规则。字节偏移的第 0–10 位依次对应一组（行, 列）增量：第 0–1 位让列加 1、2；第 2–3 位让行加 32、64；第 4–8 位让行加 1 到 16；第 9–10 位让列加 4、8，也就是换块。合起来正是“偏移 = 16r + 4g + c + 512 × 块号”。</p>
+      </div>
+    </div>
+    <p class="keyline"><b>预排是为了让 SMEM 里的字节顺序就是 TMEM 要的顺序。</b>TMA 按 [1, rep_m, rep_k, 2, 256] 一次搬进 rep_m × rep_k 块，最内维 256 字节；一个线程发 <code>tcgen05.cp</code>，把每块原样拷进 TMEM。第 220 行的 reshape 与 trans 被编译器改写成 SMEM 上的视图，只换下标，不动字节。</p>
+  </section>
+  <section id="dims">
+    <div class="sec-head">
+      <div class="tag">节点 4 · 五维形状逐维看</div>
+      <h2>一种字节顺序，几种分组</h2>
+      <p>把 A 的行号拆成 m = 128·mb + 32·g + r，scale 列号拆成 j = 4·kc + c。五个数位按 (mb, kc, r, g, c) 排，就是教程的物理形状 (M/128, K/V/4, 32, 4, 4)：字节在显存、SMEM 和 TMEM 里都按这个顺序放。代码里其余的形状只是把同一串字节换一种分组，唯一改变数位顺序的是第 220 行的 trans。选一维，看沿它走一步在存储里跨多远、在逻辑矩阵里对应哪些 scale；点图里的格子可以换选中的 scale。</p>
+    </div>
+    <div class="controls">
+      <div class="ctl">格式
+        <div class="seg" id="dm-fmt" role="group" aria-label="格式">
+          <button type="button" data-v="nvfp4" aria-pressed="true">NVFP4</button>
+          <button type="button" data-v="mxfp4" aria-pressed="false">MXFP4</button>
+          <button type="button" data-v="mxfp8" aria-pressed="false">MXFP8</button>
+        </div>
+      </div>
+      <div class="ctl">M
+        <div class="seg" id="dm-M" role="group" aria-label="A 的行数 M">
+          <button type="button" data-v="256" aria-pressed="false">256</button>
+          <button type="button" data-v="512" aria-pressed="true">512</button>
+          <button type="button" data-v="1024" aria-pressed="false">1024</button>
+        </div>
+      </div>
+      <div class="ctl">K
+        <div class="seg" id="dm-K" role="group" aria-label="K">
+          <button type="button" data-v="512" aria-pressed="false">512</button>
+          <button type="button" data-v="1024" aria-pressed="true">1024</button>
+          <button type="button" data-v="2048" aria-pressed="false">2048</button>
+        </div>
+      </div>
+      <div class="ctl">BLOCK_M
+        <div class="seg" id="dm-bm" role="group" aria-label="BLOCK_M">
+          <button type="button" data-v="128" aria-pressed="true">128</button>
+          <button type="button" data-v="256" aria-pressed="false">256</button>
+        </div>
+      </div>
+      <div class="ctl">BLOCK_K
+        <div class="seg" id="dm-bk" role="group" aria-label="BLOCK_K">
+          <button type="button" data-v="128" aria-pressed="false">128</button>
+          <button type="button" data-v="256" aria-pressed="true">256</button>
+        </div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="ctl">看哪一维
+        <div class="seg" id="dm-dim" role="group" aria-label="看哪一维">
+          <button type="button" data-v="0" aria-pressed="false">第 0 维 mb</button>
+          <button type="button" data-v="1" aria-pressed="false">第 1 维 kc</button>
+          <button type="button" data-v="2" aria-pressed="false">第 2 维 r</button>
+          <button type="button" data-v="3" aria-pressed="false">第 3 维 g</button>
+          <button type="button" data-v="4" aria-pressed="true">第 4 维 c</button>
+        </div>
+      </div>
+      <label class="rng" for="dm-i">下标 <span class="mono" id="dm-i-l">c</span><input id="dm-i" type="range" min="0" max="3" step="1" value="2"><output id="dm-i-v" for="dm-i">2</output></label>
+    </div>
+    <figure>
+      <div class="fig-scroll fit"><svg id="dm-svg" class="dia" viewBox="0 0 900 612" role="img" aria-label="scale 张量的五维：块网格、选中的 512 字节块、放大的 32 位格子、第 394 行的 TMA 视图与同一块的逻辑视图"></svg></div>
+      <div class="legend"><span><i class="k-dcur"></i>选中的 scale</span><span><i class="k-dfib"></i>沿所选一维的其他位置</span><span><i class="k-dbox"></i>一个 K 步由 TMA 搬的块</span></div>
+      <figcaption id="dm-cap"></figcaption>
+    </figure>
+    <p class="note" id="dm-read"></p>
+    <div class="readout">
+      <div class="e"><span>这一维：大小与来历</span><b id="dm-what"></b></div>
+      <div><span>沿这一维走一步：存储里、逻辑上</span><b id="dm-step"></b></div>
+      <div><span>选中 scale 的五维下标 [mb, kc, r, g, c]</span><b id="dm-5d"></b></div>
+      <div><span>逻辑位置 (m, j) 与管的 K 元素</span><b id="dm-pos"></b></div>
+      <div><span>显存里的字节偏移</span><b id="dm-off"></b></div>
+    </div>
+    <div class="sec-head">
+      <h3>形状链：每个数字从哪来</h3>
+      <p>按代码顺序列出 A 的 scale 经过的全部形状，数字按来源着色。点“物理排法”一行的某一维，上图就切到那一维，各行里含这一数位的数字会加框。最后两列跟踪上图选中的那个 scale：下标一路在变，字节偏移在显存里、在一个 K 步的 SMEM 缓冲里各自不变。</p>
+    </div>
+    <div class="legend"><span><i class="k-chw"></i>硬件固定</span><span><i class="k-ctma"></i>TMA 规则</span><span><i class="k-cin"></i>随输入的 M、K 变（含 V 的还随格式变）</span><span><i class="k-cblk"></i>随分块 BLOCK_M、BLOCK_K 变（含 V 的还随格式变）</span><span><i class="k-cph"></i>占位</span><span><i class="k-con"></i>含所选数位</span></div>
+    <div class="tbl-scroll">
+      <table class="chain"><thead><tr><th>阶段</th><th>代码</th><th>形状</th><th>选中 scale 的下标</th><th>字节偏移</th></tr></thead><tbody id="dm-chain"></tbody></table>
+    </div>
+    <div class="concepts">
+      <div class="card">
+        <h3><span class="n">A</span>数位：C 里的对应物</h3>
+        <pre><span class="c">/* uint8_t buf[M/128][NK][32][4][4]; NK = K/V/4 */</span>
+size_t scale_off(int m, int j) {
+  int mb = m / 128, g = m / 32 % 4, r = m % 32;
+  int kc = j / 4,   c = j % 4;
+  size_t blk = (size_t)mb * NK + kc;     <span class="c">/* 第几块 */</span>
+  return blk * 512 + 16 * r + 4 * g + c; <span class="c">/* 块内 */</span>
+}</pre>
+        <p>reshape 只是换一种分组：把相邻的几位合成一位，或把一位拆开，数位的先后不变，所以这个地址公式不变。trans 改的是数位的先后：第 220 行把 (mb′, kc′, r, g, c) 换成 (mb′, g, r, kc′, c)，行号的三位、列号的两位才各自挨在一起，最后的 reshape 才能把它们合成块内的行号 m′ 和列号 j′。</p>
+      </div>
+      <div class="card">
+        <h3><span class="n">B</span>真实系统要自己排一次</h3>
+        <pre><span class="c"># 量化器给出逻辑 scale S：[M, K // V]，uint8</span>
+<span class="c"># 拆成 (mb, g, r, kc, c)，再换成 (mb, kc, r, g, c)</span>
+P = (S.reshape(M // 128, 4, 32, K // V // 4, 4)
+      .permute(0, 3, 2, 1, 4)
+      .contiguous())     <span class="c"># 只有这里真正搬字节</span>
+<span class="c"># 第 394 行：只换看法</span>
+a_scale = P.reshape(1, M // 128, K // V // 4, 2, 256)</pre>
+        <p>教程第 366 行直接按物理形状生成随机 scale，所以没有这一步；参考计算第 404–407 行的 <code>unpack_scale</code> 是它的逆。(0, 3, 2, 1, 4) 只对调第 1、3 维，自己就是自己的逆，所以排和拆用同一个顺序。本机用 PyTorch（CPU）核对过：这样排好的 scale 经 <code>unpack_scale</code> 能还原，kernel 对每个 TMA 块的换算与逻辑矩阵的对应子块逐字节相同。第 394 行的首维 1 源码没有说明用途；去掉它、改用四维描述符，sm_100 上同样编译成 <code>tcgen05.cp</code>。</p>
+      </div>
+    </div>
+    <p class="keyline"><b>字节只按 (mb, kc, r, g, c) 排一次。</b>32、4、4 由 TMEM 和 tcgen05.mma 定死；M/128、K/V/4 随输入变；rep_m、rep_k 随分块变；2 × 256 只为满足 TMA 的规则，首维 1 是占位。第 220 行先把每块拆回 (r, g, c)，再对调 kc′ 与 g，让行的三位、列的两位各自挨在一起，最后合成逻辑下标。</p>
+  </section>
+  <section id="targets">
+    <div class="sec-head">
+      <div class="tag">节点 5 · 硬件落地</div>
+      <h2>同一个 tl.dot_scaled，五种落地</h2>
+      <p>同一行 <code>tl.dot_scaled</code>，编译器按目标硬件选路：有块缩放指令，就把 scale 交给指令，在每段 K 的部分和上乘（节点 3 的位置 c）；没有，就先把元素解码成 bf16、逐个乘上 scale，再用普通的 bf16 矩阵乘（位置 a）；两条路都走不通，就编译失败。下表每一格都来自本机对 Triton v3.7.1 的编译探测（只编译，不运行）。点格子看数据和 scale 各走哪条路、scale 放在哪、代价落在哪。</p>
+    </div>
+    <div class="legend"><span><i class="k-sn"></i>原生：块缩放指令</span><span><i class="k-ss"></i>软件换算：解码成 bf16 再乘 scale</span><span><i class="k-sf"></i>编译失败</span></div>
+    <div class="tbl-scroll">
+      <table class="tgt"><thead><tr><th>目标</th><th>NVFP4</th><th>MXFP4</th><th>MXFP8</th><th>FP8 × FP4</th><th>bf16 × MXFP4</th></tr></thead><tbody id="t5-mat"></tbody></table>
+    </div>
+    <div class="controls">
+      <div class="ctl">目标
+        <div class="seg" id="t5-tgt" role="group" aria-label="目标">
+          <button type="button" data-v="sm100" aria-pressed="true">B200 · sm_100</button>
+          <button type="button" data-v="sm120" aria-pressed="false">RTX 5090 · sm_120</button>
+          <button type="button" data-v="sm89" aria-pressed="false">RTX 4090 · sm_89</button>
+          <button type="button" data-v="gfx950" aria-pressed="false">MI355X · gfx950</button>
+          <button type="button" data-v="gfx942" aria-pressed="false">MI300X · gfx942</button>
+        </div>
+      </div>
+      <div class="ctl">格式
+        <div class="seg" id="t5-case" role="group" aria-label="格式">
+          <button type="button" data-v="nvfp4" aria-pressed="false">NVFP4</button>
+          <button type="button" data-v="mxfp4" aria-pressed="true">MXFP4</button>
+          <button type="button" data-v="mxfp8" aria-pressed="false">MXFP8</button>
+          <button type="button" data-v="mixed" aria-pressed="false">FP8 × FP4</button>
+          <button type="button" data-v="one" aria-pressed="false">bf16 × MXFP4</button>
+        </div>
+      </div>
+    </div>
+    <figure>
+      <div class="fig-scroll fit"><svg id="t5-svg" class="dia" viewBox="0 0 900 300" role="img" aria-label="所选目标与格式下，A、B 数据和 scale 各自经过的存储层次与指令"></svg></div>
+      <figcaption id="t5-cap"></figcaption>
+    </figure>
+    <div class="readout">
+      <div class="e wide"><span>矩阵乘指令</span><b id="t5-ins"></b></div>
+      <div><span>scale 用在哪一步（节点 3）</span><b id="t5-pos"></b></div>
+      <div><span>scale 在哪、怎样选出这一个</span><b id="t5-sel"></b></div>
+      <div><span>累加器在哪</span><b id="t5-acc"></b></div>
+      <div><span>对 scale 布局的要求</span><b id="t5-lay"></b></div>
+      <div><span>编译记录</span><b id="t5-rec"></b></div>
+    </div>
+    <p class="note" id="t5-cost"></p>
+    <div class="concepts">
+      <div class="card">
+        <h3><span class="n">A</span>三种硬件都把 4 个 scale 装进 32 位</h3>
+        <p>每个 scale 1 字节，硬件按 32 位取，再用指令里的字段选出要的那几个字节。节选自本机编译产物：</p>
+        <pre><span class="c">// B200：TMEM 一个格子 32 位；4X 读整格，1X 由指令描述符里的 scale ID 选 1 个字节</span>
+tcgen05.mma.cta_group::1.kind::mxf8f6f4.block_scale.scale_vec::1X
+
+<span class="c">// RTX 5090：%r101、%r118 各是一个 32 位寄存器；{0, 0} 是 {byte-id, thread-id}</span>
+mma.sync.aligned.m16n8k64.row.col.kind::mxf4nvf4.block_scale
+  .scale_vec::4X.f32.e2m1.e2m1.f32.ue4m3
+  {d}, {a}, {b}, {c}, %r101, {0, 0}, %r118, {0, 0};
+
+<span class="c">// MI355X：v46、v38 各装 4 个 scale，op_sel / op_sel_hi 选字节；cbsz、blgp 是格式（4 = E2M1）</span>
+v_mfma_scale_f32_16x16x128_f8f6f4 v[22:25], v[48:51], v[26:29], 0,
+  v46, v38 op_sel_hi:[0,0,0] cbsz:4 blgp:4</pre>
+        <p>RTX 5090 的 thread-id 还决定四个线程一组里由谁提供 scale：A 由一对线程提供，B 由一个线程提供（PTX ISA 9.4 §9.7.16.3）。</p>
+      </div>
+      <div class="card">
+        <h3><span class="n">B</span>两家都预排 scale，目标不同</h3>
+        <p>NVIDIA 的 5D 预排让 SMEM 里的字节顺序就是 TMEM 的顺序，一个线程发 <code>tcgen05.cp</code> 原样拷过去。AMD 的 <code>shuffle_scales_cdna4</code>（教程第 583–595 行）让每个 lane 要的 4 个 scale 在内存里挨着，一次 32 位读就能取齐。</p>
+        <p>本机对比 MI355X 上同一个 MXFP4 乘法：scale 按逻辑形状存时，从 LDS 读 scale 用了 36 条逐字节的 <code>ds_read_u8</code>，还要拼字节；按教程预排后只要 6 条 32 位读（<code>ds_read_b32</code>、<code>ds_read2st64_b32</code>）。从显存读进 LDS 的指令两者相同。</p>
+        <p>两种预排都只影响快慢，不影响结果：kernel 里那串 reshape 与 permute 把它换回 <code>tl.dot_scaled</code> 要的逻辑形状（教程第 544–558 行）。</p>
+      </div>
+    </div>
+    <p class="keyline"><b>scale 越靠近矩阵单元，越省事。</b>在指令里乘（B200、RTX 5090、MI355X），代价是 scale 要按硬件的取法预排，格式也受指令限制；乘到元素上（RTX 4090，以及各家的 bf16 × MXFP4），代价是逐元素的解码与乘法，矩阵乘只能按 bf16 的速度算。MI300X 在 Triton v3.7.1 里只模拟一侧带 scale 的情形，两侧都带就编译失败。</p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    来源与条件
+    <ul>
+      <li>格式定义：OCP Microscaling Formats (MX) v1.0（2023-09）§5.3 第 10–13 页（FP8 的 SAT 与 OVF、FP6、FP4 的编码表）与 §5.4.1 第 14 页（E8M0）；FP8 Formats for Deep Learning（arXiv:2209.05433v2）§2、§3 与 §3.1（E4M3、E5M2 的编码与用途，收回特殊值后最大值从 240 到 448）。</li>
+      <li>FP16 的 loss scaling：Mixed Precision Training（arXiv:1710.03740v3，ICLR 2018）§3.2。BF16：Google Cloud 博客 BFloat16（2019-08-23）。TF32：NVIDIA 开发者博客 Accelerating TensorFlow on NVIDIA A100 GPUs（2020-07-24），以及 Triton v3.7.1 <code>python/triton/language/core.py</code> 第 2037–2061 行。</li>
+      <li>DeepSeek-V3 技术报告（arXiv:2412.19437v2）§3.3.2：全部张量用 E4M3、细粒度 scale 让一组元素共享指数位；部分激活的 scale 取 2 的整数次幂。</li>
+      <li>AMD 的 FP8：ROCm 文档 Precision support（取回于 2026-10-15）；Triton v3.7.1 <code>third_party/amd/backend/compiler.py</code> 第 45–49 行。vLLM commit <code>8530aed</code> 的 <code>vllm/model_executor/layers/quantization/utils/w8a8_utils.py</code> 第 109–130 行。</li>
+      <li>节点 2：OCP MX v1.0 §5.1–5.2（第 9–10 页）、§6.1–6.3（第 14–15 页，scale 取“不超过 amax 的最大 2 的幂除以元素格式能表示的最大 2 的幂”，超出的元素饱和）；Pretraining Large Language Models with NVFP4（NVIDIA，arXiv:2509.25149v1）§1 与附录 B（两级 scale 的取法；MXFP8 训练中饱和导致收敛问题，因而把 scale 向上取）；NVIDIA 技术博客 Introducing NVFP4（2025-06-24）。“分块”一节的 64 个数由固定种子生成：正态分布、标准差 0.55、截到 ±1.9、保留两位小数，再把下标 45 设为 12；三种量化与 Python 参考实现逐一核对。</li>
+      <li>节点 4：教程第 26–68 行（Scale preshuffling on NVIDIA GPUs）、第 217–221 行、第 362–395 行（5D 形状、rep_m、rep_k 与描述符）、第 404–410 行（参考计算的 <code>unpack_scale</code>）；PTX ISA 9.4 §9.7.18.10.7.2 图 237（scale_vec::1X 时 scale A 矩阵在 TMEM 中的布局）、§9.7.18.8.1（每个 warp 只能访问 32 个 lane）与 tcgen05.cp（.32x128b 须配 .warpx4，复制到 4 个 warp）；CUDA Driver API <code>cuTensorMapEncodeTiled</code>（boxDim 每维不超过 256，最内维字节数须是 16 的倍数）；Triton v3.7.1 <code>lib/Dialect/TritonGPU/Transforms/OptimizeDotOperands.cpp</code> 第 183–318 行（<code>UseShmemForScales</code>）与 <code>third_party/nvidia/lib/TritonNVIDIAGPUToLLVM/DotOpToLLVM/MMAv5.cpp</code> 第 596–607、628、673–674 行。TTGIR 与 PTX 来自本机对教程 kernel 的 sm_100 编译探测，只编译，没有在 GPU 上运行。</li>
+      <li>节点 4 的五维形状：教程第 47–63 行（逻辑形状 [1] 与预排形状 [2]）、第 207–209、217–220、232 行（kernel 的偏移、载入与换算）、第 363–366、385–397 行（主机端的形状、rep 与 TMA 视图）、第 404–409 行（<code>unpack_scale</code>）。本机用 PyTorch 2.13（CPU）核对：按 (mb, kc, r, g, c) 排好的 scale 经 <code>unpack_scale</code> 还原为原矩阵，kernel 对每个 TMA 块的换算与逻辑矩阵的对应子块逐字节相同（5 组规模与分块）；去掉第 394 行的首维 1、改用四维描述符后，sm_100 的编译产物仍是 <code>tcgen05.cp</code>（只编译）。图里的 M、K 取小值，只为画得下。</li>
+      <li>节点 5：教程第 70–128 行（AMD 的 scale 预排）、第 130–140 行（<code>supports_block_scaling</code>）、第 502–595 行（CDNA4 kernel 与 <code>shuffle_scales_cdna4</code>）；Triton v3.7.1 <code>lib/Dialect/TritonGPU/Transforms/AccelerateMatmul.cpp</code> 第 657–700 行（sm_120 的 <code>ScaledBlockedToMMA</code>：要求两侧都有 scale，不接受 FP8 与 FP4 混合）与第 1010–1013 行（NVIDIA 总会登记通用的软件换算）、<code>DecomposeScaledBlocked.cpp</code> 第 62–93、191–212 行（E8M0 左移进 bf16 的指数位，解码后逐元素乘 scale）、<code>third_party/amd/lib/TritonAMDGPUTransforms/AccelerateAMDMatmul.cpp</code> 第 774–805 行（CDNA3 的 <code>ScaledBlockedToMFMA</code>：两侧都有 scale 时不处理）与第 1817–1838 行（各代 AMD 登记的模式）、<code>third_party/amd/lib/TritonAMDGPUToLLVM/DotOpToLLVM/MFMA.cpp</code> 第 44–58 行（cbsz、blgp 的格式编码）与第 671–676 行（4 个 scale 装进 32 位、op_sel 选字节）；PTX ISA 9.4 §9.7.16.3（mma.sync 的块缩放与 byte-id、thread-id 选择器）。表中每格来自本机编译探测：NVIDIA 用教程 kernel，AMD 的 MXFP4 用教程的 CDNA4 kernel，其余格用同一套指针写法（块 128 × 128 × 256，8 个 warp，2 级）；“编译记录”里的共享内存与寄存器数随写法而变。没有在任何 GPU 上运行。</li>
+      <li>数值核对：本机按位枚举全部 FP8、FP6、FP4 编码，与 PyTorch 2.13.0 的 <code>torch.finfo</code> 和 FP8 的类型转换对照；探索器的舍入是就近取偶，溢出按页上所选的方式处理。没有任何 GPU 运行。</li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var NS = "http://www.w3.org/2000/svg";
+
+  /*PURE-START*/
+  var FORMATS = [
+    { id: "fp64", label: "FP64", e: 11, m: 52, bias: 1023, kind: "ieee", group: "a" },
+    { id: "fp32", label: "FP32", e: 8, m: 23, bias: 127, kind: "ieee", group: "a" },
+    { id: "tf32", label: "TF32", e: 8, m: 10, bias: 127, kind: "ieee", group: "a" },
+    { id: "fp16", label: "FP16", e: 5, m: 10, bias: 15, kind: "ieee", group: "a" },
+    { id: "bf16", label: "BF16", e: 8, m: 7, bias: 127, kind: "ieee", group: "a" },
+    { id: "e5m2", label: "E5M2", e: 5, m: 2, bias: 15, kind: "ieee", group: "b" },
+    { id: "e4m3", label: "E4M3", e: 4, m: 3, bias: 7, kind: "fn", group: "b" },
+    { id: "e4m3fnuz", label: "E4M3FNUZ", e: 4, m: 3, bias: 8, kind: "fnuz", group: "b" },
+    { id: "e5m2fnuz", label: "E5M2FNUZ", e: 5, m: 2, bias: 16, kind: "fnuz", group: "b" },
+    { id: "e3m2", label: "E3M2", e: 3, m: 2, bias: 3, kind: "none", group: "b" },
+    { id: "e2m3", label: "E2M3", e: 2, m: 3, bias: 1, kind: "none", group: "b" },
+    { id: "e2m1", label: "E2M1", e: 2, m: 1, bias: 1, kind: "none", group: "b" },
+    { id: "e8m0", label: "E8M0", e: 8, m: 0, bias: 127, kind: "e8m0", group: "b" }
+  ];
+
+  function p2(k) { return Math.pow(2, k); }
+  function hasSign(f) { return f.kind !== "e8m0"; }
+  function nbits(f) { return (hasSign(f) ? 1 : 0) + f.e + f.m; }
+
+  // 最大有限值所在的指数编码与尾数编码
+  function limits(f) {
+    var top = p2(f.e) - 1, mtop = p2(f.m) - 1;
+    if (f.kind === "ieee") return { Emax: top - 1, Mmax: mtop };
+    if (f.kind === "fn") return { Emax: top, Mmax: mtop - 1 };
+    if (f.kind === "e8m0") return { Emax: top - 1, Mmax: 0 };
+    return { Emax: top, Mmax: mtop };
+  }
+
+  function decode(f, s, E, M) {
+    var top = p2(f.e) - 1, mtop = p2(f.m) - 1, v;
+    if (f.kind === "e8m0") {
+      return E === top ? { v: NaN, cls: "NaN" } : { v: p2(E - f.bias), cls: "2 的幂" };
+    }
+    if (f.kind === "ieee" && E === top) {
+      return M ? { v: NaN, cls: "NaN" } : { v: s ? -Infinity : Infinity, cls: "无穷" };
+    }
+    if (f.kind === "fn" && E === top && M === mtop) return { v: NaN, cls: "NaN" };
+    if (f.kind === "fnuz" && s === 1 && E === 0 && M === 0) return { v: NaN, cls: "NaN" };
+    if (E === 0) {
+      v = (M / p2(f.m)) * p2(1 - f.bias);
+      return { v: s ? -v : v, cls: M === 0 ? "零" : "次正规数" };
+    }
+    v = (1 + M / p2(f.m)) * p2(E - f.bias);
+    return { v: s ? -v : v, cls: "正规数" };
+  }
+
+  function rne(n) {
+    var fl = Math.floor(n), r = n - fl;
+    if (r > 0.5) return fl + 1;
+    if (r < 0.5) return fl;
+    return fl % 2 === 0 ? fl : fl + 1;
+  }
+
+  function floorLog2(a) {
+    var k = Math.floor(Math.log2(a));
+    while (p2(k) > a) k--;
+    while (p2(k + 1) <= a) k++;
+    return k;
+  }
+
+  // 就近取偶。返回 {s, E, M, note}；E 为 null 表示这个格式表示不了，位保持不变
+  function encode(f, x, sat) {
+    var L = limits(f), top = p2(f.e) - 1, mtop = p2(f.m) - 1;
+    if (f.kind === "e8m0") {
+      if (isNaN(x)) return { s: 0, E: top, M: 0, note: "nan" };
+      if (!(x > 0)) return { s: 0, E: null, M: 0, note: "e8m0-domain" };
+      if (x === Infinity) return { s: 0, E: sat ? L.Emax : top, M: 0, note: "overflow" };
+      var k0 = floorLog2(x);
+      if (rne(x / p2(k0)) === 2) k0 += 1;
+      var E0 = k0 + f.bias;
+      if (E0 > L.Emax) return { s: 0, E: sat ? L.Emax : top, M: 0, note: "overflow" };
+      if (E0 < 0) return { s: 0, E: 0, M: 0, note: "e8m0-under" };
+      return { s: 0, E: E0, M: 0, note: "e8m0-round" };
+    }
+    if (isNaN(x)) {
+      if (f.kind === "ieee") return { s: 0, E: top, M: p2(f.m - 1), note: "nan" };
+      if (f.kind === "fn") return { s: 0, E: top, M: mtop, note: "nan" };
+      if (f.kind === "fnuz") return { s: 1, E: 0, M: 0, note: "nan" };
+      return { s: 0, E: null, M: 0, note: "nan-none" };
+    }
+    var s = (x < 0 || (x === 0 && 1 / x < 0)) ? 1 : 0, a = Math.abs(x);
+    function over() {
+      if (sat || f.kind === "none") return { s: s, E: L.Emax, M: L.Mmax, note: "overflow" };
+      if (f.kind === "ieee") return { s: s, E: top, M: 0, note: "overflow" };
+      if (f.kind === "fn") return { s: s, E: top, M: mtop, note: "overflow" };
+      return { s: 1, E: 0, M: 0, note: "overflow" };
+    }
+    if (a === Infinity) return over();
+    if (a === 0) {
+      if (f.kind === "fnuz") return { s: 0, E: 0, M: 0, note: s ? "negzero" : null };
+      return { s: s, E: 0, M: 0, note: null };
+    }
+    if (a < p2(1 - f.bias)) {
+      var N = rne(a / p2(1 - f.bias - f.m));
+      if (N === 0) return { s: f.kind === "fnuz" ? 0 : s, E: 0, M: 0, note: "underflow" };
+      if (N === p2(f.m)) return { s: s, E: 1, M: 0, note: null };
+      return { s: s, E: 0, M: N, note: null };
+    }
+    var k = floorLog2(a), N2 = rne(a / p2(k - f.m));
+    if (N2 === p2(f.m + 1)) { k += 1; N2 = p2(f.m); }
+    var E = k + f.bias, M = N2 - p2(f.m);
+    if (E > L.Emax || (E === L.Emax && M > L.Mmax)) return over();
+    return { s: s, E: E, M: M, note: null };
+  }
+
+  // 全部正的有限值（只用于 8 位及以下）
+  function positives(f) {
+    var out = [], sMax = hasSign(f) ? 0 : 0, E, M, d;
+    for (E = 0; E < p2(f.e); E++) {
+      for (M = 0; M < p2(f.m); M++) {
+        d = decode(f, sMax, E, M);
+        if (isFinite(d.v) && d.v > 0) out.push({ v: d.v, sub: f.kind !== "e8m0" && E === 0, E: E, M: M });
+      }
+    }
+    out.sort(function (a, b) { return a.v - b.v; });
+    return out;
+  }
+
+  function rangeOf(f) {
+    var L = limits(f), maxv = (1 + L.Mmax / p2(f.m)) * p2(L.Emax - f.bias);
+    if (f.kind === "e8m0") return { lo: -127, loN: -127, hi: 127 };
+    return { lo: 1 - f.bias - f.m, loN: 1 - f.bias, hi: Math.log2(maxv) };
+  }
+  /*PURE-END*/
+
+  var NOTES = {
+    fp64: "双精度。科学计算用，深度学习的 kernel 基本不用。位太多时可以横向滚动。",
+    fp32: "单精度。低精度矩阵乘的累加器、混合精度训练的主权重都用它。本课 kernel 的 acc 就是 fp32。",
+    tf32: "张量核的一种计算模式：输入和输出都是 FP32，乘之前把尾数缩到 10 位。存放时仍占 32 位，这里只画参与乘法的 19 位。下面的转换按就近舍入；Triton 的文档提醒，张量核可能直接截掉低位而不舍入。",
+    fp16: "半精度。尾数和 TF32 一样多，指数只有 5 位：最大值 65504，比 2⁻²⁴ 的一半还小的数变成 0。",
+    bf16: "FP32 的高 16 位：范围和 FP32 相同，尾数只剩 7 位。",
+    e5m2: "FP16 的高 8 位，沿用 IEEE 的 Inf 与 NaN。FP8 论文建议用于梯度。",
+    e4m3: "OCP 与 NVIDIA 的 FP8 E4M3，PyTorch 叫 float8_e4m3fn。不留 Inf，只把 S.1111.111 当 NaN，最大值因此是 448。",
+    e4m3fnuz: "AMD MI300 系列（CDNA3）原生的 FP8 E4M3。bias 为 8，没有 −0，0x80 是唯一的 NaN。同样的位，值是 E4M3 的一半。",
+    e5m2fnuz: "AMD MI300 系列的另一种 FP8：bias 为 16，0x80 是唯一的 NaN，没有 Inf。",
+    e3m2: "MXFP6 的元素类型之一，没有 Inf 和 NaN。",
+    e2m3: "MXFP6 的另一种元素类型：范围更窄，尾数多一位。",
+    e2m1: "FP4，MXFP4 与 NVFP4 的元素类型。16 个编码只有 15 个值，+0 与 −0 相等。",
+    e8m0: "只有 8 位指数：没有符号、没有尾数、没有 0。只用作 MX 格式的块 scale，0xFF 是 NaN。"
+  };
+
+  var SUP = { "-": "⁻", "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", ".": "·" };
+  function sup(k) { return String(k).split("").map(function (c) { return SUP[c] || c; }).join(""); }
+  function pow2(k) { return "2" + sup(k); }
+
+  function fmt(v) {
+    if (isNaN(v)) return "NaN";
+    if (v === Infinity) return "+∞";
+    if (v === -Infinity) return "−∞";
+    if (v === 0) return (1 / v < 0) ? "−0" : "0";
+    var a = Math.abs(v), s;
+    if (a >= 1e-4 && a < 1e9) {
+      s = String(+v.toPrecision(12));
+    } else {
+      var ex = v.toExponential(6).split("e");
+      var mant = String(+ex[0]);
+      s = mant + "×10" + sup(+ex[1]);
+    }
+    return s.replace(/^-/, "−");
+  }
+
+  function $(id) { return document.getElementById(id); }
+  function svgEl(tag, attrs, text) {
+    var n = document.createElementNS(NS, tag), k;
+    for (k in attrs) n.setAttribute(k, attrs[k]);
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+  function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
+  function byId(id) { for (var i = 0; i < FORMATS.length; i++) if (FORMATS[i].id === id) return FORMATS[i]; return null; }
+
+  // ---------------- 位段对照图 ----------------
+  function drawLayout() {
+    var svg = $("layout-svg"); clear(svg);
+    var BW = 13, X0 = 100, top = 28, RH = 24, GAP = 14;
+    var rows = [
+      { f: "fp64", txt: "" },
+      { f: "fp32", txt: "基准" },
+      { f: "bf16", txt: "= FP32 的高 16 位" },
+      { f: "tf32", txt: "低 13 位占位，不参与乘法（张量核内部）", pad: 13 },
+      { f: "fp16", txt: "指数 5 位、尾数 10 位" },
+      { f: "e5m2", txt: "= FP16 的高 8 位" },
+      { f: "e4m3", txt: "收回了 Inf 的编码" },
+      { f: "e3m2", txt: "MXFP6 的两种元素" },
+      { f: "e2m3", txt: "" },
+      { f: "e2m1", txt: "MXFP4、NVFP4 的元素" },
+      { f: "e8m0", txt: "只有指数：块 scale" }
+    ];
+    svg.appendChild(svgEl("text", { x: X0, y: 16, "class": "xs mu" }, "每格 1 位，左端对齐"));
+    var yOf = {};
+    rows.forEach(function (r, i) {
+      var f = byId(r.f), y = top + i * (RH + GAP), x = X0;
+      yOf[r.f] = y;
+      svg.appendChild(svgEl("text", { x: 8, y: y + 16, "class": "b" }, f.label));
+      function seg(cls, bits, label) {
+        if (!bits) return;
+        var w = bits * BW;
+        svg.appendChild(svgEl("rect", { x: x, y: y, width: w, height: RH, rx: 3, "class": cls }));
+        var t = w >= 64 ? label + " " + bits : String(bits);
+        if (cls === "seg-s") t = "S";
+        if (w >= 12) svg.appendChild(svgEl("text", { x: x + w / 2, y: y + 16, "text-anchor": "middle", "class": "xs" }, t));
+        x += w;
+      }
+      if (hasSign(f)) seg("seg-s", 1, "S");
+      seg("seg-e", f.e, "指数");
+      seg("seg-m", f.m, "尾数");
+      if (r.pad) seg("seg-u", r.pad, "占位");
+      if (r.txt) svg.appendChild(svgEl("text", { x: x + 12, y: y + 16, "class": "sm mu" }, r.txt));
+    });
+    function guide(bitsFromLeft, fromId, toId, label) {
+      var gx = X0 + bitsFromLeft * BW, y1 = yOf[fromId] + RH + 2, y2 = yOf[toId] - 2;
+      svg.appendChild(svgEl("line", { x1: gx, y1: y1, x2: gx, y2: y2, "class": "guide" }));
+      if (label) svg.appendChild(svgEl("text", { x: gx + 4, y: (y1 + y2) / 2 + 4, "class": "xs mu" }, label));
+    }
+    guide(16, "fp32", "bf16", "截到 16 位");
+    guide(8, "fp16", "e5m2", "截到 8 位");
+  }
+
+  // ---------------- 探索器 ----------------
+  var st = { f: byId("e4m3"), s: 0, E: 0, M: 0, sat: true, axis: "log", x: 0.1 };
+
+  function buildFormatButtons() {
+    ["a", "b"].forEach(function (g) {
+      var box = $("seg-fmt-" + g);
+      FORMATS.filter(function (f) { return f.group === g; }).forEach(function (f) {
+        var b = document.createElement("button");
+        b.type = "button"; b.textContent = f.label; b.setAttribute("data-v", f.id);
+        b.id = "fmt-" + f.id;
+        b.addEventListener("click", function () { selectFormat(f.id); });
+        box.appendChild(b);
+      });
+    });
+  }
+
+  function selectFormat(id) {
+    st.f = byId(id);
+    FORMATS.forEach(function (f) { $("fmt-" + f.id).setAttribute("aria-pressed", String(f.id === id)); });
+    $("ex-note").textContent = NOTES[id];
+    var linOk = nbits(st.f) <= 8 && rangeOf(st.f).hi <= 5;
+    var linBtn = document.querySelector('#ex-axis button[data-v="lin"]');
+    linBtn.disabled = !linOk;
+    if (!linOk && st.axis === "lin") setAxis("log");
+    if (st.x !== null) applyInput(st.x, true);
+    else { st.s = 0; st.E = 0; st.M = 0; renderAll(null); }
+  }
+
+  function bitString(n, w) { var s = n.toString(2); while (s.length < w) s = "0" + s; return s; }
+
+  function renderBits() {
+    var f = st.f, box = $("ex-bits"); clear(box);
+    var wrap = document.createElement("div"); wrap.className = "bits";
+    function group(cls, title, width, value, onFlip) {
+      if (!width) return;
+      var g = document.createElement("div"); g.className = "grp";
+      var cells = document.createElement("div"); cells.className = "cells";
+      var bits = bitString(value, width);
+      for (var i = 0; i < width; i++) {
+        (function (i) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.className = "bit " + cls + (bits[i] === "1" ? " on" : "");
+          b.textContent = bits[i];
+          b.setAttribute("aria-label", title + "第 " + (i + 1) + " 位，当前为 " + bits[i]);
+          b.addEventListener("click", function () { onFlip(width - 1 - i); });
+          cells.appendChild(b);
+        })(i);
+      }
+      var cap = document.createElement("div"); cap.className = "cap";
+      cap.textContent = title + (width > 1 ? " · " + width + " 位" : "");
+      g.appendChild(cells); g.appendChild(cap); wrap.appendChild(g);
+    }
+    function flip(v, pos) { var w = p2(pos); return Math.floor(v / w) % 2 ? v - w : v + w; }
+    if (hasSign(f)) group("f-s", "符号", 1, st.s, function () { st.s = 1 - st.s; st.x = null; renderAll(null); });
+    group("f-e", "指数段", f.e, st.E, function (pos) { st.E = flip(st.E, pos); st.x = null; renderAll(null); });
+    group("f-m", "尾数段", f.m, st.M, function (pos) { st.M = flip(st.M, pos); st.x = null; renderAll(null); });
+    box.appendChild(wrap);
+  }
+
+  function formulaText(f, d) {
+    var s = st.s, E = st.E, M = st.M;
+    if (f.kind === "e8m0") {
+      return E === 255 ? "E = 255（0xFF）：NaN" : "v = 2^(E − 127) = 2^(" + E + " − 127) = " + fmt(d.v);
+    }
+    if (d.cls === "NaN") return "这个编码是 NaN";
+    if (d.cls === "无穷") return "指数段全 1、尾数段全 0：" + (s ? "−∞" : "+∞");
+    var head = "v = (−1)^" + s;
+    if (E === 0) return head + " × 2^(1 − " + f.bias + ") × (0 + " + M + " / 2^" + f.m + ") = " + fmt(d.v);
+    return head + " × 2^(" + E + " − " + f.bias + ") × (1 + " + M + " / 2^" + f.m + ") = " + fmt(d.v);
+  }
+
+  function renderAll(result) {
+    var f = st.f, d = decode(f, st.s, st.E, st.M);
+    renderBits();
+    $("ex-sem").textContent = hasSign(f) ? ("S = " + st.s + "，E = " + st.E + "，M = " + st.M) : ("E = " + st.E);
+    var kexp = null;
+    if (f.kind === "e8m0") { kexp = st.E - f.bias; $("ex-exp").textContent = st.E === 255 ? "—" : (st.E + " − 127 = " + kexp); }
+    else if (d.cls === "NaN" || d.cls === "无穷") $("ex-exp").textContent = "—";
+    else if (st.E === 0) { kexp = 1 - f.bias; $("ex-exp").textContent = "1 − " + f.bias + " = " + kexp + "（次正规数固定）"; }
+    else { kexp = st.E - f.bias; $("ex-exp").textContent = st.E + " − " + f.bias + " = " + kexp; }
+    $("ex-cls").textContent = d.cls;
+    $("ex-val").textContent = fmt(d.v);
+    if (kexp === null || f.kind === "e8m0") $("ex-gap").textContent = f.kind === "e8m0" && st.E !== 255 ? "下一个值是它的 2 倍" : "—";
+    else $("ex-gap").textContent = pow2(kexp - f.m) + " = " + fmt(p2(kexp - f.m));
+    $("ex-formula").textContent = formulaText(f, d);
+    $("ex-result").innerHTML = result === null ? "当前的位是手动点出来的。在上面输入一个数，看它会被舍入成什么。" : result;
+    drawLine(d.v);
+  }
+
+  function resultText(f, x, enc, v) {
+    var L = limits(f), maxv = decode(f, 0, L.Emax, L.Mmax).v;
+    var xs = fmt(x), out;
+    if (enc.note === "e8m0-domain") return "<b>E8M0 表示不了 " + xs + "。</b>它没有符号位，也没有 0，只能表示正的 2 的幂。位保持不变。";
+    if (enc.note === "nan-none") return "<b>" + f.label + " 没有 NaN 的编码。</b>OCP 规范把 NaN 转换成 FP6、FP4 的结果留给实现决定。位保持不变。";
+    if (enc.note === "nan") return "NaN 的编码。";
+    if (enc.note === "overflow") {
+      if (st.sat || f.kind === "none") {
+        out = "<b>超过最大值 " + fmt(maxv) + "，饱和成 " + fmt(v) + "。</b>";
+        if (f.kind === "none") out += "FP6 与 FP4 没有 Inf 和 NaN，OCP 规范只要求支持饱和，所以这里总是饱和。";
+        else out += "这是 OCP 规范里的 SAT 方式，量化时一般这样处理。";
+        return out;
+      }
+      if (f.kind === "ieee") return "<b>超过最大值 " + fmt(maxv) + "，变成 " + fmt(v) + "。</b>这是 IEEE 的默认行为。";
+      return "<b>超过最大值 " + fmt(maxv) + "，变成 NaN。</b>" + f.label + " 没有 Inf，不饱和时只能给 NaN。";
+    }
+    if (enc.note === "underflow") return "<b>比最小次正规数的一半还小，变成 " + fmt(v) + "。</b>这个数在 " + f.label + " 里丢失了。";
+    if (enc.note === "negzero") return "<b>FNUZ 没有 −0。</b>−0 按 +0 存。";
+    if (enc.note === "e8m0-under") return "<b>小于 2⁻¹²⁷。</b>E8M0 没有 0，最多只能取到最小值 2⁻¹²⁷。";
+    var err = v - x, rel = Math.abs(err) / Math.abs(x);
+    if (err === 0) out = "<b>" + xs + " 正好可以表示。</b>";
+    else out = "<b>" + xs + " 舍入成 " + fmt(v) + "</b>，误差 " + fmt(err) + "，相对误差 " + (rel * 100).toPrecision(3) + "%。舍入方式是就近取偶：落在两个可表示值正中间时，取尾数末位为 0 的那个。";
+    if (enc.note === "e8m0-round") out += " E8M0 只能表示 2 的幂，这里按就近取到最近的 2 的幂。作块 scale 时，OCP 的规则是向下取，节点 2 讲。";
+    return out;
+  }
+
+  function applyInput(x, quiet) {
+    var f = st.f, enc = encode(f, x, st.sat);
+    st.x = x;
+    if (enc.E === null) { renderAll(resultText(f, x, enc, NaN)); return; }
+    st.s = enc.s; st.E = enc.E; st.M = enc.M;
+    var v = decode(f, st.s, st.E, st.M).v;
+    renderAll(resultText(f, x, enc, v));
+  }
+
+  function readInput() {
+    var raw = $("ex-input").value.trim().replace(/[−–]/g, "-").replace(/[，,\s]/g, "");
+    var low = raw.toLowerCase(), x;
+    if (low === "nan") x = NaN;
+    else if (low === "inf" || low === "+inf" || low === "infinity" || low === "+infinity") x = Infinity;
+    else if (low === "-inf" || low === "-infinity") x = -Infinity;
+    else x = raw === "" ? NaN : Number(raw);
+    if (isNaN(x) && low !== "nan") {
+      $("ex-result").innerHTML = "<b>没有读出数字。</b>请输入像 0.1、-3.5、1e-8 这样的数，也可以输入 inf 或 nan。";
+      return;
+    }
+    applyInput(x, false);
+  }
+
+  // 数轴
+  function drawLine(curV) {
+    var f = st.f, svg = $("ex-line"); clear(svg);
+    var W = 900, L = 46, R = 870, Y = 84, cap = $("ex-cap");
+    var small = nbits(f) <= 8, rg = rangeOf(f);
+    svg.appendChild(svgEl("line", { x1: L, y1: Y, x2: R, y2: Y, "class": "axis" }));
+    var absCur = Math.abs(curV);
+    var absIn = (st.x === null || !isFinite(st.x) || (f.kind === "e8m0" && st.x <= 0)) ? null : Math.abs(st.x);
+    if (small && st.axis === "lin") {
+      var pts = positives(f), maxv = pts[pts.length - 1].v, hi = maxv * 1.06;
+      var X = function (v) { return L + v / hi * (R - L); };
+      var step = maxv > 16 ? 4 : 1;
+      for (var t = 0; t <= hi; t += step) {
+        svg.appendChild(svgEl("line", { x1: X(t), y1: Y - 4, x2: X(t), y2: Y + 4, "class": "axis" }));
+        svg.appendChild(svgEl("text", { x: X(t), y: Y + 22, "text-anchor": "middle", "class": "sm mu" }, String(t)));
+      }
+      svg.appendChild(svgEl("circle", { cx: X(0), cy: Y, r: 3.4, "class": "pt" }));
+      pts.forEach(function (p) { svg.appendChild(svgEl("circle", { cx: X(p.v), cy: Y, r: 3.4, "class": p.sub ? "pt-sub" : "pt" })); });
+      if (absIn !== null && absIn <= hi) {
+        svg.appendChild(svgEl("line", { x1: X(absIn), y1: Y - 40, x2: X(absIn), y2: Y + 6, "class": "mark-in" }));
+        svg.appendChild(svgEl("text", { x: X(absIn), y: Y - 46, "text-anchor": "middle", "class": "xs ac" }, "输入 " + fmt(absIn)));
+      }
+      if (isFinite(absCur) && absCur <= hi) svg.appendChild(svgEl("circle", { cx: X(absCur), cy: Y, r: 8, "class": "pt-cur" }));
+      cap.textContent = f.label + " 的全部非负取值，线性坐标：间距在每个 2 的幂里不变，跨过 2 的幂就翻倍。负数与正数对称，按绝对值画。";
+      return;
+    }
+    var lo, hi2, X2;
+    if (small) {
+      var ps = positives(f);
+      lo = Math.log2(ps[0].v) - 0.6; hi2 = Math.log2(ps[ps.length - 1].v) + 0.6;
+      X2 = function (v) { return L + (Math.log2(v) - lo) / (hi2 - lo) * (R - L); };
+      drawTicks(svg, lo, hi2, X2, Y);
+      if (lo < 0 && hi2 > 0) svg.appendChild(svgEl("line", { x1: X2(1), y1: Y - 30, x2: X2(1), y2: Y + 8, "class": "one" }));
+      ps.forEach(function (p) {
+        svg.appendChild(svgEl("circle", { cx: X2(p.v), cy: Y, r: ps.length > 60 ? 2.6 : 3.4, "class": p.sub ? "pt-sub" : "pt" }));
+      });
+      cap.textContent = f.kind === "e8m0"
+        ? "E8M0 的全部 " + ps.length + " 个取值，对数坐标：每个 2 的幂恰好一个点，没有尾数，也没有负数和 0。"
+        : f.label + " 的全部 " + ps.length + " 个正数取值，对数坐标：每个 2 的幂里有 2" + sup(f.m) + " = " + p2(f.m) + " 个正规数，所以点的疏密在每一段里一样。负数与正数对称，按绝对值画。";
+    } else {
+      lo = rg.lo - 2; hi2 = rg.hi + 2;
+      if (f.id === "tf32") lo = rg.loN - 2;
+      X2 = function (v) { return L + (Math.log2(v) - lo) / (hi2 - lo) * (R - L); };
+      drawTicks(svg, lo, hi2, X2, Y);
+      var subLo = f.id === "tf32" ? rg.loN : rg.lo;
+      if (f.id !== "tf32") svg.appendChild(svgEl("rect", { x: X2(p2(subLo)), y: Y - 7, width: Math.max(1, X2(p2(rg.loN)) - X2(p2(subLo))), height: 14, "class": "band-s" }));
+      var hiV = Math.pow(2, rg.hi);
+      var xHi = isFinite(hiV) ? X2(hiV) : L + (rg.hi - lo) / (hi2 - lo) * (R - L);
+      svg.appendChild(svgEl("rect", { x: X2(p2(rg.loN)), y: Y - 7, width: xHi - X2(p2(rg.loN)), height: 14, "class": "band-n" }));
+      cap.textContent = f.label + " 每个 2 的幂里有 2" + sup(f.m) + " 个正规数，太密，画成色带。对数坐标，负数与正数对称，按绝对值画。";
+    }
+    if (absIn !== null && absIn > 0) {
+      var xi = clampX(X2(absIn), L, R);
+      svg.appendChild(svgEl("line", { x1: xi, y1: Y - 40, x2: xi, y2: Y + 6, "class": "mark-in" }));
+      svg.appendChild(svgEl("text", { x: Math.min(Math.max(xi, L + 30), R - 30), y: Y - 46, "text-anchor": "middle", "class": "xs ac" }, "输入 " + fmt(absIn) + (X2(absIn) < L || X2(absIn) > R ? "（在画面外）" : "")));
+    }
+    if (isFinite(absCur) && absCur > 0) {
+      var xc = X2(absCur);
+      if (xc >= L && xc <= R) svg.appendChild(svgEl("circle", { cx: xc, cy: Y, r: 8, "class": "pt-cur" }));
+    }
+  }
+  function clampX(x, L, R) { return Math.min(Math.max(x, L), R); }
+  function drawTicks(svg, lo, hi, X, Y) {
+    var k0 = Math.ceil(lo), k1 = Math.floor(hi), n = k1 - k0 + 1;
+    var every = n <= 20 ? 1 : n <= 40 ? 2 : n <= 80 ? 4 : n <= 200 ? 16 : n <= 400 ? 32 : 128;
+    for (var k = k0; k <= k1; k++) {
+      var x = X(Math.pow(2, k));
+      if (!isFinite(x)) x = 46 + (k - lo) / (hi - lo) * (870 - 46);
+      if (every <= 4) svg.appendChild(svgEl("line", { x1: x, y1: Y - 3, x2: x, y2: Y + 3, "class": "axis" }));
+      if (k % every === 0) {
+        svg.appendChild(svgEl("line", { x1: x, y1: Y - 5, x2: x, y2: Y + 5, "class": "axis" }));
+        svg.appendChild(svgEl("text", { x: x, y: Y + 24, "text-anchor": "middle", "class": "xs mu" }, pow2(k)));
+      }
+    }
+  }
+
+  function setAxis(v) {
+    st.axis = v;
+    Array.prototype.forEach.call(document.querySelectorAll("#ex-axis button"), function (b) {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-v") === v));
+    });
+  }
+
+  // ---------------- 范围对照 ----------------
+  function drawRange(zoom) {
+    var svg = $("rg-svg"); clear(svg);
+    var lo = zoom ? -20 : -152, hi = zoom ? 20 : 132, X0 = 104, X1 = 856, top = 34, RH = 18, GAP = 14;
+    var X = function (k) { return X0 + (k - lo) / (hi - lo) * (X1 - X0); };
+    var list = FORMATS.slice();
+    var ticks = zoom ? [-20, -16, -12, -8, -4, 0, 4, 8, 12, 16, 20] : [-128, -96, -64, -32, 0, 32, 64, 96, 128];
+    var yAxis = top + list.length * (RH + GAP) + 4;
+    ticks.forEach(function (k) {
+      svg.appendChild(svgEl("line", { x1: X(k), y1: top - 10, x2: X(k), y2: yAxis, "class": k === 0 ? "one" : "tick" }));
+      svg.appendChild(svgEl("text", { x: X(k), y: yAxis + 18, "text-anchor": "middle", "class": "xs mu" }, pow2(k)));
+    });
+    svg.appendChild(svgEl("text", { x: X(0) + 4, y: top - 14, "class": "xs ac" }, "1"));
+    svg.appendChild(svgEl("text", { x: X1 + 10, y: top - 14, "class": "xs mu" }, "相对间距"));
+    list.forEach(function (f, i) {
+      var y = top + i * (RH + GAP), r = rangeOf(f);
+      if (f.id === "fp64") r = { lo: -1074, loN: -1022, hi: 1024 };
+      svg.appendChild(svgEl("text", { x: 8, y: y + 13, "class": "sm b" }, f.label));
+      function bar(a, b, cls) {
+        var xa = X(Math.max(a, lo)), xb = X(Math.min(b, hi));
+        if (xb <= X0 || xa >= X1 || xb - xa <= 0) return;
+        svg.appendChild(svgEl("rect", { x: xa, y: y, width: Math.max(1.5, xb - xa), height: RH, rx: 2, "class": cls }));
+      }
+      if (f.kind === "e8m0") bar(r.lo, r.hi, "band-x");
+      else {
+        if (f.id !== "tf32") bar(r.lo, r.loN, "band-s");
+        bar(r.loN, r.hi, "band-n");
+      }
+      var left = f.id === "tf32" ? r.loN : r.lo;
+      if (left < lo) svg.appendChild(svgEl("path", { d: "M" + (X0 - 2) + " " + (y + RH / 2) + " l9 -6 v12 z", "class": "arrow" }));
+      if (r.hi > hi) svg.appendChild(svgEl("path", { d: "M" + (X1 + 2) + " " + (y + RH / 2) + " l-9 -6 v12 z", "class": "arrow" }));
+      var gap = f.kind === "e8m0" ? "只有 2 的幂" : pow2(-f.m);
+      svg.appendChild(svgEl("text", { x: X1 + 14, y: y + 13, "class": "sm m" }, gap));
+    });
+  }
+
+  // ---------------- FP4 ----------------
+  function buildCodes() {
+    var f = byId("e2m1"), box = $("codes");
+    for (var c = 0; c < 16; c++) {
+      var s = c >> 3, E = (c >> 1) & 3, M = c & 1, d = decode(f, s, E, M);
+      var cell = document.createElement("div");
+      var a = document.createElement("span"); a.textContent = bitString(c, 4);
+      var b = document.createElement("b"); b.textContent = fmt(d.v);
+      cell.appendChild(a); cell.appendChild(b); box.appendChild(cell);
+    }
+  }
+  function drawFp4() {
+    var svg = $("fp4-svg"); clear(svg);
+    var L = 40, R = 870, Y = 78, hiV = 7;
+    var X = function (v) { return L + v / hiV * (R - L); };
+    var vals = [0, 0.5, 1, 1.5, 2, 3, 4, 6];
+    var mids = [0.25, 0.75, 1.25, 1.75, 2.5, 3.5, 5];
+    var bounds = [0].concat(mids).concat([hiV]);
+    for (var i = 0; i < vals.length; i++) {
+      svg.appendChild(svgEl("rect", { x: X(bounds[i]), y: Y - 16, width: X(bounds[i + 1]) - X(bounds[i]), height: 32, "class": i % 2 ? "cap-b" : "cap-a" }));
+    }
+    svg.appendChild(svgEl("line", { x1: L, y1: Y, x2: R, y2: Y, "class": "axis" }));
+    vals.forEach(function (v) {
+      svg.appendChild(svgEl("circle", { cx: X(v), cy: Y, r: 4.2, "class": v === 0.5 ? "pt-sub" : "pt" }));
+      svg.appendChild(svgEl("text", { x: X(v), y: Y - 24, "text-anchor": "middle", "class": "sm b" }, fmt(v)));
+    });
+    mids.forEach(function (v) {
+      svg.appendChild(svgEl("line", { x1: X(v), y1: Y + 16, x2: X(v), y2: Y + 24, "class": "axis" }));
+      svg.appendChild(svgEl("text", { x: X(v), y: Y + 38, "text-anchor": "middle", "class": "xs mu" }, fmt(v)));
+    });
+    svg.appendChild(svgEl("text", { x: X(6.5), y: Y + 38, "text-anchor": "middle", "class": "xs mu" }, "→ 都变成 6"));
+    svg.appendChild(svgEl("text", { x: L, y: 18, "class": "xs mu" }, "上方：E2M1 的非负取值；下方：舍入的分界点"));
+  }
+  function drawFp4Log() {
+    var svg = $("fp4-log-svg"); clear(svg);
+    var kMin = -1.5, kMax = 3.3, L = 50, R = 870, Y = 62, top6 = Math.log2(6);
+    var X = function (k) { return L + (k - kMin) / (kMax - kMin) * (R - L); };
+    svg.appendChild(svgEl("text", { x: L, y: 16, "class": "xs mu" }, "横轴按 2 的幂等距：每一格是一档，从 2ᵏ 到 2ᵏ⁺¹"));
+    svg.appendChild(svgEl("line", { x1: X(kMin), y1: Y, x2: X(kMax), y2: Y, "class": "axis" }));
+    [0.5, 1, 1.5, 2, 3, 4, 6].forEach(function (v) {
+      svg.appendChild(svgEl("circle", { cx: X(Math.log2(v)), cy: Y, r: 4.2, "class": v === 0.5 ? "pt-sub" : "pt" }));
+      svg.appendChild(svgEl("text", { x: X(Math.log2(v)), y: Y - 14, "text-anchor": "middle", "class": "sm b" }, fmt(v)));
+    });
+    [-1, 0, 1, 2, 3].forEach(function (k) {
+      svg.appendChild(svgEl("text", { x: X(k), y: Y + 20, "text-anchor": "middle", "class": "xs mu" }, pow2(k)));
+    });
+    var segs = [
+      { a: -1, b: 0, cls: "band-s", w: "1 档", code: "E = 0：次正规数" },
+      { a: 0, b: 1, cls: "band-n", w: "1 档", code: "E = 1" },
+      { a: 1, b: 2, cls: "band-n", w: "1 档", code: "E = 2" },
+      { a: 2, b: top6, cls: "band-n", w: "0.58 档", code: null },
+      { a: top6, b: 3, cls: "seg-u", w: "没用上", code: null }
+    ];
+    segs.forEach(function (s) {
+      svg.appendChild(svgEl("rect", { x: X(s.a) + 1, y: 92, width: X(s.b) - X(s.a) - 2, height: 14, rx: 2, "class": s.cls }));
+      svg.appendChild(svgEl("text", { x: (X(s.a) + X(s.b)) / 2, y: 124, "text-anchor": "middle", "class": s.cls === "seg-u" ? "xs mu" : "sm b" }, s.w));
+      if (s.code) svg.appendChild(svgEl("text", { x: (X(s.a) + X(s.b)) / 2, y: 142, "text-anchor": "middle", "class": "xs mu" }, s.code));
+    });
+    svg.appendChild(svgEl("text", { x: X(2.5), y: 142, "text-anchor": "middle", "class": "xs mu" }, "E = 3（只用到 6）"));
+    function span(a, b, y, cls, label, tcls) {
+      svg.appendChild(svgEl("line", { x1: X(a), y1: y, x2: X(b), y2: y, "class": cls }));
+      svg.appendChild(svgEl("line", { x1: X(a), y1: y - 5, x2: X(a), y2: y + 5, "class": cls }));
+      svg.appendChild(svgEl("line", { x1: X(b), y1: y - 5, x2: X(b), y2: y + 5, "class": cls }));
+      svg.appendChild(svgEl("text", { x: (X(a) + X(b)) / 2, y: y - 9, "text-anchor": "middle", "class": tcls }, label));
+    }
+    span(0, 3, 174, "grid-t", "只数正规数的指数编码 E = 1、2、3：3 档", "sm");
+    span(-1, top6, 210, "zx", "量范围：log₂(6 ÷ 0.5) = log₂ 12 ≈ 3.58 档", "sm b ac");
+  }
+
+  // ---------------- 尾数怎样切开一档 ----------------
+  var mt = { m: 3, x: 2.6 };
+  function mtRun() {
+    var svg = $("mt-svg"), body = $("mt-steps"), no = 0; clear(svg); clear(body);
+    var x = mt.x, m = mt.m, n = p2(m);
+    function row(a, b) {
+      var tr = document.createElement("tr"), t1 = document.createElement("td"), t2 = document.createElement("td");
+      no += 1; t1.textContent = no + ". " + a; t2.textContent = b;
+      tr.appendChild(t1); tr.appendChild(t2); body.appendChild(tr);
+    }
+    if (!(x > 0) || !isFinite(x)) {
+      var tr = document.createElement("tr"), td = document.createElement("td");
+      td.colSpan = 2; td.textContent = "这里只演示正的有限数。负数只多一个符号位；0 和次正规数另有规定，见“公式”一节。";
+      tr.appendChild(td); body.appendChild(tr); return;
+    }
+    var k = floorLog2(x), lo = p2(k), step = p2(k - m), r = x / lo, f = r - 1, t = f * n;
+    var M0 = rne(t), carry = M0 === n, M = carry ? 0 : M0;
+    var stored = carry ? p2(k + 1) : lo * (1 + M0 / n), tie = t - Math.floor(t) === 0.5;
+    row("找到所在的档", pow2(k) + " ≤ x < " + pow2(k + 1) + "，所以 k = " + k + "，这一档从 " + fmt(lo) + " 到 " + fmt(2 * lo));
+    row("除以档的左端", "r = x / 2^k = " + fmt(x) + " / " + fmt(lo) + " = " + fmt(r) + "（总在 1 和 2 之间）");
+    row("去掉开头的 1", "f = r − 1 = " + fmt(f));
+    row("乘 2^m，看落在哪", "f × " + n + " = " + fmt(t) + "：在第 " + Math.floor(t) + " 和第 " + (Math.floor(t) + 1) + " 个格点之间" + (t === Math.floor(t) ? "，正好落在格点上" : ""));
+    if (carry) {
+      row("就近取整得到 M", "取整得 " + n + "，等于 2^m，超出这一档：进位到下一档，k 变成 " + (k + 1) + "，M = 0");
+    } else {
+      row("就近取整得到 M", "M = " + M + " = " + bitString(M, m) + "₂" + (tie ? "（正好在两个格点中间，取编号为偶数的一个）" : ""));
+      var bits = bitString(M, m), terms = [];
+      for (var i = 0; i < m; i++) terms.push(bits[i] + "/" + p2(i + 1));
+      row("尾数写成二进制小数", "1." + bits + "₂ = 1 + " + terms.join(" + ") + " = 1 + " + M + "/" + n + " = " + fmt(1 + M / n));
+    }
+    row("存下的数", carry ? fmt(stored) + "，下一档的第一个格点" : "2^k × (1 + M / 2^m) = " + fmt(lo) + " × " + fmt(1 + M / n) + " = " + fmt(stored));
+    var err = stored - x;
+    row("误差", err === 0 ? "0：x 正好是格点" : fmt(err) + "，相对 " + (Math.abs(err) / x * 100).toPrecision(3) + "%；最多半个间距，即 " + fmt(step / 2));
+
+    var X0 = 60, X1 = 860, Y = 100;
+    var X = function (v) { return X0 + (v - lo) / (3 * lo) * (X1 - X0); };
+    svg.appendChild(svgEl("rect", { x: X(lo), y: Y - 14, width: X(2 * lo) - X(lo), height: 28, "class": "cap-b" }));
+    svg.appendChild(svgEl("rect", { x: X(2 * lo), y: Y - 14, width: X(4 * lo) - X(2 * lo), height: 28, "class": "cap-o" }));
+    svg.appendChild(svgEl("text", { x: X(lo), y: 22, "class": "sm b" }, "这一档 [" + fmt(lo) + ", " + fmt(2 * lo) + ")：" + n + " 个格点，间距 " + fmt(step)));
+    svg.appendChild(svgEl("text", { x: X(2 * lo) + 6, y: 42, "class": "sm mu" }, "下一档 [" + fmt(2 * lo) + ", " + fmt(4 * lo) + ")：同样 " + n + " 个格点，间距 " + fmt(2 * step)));
+    function ruler(base, w, withM) {
+      var spacing = X(base + w) - X(base), labs = [], maxLen = 0, j, every = 1, everyM = 1;
+      for (j = 0; j <= n; j++) { labs.push(fmt(base + j * w)); maxLen = Math.max(maxLen, labs[j].length); }
+      while (spacing * every < maxLen * 6.4 + 8) every *= 2;
+      while (spacing * everyM < (m + 1) * 6.6 + 6) everyM *= 2;
+      for (j = 0; j <= n; j++) {
+        var xv = X(base + j * w);
+        svg.appendChild(svgEl("line", { x1: xv, y1: Y - 14, x2: xv, y2: Y + 14, "class": j === 0 || j === n ? "axis" : "tick-in" }));
+        if (j % every === 0 && !(withM === false && j === 0)) {
+          svg.appendChild(svgEl("text", { x: xv, y: Y + 30, "text-anchor": "middle", "class": "xs" }, labs[j]));
+        }
+        if (withM && j < n && j % everyM === 0) {
+          svg.appendChild(svgEl("text", { x: xv, y: Y + 46, "text-anchor": "middle", "class": "m mu" }, bitString(j, m)));
+        }
+      }
+    }
+    ruler(lo, step, true);
+    ruler(2 * lo, 2 * step, false);
+    svg.appendChild(svgEl("text", { x: 8, y: Y + 46, "class": "xs mu" }, "M"));
+    svg.appendChild(svgEl("line", { x1: X(x), y1: Y - 34, x2: X(x), y2: Y + 14, "class": "mark-in" }));
+    svg.appendChild(svgEl("text", { x: Math.max(X(x), X0 + 24), y: Y - 40, "text-anchor": "middle", "class": "xs ac" }, "x = " + fmt(x)));
+    svg.appendChild(svgEl("circle", { cx: X(stored), cy: Y, r: 7, "class": "pt-cur" }));
+  }
+
+  // ---------------- 节点 2：挑 scale ----------------
+  var ELEM = { e2m1: { maxv: 6, emax: 2 }, e4m3: { maxv: 448, emax: 8 } };
+  function qv(x, fid) { var f = byId(fid), c = encode(f, x, true); return decode(f, c.s, c.E, c.M).v; }
+  function mxBlock(vals, el, rule) {
+    var amax = 0, i;
+    for (i = 0; i < vals.length; i++) amax = Math.max(amax, Math.abs(vals[i]));
+    if (amax === 0) return { X: 1, d: vals.map(function () { return 0; }) };
+    var e = rule === "up" ? Math.ceil(Math.log2(amax / ELEM[el].maxv)) : floorLog2(amax) - ELEM[el].emax;
+    e = Math.max(-127, Math.min(127, e));
+    var X = p2(e);
+    return { X: X, d: vals.map(function (v) { return qv(v / X, el) * X; }) };
+  }
+  function nvfp4(vals, block, amaxT) {
+    var sEnc = 6 * 448 / amaxT, sDec = 1 / sEnc, out = [], scales = [];
+    for (var b = 0; b < vals.length; b += block) {
+      var blk = vals.slice(b, b + block), amaxB = 0;
+      blk.forEach(function (v) { amaxB = Math.max(amaxB, Math.abs(v)); });
+      var sdb = qv(amaxB / 6 * sEnc, "e4m3");
+      if (sdb === 0) { blk.forEach(function () { out.push(0); }); scales.push(0); continue; }
+      var sEncB = 1 / (sdb * sDec);
+      blk.forEach(function (v) { out.push(qv(v * sEncB, "e2m1") * sdb * sDec); });
+      scales.push(sdb * sDec);
+    }
+    return { scales: scales, d: out };
+  }
+
+  var sc = { amax: 1.9, tmax: 12 };
+  function scRun() {
+    var svg = $("sc-svg"), body = $("sc-rows"); clear(svg); clear(body);
+    var a = sc.amax, t = Math.max(sc.tmax, sc.amax);
+    if (!(a > 0) || !isFinite(a)) {
+      var tr0 = document.createElement("tr"), td0 = document.createElement("td");
+      td0.colSpan = 7; td0.textContent = "请输入一个正的 amax。"; tr0.appendChild(td0); body.appendChild(tr0); return;
+    }
+    var ocp = mxBlock([a], "e2m1", "ocp"), up = mxBlock([a], "e2m1", "up"), nv = nvfp4([a], 16, t);
+    var rows = [
+      { name: "OCP 规则", sub: "X 向下取 2 的幂", X: ocp.X, d: ocp.d[0], kind: "E8M0：2" + sup(Math.round(Math.log2(ocp.X))) },
+      { name: "向上取", sub: "X 向上取 2 的幂", X: up.X, d: up.d[0], kind: "E8M0：2" + sup(Math.round(Math.log2(up.X))) },
+      { name: "NVFP4", sub: "X ≈ amax ÷ 6", X: nv.scales[0], d: nv.d[0], kind: "E4M3 × FP32" }
+    ];
+    var D = a * 1.12;
+    rows.forEach(function (r) { D = Math.max(D, 6 * r.X * 1.04); });
+    var X0 = 170, X1 = 880, top = 40, RH = 50;
+    var Xp = function (v) { return X0 + v / D * (X1 - X0); };
+    rows.forEach(function (r, i) {
+      var y = top + i * (RH + 12), mid = y + RH / 2;
+      svg.appendChild(svgEl("text", { x: 8, y: mid - 4, "class": "sm b" }, r.name));
+      svg.appendChild(svgEl("text", { x: 8, y: mid + 13, "class": "xs mu" }, r.sub));
+      var gone = r.X === 0;
+      svg.appendChild(svgEl("rect", { x: Xp(0), y: mid - 9, width: gone ? X1 - X0 : Math.max(1, Xp(0.25 * r.X) - Xp(0)), height: 18, "class": "zone" }));
+      svg.appendChild(svgEl("line", { x1: X0, y1: mid, x2: X1, y2: mid, "class": "axis" }));
+      if (gone) svg.appendChild(svgEl("text", { x: (X0 + X1) / 2, y: mid - 15, "text-anchor": "middle", "class": "xs ac" }, "块 scale 在 E4M3 里舍成 0，整块还原成 0"));
+      [0.5, 1, 1.5, 2, 3, 4, 6].forEach(function (k) {
+        var v = k * r.X; if (gone || v > D) return;
+        svg.appendChild(svgEl("line", { x1: Xp(v), y1: mid - 11, x2: Xp(v), y2: mid + 11, "class": "grid-t" }));
+        if (k === 6 || k === 4 || k === 1) svg.appendChild(svgEl("text", { x: Xp(v), y: mid - 15, "text-anchor": "middle", "class": "xs mu" }, k + "X"));
+      });
+      svg.appendChild(svgEl("circle", { cx: Xp(r.d), cy: mid, r: 7, "class": "pt-cur" }));
+      var tr = document.createElement("tr");
+      var err = (r.d - a) / a * 100;
+      var s4 = function (v) { return fmt(+v.toPrecision(4)); };
+      (gone ? [r.name + "（" + r.kind + "）", "0（下溢）", "—", "—", "0", "−100%", "整块"] :
+      [r.name + "（" + r.kind + "）", s4(r.X), s4(a / r.X), fmt(qv(a / r.X, "e2m1")), s4(r.d), (err >= 0 ? "+" : "−") + Math.abs(err).toPrecision(3) + "%", "|v| ≤ " + s4(0.25 * r.X)]).forEach(function (c, j) {
+        var td = document.createElement("td"); td.textContent = c; if (j > 0) td.className = "num"; tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    svg.appendChild(svgEl("line", { x1: Xp(a), y1: 22, x2: Xp(a), y2: top + 3 * (RH + 12) - 4, "class": "amax" }));
+    svg.appendChild(svgEl("text", { x: Xp(a), y: 16, "text-anchor": "middle", "class": "xs ac" }, "amax = " + fmt(a)));
+    svg.appendChild(svgEl("text", { x: X0, y: 226, "class": "xs mu" }, "0"));
+    svg.appendChild(svgEl("text", { x: X1, y: 226, "text-anchor": "end", "class": "xs mu" }, fmt(+D.toPrecision(3))));
+  }
+
+  // ---------------- 节点 2：分块 ----------------
+  var ROW = [-0.52, -0.25, -0.33, -0.18, 0.4, -0.94, -0.19, -0.27, -0.49, -0.06, 0.0, 1.36, 0.17, 0.0, 0.48, -0.58, -0.33, 0.3, -0.28, -0.54, -0.32, -0.75, 0.63, 0.7, 1.44, -0.16, -0.13, -0.11, 0.29, 0.01, 0.44, -0.17, -0.78, 0.88, -0.27, 0.64, -0.19, 0.08, -0.91, -0.54, 0.22, 0.33, -0.13, 0.08, -1.02, 12.0, -0.37, -0.57, 0.19, -0.25, -0.49, -0.22, -0.22, -0.16, 0.04, -0.24, 0.5, 0.86, 0.55, -0.19, -0.35, 0.21, -0.12, 0.75];
+  var bk = { fmt: "mxfp4", scope: "block" };
+  function bkQuant() {
+    var amaxT = 0; ROW.forEach(function (v) { amaxT = Math.max(amaxT, Math.abs(v)); });
+    if (bk.fmt === "nvfp4") {
+      var r = nvfp4(ROW, bk.scope === "block" ? 16 : 64, amaxT);
+      return { d: r.d, scales: r.scales, size: bk.scope === "block" ? 16 : 64 };
+    }
+    var el = bk.fmt === "mxfp8" ? "e4m3" : "e2m1", size = bk.scope === "block" ? 32 : 64, d = [], scales = [];
+    for (var b = 0; b < 64; b += size) {
+      var q = mxBlock(ROW.slice(b, b + size), el, "ocp");
+      d = d.concat(q.d); scales.push(q.X);
+    }
+    return { d: d, scales: scales, size: size };
+  }
+  function bkRun() {
+    var svg = $("bk-svg"); clear(svg);
+    var q = bkQuant(), d = q.d;
+    var X0 = 50, X1 = 880, Y0 = 140, H = 95, step = (X1 - X0) / 64;
+    var Xi = function (i) { return X0 + (i + 0.5) * step; };
+    var Yv = function (v) { return Y0 - Math.max(-2, Math.min(2, v)) / 2 * H; };
+    svg.appendChild(svgEl("line", { x1: X0, y1: Y0, x2: X1, y2: Y0, "class": "zero" }));
+    [-2, -1, 1, 2].forEach(function (t) {
+      svg.appendChild(svgEl("line", { x1: X0 - 4, y1: Yv(t), x2: X0, y2: Yv(t), "class": "axis" }));
+      svg.appendChild(svgEl("text", { x: X0 - 8, y: Yv(t) + 4, "text-anchor": "end", "class": "xs mu" }, String(t)));
+    });
+    svg.appendChild(svgEl("text", { x: X0 - 8, y: Y0 + 4, "text-anchor": "end", "class": "xs mu" }, "0"));
+    for (var b = 0; b < 64; b += q.size) {
+      if (b > 0) svg.appendChild(svgEl("line", { x1: X0 + b * step, y1: 24, x2: X0 + b * step, y2: 248, "class": "bsep" }));
+      var sx = q.scales[b / q.size];
+      svg.appendChild(svgEl("text", { x: X0 + b * step + 4, y: 20, "class": "xs mu" }, "X = " + fmt(+sx.toPrecision(4))));
+    }
+    var zeros = 0, se = 0, n = 0, rel = 0, nr = 0;
+    ROW.forEach(function (v, i) {
+      var x = Xi(i), dv = d[i];
+      if (i === 45) {
+        svg.appendChild(svgEl("line", { x1: x, y1: Yv(2), x2: x, y2: Y0, "class": "grid-t" }));
+        svg.appendChild(svgEl("text", { x: x, y: Yv(2) - 6, "text-anchor": "middle", "class": "xs ac" }, "12"));
+        return;
+      }
+      svg.appendChild(svgEl("line", { x1: x, y1: Yv(v), x2: x, y2: Yv(dv), "class": "errl" }));
+      svg.appendChild(svgEl("circle", { cx: x, cy: Yv(v), r: 3.4, "class": "pt-sub" }));
+      if (v !== 0 && dv === 0) {
+        zeros += 1;
+        svg.appendChild(svgEl("path", { d: "M" + (x - 4) + " " + (Y0 - 4) + " l8 8 m0 -8 l-8 8", "class": "zx" }));
+      } else {
+        svg.appendChild(svgEl("circle", { cx: x, cy: Yv(dv), r: 2.6, "class": "pt" }));
+      }
+      se += (dv - v) * (dv - v); n += 1;
+      if (v !== 0) { rel += Math.abs(dv - v) / Math.abs(v); nr += 1; }
+    });
+    svg.appendChild(svgEl("text", { x: X0, y: 266, "class": "xs mu" }, "下标 0"));
+    svg.appendChild(svgEl("text", { x: X1, y: 266, "text-anchor": "end", "class": "xs mu" }, "下标 63"));
+    $("bk-zero").textContent = zeros + " 个";
+    $("bk-rmse").textContent = Math.sqrt(se / n).toFixed(4);
+    $("bk-rel").textContent = (rel / nr * 100).toFixed(1) + "%";
+    $("bk-scales").textContent = q.scales.map(function (x) { return fmt(+x.toPrecision(4)); }).join("，");
+    var name = { mxfp4: "MXFP4", nvfp4: "NVFP4", mxfp8: "MXFP8" }[bk.fmt];
+    $("bk-cap").textContent = name + (bk.scope === "block" ? "，每 " + q.size + " 个数一个 scale" : "，整行 64 个数共用一个 scale") +
+      "。纵轴截在 ±2，离群值 12 画成到顶的竖线。空心圈是原值，实心点是还原值，两者之间的竖线是误差。" +
+      (bk.fmt === "nvfp4" ? " NVFP4 的 X 已含每张量的 FP32 scale（这里的“张量”就是这 64 个数）。" : "");
+  }
+
+  // ---------------- 节点 4：scale 的预排布局 ----------------
+  var LYF = {
+    nvfp4: { name: "NVFP4", V: 16, BK: 256, cols: 16, per: 4, kind: "mxf4nvf4", vec: "4X", mk: 64 },
+    mxfp4: { name: "MXFP4", V: 32, BK: 256, cols: 8, per: 2, kind: "mxf4", vec: "2X", mk: 64 },
+    mxfp8: { name: "MXFP8", V: 32, BK: 128, cols: 4, per: 1, kind: "mxf8f6f4", vec: "1X", mk: 32 }
+  };
+  var ly = { fmt: "nvfp4", m: 37, j: 10 };
+  var LYL = { x: 64, y: 82, w: 176, h: 352 }, LYR = { x: 548, y: 82, bw: 21, bh: 11 };
+  function lyIdx() {
+    var f = LYF[ly.fmt], m = ly.m, j = ly.j, r = m % 32, g = Math.floor(m / 32), kc = Math.floor(j / 4), c = j % 4;
+    var off = 16 * r + 4 * g + c;
+    return { f: f, m: m, j: j, r: r, g: g, kc: kc, c: c, off: off, buf: 512 * kc + off, i: Math.floor(j / f.per), repk: f.cols / 4 };
+  }
+  // 读选中 scale 的那条 MMA 在每个 32 位字里用到的字节：[起始字节, 字节数]
+  function lyMmaBytes(q) {
+    if (q.f.per === 4) return [0, 4];
+    if (q.f.per === 2) return [2 * (q.i % 2), 2];
+    return [q.c, 1];
+  }
+  // 估算文字宽度：汉字按 1 em，其余按 0.62 em；字号随 class
+  function lyTextW(cls, t) {
+    var fs = /(^| )sm( |$)/.test(cls) ? 11.5 : /(^| )m( |$)/.test(cls) ? 11 : 13, w = 0;
+    for (var i = 0; i < t.length; i++) w += t.charCodeAt(i) > 0x2e80 ? fs : fs * 0.62;
+    return w;
+  }
+  function lyPlate(svg, x, y, lines) {
+    var w = 0;
+    lines.forEach(function (l) { w = Math.max(w, lyTextW(l[0], l[1])); });
+    svg.appendChild(svgEl("rect", { x: x - w / 2 - 6, y: y - 15, width: w + 12, height: lines.length * 17 + 8, rx: 4, "class": "plate" }));
+    lines.forEach(function (l, k) { svg.appendChild(svgEl("text", { x: x, y: y + k * 17, "text-anchor": "middle", "class": l[0] }, l[1])); });
+  }
+  function lyRun() {
+    var svg = $("ly-svg"); clear(svg);
+    var q = lyIdx(), f = q.f, L = LYL, R = LYR, cw = L.w / f.cols, rh = L.h / 128, gw = 16 * R.bw, gh = 32 * R.bh;
+    // 左：逻辑视图
+    svg.appendChild(svgEl("text", { x: 16, y: 22, "class": "sm b" }, "逻辑视图：A 的 scale，一个 K 步"));
+    svg.appendChild(svgEl("text", { x: 16, y: 40, "class": "xs mu" }, "128 行 × " + f.cols + " 列（BLOCK_M × BLOCK_K/V）"));
+    for (var g = 0; g < 4; g++) {
+      svg.appendChild(svgEl("rect", { x: L.x, y: L.y + g * 32 * rh, width: L.w, height: 32 * rh, "class": "g" + g }));
+      svg.appendChild(svgEl("text", { x: L.x - 6, y: L.y + g * 32 * rh + 9, "text-anchor": "end", "class": "xs mu" }, String(g * 32)));
+    }
+    svg.appendChild(svgEl("text", { x: L.x - 6, y: L.y + L.h, "text-anchor": "end", "class": "xs mu" }, "127"));
+    svg.appendChild(svgEl("text", { x: L.x - 6, y: L.y - 8, "text-anchor": "end", "class": "xs mu" }, "行"));
+    for (var j = 1; j < f.cols; j++) {
+      svg.appendChild(svgEl("line", { x1: L.x + j * cw, y1: L.y, x2: L.x + j * cw, y2: L.y + L.h, "class": j % 4 === 0 ? "wordsep" : "cellsep" }));
+    }
+    for (var k = 0; k < q.repk; k++) {
+      svg.appendChild(svgEl("text", { x: L.x + (4 * k + 2) * cw, y: L.y - 8, "text-anchor": "middle", "class": "xs mu" }, "块 " + k));
+    }
+    svg.appendChild(svgEl("rect", { x: L.x, y: L.y + q.m * rh, width: L.w, height: rh, "class": "selrow" }));
+    svg.appendChild(svgEl("rect", { x: L.x + q.j * cw, y: L.y, width: cw, height: L.h, "class": "selrow" }));
+    svg.appendChild(svgEl("rect", { x: L.x + 4 * q.kc * cw, y: L.y, width: 4 * cw, height: L.h, "class": "chunk" }));
+    svg.appendChild(svgEl("rect", { x: L.x + q.j * cw - 1.5, y: L.y + q.m * rh - 2.5, width: cw + 3, height: rh + 5, "class": "sel" }));
+    // 右：选中 scale 所在的 512 字节块
+    svg.appendChild(svgEl("text", { x: R.x - 34, y: 22, "class": "sm b" }, "第 " + q.kc + " 块：512 字节"));
+    svg.appendChild(svgEl("text", { x: R.x - 34, y: 40, "class": "xs mu" }, "SMEM 32 行 × 16 字节 = TMEM 32 个 lane × 4 列"));
+    for (var w = 0; w < 4; w++) {
+      svg.appendChild(svgEl("text", { x: R.x + (4 * w + 2) * R.bw, y: 58, "text-anchor": "middle", "class": "xs" }, "字 g = " + w));
+      for (var b = 0; b < 4; b++) {
+        svg.appendChild(svgEl("text", { x: R.x + (4 * w + b + 0.5) * R.bw, y: 74, "text-anchor": "middle", "class": "xs mu" }, String(b)));
+      }
+    }
+    svg.appendChild(svgEl("text", { x: R.x - 6, y: 74, "text-anchor": "end", "class": "xs mu" }, "c →"));
+    for (var r = 0; r < 32; r++) {
+      for (var bb = 0; bb < 16; bb++) {
+        svg.appendChild(svgEl("rect", { x: R.x + bb * R.bw, y: R.y + r * R.bh, width: R.bw, height: R.bh, "class": "g" + (bb >> 2) + " byte" }));
+      }
+    }
+    [0, 8, 16, 24, 31].forEach(function (rr) {
+      svg.appendChild(svgEl("text", { x: R.x - 6, y: R.y + (rr + 0.85) * R.bh, "text-anchor": "end", "class": "xs mu" }, String(rr)));
+    });
+    svg.appendChild(svgEl("text", { x: R.x - 6, y: 58, "text-anchor": "end", "class": "xs mu" }, "lane r ↓"));
+    for (var ws = 1; ws < 4; ws++) {
+      svg.appendChild(svgEl("line", { x1: R.x + 4 * ws * R.bw, y1: R.y, x2: R.x + 4 * ws * R.bw, y2: R.y + gh, "class": "wordsep" }));
+    }
+    svg.appendChild(svgEl("rect", { x: R.x, y: R.y + q.r * R.bh, width: gw, height: R.bh, "class": "selrow" }));
+    var mb = lyMmaBytes(q);
+    for (var w2 = 0; w2 < 4; w2++) {
+      svg.appendChild(svgEl("rect", { x: R.x + (4 * w2 + mb[0]) * R.bw + 1.5, y: R.y + 1.5, width: mb[1] * R.bw - 3, height: gh - 3, "class": "mma" }));
+    }
+    svg.appendChild(svgEl("rect", { x: R.x + (4 * q.g + q.c) * R.bw - 1.5, y: R.y + q.r * R.bh - 1.5, width: R.bw + 3, height: R.bh + 3, "class": "sel" }));
+    // 下标对应
+    var x1 = L.x + L.w + 4, y1 = L.y + (q.m + 0.5) * rh, x2 = R.x - 4, y2 = R.y + (q.r + 0.5) * R.bh;
+    svg.appendChild(svgEl("path", { d: "M" + x1 + " " + y1 + " C" + (x1 + 110) + " " + y1 + " " + (x2 - 110) + " " + y2 + " " + x2 + " " + y2, "class": "link" }));
+    svg.appendChild(svgEl("circle", { cx: x1, cy: y1, r: 3, "class": "dot" }));
+    svg.appendChild(svgEl("circle", { cx: x2, cy: y2, r: 3, "class": "dot" }));
+    lyPlate(svg, (x1 + x2) / 2, (y1 + y2) / 2 - 8, [["sm b", "(m, j) = (" + q.m + ", " + q.j + ")"], ["m", "r=" + q.r + " g=" + q.g + " c=" + q.c]]);
+    svg.appendChild(svgEl("text", { x: 16, y: 458, "class": "xs mu" }, "显存（5D 预排）→ TMA，box [1, rep_m, rep_k, 2, 256] → SMEM → tcgen05.cp .32x128b .warpx4 → TMEM"));
+    svg.appendChild(svgEl("text", { x: 16, y: 474, "class": "xs mu" }, "三处的字节顺序相同；.warpx4 把这 32 个 lane 再复制到 lane 32–63、64–95、96–127。"));
+    svg.appendChild(svgEl("rect", { x: L.x, y: L.y, width: L.w, height: L.h, "class": "hit", "data-hit": "L" }));
+    svg.appendChild(svgEl("rect", { x: R.x, y: R.y, width: gw, height: gh, "class": "hit", "data-hit": "R" }));
+    // 读数
+    $("ly-pos").textContent = "行 " + q.m + "，列 " + q.j + "，K " + q.j * f.V + "–" + ((q.j + 1) * f.V - 1);
+    $("ly-5d").textContent = "[0, " + q.kc + ", " + q.r + ", " + q.g + ", " + q.c + "]";
+    $("ly-off").textContent = "16×" + q.r + " + 4×" + q.g + " + " + q.c + " = " + q.off;
+    $("ly-tmem").textContent = "lane " + q.r + "，第 " + (4 * q.kc + q.g) + " 列，字节 " + q.c;
+    $("ly-mma").textContent = "第 " + q.i + " 条，K " + q.i * f.mk + "–" + ((q.i + 1) * f.mk - 1) + "，字节 " +
+      (mb[1] === 1 ? String(mb[0]) : mb[0] + "–" + (mb[0] + mb[1] - 1));
+    var cap = {
+      nvfp4: "NVFP4：V = 16，BLOCK_K = 256。一个 K 步 16 列，切成 4 块；4 条 tcgen05.mma（kind::mxf4nvf4，每条 K = 64）各用一块，读每个字的全部 4 个字节（scale_vec::4X）。",
+      mxfp4: "MXFP4：V = 32，BLOCK_K = 256。一个 K 步 8 列，切成 2 块；4 条 tcgen05.mma（kind::mxf4，每条 K = 64）两条共用一块，各读每个字的 2 个字节（scale_vec::2X）。",
+      mxfp8: "MXFP8：V = 32，BLOCK_K = 128。一个 K 步 4 列，只有 1 块；4 条 tcgen05.mma（kind::mxf8f6f4，每条 K = 32）共用这一块，各读每个字的 1 个字节（scale_vec::1X），读哪个字节由指令描述符里的 scale ID 指定。"
+    }[ly.fmt];
+    $("ly-cap").textContent = cap + " TMEM 的列号从 scale 区起点数起。图里是 A 的 scale（BLOCK_M = 128）；B 的 BLOCK_N = 256，每个 K 步的块数多一倍，排法相同。";
+    // 第 220 行的下标变化
+    var h = q.off >> 8, wv = q.off & 255, rows = [
+      ["TMA 载入", "a_scale_desc.load(...)", "[1, 1, " + q.repk + ", 2, 256]", "[0, 0, " + q.kc + ", " + h + ", " + wv + "]"],
+      ["拆开每块 512 字节", ".reshape(rep_m, rep_k, 32, 4, 4)", "[1, " + q.repk + ", 32, 4, 4]", "[0, " + q.kc + ", " + q.r + ", " + q.g + ", " + q.c + "]"],
+      ["交换第 1、3 维", ".trans(0, 3, 2, 1, 4)", "[1, 4, 32, " + q.repk + ", 4]", "[0, " + q.g + ", " + q.r + ", " + q.kc + ", " + q.c + "]"],
+      ["合成逻辑形状", ".reshape(BLOCK_M, BLOCK_K // VEC_SIZE)", "[128, " + f.cols + "]", "[" + q.m + ", " + q.j + "]"]
+    ];
+    var tb = $("ly-steps"); clear(tb);
+    rows.forEach(function (row) {
+      var tr = document.createElement("tr");
+      [row[0], row[1], row[2], row[3], "第 " + q.buf + " 字节"].forEach(function (t, k) {
+        var td = document.createElement("td");
+        if (k === 1) { var cd = document.createElement("code"); cd.textContent = t; td.appendChild(cd); }
+        else td.textContent = t;
+        if (k === 2 || k === 3) td.className = "mono";
+        if (k === 4) td.className = "same";
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+  }
+  function lySync() {
+    var f = LYF[ly.fmt];
+    if (ly.j > f.cols - 1) ly.j = f.cols - 1;
+    $("ly-j").max = String(f.cols - 1);
+    $("ly-m").value = String(ly.m); $("ly-j").value = String(ly.j);
+    $("ly-m-v").textContent = String(ly.m); $("ly-j-v").textContent = String(ly.j);
+  }
+  function lyClick(ev) {
+    var t = ev.target, which = t && t.getAttribute ? t.getAttribute("data-hit") : null;
+    if (!which) return;
+    var svg = $("ly-svg"), ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    var p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
+    var s = p.matrixTransform(ctm.inverse()), f = LYF[ly.fmt];
+    if (which === "L") {
+      ly.m = Math.max(0, Math.min(127, Math.floor((s.y - LYL.y) / (LYL.h / 128))));
+      ly.j = Math.max(0, Math.min(f.cols - 1, Math.floor((s.x - LYL.x) / (LYL.w / f.cols))));
+    } else {
+      var r = Math.max(0, Math.min(31, Math.floor((s.y - LYR.y) / LYR.bh)));
+      var b = Math.max(0, Math.min(15, Math.floor((s.x - LYR.x) / LYR.bw)));
+      ly.m = 32 * (b >> 2) + r; ly.j = 4 * Math.floor(ly.j / 4) + (b & 3);
+    }
+    lySync(); lyRun();
+  }
+
+  // ---------------- 节点 4 补充：五维形状逐维看 ----------------
+  var DMF = { nvfp4: { name: "NVFP4", V: 16 }, mxfp4: { name: "MXFP4", V: 32 }, mxfp8: { name: "MXFP8", V: 32 } };
+  var DMN = ["mb", "kc", "r", "g", "c"];
+  var dm = { fmt: "nvfp4", M: 512, K: 1024, bm: 128, bk: 256, dim: 4, d: [0, 2, 5, 1, 2] };
+  var DMG = { x: 96, y: 80, maxw: 560, h: 20 }, DMC = { x: 70, y: 340, bw: 17, bh: 8 };
+  var DMW = { x: 404, y: 354, w: 66, h: 38, gap: 8 }, DMB = { x: 404, y: 478, h: 16 }, DML = { x: 752, y: 340, cw: 28, rh: 2 };
+  function dmCfg() {
+    var f = DMF[dm.fmt], KV = dm.K / f.V;
+    return { f: f, V: f.V, KV: KV, nm: dm.M / 128, nk: KV / 4, repm: dm.bm / 128, repk: dm.bk / f.V / 4, bkv: dm.bk / f.V };
+  }
+  function dmSizes(c) { return [c.nm, c.nk, 32, 4, 4]; }
+  function dmQ() {
+    var c = dmCfg(), d = dm.d, mb = d[0], kc = d[1], r = d[2], g = d[3], cc = d[4];
+    var inner = 16 * r + 4 * g + cc, mbl = mb % c.repm, kcl = kc % c.repk;
+    return {
+      c: c, mb: mb, kc: kc, r: r, g: g, cc: cc, m: 128 * mb + 32 * g + r, j: 4 * kc + cc, inner: inner,
+      glob: (mb * c.nk + kc) * 512 + inner, pm: Math.floor(mb / c.repm), k: Math.floor(kc / c.repk),
+      mbl: mbl, kcl: kcl, smem: (mbl * c.repk + kcl) * 512 + inner, h: inner >> 8, w: inner & 255
+    };
+  }
+  function dmKr(c, j) { return "K " + j * c.V + "–" + ((j + 1) * c.V - 1); }
+  function dmIdx(a) { return "[" + a.join(", ") + "]"; }
+  function dmFib(svg, x, y, w, h) {
+    svg.appendChild(svgEl("rect", { x: x, y: y, width: w, height: h, "class": "dm-fib" }));
+    svg.appendChild(svgEl("rect", { x: x - 1, y: y - 1, width: w + 2, height: h + 2, "class": "dm-fibo" }));
+  }
+  // 沿所选一维（块内三维之一）的全部位置：[r, g, c]
+  function dmLine(q, D) {
+    var out = [], t;
+    if (D === 2) for (t = 0; t < 32; t++) out.push([t, q.g, q.cc]);
+    if (D === 3) for (t = 0; t < 4; t++) out.push([q.r, t, q.cc]);
+    if (D === 4) for (t = 0; t < 4; t++) out.push([q.r, q.g, t]);
+    return out;
+  }
+  function dmRun() {
+    var svg = $("dm-svg"); clear(svg);
+    var q = dmQ(), c = q.c, D = dm.dim, G = DMG, C = DMC, W = DMW, B = DMB, L = DML;
+    var cw = Math.min(34, G.maxw / c.nk), gw = cw * c.nk, gh = G.h, H = gh * c.nm, line = dmLine(q, D), t, u;
+    // 上：整个张量的块网格（第 0、1 维）
+    svg.appendChild(svgEl("text", { x: 16, y: 22, "class": "sm b" }, "整个张量：" + c.nm + " × " + c.nk + " 块，每块 512 字节（第 0、1 维）"));
+    svg.appendChild(svgEl("text", { x: 16, y: 40, "class": "xs mu" }, "块在内存里逐行连续：块序号 = mb × " + c.nk + " + kc，起始字节 = 块序号 × 512"));
+    svg.appendChild(svgEl("text", { x: G.x, y: G.y - 22, "class": "xs mu" }, "kc（第 1 维）→"));
+    svg.appendChild(svgEl("text", { x: G.x - 10, y: G.y - 7, "text-anchor": "end", "class": "xs mu" }, "mb ↓"));
+    var every = cw >= 24 ? 1 : 4;
+    for (t = 0; t < c.nk; t += every) {
+      svg.appendChild(svgEl("text", { x: G.x + (t + 0.5) * cw, y: G.y - 7, "text-anchor": "middle", "class": "xs mu" }, String(t)));
+    }
+    for (t = 0; t < c.nm; t++) {
+      svg.appendChild(svgEl("text", { x: G.x - 10, y: G.y + (t + 0.72) * gh, "text-anchor": "end", "class": "xs mu" }, String(t)));
+      for (u = 0; u < c.nk; u++) svg.appendChild(svgEl("rect", { x: G.x + u * cw, y: G.y + t * gh, width: cw, height: gh, "class": "dm-box" }));
+    }
+    for (t = 1; t < c.nk / c.repk; t++) {
+      svg.appendChild(svgEl("line", { x1: G.x + t * c.repk * cw, y1: G.y - 2, x2: G.x + t * c.repk * cw, y2: G.y + H + 2, "class": "bsep" }));
+    }
+    for (t = 1; t < c.nm / c.repm; t++) {
+      svg.appendChild(svgEl("line", { x1: G.x - 2, y1: G.y + t * c.repm * gh, x2: G.x + gw + 2, y2: G.y + t * c.repm * gh, "class": "bsep" }));
+    }
+    svg.appendChild(svgEl("text", { x: G.x - 10, y: G.y + H + 17, "text-anchor": "end", "class": "xs mu" }, "K 步"));
+    for (t = 0; t < c.nk / c.repk; t++) {
+      svg.appendChild(svgEl("text", { x: G.x + (t + 0.5) * c.repk * cw, y: G.y + H + 17, "text-anchor": "middle", "class": "xs mu" }, String(t)));
+    }
+    if (D === 0) dmFib(svg, G.x + q.kc * cw, G.y, cw, H);
+    if (D === 1) dmFib(svg, G.x, G.y + q.mb * gh, gw, gh);
+    svg.appendChild(svgEl("rect", { x: G.x + q.kc * cw, y: G.y + q.mb * gh, width: cw, height: gh, "class": "dm-cur" }));
+    svg.appendChild(svgEl("rect", { x: G.x + q.k * c.repk * cw, y: G.y + q.pm * c.repm * gh, width: c.repk * cw, height: c.repm * gh, "class": "dm-tma" }));
+    svg.appendChild(svgEl("rect", { x: G.x, y: G.y, width: gw, height: H, "class": "hit", "data-hit": "G" }));
+    var ix = G.x + gw + 28, blk = q.mb * c.nk + q.kc;
+    [["sm b", "选中的块 (mb, kc) = (" + q.mb + ", " + q.kc + ")"],
+     ["xs", "逻辑行 " + 128 * q.mb + "–" + (128 * q.mb + 127)],
+     ["xs", "scale 列 " + 4 * q.kc + "–" + (4 * q.kc + 3) + "，K " + 4 * q.kc * c.V + "–" + ((4 * q.kc + 4) * c.V - 1)],
+     ["xs", "块序号 " + blk + "，起始字节 " + blk * 512],
+     ["xs mu", "虚线框：第 " + q.k + " 个 K 步搬的 " + c.repm + " × " + c.repk + " 块"]].forEach(function (l, i) {
+      svg.appendChild(svgEl("text", { x: ix, y: G.y + 8 + i * 18, "class": l[0] }, l[1]));
+    });
+    // 左下：选中的 512 字节块（第 2、3、4 维）
+    svg.appendChild(svgEl("text", { x: 16, y: 286, "class": "sm b" }, "选中的块：32 行 × 16 字节（第 2、3、4 维）"));
+    svg.appendChild(svgEl("text", { x: 16, y: 304, "class": "xs mu" }, "第 r 行就是 TMEM 的 lane r；一行 4 个字，就是 TMEM 的 4 列"));
+    svg.appendChild(svgEl("text", { x: C.x - 6, y: C.y - 20, "text-anchor": "end", "class": "xs mu" }, "lane r ↓"));
+    svg.appendChild(svgEl("text", { x: C.x - 6, y: C.y - 6, "text-anchor": "end", "class": "xs mu" }, "c →"));
+    for (t = 0; t < 4; t++) {
+      svg.appendChild(svgEl("text", { x: C.x + (4 * t + 2) * C.bw, y: C.y - 20, "text-anchor": "middle", "class": "xs" }, "字 g = " + t));
+      for (u = 0; u < 4; u++) svg.appendChild(svgEl("text", { x: C.x + (4 * t + u + 0.5) * C.bw, y: C.y - 6, "text-anchor": "middle", "class": "xs mu" }, String(u)));
+    }
+    for (t = 0; t < 32; t++) for (u = 0; u < 16; u++) {
+      svg.appendChild(svgEl("rect", { x: C.x + u * C.bw, y: C.y + t * C.bh, width: C.bw, height: C.bh, "class": "dm-byte" }));
+    }
+    for (t = 1; t < 4; t++) svg.appendChild(svgEl("line", { x1: C.x + 4 * t * C.bw, y1: C.y, x2: C.x + 4 * t * C.bw, y2: C.y + 32 * C.bh, "class": "wordsep" }));
+    [0, 8, 16, 24, 31].forEach(function (rr) {
+      svg.appendChild(svgEl("text", { x: C.x - 6, y: C.y + (rr + 0.9) * C.bh, "text-anchor": "end", "class": "xs mu" }, String(rr)));
+    });
+    for (t = 0; t < 2; t++) {
+      var y0 = C.y + 16 * t * C.bh + 2, y1 = C.y + 16 * (t + 1) * C.bh - 2, bx = C.x + 16 * C.bw + 5;
+      svg.appendChild(svgEl("path", { d: "M" + bx + " " + y0 + " h4 V" + y1 + " h-4", "class": "axis" }));
+      svg.appendChild(svgEl("text", { x: bx + 8, y: (y0 + y1) / 2 + 4, "class": "xs mu" }, "h=" + t));
+    }
+    if (D === 2) dmFib(svg, C.x + (4 * q.g + q.cc) * C.bw, C.y, C.bw, 32 * C.bh);
+    if (D === 3) for (t = 0; t < 4; t++) dmFib(svg, C.x + (4 * t + q.cc) * C.bw, C.y + q.r * C.bh, C.bw, C.bh);
+    if (D === 4) dmFib(svg, C.x + 4 * q.g * C.bw, C.y + q.r * C.bh, 4 * C.bw, C.bh);
+    svg.appendChild(svgEl("rect", { x: C.x + (4 * q.g + q.cc) * C.bw, y: C.y + q.r * C.bh, width: C.bw, height: C.bh, "class": "dm-cur" }));
+    svg.appendChild(svgEl("rect", { x: C.x + (4 * q.g + q.cc) * C.bw - 1.5, y: C.y + q.r * C.bh - 1.5, width: C.bw + 3, height: C.bh + 3, "class": "sel" }));
+    svg.appendChild(svgEl("rect", { x: C.x, y: C.y, width: 16 * C.bw, height: 32 * C.bh, "class": "hit", "data-hit": "C" }));
+    // 中：放大选中的 32 位格子
+    svg.appendChild(svgEl("text", { x: W.x, y: W.y - 28, "class": "sm b" }, "放大：lane " + q.r + " 的字 " + q.g));
+    svg.appendChild(svgEl("text", { x: W.x, y: W.y - 11, "class": "xs mu" }, "TMEM 的一个 32 位格子：同一行相邻 4 个 scale"));
+    for (t = 0; t < 4; t++) svg.appendChild(svgEl("rect", { x: W.x + t * (W.w + W.gap), y: W.y, width: W.w, height: W.h, rx: 4, "class": "dm-box" }));
+    if (D === 4) for (t = 0; t < 4; t++) dmFib(svg, W.x + t * (W.w + W.gap), W.y, W.w, W.h);
+    svg.appendChild(svgEl("rect", { x: W.x + q.cc * (W.w + W.gap), y: W.y, width: W.w, height: W.h, rx: 4, "class": "dm-cur" }));
+    for (t = 0; t < 4; t++) {
+      var wx = W.x + t * (W.w + W.gap) + W.w / 2, jj = 4 * q.kc + t;
+      svg.appendChild(svgEl("text", { x: wx, y: W.y + 24, "text-anchor": "middle", "class": "m b" + (t === q.cc ? " on-ac" : "") }, "c = " + t));
+      svg.appendChild(svgEl("text", { x: wx, y: W.y + W.h + 16, "text-anchor": "middle", "class": "xs" }, "j = " + jj));
+      svg.appendChild(svgEl("text", { x: wx, y: W.y + W.h + 31, "text-anchor": "middle", "class": "xs mu" }, dmKr(c, jj)));
+      svg.appendChild(svgEl("rect", { x: wx - W.w / 2, y: W.y, width: W.w, height: W.h, "class": "hit", "data-hit": "W", "data-c": String(t) }));
+    }
+    var lx1 = C.x + (4 * q.g + 4) * C.bw + 1, ly1 = C.y + (q.r + 0.5) * C.bh, lx2 = W.x - 6, ly2 = W.y + W.h / 2;
+    svg.appendChild(svgEl("path", { d: "M" + lx1 + " " + ly1 + " C" + (lx1 + 40) + " " + ly1 + " " + (lx2 - 30) + " " + ly2 + " " + lx2 + " " + ly2, "class": "link" }));
+    svg.appendChild(svgEl("circle", { cx: lx1, cy: ly1, r: 2.6, "class": "dot" }));
+    // 中下：第 394 行的 TMA 视图 [2, 256]
+    svg.appendChild(svgEl("text", { x: B.x, y: B.y - 30, "class": "sm b" }, "第 394 行把同一块看成 [2, 256]"));
+    for (t = 0; t < 2; t++) {
+      var by = B.y + t * 36;
+      svg.appendChild(svgEl("text", { x: B.x, y: by - 5, "class": "xs mu" }, "h = " + t + "：lane " + 16 * t + "–" + (16 * t + 15) + " 的 256 字节"));
+      svg.appendChild(svgEl("rect", { x: B.x, y: by, width: 256, height: B.h, "class": "dm-box" }));
+      for (u = 1; u < 16; u++) svg.appendChild(svgEl("line", { x1: B.x + 16 * u, y1: by, x2: B.x + 16 * u, y2: by + B.h, "class": "tick" }));
+    }
+    line.forEach(function (p) {
+      var o = 16 * p[0] + 4 * p[1] + p[2];
+      svg.appendChild(svgEl("rect", { x: B.x + (o & 255), y: B.y + (o >> 8) * 36, width: 2, height: B.h, "class": "dm-fibo" }));
+    });
+    svg.appendChild(svgEl("rect", { x: B.x + q.w - 1, y: B.y + q.h * 36 - 3, width: 4, height: B.h + 6, "class": "dm-cur" }));
+    svg.appendChild(svgEl("text", { x: B.x, y: B.y + 36 + B.h + 20, "class": "m" }, "h = r >> 4 = " + q.h + "，w = 16·(r % 16) + 4g + c = " + q.w));
+    // 右下：同一块的逻辑视图
+    svg.appendChild(svgEl("text", { x: L.x - 34, y: 286, "class": "sm b" }, "同一块的逻辑视图"));
+    svg.appendChild(svgEl("text", { x: L.x - 34, y: 304, "class": "xs mu" }, "行 " + 128 * q.mb + "–" + (128 * q.mb + 127) + " × 列 " + 4 * q.kc + "–" + (4 * q.kc + 3)));
+    for (t = 0; t < 4; t++) svg.appendChild(svgEl("text", { x: L.x + (t + 0.5) * L.cw, y: L.y - 6, "text-anchor": "middle", "class": "xs mu" }, "c" + t));
+    svg.appendChild(svgEl("rect", { x: L.x, y: L.y, width: 4 * L.cw, height: 128 * L.rh, "class": "dm-box" }));
+    for (t = 1; t < 4; t++) {
+      svg.appendChild(svgEl("line", { x1: L.x + t * L.cw, y1: L.y, x2: L.x + t * L.cw, y2: L.y + 128 * L.rh, "class": "tick" }));
+      svg.appendChild(svgEl("line", { x1: L.x, y1: L.y + 32 * t * L.rh, x2: L.x + 4 * L.cw, y2: L.y + 32 * t * L.rh, "class": "wordsep" }));
+    }
+    for (t = 0; t < 4; t++) {
+      svg.appendChild(svgEl("text", { x: L.x - 6, y: L.y + 32 * t * L.rh + 9, "text-anchor": "end", "class": "xs mu" }, "+" + 32 * t));
+      svg.appendChild(svgEl("text", { x: L.x + 4 * L.cw + 6, y: L.y + (32 * t + 16) * L.rh + 4, "class": "xs mu" }, "g " + t));
+    }
+    if (D === 2) dmFib(svg, L.x + q.cc * L.cw, L.y + 32 * q.g * L.rh, L.cw, 32 * L.rh);
+    if (D === 3) for (t = 0; t < 4; t++) dmFib(svg, L.x + q.cc * L.cw, L.y + (32 * t + q.r) * L.rh - 1.5, L.cw, L.rh + 3);
+    if (D === 4) dmFib(svg, L.x, L.y + (32 * q.g + q.r) * L.rh - 1.5, 4 * L.cw, L.rh + 3);
+    svg.appendChild(svgEl("rect", { x: L.x + q.cc * L.cw, y: L.y + (32 * q.g + q.r) * L.rh - 1.5, width: L.cw, height: L.rh + 3, "class": "dm-cur" }));
+    svg.appendChild(svgEl("rect", { x: L.x + q.cc * L.cw - 1.5, y: L.y + (32 * q.g + q.r) * L.rh - 3, width: L.cw + 3, height: L.rh + 6, "class": "sel" }));
+    svg.appendChild(svgEl("rect", { x: L.x, y: L.y, width: 4 * L.cw, height: 128 * L.rh, "class": "hit", "data-hit": "L" }));
+    // 文字读数
+    var READ = [
+      ["从 " + c.nm + " 个行组里选第 " + q.mb + " 个。", "一个行组是逻辑上连续的 128 行，在内存里占 " + c.nk + " 块、" + c.nk * 512 + " 字节。128 来自硬件：一条 tcgen05.mma 处理 128 行，这 128 行的 scale 正好装满 TMEM 的 32 个 lane × 4 列。M/128 随输入变。"],
+      ["从这个行组的 " + c.nk + " 块里选第 " + q.kc + " 块。", "一块是 128 行 × 4 个 scale 列。相邻的块在内存里紧挨着，所以一个 K 步要的 rep_k = " + c.repk + " 块是连续的一段，K 循环每步把 kc 加 rep_k（第 232 行）。K/V/4 随 K 和格式变。"],
+      ["在块里的 32 行中选第 " + q.r + " 行，也就是 TMEM 的 lane " + q.r + "。", "这一行装的不是逻辑上的一行，而是 r、r + 32、r + 64、r + 96 这 4 行各自的 4 个 scale。32 来自硬件：一个 warp 只能访问 TMEM 的 32 个 lane。"],
+      ["在这一行的 4 个字里选第 " + q.g + " 个，也就是 TMEM 的一列。", "字 g 装逻辑行 32g + r 的 4 个 scale，所以沿 g 走一步，逻辑上跳 32 行。4 = 128 / 32：一条 MMA 的 128 行折进 32 个 lane，要 4 列。"],
+      ["在一个 32 位格子的 4 个字节里选第 " + q.cc + " 个。", "这 4 个字节是同一行相邻的 4 个 scale 列，管相邻的 4 段 K，每段 V = " + c.V + " 个元素。4 来自硬件：一个格子 32 位，每个 scale 1 字节。"]
+    ][D];
+    var rd = $("dm-read"); clear(rd);
+    var rb = document.createElement("b"); rb.textContent = READ[0]; rd.appendChild(rb); rd.appendChild(document.createTextNode(READ[1]));
+    $("dm-what").textContent = ["第 0 维 mb，大小 M/128 = " + c.nm + "，随输入变", "第 1 维 kc，大小 K/V/4 = " + c.nk + "，随输入和格式变",
+      "第 2 维 r，大小 32，硬件固定", "第 3 维 g，大小 4，硬件固定", "第 4 维 c，大小 4，硬件固定"][D];
+    $("dm-step").textContent = ["跨 " + c.nk * 512 + " 字节；m + 128", "跨 512 字节；j + 4，K + " + 4 * c.V, "跨 16 字节；m + 1",
+      "跨 4 字节；m + 32", "跨 1 字节；j + 1，K + " + c.V][D];
+    $("dm-5d").textContent = dmIdx([q.mb, q.kc, q.r, q.g, q.cc]);
+    $("dm-pos").textContent = "(" + q.m + ", " + q.j + ")，" + dmKr(c, q.j);
+    $("dm-off").textContent = "(" + q.mb + "×" + c.nk + " + " + q.kc + ")×512 + " + q.inner + " = " + q.glob;
+    $("dm-cap").textContent = c.f.name + "：V = " + c.V + "。M = " + dm.M + "、K = " + dm.K + " 时物理形状是 [" + c.nm + ", " + c.nk +
+      ", 32, 4, 4]；BLOCK_M = " + dm.bm + "、BLOCK_K = " + dm.bk + " 时 rep_m = " + c.repm + "、rep_k = " + c.repk +
+      "。图里的 M、K 取小值，只为画得下；教程默认 M = N = K = 8192，A 的物理形状是 [64, " + 8192 / c.V / 4 +
+      ", 32, 4, 4]。B 的 scale 同理，把 M、BLOCK_M 换成 N、BLOCK_N（教程 BLOCK_N = 256，rep_n = 2）。";
+    dmChain(q);
+  }
+  function dmChip(v, lab, cls, digs, dimIdx) {
+    var btn = dimIdx !== undefined, el = document.createElement(btn ? "button" : "span");
+    el.className = "dc " + cls + (digs.indexOf(dm.dim) >= 0 ? " on" : "");
+    if (btn) { el.type = "button"; el.setAttribute("data-dim", String(dimIdx)); el.setAttribute("aria-label", "看第 " + dimIdx + " 维 " + DMN[dimIdx]); }
+    var b = document.createElement("b"); b.textContent = String(v); el.appendChild(b);
+    var i = document.createElement("i"); i.textContent = lab; el.appendChild(i);
+    return el;
+  }
+  function dmChain(q) {
+    var c = q.c, rm = c.repm, rk = c.repk, sm = "SMEM 第 " + q.smem + " 字节", gl = "显存第 " + q.glob + " 字节";
+    var low = [[2, "r>>4", "tma", [2]], [256, "16(r%16)+4g+c", "tma", [2, 3, 4]]];
+    var R = [
+      ["逻辑 scale", "第 47–49 行注释 · tl.dot_scaled 的含义", "(M, K // VEC_SIZE)", [[dm.M, "M", "in", [0, 2, 3]], [c.KV, "K/V", "in", [1, 4]]], "(" + q.m + ", " + q.j + ")", "不按这个形状存"],
+      ["物理排法", "第 55 行注释 · 字节的实际顺序", "(M // 32 // 4, K // VEC_SIZE // 4, 32, 4, 4)", [[c.nm, "mb", "in", [0]], [c.nk, "kc", "in", [1]], [32, "r", "hw", [2]], [4, "g", "hw", [3]], [4, "c", "hw", [4]]], dmIdx([q.mb, q.kc, q.r, q.g, q.cc]), gl, true],
+      ["主机端创建", "第 363–366 行 · g、c 合成 16 字节", "[M // 128, K // VEC_SIZE // 4, 32, 16]", [[c.nm, "mb", "in", [0]], [c.nk, "kc", "in", [1]], [32, "r", "hw", [2]], [16, "4g+c", "hw", [3, 4]]], dmIdx([q.mb, q.kc, q.r, 4 * q.g + q.cc]), gl],
+      ["TMA 视图", "第 394 行 · 每块改分成 2 × 256", "a_scale.reshape(1, a_scale_shape[0], a_scale.shape[1], 2, 256)", [[1, "占位", "ph", []], [c.nm, "mb", "in", [0]], [c.nk, "kc", "in", [1]]].concat(low), dmIdx([0, q.mb, q.kc, q.h, q.w]), gl],
+      ["TMA 一次搬的块", "第 392、217 行 · 第 " + q.k + " 个 K 步", "a_scale_desc.load([0, offs_scale_m, offs_scale_k, 0, 0])", [[1, "占位", "ph", []], [rm, "mb′", "blk", [0]], [rk, "kc′", "blk", [1]]].concat(low), dmIdx([0, q.mbl, q.kcl, q.h, q.w]), sm, false, "本步起点 " + dmIdx([0, q.pm * rm, q.k * rk, 0, 0])],
+      ["拆回五维", "第 220 行 · 2 × 256 拆回 (r, g, c)", ".reshape(rep_m, rep_k, 32, 4, 4)", [[rm, "mb′", "blk", [0]], [rk, "kc′", "blk", [1]], [32, "r", "hw", [2]], [4, "g", "hw", [3]], [4, "c", "hw", [4]]], dmIdx([q.mbl, q.kcl, q.r, q.g, q.cc]), sm],
+      ["对调 kc′ 与 g", "第 220 行 · 唯一改变顺序的一步", ".trans(0, 3, 2, 1, 4)", [[rm, "mb′", "blk", [0]], [4, "g", "hw", [3]], [32, "r", "hw", [2]], [rk, "kc′", "blk", [1]], [4, "c", "hw", [4]]], dmIdx([q.mbl, q.g, q.r, q.kcl, q.cc]), sm],
+      ["合成逻辑块", "第 220 行 · 行三位、列两位各自合并", ".reshape(BLOCK_M, BLOCK_K // VEC_SIZE)", [[dm.bm, "128mb′+32g+r", "blk", [0, 2, 3]], [c.bkv, "4kc′+c", "blk", [1, 4]]], dmIdx([q.m % dm.bm, q.j % c.bkv]), sm]
+    ];
+    var tb = $("dm-chain"); clear(tb);
+    R.forEach(function (row) {
+      var tr = document.createElement("tr"), td = document.createElement("td"), small = document.createElement("small");
+      td.textContent = row[0]; small.textContent = row[1]; td.appendChild(small); tr.appendChild(td);
+      td = document.createElement("td"); var cd = document.createElement("code"); cd.textContent = row[2]; td.appendChild(cd);
+      if (row[7]) { var s2 = document.createElement("small"); s2.textContent = row[7]; td.appendChild(s2); }
+      tr.appendChild(td);
+      td = document.createElement("td"); var sh = document.createElement("span"); sh.className = "shape";
+      var br = document.createElement("span"); br.className = "br"; br.textContent = "["; sh.appendChild(br);
+      row[3].forEach(function (ch, k) { sh.appendChild(dmChip(ch[0], ch[1], ch[2], ch[3], row[6] ? k : undefined)); });
+      br = document.createElement("span"); br.className = "br"; br.textContent = "]"; sh.appendChild(br);
+      td.appendChild(sh); tr.appendChild(td);
+      [row[4], row[5]].forEach(function (v) { var x = document.createElement("td"); x.className = "idx"; x.textContent = v; tr.appendChild(x); });
+      tb.appendChild(tr);
+    });
+  }
+  function dmPress(id, v) {
+    Array.prototype.forEach.call($(id).querySelectorAll("button"), function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-v") === String(v))); });
+  }
+  function dmAll() {
+    var sz = dmSizes(dmCfg()), i;
+    for (i = 0; i < 5; i++) dm.d[i] = Math.min(dm.d[i], sz[i] - 1);
+    i = dm.dim;
+    $("dm-i").max = String(sz[i] - 1); $("dm-i").value = String(dm.d[i]);
+    $("dm-i-l").textContent = DMN[i]; $("dm-i-v").textContent = String(dm.d[i]);
+    dmPress("dm-dim", i);
+    dmRun();
+  }
+  function dmClick(ev) {
+    var t = ev.target, which = t && t.getAttribute ? t.getAttribute("data-hit") : null;
+    if (!which) return;
+    var svg = $("dm-svg"), ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    var p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
+    var s = p.matrixTransform(ctm.inverse()), c = dmCfg(), cl = function (v, hi) { return Math.max(0, Math.min(hi, Math.floor(v))); };
+    if (which === "G") {
+      var cw = Math.min(34, DMG.maxw / c.nk);
+      dm.d[0] = cl((s.y - DMG.y) / DMG.h, c.nm - 1); dm.d[1] = cl((s.x - DMG.x) / cw, c.nk - 1);
+    } else if (which === "C") {
+      var bb = cl((s.x - DMC.x) / DMC.bw, 15);
+      dm.d[2] = cl((s.y - DMC.y) / DMC.bh, 31); dm.d[3] = bb >> 2; dm.d[4] = bb & 3;
+    } else if (which === "W") {
+      dm.d[4] = Number(t.getAttribute("data-c"));
+    } else {
+      var row = cl((s.y - DML.y) / DML.rh, 127);
+      dm.d[2] = row % 32; dm.d[3] = row >> 5; dm.d[4] = cl((s.x - DML.x) / DML.cw, 3);
+    }
+    dmAll();
+  }
+
+  // ---------------- 节点 5：五种落地 ----------------
+  var T5T = [
+    { id: "sm100", name: "B200", arch: "sm_100" }, { id: "sm120", name: "RTX 5090", arch: "sm_120" },
+    { id: "sm89", name: "RTX 4090", arch: "sm_89" }, { id: "gfx950", name: "MI355X", arch: "gfx950 · CDNA4" },
+    { id: "gfx942", name: "MI300X", arch: "gfx942 · CDNA3" }
+  ];
+  var T5C = [{ id: "nvfp4", name: "NVFP4" }, { id: "mxfp4", name: "MXFP4" }, { id: "mxfp8", name: "MXFP8" },
+    { id: "mixed", name: "FP8 × FP4" }, { id: "one", name: "bf16 × MXFP4" }];
+  var POS_C = "(c) 指令内部：MMA 给每段 K 的部分和乘 scale", POS_A = "(a) 乘之前：先解码成 bf16，逐元素乘 scale";
+  var SOFT_NV = { pos: POS_A, sel: "已乘进元素，矩阵乘不再用 scale", acc: "寄存器", lay: "无硬件要求",
+    cost: "每个元素都要解码成 bf16、乘一次 scale，矩阵乘按 bf16 的吞吐算，低精度张量核用不上。" };
+  var NAT = {
+    sm100: { s: "N", acc: "TMEM", pos: POS_C, lay: "5D 预排：SMEM 里的字节顺序就是 TMEM 的顺序",
+      data: [["显存", "A、B 分块"], ["SMEM", "TMA：cp.async.bulk.tensor"], null],
+      scale: [["显存", "5D 预排，512 字节一块"], ["SMEM", "TMA（5D）"], ["TMEM", "一个线程发 tcgen05.cp"]],
+      cost: "scale 必须预排成 TMEM 的顺序才走快路径；scale 也占 TMEM 的列（NVFP4 一个 K 步 48 列，累加器 256 列，共 512 列）。" },
+    sm120: { s: "N", acc: "寄存器", pos: POS_C, lay: "同一套 5D 写法可用：reshape、trans 只是给寄存器重新编号",
+      data: [["显存", "A、B 分块"], ["SMEM", "TMA"], ["寄存器", "ldmatrix、ld.shared"]],
+      scale: [["显存", "同一套 5D 预排"], ["SMEM", "TMA（5D）"], ["寄存器", "ld.shared，每线程 32 位"]],
+      sel: "每线程一个 32 位寄存器装 scale；{byte-id, thread-id} 选字节，并选四个线程一组里由谁提供",
+      cost: "累加器在寄存器：128 × 256 的 FP32 累加器分给 4 个 warp，每线程 256 个，超过 255 个寄存器的上限；共享内存每个 CTA 只有 101,376 字节。教程配置放不下，要缩小分块。" },
+    gfx950: { s: "N", acc: "寄存器（VGPR）", pos: POS_C, lay: "shuffle_scales_cdna4：每个 lane 的 4 个 scale 连续",
+      data: [["显存", "A、B 分块"], ["LDS", "buffer_load → ds_write"], ["VGPR", "ds_read_b128"]],
+      scale: [["显存", "shuffle 过的 scale"], ["LDS", "buffer_load_ushort"], ["VGPR", "ds_read_b32：一次 4 个"]],
+      sel: "每个 lane 一个 32 位 VGPR 装 4 个 scale，op_sel / op_sel_hi 选字节；cbsz、blgp 编码 A、B 的格式",
+      cost: "只支持 OCP MX 格式（E8M0 scale，每 32 个元素一个），NVFP4 不行；scale 不预排也能算对，但要从 LDS 逐字节读再拼起来。" }
+  };
+  var M5 = {
+    sm100: {
+      nvfp4: { ins: "tcgen05.mma.cta_group::1.kind::mxf4nvf4.block_scale.scale_vec::4X", sel: "TMEM 一个格子 4 个字节，每条 MMA 全读（4X）", rec: "教程配置：共享内存 221,232 字节，每线程 170 个寄存器" },
+      mxfp4: { ins: "tcgen05.mma.cta_group::1.kind::mxf4.block_scale.scale_vec::2X", sel: "两条 MMA 各读格子里的 2 个字节（2X）", rec: "教程配置：共享内存 208,944 字节" },
+      mxfp8: { ins: "tcgen05.mma.cta_group::1.kind::mxf8f6f4.block_scale.scale_vec::1X", sel: "四条 MMA 各读 1 个字节，由指令描述符里的 scale ID 指定（1X）", rec: "教程配置：共享内存 202,800 字节" },
+      mixed: { ins: "tcgen05.mma.cta_group::1.kind::mxf8f6f4.block_scale", sel: "同 MXFP8：每条 MMA 读 1 个字节", rec: "教程配置：共享内存 202,800 字节" },
+      one: { s: "S", ins: "fp4_to_fp、乘 scale → tcgen05.mma.cta_group::1.kind::f16", unit: ["tcgen05.mma", "kind::f16（bf16）"], conv: ["解码 FP4 → bf16，乘 scale", "fp4_to_fp、mulf"], rec: "通用写法：共享内存 82,952 字节", acc: "TMEM" }
+    },
+    sm120: {
+      nvfp4: { ins: "mma.sync.aligned.m16n8k64.row.col.kind::mxf4nvf4.block_scale.scale_vec::4X.f32.e2m1.e2m1.f32.ue4m3", rec: "教程配置：共享内存 165,976 字节，超过 101,376 字节的上限；255 个寄存器并溢出" },
+      mxfp4: { ins: "mma.sync.aligned.m16n8k64.row.col.kind::mxf4nvf4.block_scale.scale_vec::2X.f32.e2m1.e2m1.f32.ue8m0", rec: "教程配置：共享内存 156,760 字节；改成 128 × 128、3 级、8 个 warp 后 69,680 字节、199 个寄存器" },
+      mxfp8: { ins: "mma.sync.aligned.m16n8k32.row.col.kind::mxf8f6f4.block_scale.scale_vec::1X.f32.e4m3.e4m3.f32.ue8m0", rec: "教程配置：共享内存 152,152 字节；改成 128 × 128、3 级、8 个 warp 后 67,632 字节、200 个寄存器" },
+      mixed: { s: "S", ins: "解码成 bf16、乘 scale → mma.sync.aligned.m16n8k16 bf16", unit: ["mma.sync m16n8k16", "bf16"], conv: ["解码成 bf16，乘 scale", "FP8 与 FP4 混合，原生路径不接"], rec: "教程配置：共享内存 103,032 字节", why: "sm_120 的原生模式不接受 FP8 与 FP4 混合（AccelerateMatmul.cpp 第 696–700 行），退回软件换算。" },
+      one: { s: "S", ins: "fp4_to_fp、乘 scale → mma.sync.aligned.m16n8k16 bf16", unit: ["mma.sync m16n8k16", "bf16"], conv: ["解码 FP4 → bf16，乘 scale", "fp4_to_fp、mulf"], rec: "通用写法：共享内存 82,944 字节" }
+    },
+    sm89: {
+      nvfp4: { s: "F", why: "软件换算把 scale 当成 E8M0：零扩展后左移，放进 bf16 的指数位。NVFP4 的 scale 是 UE4M3，不是这种格式，AccelerateMatmul 阶段断言失败。" },
+      mxfp4: { s: "S", ins: "fp4_to_fp、乘 scale → mma.sync.aligned.m16n8k16 bf16", conv: ["解码 FP4 → bf16，乘 scale", "fp4_to_fp、mulf"], rec: "教程配置：共享内存 32,768 字节；sm_90 以下描述符改成指针，逐字节读" },
+      mxfp8: { s: "S", ins: "cvt.rn.f16x2.e4m3x2 → f32 → bf16、乘 scale → mma.sync.aligned.m16n8k16 bf16", conv: ["FP8 → f16 → f32 → bf16，乘 scale", "cvt.rn.f16x2.e4m3x2 等"], rec: "教程配置：共享内存 32,768 字节" },
+      mixed: { s: "S", ins: "两侧都解码成 bf16、乘 scale → mma.sync.aligned.m16n8k16 bf16", conv: ["两侧解码成 bf16，乘 scale", "fp_to_fp、fp4_to_fp、mulf"], rec: "教程配置：共享内存 16,384 字节" },
+      one: { s: "S", ins: "fp4_to_fp、乘 scale → mma.sync.aligned.m16n8k16 bf16", conv: ["解码 FP4 → bf16，乘 scale", "fp4_to_fp、mulf"], rec: "通用写法：共享内存 82,944 字节" }
+    },
+    gfx950: {
+      nvfp4: { s: "F", why: "缩放 MFMA 只接 E8M0 scale、每 32 个元素一个；NVFP4 的 UE4M3、每 16 个一个对不上，退回的换算路径在 v3.7.1 报错（convert_layout 前后元素类型不一致）。" },
+      mxfp4: { ins: "v_mfma_scale_f32_16x16x128_f8f6f4（matrix_instr_nonkdim = 32 时是 32x32x64）", rec: "教程配置：共享内存 34,816 字节，123 个 VGPR，无溢出" },
+      mxfp8: { ins: "v_mfma_scale_f32_16x16x128_f8f6f4（cbsz、blgp 为 E4M3）", rec: "通用写法：共享内存 67,584 字节" },
+      mixed: { ins: "v_mfma_scale_f32_16x16x128_f8f6f4（A、B 各编一种格式）", rec: "通用写法：共享内存 51,200 字节" },
+      one: { s: "S", ins: "v_cvt_scalef32_pk_bf16_fp4 → v_mfma_f32_16x16x32_bf16", unit: ["v_mfma_f32_16x16x32", "bf16"], conv: ["v_cvt_scalef32_pk_bf16_fp4", "一条指令解码 2 个 FP4 并乘 scale"], rec: "通用写法：共享内存 82,944 字节", sel: "已乘进元素", lay: "无硬件要求", cost: "解码与乘 scale 有专用指令，一条处理 2 个元素；矩阵乘仍是 bf16。" }
+    },
+    gfx942: {
+      nvfp4: { s: "F", why: "两侧都带 scale。CDNA3 只有模拟路径，而它只处理一侧带 scale 的情形（NYI: both LHS and RHS scale），也没有登记别的退路，转 LLVM 时报 Unsupported DotScaleOp。" },
+      mxfp4: { s: "F", why: "教程的 MXFP4 × MXFP4 两侧都带 scale。CDNA3 的模拟路径只处理一侧（NYI: both LHS and RHS scale），转 LLVM 时报 Unsupported DotScaleOp。教程的 supports_block_scaling() 也只放行 gfx950。" },
+      mxfp8: { s: "F", why: "两侧都带 scale，同上：CDNA3 的模拟路径不处理，转 LLVM 时报 Unsupported DotScaleOp。" },
+      mixed: { s: "F", why: "两侧都带 scale，同上：转 LLVM 时报 Unsupported DotScaleOp。" },
+      one: { s: "S", ins: "amdg.upcast_mxfp → v_mfma_f32_16x16x16_bf16", unit: ["v_mfma_f32_16x16x16", "bf16"], conv: ["upcast_mxfp：解码再乘 scale", "v_perm_b32、v_and_b32、v_pk_mul_f32 等"], rec: "通用写法（128 × 128 × 256、2 级）：共享内存 81,920 字节，超过 CDNA3 的 64 KB 上限，加载时报 OutOfResources；BLOCK_K 改为 128 后为 40,960 字节", cost: "解码靠一串位运算、查表与乘法，没有专用指令；矩阵乘是 bf16。这是 MI300X 上 bf16 激活 × MXFP4 权重的走法。" }
+    }
+  };
+  var t5 = { tgt: "sm100", c: "mxfp4" };
+  function t5Get(tid, cid) {
+    var base = NAT[tid] || {}, e = M5[tid][cid], st = e.s || base.s || "N", out = {};
+    var soft = st === "S" ? SOFT_NV : {};
+    [base, soft, e].forEach(function (o) { for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) out[k] = o[k]; });
+    out.s = st;
+    if (st === "S" && !e.data) {
+      out.data = [["显存", cid === "one" ? "A（bf16）、B（MXFP4）" : "A、B 分块"], [tid.indexOf("gfx") === 0 ? "LDS" : "SMEM", tid === "sm89" ? "ld.global 后经 SMEM 换布局" : "搬进片上"], null];
+      out.scale = [["显存", cid === "one" ? "只有 B 有 scale" : "两侧的 scale"], tid === "sm89" ? null : [tid.indexOf("gfx") === 0 ? "LDS" : "SMEM", "搬进片上"], null];
+      if (tid.indexOf("gfx") === 0) out.acc = "寄存器（VGPR）";
+    }
+    if (st === "S" && !out.unit) out.unit = tid.indexOf("gfx") === 0 ? ["MFMA", "bf16"] : ["mma.sync m16n8k16", "bf16"];
+    if (st === "N" && !out.unit) out.unit = [tid === "sm100" ? "tcgen05.mma" : tid === "sm120" ? "mma.sync" : "v_mfma_scale", "块缩放"];
+    return out;
+  }
+  function t5Box(svg, x, y, w, h, cls, t1, t2) {
+    svg.appendChild(svgEl("rect", { x: x, y: y, width: w, height: h, rx: 8, "class": cls }));
+    if (t1) svg.appendChild(svgEl("text", { x: x + w / 2, y: y + (t2 ? h / 2 - 3 : h / 2 + 4), "text-anchor": "middle", "class": "sm b" }, t1));
+    if (t2) svg.appendChild(svgEl("text", { x: x + w / 2, y: y + h / 2 + 14, "text-anchor": "middle", "class": "xs mu" }, t2));
+  }
+  function t5Run() {
+    var svg = $("t5-svg"); clear(svg);
+    var e = t5Get(t5.tgt, t5.c), T = T5T.filter(function (x) { return x.id === t5.tgt; })[0], C = T5C.filter(function (x) { return x.id === t5.c; })[0];
+    var X = [24, 228, 432, 668], W = 184, UW = 208, Y = { data: 74, scale: 180 }, H = 64, gfx = t5.tgt.indexOf("gfx") === 0;
+    svg.appendChild(svgEl("text", { x: 16, y: 22, "class": "sm b" }, T.name + "（" + T.arch + "） · " + C.name));
+    ["显存", gfx ? "LDS（片上共享）" : "SMEM（片上共享）", t5.tgt === "sm100" ? "寄存器 / TMEM" : "寄存器", "矩阵单元"].forEach(function (h, i) {
+      svg.appendChild(svgEl("text", { x: X[i] + (i === 3 ? UW : W) / 2, y: 52, "text-anchor": "middle", "class": "xs mu" }, h));
+    });
+    svg.appendChild(svgEl("text", { x: 16, y: Y.data - 8, "class": "xs mu" }, "A、B 数据"));
+    svg.appendChild(svgEl("text", { x: 16, y: Y.scale - 8, "class": "xs mu" }, "scale"));
+    var g = svgEl("g", e.s === "F" ? { "class": "t5-dim" } : {});
+    svg.appendChild(g);
+    if (e.s === "F") {
+      t5Box(g, X[0], Y.data, W, H, "t5-cell", "显存", C.name);
+      t5Box(g, X[0], Y.scale, W, H, "t5-cell", "显存", "scale");
+      svg.appendChild(svgEl("rect", { x: X[1], y: Y.data, width: X[3] + UW - X[1], height: Y.scale + H - Y.data, rx: 10, "class": "t5-fail" }));
+      svg.appendChild(svgEl("text", { x: (X[1] + X[3] + UW) / 2, y: (Y.data + Y.scale + H) / 2 - 4, "text-anchor": "middle", "class": "sm b ac" }, "Triton v3.7.1 编译失败"));
+      svg.appendChild(svgEl("text", { x: (X[1] + X[3] + UW) / 2, y: (Y.data + Y.scale + H) / 2 + 16, "text-anchor": "middle", "class": "xs mu" }, "原因见下方说明"));
+    } else {
+      ["data", "scale"].forEach(function (lane) {
+        var cells = e[lane];
+        for (var i = 0; i < 3; i++) {
+          var c = cells[i], y = Y[lane];
+          if (e.s === "S" && i === 2) continue;
+          if (c) t5Box(g, X[i], y, W, H, lane === "scale" && c[0] === "TMEM" ? "t5-tmem" : "t5-cell", c[0], c[1]);
+          else t5Box(g, X[i], y, W, H, "t5-skip", null, null);
+          if (!c && i === 2 && lane === "data") svg.appendChild(svgEl("text", { x: X[i] + W / 2, y: y + H / 2 + 4, "text-anchor": "middle", "class": "xs mu" }, "不经寄存器：MMA 直接读 SMEM"));
+          if (!c && i === 1 && lane === "scale") svg.appendChild(svgEl("text", { x: X[i] + W / 2, y: y + H / 2 + 4, "text-anchor": "middle", "class": "xs mu" }, "直接读进寄存器"));
+        }
+        var lastX = e.s === "S" ? X[2] : X[3];
+        for (var a = 0; a < (e.s === "S" ? 2 : 3); a++) {
+          var y2 = Y[lane] + H / 2, x1 = X[a] + W + 2, x2 = (a + 1 < 3 ? X[a + 1] : lastX) - 4;
+          svg.appendChild(svgEl("path", { d: "M" + x1 + " " + y2 + " H" + x2, "class": "t5-arrow" }));
+          svg.appendChild(svgEl("path", { d: "M" + x2 + " " + y2 + " l-6 -4 v8 z", "class": "arrow" }));
+        }
+      });
+      if (e.s === "S") {
+        t5Box(g, X[2], Y.data, W, Y.scale + H - Y.data, "t5-conv", e.conv[0], e.conv[1]);
+        [Y.data + H / 2, Y.scale + H / 2].forEach(function (yy) {
+          svg.appendChild(svgEl("path", { d: "M" + (X[2] + W + 2) + " " + yy + " H" + (X[3] - 4), "class": "t5-arrow" }));
+          svg.appendChild(svgEl("path", { d: "M" + (X[3] - 4) + " " + yy + " l-6 -4 v8 z", "class": "arrow" }));
+        });
+      }
+      t5Box(g, X[3], Y.data, UW, Y.scale + H - Y.data, e.s === "S" ? "t5-unit-S" : "t5-unit-N", e.unit[0], e.unit[1]);
+      svg.appendChild(svgEl("text", { x: X[3] + UW / 2, y: Y.scale + H - 30, "text-anchor": "middle", "class": "xs" }, e.s === "S" ? "scale 已乘进元素" : "scale 在指令里乘"));
+      svg.appendChild(svgEl("text", { x: X[3] + UW / 2, y: Y.scale + H - 14, "text-anchor": "middle", "class": "xs mu" }, "累加器：" + e.acc));
+    }
+    svg.appendChild(svgEl("text", { x: 16, y: 286, "class": "xs mu" }, e.s === "F" ? "这个组合在本机编译不过，下面给出原因。" :
+      e.s === "S" ? "没有可用的块缩放指令：先在寄存器里换算，再交给普通的 bf16 矩阵乘。" : "有块缩放指令：scale 和数据一起交给矩阵单元，在每段 K 的部分和上乘。"));
+    $("t5-ins").textContent = e.s === "F" ? "（编译失败）" : e.ins;
+    $("t5-pos").textContent = e.s === "F" ? "—" : e.pos;
+    $("t5-sel").textContent = e.s === "F" ? "—" : (e.sel || "—");
+    $("t5-acc").textContent = e.s === "F" ? "—" : e.acc;
+    $("t5-lay").textContent = e.s === "F" ? "—" : e.lay;
+    $("t5-rec").textContent = e.s === "F" ? "—" : e.rec;
+    var cost = $("t5-cost"); clear(cost);
+    var b = document.createElement("b"); b.textContent = e.s === "F" ? "为什么编译失败：" : "代价落在哪：";
+    cost.appendChild(b); cost.appendChild(document.createTextNode(e.s === "F" ? e.why : (e.why ? e.why + " " : "") + e.cost));
+    $("t5-cap").textContent = e.s === "N" ? "蓝色：原生块缩放；scale 交给矩阵单元。" : e.s === "S" ? "黄色：软件换算；scale 在进入矩阵单元之前就乘进元素。" : "虚线：这一组合编译失败。";
+    t5Mat();
+  }
+  function t5Mat() {
+    var tb = $("t5-mat"); clear(tb);
+    var label = { N: "原生", S: "软件换算", F: "编译失败" };
+    T5T.forEach(function (T) {
+      var tr = document.createElement("tr"), th = document.createElement("td"), sm = document.createElement("small");
+      th.textContent = T.name; sm.textContent = T.arch; th.appendChild(sm); tr.appendChild(th);
+      T5C.forEach(function (C) {
+        var e = t5Get(T.id, C.id), td = document.createElement("td"), bt = document.createElement("button");
+        bt.type = "button"; bt.className = "st-" + e.s;
+        bt.setAttribute("data-t", T.id); bt.setAttribute("data-c", C.id);
+        bt.setAttribute("aria-pressed", String(T.id === t5.tgt && C.id === t5.c));
+        bt.setAttribute("aria-label", T.name + " " + C.name + "：" + label[e.s]);
+        var b = document.createElement("b"); b.textContent = label[e.s]; bt.appendChild(b);
+        var i = document.createElement("i");
+        i.textContent = e.s === "F" ? "—" : e.unit[0] + (e.s === "S" ? "（bf16）" : "");
+        bt.appendChild(i); td.appendChild(bt); tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+  }
+  function t5Sync() {
+    Array.prototype.forEach.call($("t5-tgt").querySelectorAll("button"), function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-v") === t5.tgt)); });
+    Array.prototype.forEach.call($("t5-case").querySelectorAll("button"), function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-v") === t5.c)); });
+  }
+
+  // ---------------- 事件 ----------------
+  function segWire(id, fn) {
+    var box = $(id);
+    Array.prototype.forEach.call(box.querySelectorAll("button"), function (b) {
+      b.addEventListener("click", function () {
+        if (b.disabled) return;
+        Array.prototype.forEach.call(box.querySelectorAll("button"), function (o) { o.setAttribute("aria-pressed", String(o === b)); });
+        fn(b.getAttribute("data-v"));
+      });
+    });
+  }
+
+  buildFormatButtons();
+  drawLayout();
+  buildCodes();
+  drawFp4();
+  drawFp4Log();
+  drawRange(false);
+  $("ex-go").addEventListener("click", readInput);
+  $("ex-input").addEventListener("keydown", function (ev) { if (ev.key === "Enter") readInput(); });
+  Array.prototype.forEach.call(document.querySelectorAll("#ex-samples button"), function (b) {
+    b.addEventListener("click", function () { $("ex-input").value = b.getAttribute("data-v"); readInput(); });
+  });
+  segWire("ex-ovf", function (v) { st.sat = v === "sat"; if (st.x !== null) applyInput(st.x, true); });
+  segWire("ex-axis", function (v) { setAxis(v); var d = decode(st.f, st.s, st.E, st.M); drawLine(d.v); });
+  segWire("rg-zoom", function (v) { drawRange(v === "zoom"); });
+  function mtRead() {
+    var raw = $("mt-input").value.trim().replace(/[−–]/g, "-").replace(/[，,\s]/g, "");
+    mt.x = raw === "" ? NaN : Number(raw);
+    mtRun();
+  }
+  $("mt-go").addEventListener("click", mtRead);
+  $("mt-input").addEventListener("keydown", function (ev) { if (ev.key === "Enter") mtRead(); });
+  Array.prototype.forEach.call(document.querySelectorAll("#mt-samples button"), function (b) {
+    b.addEventListener("click", function () { $("mt-input").value = b.getAttribute("data-v"); mtRead(); });
+  });
+  segWire("mt-m", function (v) { mt.m = Number(v); mtRun(); });
+  mtRun();
+  function scRead() {
+    var a = Number($("sc-amax").value.trim()), t = Number($("sc-tmax").value.trim());
+    sc.amax = a; sc.tmax = t > 0 ? t : a; scRun();
+  }
+  $("sc-go").addEventListener("click", scRead);
+  ["sc-amax", "sc-tmax"].forEach(function (id) { $(id).addEventListener("keydown", function (ev) { if (ev.key === "Enter") scRead(); }); });
+  Array.prototype.forEach.call(document.querySelectorAll("#sc-samples button"), function (b) {
+    b.addEventListener("click", function () { $("sc-amax").value = b.getAttribute("data-v"); scRead(); });
+  });
+  scRun();
+  segWire("bk-fmt", function (v) { bk.fmt = v; bkRun(); });
+  segWire("bk-scope", function (v) { bk.scope = v; bkRun(); });
+  bkRun();
+  segWire("ly-fmt", function (v) { ly.fmt = v; lySync(); lyRun(); });
+  $("ly-m").addEventListener("input", function () { ly.m = Number($("ly-m").value); lySync(); lyRun(); });
+  $("ly-j").addEventListener("input", function () { ly.j = Number($("ly-j").value); lySync(); lyRun(); });
+  $("ly-svg").addEventListener("click", lyClick);
+  lySync();
+  lyRun();
+  segWire("dm-fmt", function (v) { dm.fmt = v; dm.bk = v === "mxfp8" ? 128 : 256; dmPress("dm-bk", dm.bk); dmAll(); });
+  segWire("dm-M", function (v) { dm.M = Number(v); dmAll(); });
+  segWire("dm-K", function (v) { dm.K = Number(v); dmAll(); });
+  segWire("dm-bm", function (v) { dm.bm = Number(v); dmAll(); });
+  segWire("dm-bk", function (v) { dm.bk = Number(v); dmAll(); });
+  segWire("dm-dim", function (v) { dm.dim = Number(v); dmAll(); });
+  $("dm-i").addEventListener("input", function () { dm.d[dm.dim] = Number($("dm-i").value); dmAll(); });
+  $("dm-svg").addEventListener("click", dmClick);
+  $("dm-chain").addEventListener("click", function (ev) {
+    var b = ev.target && ev.target.closest ? ev.target.closest("button[data-dim]") : null;
+    if (b) { dm.dim = Number(b.getAttribute("data-dim")); dmAll(); }
+  });
+  dmAll();
+  segWire("t5-tgt", function (v) { t5.tgt = v; t5Run(); });
+  segWire("t5-case", function (v) { t5.c = v; t5Run(); });
+  $("t5-mat").addEventListener("click", function (ev) {
+    var b = ev.target && ev.target.closest ? ev.target.closest("button[data-t]") : null;
+    if (!b) return;
+    t5.tgt = b.getAttribute("data-t"); t5.c = b.getAttribute("data-c"); t5Sync(); t5Run();
+  });
+  t5Run();
+  selectFormat("e4m3");
+})();
+</script>
+</body>
+</html>

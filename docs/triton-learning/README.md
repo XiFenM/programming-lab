@@ -75,7 +75,7 @@ docs/triton-learning/
 | 07 | `07-extern-functions.py` | [lessons/07-extern-functions.md](lessons/07-extern-functions.md) |
 | 08 | `08-grouped-gemm.py` | [lessons/08-grouped-gemm.md](lessons/08-grouped-gemm.md) |
 | 09 | `09-persistent-matmul.py` | [lessons/09-persistent-matmul.md](lessons/09-persistent-matmul.md) |
-| 10 | `10-block-scaled-matmul.py` | 候选，尚无记录 |
+| 10 | `10-block-scaled-matmul.py` | [lessons/10-block-scaled-matmul.md](lessons/10-block-scaled-matmul.md) |
 
 获得新 Lesson 授权后，以 `templates/lesson-record.md` 的“核心记录”为基础创建 `lessons/<NN>-<topic>.md`；
 条件片段只在对应事实实际发生时追加，不要整份复制出空章节。
@@ -120,12 +120,12 @@ docs/triton-learning/
 
 | 字段 | 当前值 |
 | --- | --- |
-| Foreground context | `triton-official-tutorials` Program |
-| Semantic position | 第 01–09 课均已关闭；Lesson 09 于 2026-10-14 确认关闭，位于 Lesson 边界，当前没有 active Lesson |
-| Next action | 学习者选择并授权下一 Lesson |
-| Forward gate | 明确授权后才激活下一 Lesson；当前不会自动启动 Lesson 10 |
-| Latest evidence ref | [Lesson 09 结课](lessons/09-persistent-matmul.md#条件片段结课) |
-| As of | 2026-10-14 |
+| Foreground context | `triton-official-tutorials` Program / [Lesson 10 `triton-10-block-scaled-matmul`](lessons/10-block-scaled-matmul.md) |
+| Semantic position | Lesson 10 于 2026-10-14 授权开课；2026-10-15 按学习者建议把路线调整为五个节点（见 [Lesson 记录](lessons/10-block-scaled-matmul.md#目标与所需证据)），节点 1–5 已讲解并通过检查（E-01–E-05），导师串讲与综合验收已完成（E-06，含三次复查）；练习约定 P1 版本 1 于 2026-10-18 接受（见 [Lesson 记录](lessons/10-block-scaled-matmul.md#条件片段练习约定)），阶段 `practice`，验收测试已建立并确认 expected red |
+| Next action | 学习者在 `gpu/triton/lesson10_block_scaled_matmul.py` 实现 P1 的四个函数，从 expected red 推进到 green（先跑 CPU 层，再到 RTX 4090 或 5090 跑 GPU 层），并写 A6 的说明；之后由 Agent Review、给出 V1，并交付 M1 的测量脚本 |
+| Forward gate | P1 的必需项（A1–A6、V1、M1）全部通过、阻塞问题关闭后进入结课确认；结课须学习者确认 |
+| Latest evidence ref | [Lesson 10 阶段事件 E-06](lessons/10-block-scaled-matmul.md#条件片段阶段事件)；[练习约定 P1](lessons/10-block-scaled-matmul.md#条件片段练习约定) |
+| As of | 2026-10-18 |
 
 ## 本课程的记录约定
 
