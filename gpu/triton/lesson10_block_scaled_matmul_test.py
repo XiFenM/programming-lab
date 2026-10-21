@@ -1,4 +1,4 @@
-"""Acceptance tests for the Lesson 10 practice (contract P1, version 1).
+"""Acceptance tests for the Lesson 10 practice (contract P1, version 2).
 
 Two tiers share this file:
 
@@ -7,6 +7,10 @@ Two tiers share this file:
   the wrapper compile for sm_120 and sm_89 and records the launch instead of running it;
 * the numerical checks of the kernel (A4) need a CUDA GPU: an RTX 4090 runs Triton's software
   conversion, an RTX 5090 the native block-scaled instruction.
+
+Version 2 adds two sections: the optional O-1 (a second wrapper whose kernel reads the 5-D
+swizzled scales) and V1 (an MXFP6 E3M2 quantizer, packer and dequantizer). Each starts from an
+expected red of its own: one entry-point test fails while the rest of the section is skipped.
 
 Triton 3.7.1's interpreter has no ``dot_scaled``, so the kernel's numbers can only be checked on a
 GPU. The stand-in driver relies on Triton internals verified with Triton 3.7.1.
@@ -22,7 +26,9 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
-from collections.abc import Iterator
+import itertools
+import re
+from collections.abc import Callable, Iterator
 from types import ModuleType
 from typing import Any
 
@@ -407,6 +413,22 @@ def _dequantized(packed: torch.Tensor, scales: torch.Tensor) -> torch.Tensor:
     return _decode(_unpack(packed)).double() * factor
 
 
+def _assert_matches_product(
+    result: torch.Tensor, a: torch.Tensor, sa: torch.Tensor, b: torch.Tensor, sb: torch.Tensor
+) -> None:
+    """``result`` must be dequantize(A) @ dequantize(B).T, from the 2-D scales ``sa`` and ``sb``."""
+    assert result.dtype == torch.float32 and tuple(result.shape) == (a.shape[0], b.shape[0])
+    assert result.device == a.device
+    a_values, b_values = _dequantized(a, sa), _dequantized(b, sb)
+    want = a_values @ b_values.T
+    # The products are exact; allow only for the accumulation, relative to the sum of |terms|.
+    bound = 2e-3 * (a_values.abs() @ b_values.abs().T) + 1e-9
+    error = (result.cpu().double() - want).abs()
+    assert bool((error <= bound).all()), (
+        f"largest error relative to the bound: {(error / bound).max():.3g}"
+    )
+
+
 @pytest.mark.parametrize(
     ("shape", "blocks"),
     [
@@ -421,17 +443,7 @@ def test_matches_the_dequantized_product(
 ) -> None:
     m, n, k = shape
     a, sa, b, sb = _random_operands(m, n, k, seed=m + n + k, device=cuda)
-    result = ops.mxfp4_matmul(a, sa, b, sb, **blocks)
-    assert result.dtype == torch.float32 and tuple(result.shape) == (m, n)
-    assert result.device == a.device
-    a_values, b_values = _dequantized(a, sa), _dequantized(b, sb)
-    want = a_values @ b_values.T
-    # The products are exact; allow only for the accumulation, relative to the sum of |terms|.
-    bound = 2e-3 * (a_values.abs() @ b_values.abs().T) + 1e-9
-    error = (result.cpu().double() - want).abs()
-    assert bool((error <= bound).all()), (
-        f"largest error relative to the bound: {(error / bound).max():.3g}"
-    )
+    _assert_matches_product(ops.mxfp4_matmul(a, sa, b, sb, **blocks), a, sa, b, sb)
 
 
 # --------------------------------------------------------------------------------------------
@@ -528,11 +540,18 @@ def _compile(
 ) -> list[Any]:
     """Call the wrapper with CPU tensors under the stand-in driver; return what it compiled."""
     m, n, k = shape
+    a, sa, b, sb = _random_operands(m, n, k, seed=1, device=torch.device("cpu"))
+    return _compile_with(ops, recorder, lambda: ops.mxfp4_matmul(a, sa, b, sb, **blocks))
+
+
+def _compile_with(
+    ops: ModuleType, recorder: _RecordingDriver, launch: Callable[[], object]
+) -> list[Any]:
+    """Run ``launch`` under the stand-in driver; return the kernels it compiled for that target."""
     for function in _jitted_functions(ops):
         function.device_caches.pop(recorder.device_id, None)
-    a, sa, b, sb = _random_operands(m, n, k, seed=1, device=torch.device("cpu"))
     launches = len(recorder.grids)
-    ops.mxfp4_matmul(a, sa, b, sb, **blocks)
+    launch()
     assert len(recorder.grids) > launches, "the wrapper did not launch a kernel"
     compiled: list[Any] = []
     for function in _jitted_functions(ops):
@@ -601,3 +620,365 @@ def test_matmul_rejects_invalid_arguments_before_launching(
     with pytest.raises(ValueError):
         ops.mxfp4_matmul(*arguments, **SMALL)
     assert len(sm120.grids) == launches, "a kernel was launched before the arguments were checked"
+
+
+# --------------------------------------------------------------------------------------------
+# O-1 (optional, contract version 2): the kernel reads the 5-D swizzled scales
+# --------------------------------------------------------------------------------------------
+
+# One 128-row, 128-K scale chunk per [32, 4, 4] block: the blocks must be 128 times a power of 2.
+SWIZZLED_BLOCKS = [
+    pytest.param({}, id="default-blocks"),
+    pytest.param({"block_m": 256}, id="rep-m-2"),
+    pytest.param({"block_n": 256}, id="rep-n-2"),
+    pytest.param({"block_k": 256, "num_stages": 2}, id="rep-k-2"),
+]
+
+
+def _swizzle_reference(scales: torch.Tensor) -> torch.Tensor:
+    """The contract's index map: out[mb, kc, r, g, c] = scales[128 mb + 32 g + r, 4 kc + c]."""
+    rows, cols = scales.shape
+    device = scales.device
+    mb = torch.arange(rows // 128, device=device)[:, None, None, None, None]
+    kc = torch.arange(cols // 4, device=device)[None, :, None, None, None]
+    r = torch.arange(32, device=device)[None, None, :, None, None]
+    g = torch.arange(4, device=device)[None, None, None, :, None]
+    c = torch.arange(4, device=device)[None, None, None, None, :]
+    return scales[128 * mb + 32 * g + r, 4 * kc + c].contiguous()
+
+
+def test_o1_entry_point_exists(ops: ModuleType) -> None:
+    """O-1 is optional; once taken up, its tests start from this expected red."""
+    assert hasattr(ops, "mxfp4_matmul_swizzled"), "O-1: add mxfp4_matmul_swizzled"
+
+
+@pytest.fixture
+def matmul_5d(ops: ModuleType) -> Callable[..., torch.Tensor]:
+    if not hasattr(ops, "mxfp4_matmul_swizzled"):
+        pytest.skip("the O-1 entry-point test reports the expected red")
+    return ops.mxfp4_matmul_swizzled
+
+
+@pytest.mark.parametrize(
+    ("shape", "blocks"),
+    [
+        pytest.param((256, 256, 512), {}, id="default-blocks"),
+        pytest.param((512, 256, 256), {"block_m": 256}, id="rep-m-2"),
+        pytest.param((256, 512, 256), {"block_n": 256}, id="rep-n-2"),
+        pytest.param((256, 256, 512), {"block_k": 256, "num_stages": 2}, id="rep-k-2"),
+    ],
+)
+def test_o1_matches_the_dequantized_product(
+    matmul_5d: Callable[..., torch.Tensor],
+    cuda: torch.device,
+    shape: tuple[int, int, int],
+    blocks: dict[str, int],
+) -> None:
+    """Four CTAs and at least two K steps in every case; each block has its own scales."""
+    m, n, k = shape
+    a, sa, b, sb = _random_operands(m, n, k, seed=2 * m + n + k, device=cuda)
+    result = matmul_5d(a, _swizzle_reference(sa), b, _swizzle_reference(sb), **blocks)
+    _assert_matches_product(result, a, sa, b, sb)
+
+
+def _compile_5d(ops: ModuleType, recorder: _RecordingDriver, blocks: dict[str, int]) -> list[Any]:
+    a, sa, b, sb = _random_operands(512, 512, 512, seed=1, device=torch.device("cpu"))
+    sa5, sb5 = _swizzle_reference(sa), _swizzle_reference(sb)
+    return _compile_with(ops, recorder, lambda: ops.mxfp4_matmul_swizzled(a, sa5, b, sb5, **blocks))
+
+
+@pytest.mark.parametrize("blocks", SWIZZLED_BLOCKS)
+def test_o1_compiles_and_reads_the_5d_scales(
+    ops: ModuleType,
+    matmul_5d: Callable[..., torch.Tensor],
+    recorder: _RecordingDriver,
+    blocks: dict[str, int],
+) -> None:
+    """The kernel itself loads [rep, rep_k, 32, 4, 4] scale blocks (not a host-side 2-D copy)."""
+    del matmul_5d
+    for kernel in _compile_5d(ops, recorder, blocks):
+        ttir = kernel.asm["ttir"]
+        assert "tt.dot_scaled" in ttir, "each K step should call tl.dot_scaled"
+        assert re.search(r"tensor<\d+x\d+x32x4x4xi8>", ttir), "the kernel should load 5-D scales"
+        assert kernel.metadata.shared <= SHARED_MEMORY_LIMIT[recorder.capability]
+
+
+@pytest.mark.parametrize("blocks", SWIZZLED_BLOCKS)
+def test_o1_sm120_uses_the_native_block_scaled_mma(
+    ops: ModuleType,
+    matmul_5d: Callable[..., torch.Tensor],
+    sm120: _RecordingDriver,
+    blocks: dict[str, int],
+) -> None:
+    del matmul_5d
+    for kernel in _compile_5d(ops, sm120, blocks):
+        assert "kind::mxf4nvf4.block_scale" in kernel.asm["ptx"], "expected the native instruction"
+        assert "ttg.fp4_to_fp" not in kernel.asm["ttgir"], "FP4 must not be decoded before the MMA"
+
+
+def _invalid_5d_arguments() -> list[Any]:
+    """Each case breaks one rule of the O-1 contract; the base problem is 256 x 256 x 256."""
+    cpu = torch.device("cpu")
+    a, sa, b, sb = _random_operands(256, 256, 256, seed=6, device=cpu)
+    sa5, sb5 = _swizzle_reference(sa), _swizzle_reference(sb)
+    _, sa_k512, _, _ = _random_operands(256, 256, 512, seed=7, device=cpu)
+    _, _, _, sb_n384 = _random_operands(256, 384, 256, seed=8, device=cpu)
+    a_m384, sa_m384, _, _ = _random_operands(384, 256, 256, seed=9, device=cpu)
+    a_k768, sa_k768, b_k768, sb_k768 = _random_operands(256, 256, 768, seed=10, device=cpu)
+    k768 = (a_k768, _swizzle_reference(sa_k768), b_k768, _swizzle_reference(sb_k768))
+    return [
+        pytest.param((a, sa, b, sb5), {}, id="a-scales-two-dimensional"),
+        pytest.param((a, sa5.view(torch.int8), b, sb5), {}, id="scales-not-uint8"),
+        pytest.param((a, sa5.transpose(3, 4), b, sb5), {}, id="scales-not-contiguous"),
+        pytest.param((a, _swizzle_reference(sa_k512), b, sb5), {}, id="a-scales-k-differs"),
+        pytest.param((a, sa5, b, _swizzle_reference(sb_n384)), {}, id="b-scales-n-differs"),
+        pytest.param((a.view(torch.int8), sa5, b, sb5), {}, id="packed-not-uint8"),
+        pytest.param((a, sa5, b, sb5.to("meta")), {}, id="different-devices"),
+        pytest.param((a, sa5, b, sb5), {"block_m": 64}, id="block-m-not-a-multiple-of-128"),
+        pytest.param(k768, {"block_k": 384}, id="rep-k-not-a-power-of-two"),
+        pytest.param(
+            (a_m384, _swizzle_reference(sa_m384), b, sb5),
+            {"block_m": 256},
+            id="m-not-a-multiple-of-block-m",
+        ),
+    ]
+
+
+@pytest.mark.parametrize(("arguments", "blocks"), _invalid_5d_arguments())
+def test_o1_rejects_invalid_arguments_before_launching(
+    matmul_5d: Callable[..., torch.Tensor],
+    sm120: _RecordingDriver,
+    arguments: tuple[torch.Tensor, ...],
+    blocks: dict[str, int],
+) -> None:
+    launches = len(sm120.grids)
+    with pytest.raises(ValueError):
+        matmul_5d(*arguments, **blocks)
+    assert len(sm120.grids) == launches, "a kernel was launched before the arguments were checked"
+
+
+# --------------------------------------------------------------------------------------------
+# V1: MXFP6 (E3M2) quantization, packing and dequantization
+# --------------------------------------------------------------------------------------------
+
+# Magnitudes of the E3M2 codes 0..31 (OCP MX v1.0, table 4); bit 5 of a code is the sign.
+E3M2_VALUES = tuple(
+    m / 16 if e == 0 else 2.0 ** (e - 3) * (1 + m / 4) for e in range(8) for m in range(4)
+)
+E3M2_MAX = E3M2_VALUES[-1]  # 28
+E3M2_MIDPOINTS = tuple((low + high) / 2 for low, high in itertools.pairwise(E3M2_VALUES))
+V1_NAMES = ("quantize_mxfp6_e3m2", "dequantize_mxfp6_e3m2")
+
+
+def test_v1_entry_points_exist(ops: ModuleType) -> None:
+    """V1 starts from this expected red."""
+    missing = [name for name in V1_NAMES if not hasattr(ops, name)]
+    assert not missing, f"V1: add {', '.join(missing)}"
+
+
+@pytest.fixture
+def v1(ops: ModuleType) -> ModuleType:
+    if not all(hasattr(ops, name) for name in V1_NAMES):
+        pytest.skip("the V1 entry-point test reports the expected red")
+    return ops
+
+
+def _e3m2_exponents(x: torch.Tensor) -> torch.Tensor:
+    """floor(log2(amax)) minus the exponent of E3M2's largest power of two (16 = 2**4)."""
+    rows, k = x.shape
+    amax = x.float().cpu().reshape(rows, k // 32, 32).abs().amax(dim=-1)
+    _, power = torch.frexp(amax)
+    return (power - 1 - 4).clamp(-127, 127)
+
+
+def _e3m2_codes(scaled: torch.Tensor) -> torch.Tensor:
+    """The nearest code by brute force in float64; a tie goes to the even code; above 28 saturates.
+    A zero result carries no sign."""
+    grid = torch.tensor(E3M2_VALUES, dtype=torch.float64)
+    magnitude = scaled.double().abs().clamp(max=E3M2_MAX)
+    distance = (magnitude[..., None] - grid).abs()
+    nearest = distance == distance.amin(dim=-1, keepdim=True)
+    index = torch.where(nearest, torch.arange(32) % 2, 2).argmin(dim=-1)  # even wins a tie
+    return index + 32 * ((scaled < 0) & (index > 0)).long()
+
+
+def _unpack6(packed: torch.Tensor) -> torch.Tensor:
+    """Each row is a little-endian bit stream: element i holds bits 6i to 6i + 5."""
+    rows = []
+    for row in packed.cpu().tolist():
+        stream = int.from_bytes(bytes(row), "little")
+        rows.append([(stream >> (6 * i)) & 63 for i in range(len(row) * 8 // 6)])
+    return torch.tensor(rows, dtype=torch.long)
+
+
+def _pack6(codes: torch.Tensor) -> torch.Tensor:
+    rows = []
+    for row in codes.tolist():
+        stream = sum(code << (6 * i) for i, code in enumerate(row))
+        rows.append(list(stream.to_bytes(len(row) * 6 // 8, "little")))
+    return torch.tensor(rows, dtype=torch.uint8)
+
+
+def _decode6(codes: torch.Tensor) -> torch.Tensor:
+    values = torch.tensor(E3M2_VALUES, dtype=torch.float64)[codes & 31]
+    return torch.where((codes & 32) != 0, -values, values)
+
+
+def _v1_quantized(v1: ModuleType, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """Run the learner's MXFP6 quantizer; return (codes with the zero sign folded, scale bytes)."""
+    rows, k = x.shape
+    packed, scales = v1.quantize_mxfp6_e3m2(x)
+    assert packed.dtype == torch.uint8 and tuple(packed.shape) == (rows, 3 * k // 4)
+    assert scales.dtype == torch.uint8 and tuple(scales.shape) == (rows, k // 32)
+    assert packed.device == x.device and scales.device == x.device
+    codes = _unpack6(packed)
+    return torch.where(codes == 32, torch.zeros_like(codes), codes), scales.cpu()
+
+
+@pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16], ids=["float32", "bfloat16"])
+def test_v1_quantize_matches_the_reference(v1: ModuleType, dtype: torch.dtype) -> None:
+    """Gaussian blocks times 2**-20 .. 2**20; the reference is exact, ties included."""
+    generator = torch.Generator().manual_seed(20)
+    exponents = torch.randint(-20, 21, (48, 8, 1), generator=generator).float()
+    x = (torch.randn(48, 8, 32, generator=generator) * torch.exp2(exponents)).reshape(48, 256)
+    x = x.to(dtype)
+    codes, scales = _v1_quantized(v1, x)
+    e = _e3m2_exponents(x)
+    scaled = x.double().reshape(48, 8, 32) * torch.exp2(-e.double())[..., None]
+    assert torch.equal(scales, (e + 127).to(torch.uint8)), "scale bytes differ from OCP 6.3"
+    assert torch.equal(codes, _e3m2_codes(scaled.reshape(48, 256))), "element codes differ"
+
+
+def test_v1_quantize_breaks_exact_ties_to_the_even_code(v1: ModuleType) -> None:
+    """All 31 midpoints, positive and negative, in a block whose maximum is 24 (so e = 0)."""
+    x = torch.tensor(
+        [[24.0, *E3M2_MIDPOINTS], [-24.0, *(-m for m in E3M2_MIDPOINTS)]], dtype=torch.float32
+    )
+    codes, scales = _v1_quantized(v1, x)
+    even = [i if i % 2 == 0 else i + 1 for i in range(31)]
+    assert scales.tolist() == [[127], [127]]
+    assert codes[0, 1:].tolist() == even, "a tie must go to the code with an even mantissa"
+    assert codes[1, 1:].tolist() == [32 | c if c else 0 for c in even]
+
+
+def test_v1_quantize_rounds_one_ulp_off_a_midpoint_to_the_nearer_code(v1: ModuleType) -> None:
+    middle = torch.tensor(E3M2_MIDPOINTS)
+    below = torch.nextafter(middle, torch.zeros_like(middle)).tolist()
+    above = torch.nextafter(middle, torch.full_like(middle, 32.0)).tolist()
+    x = torch.tensor([[24.0, *below], [24.0, *above]], dtype=torch.float32)
+    codes, _ = _v1_quantized(v1, x)
+    assert codes[0, 1:].tolist() == list(range(31))
+    assert codes[1, 1:].tolist() == list(range(1, 32))
+
+
+def test_v1_quantize_saturates_and_flushes(v1: ModuleType) -> None:
+    """With e = 0: 28.0001 to 31.9 become 28; 0.03125 and below become 0; 0.0313 becomes 0.0625."""
+    x = torch.tensor(
+        [
+            _row(31.9, 28.0001, 29.0, -30.0, -31.0),
+            _row(16.0, 0.03, 0.03125, 1e-20, 0.0313, -0.03, -0.0313),
+        ],
+        dtype=torch.float32,
+    )
+    codes, scales = _v1_quantized(v1, x)
+    assert scales.tolist() == [[127], [127]]
+    assert codes[0, :5].tolist() == [31, 31, 31, 63, 63], "values above 28 must saturate"
+    assert codes[1, :7].tolist() == [28, 0, 0, 0, 1, 0, 33]
+
+
+def test_v1_quantize_floors_the_exponent_just_below_a_power_of_two(v1: ModuleType) -> None:
+    """amax one ulp below 32 or 2**20 (float32 log2 rounds both up to an integer)."""
+    below_32 = torch.nextafter(torch.tensor(32.0), torch.tensor(0.0)).item()
+    below_big = torch.nextafter(torch.tensor(2.0**20), torch.tensor(0.0)).item()
+    x = torch.tensor([_row(below_32, 16.0), _row(below_big, 2.0**19)], dtype=torch.float32)
+    codes, scales = _v1_quantized(v1, x)
+    assert scales.flatten().tolist() == [127, 127 + 15]
+    assert codes[0, :2].tolist() == [31, 28]
+    assert codes[1, :2].tolist() == [31, 28]
+
+
+def test_v1_quantize_clamps_the_exponent_at_minus_127(v1: ModuleType) -> None:
+    """amax = 2**-124 wants e = -128: with -127, 2**-124 is 8, 2**-127 is 1, 2**-131 is 0.0625
+    and 2**-133 becomes 0. A block whose maximum is 2**-140 becomes all zeros."""
+    x = torch.tensor(
+        [_row(2.0**-124, 2.0**-127, 2.0**-131, 2.0**-133), _row(2.0**-140, -(2.0**-141))],
+        dtype=torch.float32,
+    )
+    codes, scales = _v1_quantized(v1, x)
+    assert scales.flatten().tolist() == [0, 0]
+    assert codes[0, :4].tolist() == [24, 12, 1, 0]
+    assert codes[1].tolist() == [0] * 32
+
+
+def test_v1_quantize_keeps_an_all_zero_block_finite(v1: ModuleType) -> None:
+    x = torch.tensor([_row(), _row(1.0)], dtype=torch.float32)
+    codes, scales = _v1_quantized(v1, x)
+    assert codes[0].tolist() == [0] * 32
+    assert int(scales[0, 0]) != 255
+    assert int(scales[1, 0]) == 123 and codes[1, 0].item() == 28  # amax 1: e = -4, stored as 16
+
+
+@pytest.mark.parametrize(
+    "x",
+    [
+        pytest.param(torch.zeros(64), id="one-dimensional"),
+        pytest.param(torch.zeros(2, 2, 64), id="three-dimensional"),
+        pytest.param(torch.zeros(2, 64, dtype=torch.float16), id="float16"),
+        pytest.param(torch.zeros(2, 64, dtype=torch.int32), id="int32"),
+        pytest.param(torch.zeros(2, 48), id="k-not-a-multiple-of-32"),
+    ],
+)
+def test_v1_quantize_rejects_invalid_input(v1: ModuleType, x: torch.Tensor) -> None:
+    with pytest.raises(ValueError):
+        v1.quantize_mxfp6_e3m2(x)
+
+
+def test_v1_packs_element_i_into_bits_6i_to_6i_plus_5(v1: ModuleType) -> None:
+    """Every nonzero grid value with e = 0 (each block holds +-28); compare whole bytes."""
+    values = [*E3M2_VALUES[1:], *(-v for v in E3M2_VALUES[1:])]
+    x = torch.tensor(
+        [[28.0, *values[:31], -28.0, *values[31:]], [-28.0, *values[31:], 28.0, *values[:31]]],
+        dtype=torch.float32,
+    )
+    packed, _ = v1.quantize_mxfp6_e3m2(x)
+    want = _pack6(_e3m2_codes(x.double()))
+    assert torch.equal(packed.cpu(), want), "element i belongs in bits 6i .. 6i + 5 (little-endian)"
+
+
+def test_v1_dequantize_decodes_any_bytes(v1: ModuleType) -> None:
+    """Every code, -0 included, with scale bytes from 0 to 250 (28 * 2**123 is still finite)."""
+    generator = torch.Generator().manual_seed(21)
+    packed = torch.randint(0, 256, (8, 192), generator=generator, dtype=torch.uint8)
+    packed[0] = _pack6(torch.arange(64).repeat(4)[None, :])[0]
+    scales = torch.randint(0, 251, (8, 8), generator=generator, dtype=torch.uint8)
+    scales[0, 0], scales[1, 0] = 0, 250
+    result = v1.dequantize_mxfp6_e3m2(packed, scales)
+    factor = torch.exp2(scales.double() - 127).repeat_interleave(32, dim=1)
+    want = (_decode6(_unpack6(packed)) * factor).float()
+    assert result.dtype == torch.float32 and tuple(result.shape) == (8, 256)
+    torch.testing.assert_close(result.cpu(), want, rtol=0, atol=0)
+
+
+def test_v1_round_trip_is_exact_on_representable_values(v1: ModuleType) -> None:
+    generator = torch.Generator().manual_seed(22)
+    codes = torch.randint(0, 64, (16, 256), generator=generator)
+    codes[:, ::32] = 31  # each block holds a 28, so its exponent is the one chosen below
+    exponents = torch.randint(-30, 31, (16, 8, 1), generator=generator).double()
+    x = (_decode6(codes).reshape(16, 8, 32) * torch.exp2(exponents)).reshape(16, 256).float()
+    packed, scales = v1.quantize_mxfp6_e3m2(x)
+    torch.testing.assert_close(v1.dequantize_mxfp6_e3m2(packed, scales).cpu(), x, rtol=0, atol=0)
+
+
+def test_v1_quantize_on_cuda_matches_the_cpu(v1: ModuleType, cuda: torch.device) -> None:
+    generator = torch.Generator().manual_seed(23)
+    x = torch.randn(16, 128, generator=generator) * 10
+    packed, scales = v1.quantize_mxfp6_e3m2(x.to(cuda))
+    assert packed.device == x.to(cuda).device
+    want_packed, want_scales = v1.quantize_mxfp6_e3m2(x)
+    assert torch.equal(scales.cpu(), want_scales)
+
+    def folded(bytes_: torch.Tensor) -> torch.Tensor:
+        codes = _unpack6(bytes_)
+        return torch.where(codes == 32, torch.zeros_like(codes), codes)
+
+    assert torch.equal(folded(packed), folded(want_packed))

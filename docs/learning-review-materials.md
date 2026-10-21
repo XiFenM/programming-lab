@@ -1,6 +1,6 @@
 # 学习复盘材料索引
 
-整理与核对日期：2026-09-14；2026-10-05 补入 Triton 第 06、07 课，2026-10-09 补入第 08 课，2026-10-14 补入 Rust 第 01、02 课与 Triton 第 09 课，此前各行未重新核对。
+整理与核对日期：2026-09-14；2026-10-05 补入 Triton 第 06、07 课，2026-10-09 补入第 08 课，2026-10-14 补入 Rust 第 01、02 课与 Triton 第 09 课，2026-10-20 补入 Triton 第 10 课，此前各行未重新核对。
 本页索引已经完成课程的复盘材料及可恢复来源，
 不裁决课程进度或掌握程度；课程状态仍以各轨道的 Program 和 Lesson 为准。
 
@@ -18,6 +18,7 @@
 | Triton 07：外部函数（libdevice） | [9 月 30 日–10 月 5 日](triton-learning/logs/2026-10-05-extern-functions.md) | [开课到确认结课 90 条](triton-learning/logs-raw/2026-10-05-extern-functions.md) | [25 张，3 个 XLSX](triton-learning/cards/triton-lesson-07-extern-functions.md) |
 | Triton 08：Grouped GEMM | [10 月 5–9 日](triton-learning/logs/2026-10-09-grouped-gemm.md) | [开课到确认结课 82 条](triton-learning/logs-raw/2026-10-09-grouped-gemm.md) | [34 张，3 个 XLSX](triton-learning/cards/triton-lesson-08-grouped-gemm.md) |
 | Triton 09：持久化矩阵乘 | [10 月 10–14 日](triton-learning/logs/2026-10-14-persistent-matmul.md) | [开课到确认结课 161 条](triton-learning/logs-raw/2026-10-14-persistent-matmul.md) | [39 张，3 个 XLSX](triton-learning/cards/triton-lesson-09-persistent-matmul.md) |
+| Triton 10：块缩放矩阵乘 | [10 月 14–20 日](triton-learning/logs/2026-10-20-block-scaled-matmul.md) | [开课到结课后的存档请求 199 条](triton-learning/logs-raw/2026-10-20-block-scaled-matmul.md) | [52 张，3 个 XLSX](triton-learning/cards/triton-lesson-10-block-scaled-matmul.md) |
 | Rust 01：第一个程序与格式化输出 | [10 月 7–8 日，补整理](rust-learning/logs/2026-10-08-hello-formatting.md) | [开课到结课后的反馈 32 条](rust-learning/logs-raw/2026-10-08-hello-formatting.md) | [21 张，3 个 XLSX](rust-learning/cards/rust-lesson-01-hello-formatting.md) |
 | Rust 02：数据的形状 | [10 月 8–14 日](rust-learning/logs/2026-10-14-data-shapes.md) | [开课到确认结课 94 条](rust-learning/logs-raw/2026-10-14-data-shapes.md) | [42 张，3 个 XLSX](rust-learning/cards/rust-lesson-02-data-shapes.md) |
 
@@ -47,6 +48,7 @@
 | Triton 07：开课至确认结课 | [2026-10-05](triton-learning/logs-raw/2026-10-05-extern-functions.md) | 90 |
 | Triton 08：开课至确认结课 | [2026-10-09](triton-learning/logs-raw/2026-10-09-grouped-gemm.md) | 82 |
 | Triton 09：开课至确认结课 | [2026-10-14](triton-learning/logs-raw/2026-10-14-persistent-matmul.md) | 161 |
+| Triton 10：开课至结课后的存档请求 | [2026-10-20](triton-learning/logs-raw/2026-10-20-block-scaled-matmul.md) | 199 |
 | Rust 01：开课至结课后的两点反馈 | [2026-10-08](rust-learning/logs-raw/2026-10-08-hello-formatting.md) | 32 |
 | Rust 02：开课至确认结课 | [2026-10-14](rust-learning/logs-raw/2026-10-14-data-shapes.md) | 94 |
 
@@ -241,3 +243,19 @@ request 复核为 `no-op`、`would_write=false`。阅读版预览在 [Rust 复�
 | Triton | Triton 09 | 39 |
 
 上传前两套卡片的本地产物都以原 request 复核为 `no-op`、`would_write=false`；两个章节都是空的，预览中 34 张与 39 张均为 `create`。语法版本取自同牌库已上传 25 张卡的 `Triton 07` 章节，为 3。实际结果为新增 73 张、跳过 0 张，每张卡均完成完整内容、语法版本和章节归属的读回验证；随后独立只读核对，两个章节分别恰好包含这 34 张和 39 张卡，且只出现语法版本 3，再次预览时全部为 `skip`。恢复回执保存在仓库外，不含 token 或卡片全文；API 验证不代替客户端视觉渲染检查。
+
+## 2026-10-20 块缩放矩阵乘记录与卡片
+
+第 10 课结构化日志从当次会话的指定范围蒸馏，保留 54 条：13 条要点、24 条纠错、5 条转折、8 条高价值问题和 4 条遗留，各条目共引用 97 个稳定消息 ID 供回查；学习者的原话逐句与提取正文核对，差别只在一处嵌套引号改用单引号；原文公式里的窄空格（U+2009）起初写成了普通空格，2026-10-21 已按原文恢复，并把学习者的 6 处算式放进代码格式，免得 GitHub 把其中的星号当成斜体标记。临时提取正文在蒸馏后删除。同名原文为开课到结课后存档请求的 199 条可见消息（`final`），配对校验通过；原文保留了学习者贴出的 AutoDL 容器主机名和一条 IDE 提示里的本机路径，27 条消息里共 42 处代码块经学习者确认可以保留。
+
+根据该受管日志精选 52 张卡片：31 张技术问答、17 张真实纠错、4 张综合口述，35 张为 A、17 张为 B。覆盖块缩放为什么必需、E2M1 对 E3M0 的取舍、MXFP4 与 NVFP4 的设计以及 NVFP4 两级 scale 的失效、OCP 取 scale 的规则与代价、scale 乘在哪一步与 K 方向的嵌套对齐、H100 上用 FP8 张量核的条件、5D 预排与 TMA 规则、五种目标上的落地与搬到 RTX 5090 的改动、MI300X 上 MXFP4 权重的取舍与解码开销的量化方法、发射时间与重叠上下限的估算，以及练习、A6、V1 和 M1 中的真实错误。四条遗留不制卡；路线调整的转折、节点 1 检查题里 512 与 1024 的口误、最坏相对误差公式、TFLOPS 按 2 计数、入口参数检查、`block_m = 64` 时 `rep_m` 为 0、TMA 能否“声明”合并维度评为 C，没有制卡。跨既有 inventory 未发现重复、冲突、依赖漂移或暂缓项；Markdown 与 3 个 XLSX 以相同 request 复核为 `no-op`、`would_write=false`。阅读版预览已加入[Triton 复习卡片预览](triton-learning/cards/previews/README.md)。日志 2026-10-21 修正后，卡片包经学习者确认刷新了来源哈希，只改清单里的 8 行；卡片、3 个 XLSX 与阅读版预览都不变，以新 request 复核仍为 `no-op`、`would_write=false`。
+
+## 2026-10-20 Triton 第 10 课 Markji 上传
+
+按学习者的明确请求，通过墨墨官方 API 上传到私有牌库 `Triton` 的 `Triton 10` 章节。
+
+| 牌库 | 章节 | 新增卡片 |
+| --- | --- | ---: |
+| Triton | Triton 10 | 52 |
+
+上传前本地产物以原 request 复核为 `no-op`、`would_write=false`；章节是空的，预览中 52 张均为 `create`。语法版本取自同牌库已上传 39 张卡的 `Triton 09` 章节，为 3。实际结果为新增 52 张、跳过 0 张，每张卡均完成完整内容、语法版本和章节归属的读回验证；随后独立只读核对，章节恰好包含这 52 张卡，且只出现语法版本 3，再次预览时全部为 `skip`；2026-10-21 刷新来源哈希后再预览，52 张仍全部为 `skip`。恢复回执保存在仓库外，不含 token 或卡片全文；API 验证不代替客户端视觉渲染检查。

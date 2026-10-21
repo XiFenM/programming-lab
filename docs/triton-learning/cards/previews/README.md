@@ -13,8 +13,9 @@
 | Triton Lesson 07 · Extern Functions | 25 | [打开预览](lesson-07-extern-functions.md) |
 | Triton Lesson 08 · Grouped GEMM | 34 | [打开预览](lesson-08-grouped-gemm.md) |
 | Triton Lesson 09 · Persistent Matmul | 39 | [打开预览](lesson-09-persistent-matmul.md) |
+| Triton Lesson 10 · Block-Scaled Matmul | 52 | [打开预览](lesson-10-block-scaled-matmul.md) |
 
-合计 **202 张**。
+合计 **254 张**。
 
 预览来自上一级目录内的正式 XLSX，并保持卡片原有内容与顺序。每张卡末尾提供来源记录和表格行号；需要导入墨墨时，使用正式 XLSX 及其对应模板。
 
