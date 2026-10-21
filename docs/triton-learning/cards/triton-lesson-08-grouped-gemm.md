@@ -5,8 +5,8 @@
     "id": "markji",
     "profile": "programming-lab-markji"
   },
-  "artifact_set_sha256": "744c6d90568e197929c6f8ac9efb53d07e90ddcd2da5eccd2b1f1d0a6181b512",
-  "candidate_sha256": "ca7d9a7baff8c7d248bbea85ca0c863953678b0b5849c0a28adba221074859a9",
+  "artifact_set_sha256": "94be1225af449dedd5117ff57e712a000c8c39a7e8b0e77db229eec2c5859a10",
+  "candidate_sha256": "ccf44fbf52364879379ce555d46b62138bdda53e524d82d356353b4e961a7c37",
   "cards": [
     {
       "content_sha256": "85c6640d3476d76f6f24bc53bc7311addfba3d682ca31dee2bc69e96e3d85da5",
@@ -266,8 +266,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "9670e31d0ad44b3c4d3284954bece2c358a1fc25acaf51cf7b7a73721de635b2",
-      "content_summary": "tl.multiple_of 是不被检查的对齐保证，替代张量参数在发射时的对齐特化，决定能否用 16 字节异步拷贝和流水；不成立属未定义行为",
+      "content_sha256": "05bda9d54e8f5d987d1fbbc690b441b6afd03ef22d34cc4647757387a9f1b3c4",
+      "content_summary": "tl.multiple_of 是不被检查的 16 字节对齐保证；表里的指针没有发射时的对齐特化；去掉退回 2 字节读且无流水；违反时 H100 实测报 misaligned address",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -782,8 +782,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "f0fcf09b770768fb609120c16f11589571ab31f88798d48cf49bd719da340e7f",
-      "content_summary": "对齐保证不成立是未定义行为，结果可对可错也可能报异常，数值测试测不出，只能用参数测试覆盖；维数检查去掉后行为不变",
+      "content_sha256": "90aeb804a9559d3cbdb80acce93156f1f6d1350c3f628fb1668ef0d987cdbfa8",
+      "content_summary": "对齐保证不成立是未定义行为，结果取决于设备（解释器算对、H100 实测报 misaligned address），数值测试测不出，只能用参数测试覆盖；维数检查去掉后行为不变",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -884,12 +884,12 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "9f5cee992d882b71fe27a4cb292ed437dc44dfaa4b2759581a149a82d31ab0b0",
+      "content_sha256": "ea0a4926130a54d6db06488a45013d0043f4c9acd248107b22f7c5cb9ef263a4",
       "content_summary": "口述对齐保证、异步拷贝的档位、mask 的影响与 TMA 描述符的条件，以及违反保证属未定义行为",
       "dependency_content_sha256": {
         "mc-0dded41e05aaaec7ff1dcf5e": "ae364cb560d13968fe54fcd9f9edbc2e9025e38b496c24c648322ba250e8ae90",
         "mc-1c0584cb957cee3a2629ad34": "0f7a3989e413288be1ec058e199ef2da7bd71590adcfca4aa34e67fe59e757cb",
-        "mc-56b14f2e2270888b7db0a794": "9670e31d0ad44b3c4d3284954bece2c358a1fc25acaf51cf7b7a73721de635b2",
+        "mc-56b14f2e2270888b7db0a794": "05bda9d54e8f5d987d1fbbc690b441b6afd03ef22d34cc4647757387a9f1b3c4",
         "mc-7a2b8dde2017ce97c129968a": "c642651878e82ebdb1e094ef30593be774d52eb72e8136631015381c7fc59c21",
         "mc-7eb958bcfe8137ad5610eb65": "d845b378c7dd9964cb1c675985dda32a36412c23be13278464730b729b990932"
       },
@@ -918,7 +918,7 @@
       "priority": 5,
       "quality": "A",
       "review_resolution": {
-        "summary": "已按更新后的子卡复核：违反对齐保证改为未定义行为、可能报错读错或碰巧正确；mask 的原因与 row-mask-keeps-async 的宽度规则一致；删去没有 TMA 时的回退；锚点 5 改为不能指望报错。"
+        "summary": "已按更新后的子卡 multiple-of-promise 复核：违反对齐保证的后果改为 H100 实测报 misaligned address、进程的 CUDA 不能再用、其他后端未实测；锚点 5 同步改为不能把报错当作检查；其余四个锚点仍由子卡支撑。"
       },
       "source_ids": [
         "grouped-gemm-log"
@@ -928,11 +928,11 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "7b82f2511192176c17ff731b44cf59b402be59d10435afd67351791c8cd185c6",
+      "content_sha256": "b0cdfebaec41c0ece1a21d0226dd8791b6246a2f1ecaf1823abeb2863ff7b247",
       "content_summary": "口述 kernel 的输入假定由包装函数保证、保护区与参数测试的分工以及数值测试的盲区",
       "dependency_content_sha256": {
         "mc-24a5f092066054573d026d16": "6735aca7e1d0d9636a0b74ba665454c03cd3c3e407d0d0368b2fb1ea3cf2e8d9",
-        "mc-341b7b7b70e55196c7f63ae3": "f0fcf09b770768fb609120c16f11589571ab31f88798d48cf49bd719da340e7f",
+        "mc-341b7b7b70e55196c7f63ae3": "90aeb804a9559d3cbdb80acce93156f1f6d1350c3f628fb1668ef0d987cdbfa8",
         "mc-5041b4749a815ed256ca914e": "e23c995a53b48d3a58e6a3518d18525966e5379b4e5b1a1e73f974a80e97112d",
         "mc-92948c07aa071915af8a9d1d": "1c103bd7c8db2d4a09f255b529baf662f1222c592a8826eb527b4d12d58f935d",
         "mc-d8e3e65238ac006bc0e9c895": "0bc7754b8ab9a29688008bc54173c29bc76792a9072c5c72b97f1f2f3b6a4c6c"
@@ -962,7 +962,7 @@
       "priority": 5,
       "quality": "A",
       "review_resolution": {
-        "summary": "已按更新后的子卡复核：子卡 flag-from-all-problems 换成 special-case-position-testing；删去子卡之外的同一设备；测试盲区与 alignment-check-untestable 的更正一致；五个锚点均有子卡支撑。"
+        "summary": "已按更新后的子卡 alignment-check-untestable 复核：测试盲区改为解释器算对、H100 实测报错且进程不能再用，结论仍是只能用参数测试覆盖；五个锚点均有子卡支撑。"
       },
       "source_ids": [
         "grouped-gemm-log"
@@ -1116,11 +1116,11 @@
     }
   ],
   "managed_body_sha256": "ed96b26c7ab9731bb60d1fae7c0aab7a8c4a9301644a546bc7435181879854ce",
-  "manifest_payload_sha256": "3521f1a7bc4f56400350a2bc8076b9ecded68e67c6b9c927a590ac94032d1790",
+  "manifest_payload_sha256": "6f4d7b1dd56006b18d7e465856d422315037645c5cbfa78b4adb3f3659e7bd25",
   "schema": "memo-cards.artifact/v2",
   "sidecars": [
     {
-      "byte_size": 19391,
+      "byte_size": 19487,
       "columns": [
         "意图",
         "场景",
@@ -1168,9 +1168,9 @@
           "row_sha256": "142ca3afa2a3fbf299a347c4f88be5b1f258413eb7e5731881df51f2213069dd"
         },
         {
-          "content_sha256": "f0fcf09b770768fb609120c16f11589571ab31f88798d48cf49bd719da340e7f",
+          "content_sha256": "90aeb804a9559d3cbdb80acce93156f1f6d1350c3f628fb1668ef0d987cdbfa8",
           "logical_id": "mc-341b7b7b70e55196c7f63ae3",
-          "row_sha256": "0a59aaf4629589e4991a7832376adefc3b75b00379fcbbccb084dafa227dc96a"
+          "row_sha256": "0e0b8ba3d9a3de5c38c1091a7ac59969b99eb1e6ba10e4b816ee1d2e12b8c362"
         },
         {
           "content_sha256": "6735aca7e1d0d9636a0b74ba665454c03cd3c3e407d0d0368b2fb1ea3cf2e8d9",
@@ -1183,14 +1183,14 @@
           "row_sha256": "183ea9caa4887b61063f591bc9d9d5ae461b624ad5158b3ada21981869f24f7b"
         }
       ],
-      "sha256": "0dcf214f40051a0d455ed2a472377c2e0ec93cd845eb3ad2190c693ed0e8e832",
+      "sha256": "94f21bac534179e5a29bbc9a1f7788aaa13afb6e2b2ecb41d300cbe1eed48510",
       "sheet_name": "cards",
-      "table_sha256": "5d44942896b07aefbe01575bd2be165bfc5281191c5daf27bf92362bc8b9761c",
+      "table_sha256": "3f5984b0660715768c6b32b88d6267ff4d853847fd632cea552a898f0854d795",
       "template_id": "correction",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 40040,
+      "byte_size": 40138,
       "columns": [
         "问题",
         "答案",
@@ -1247,9 +1247,9 @@
           "row_sha256": "914e1e8a3e54b8191c0112854ddcb95c12432d9fc556f95c6957f8f96f233379"
         },
         {
-          "content_sha256": "9670e31d0ad44b3c4d3284954bece2c358a1fc25acaf51cf7b7a73721de635b2",
+          "content_sha256": "05bda9d54e8f5d987d1fbbc690b441b6afd03ef22d34cc4647757387a9f1b3c4",
           "logical_id": "mc-56b14f2e2270888b7db0a794",
-          "row_sha256": "89b7cb730be4ca4777e8741c50ca44b422b8cf8aedd745d5632a28a6eae5d813"
+          "row_sha256": "26aa3599ab72a49dbf19bb224869b8284cff85b4669bb554c6869463ebc5daa4"
         },
         {
           "content_sha256": "c642651878e82ebdb1e094ef30593be774d52eb72e8136631015381c7fc59c21",
@@ -1322,14 +1322,14 @@
           "row_sha256": "ddc545334f69123bef594d4720ca7951156752229f25a39f575506720112d805"
         }
       ],
-      "sha256": "6b594c6b4191176389de5173b6e4b6e1dbcbc15b66424c87ee2bae4873032016",
+      "sha256": "634f700fcd57f5e2beb70cbf604ccdc3a8f92d2b03da10e0424d3890c5e4659f",
       "sheet_name": "cards",
-      "table_sha256": "cda6006baf61a504db1a9ea3aa77e7687cf4126edf7ed6ab3b6923538a63b453",
+      "table_sha256": "396b6b0729118b544641d28ffcc1646318be45f28226f92f222f8567f1eb65fc",
       "template_id": "technical-qa",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 8611,
+      "byte_size": 8804,
       "columns": [
         "问题",
         "参考回答",
@@ -1346,30 +1346,30 @@
           "row_sha256": "4e38f0e1e52e87ff1b3d19bea6551adc37e8592d6b4a67ba20f162d9b0a9496d"
         },
         {
-          "content_sha256": "9f5cee992d882b71fe27a4cb292ed437dc44dfaa4b2759581a149a82d31ab0b0",
+          "content_sha256": "ea0a4926130a54d6db06488a45013d0043f4c9acd248107b22f7c5cb9ef263a4",
           "logical_id": "mc-9e911b985cc1ce276f1ebe37",
-          "row_sha256": "91c5b342d0544f711f1cda9a9ea3a9586ae90222be17e2711a3b5eed687c44c9"
+          "row_sha256": "c9fc493249d5d3c61d36c9e9e53d6b0cb07a1ce8e5a5bbc25837b18848370b67"
         },
         {
-          "content_sha256": "7b82f2511192176c17ff731b44cf59b402be59d10435afd67351791c8cd185c6",
+          "content_sha256": "b0cdfebaec41c0ece1a21d0226dd8791b6246a2f1ecaf1823abeb2863ff7b247",
           "logical_id": "mc-2a6dc333c733daf798c752ba",
-          "row_sha256": "3c473abd8ad61adbde6f1ab63f430c8bc820c7fc0b489ccb1faecec8b332e827"
+          "row_sha256": "bfd4c9913069bc02c5f7422b73f3e510f7d2d1ef7a727251e95862ec0a5902de"
         }
       ],
-      "sha256": "18a132559bd0214736459e02b3354c7006efe9e8bc31824059f977d8af9cd6d6",
+      "sha256": "d1ff0139cfab9e7e74f50d4bb14788bc21e320d562d92d75cab2a821f0d7608a",
       "sheet_name": "cards",
-      "table_sha256": "959e1a592aea171272365091d4bd3b13f6f063e5e8446c32f319050f5aa967ce",
+      "table_sha256": "8bc9eb808c7ce55c7f28a65efd7f82a18ac28681009257db58cf057367570c14",
       "template_id": "oral",
       "template_version": "1.1.0"
     }
   ],
-  "source_fingerprint": "762ff07a08c42e4c4ab5b487b0381f30ffaddaed4783156a0a24aec8ee9e20c1",
+  "source_fingerprint": "1232b287292c52741989a3f06ed9a982bc2a6b2a7c62cf8075a0db029ae5f6c6",
   "sources": [
     {
       "collection": "triton-study-logs",
       "id": "grouped-gemm-log",
       "path": "docs/triton-learning/logs/2026-10-09-grouped-gemm.md",
-      "sha256": "310ba83ca4f5759ac15c40421e414457bfa66a62773b4646bb385526bb47b770",
+      "sha256": "b87bf95f5023a9facff31e35eb99ed4c8440d47406a3ee0ca57d4a0c4cc231c9",
       "summary": "10/5–10/9：grouped GEMM 的调度、对齐与 TMA、任意尺寸实现的纠错与答疑"
     }
   ],
