@@ -8,7 +8,7 @@
    "id": "block-scaled-matmul-log",
    "collection": "triton-study-logs",
    "path": "docs/triton-learning/logs/2026-10-20-block-scaled-matmul.md",
-   "sha256": "eeeda67e2fe0658f83ba13940800d5b100f367a0265b0d68fa2d7cbce898e08b",
+   "sha256": "5cd7d2d14a150a4fbb22aaf87f201e1e6cc15d921f5f453e066aa96aaede6f9e",
    "summary": "10/14–10/20：浮点与块缩放格式、scale 乘在哪一步与预排、五种硬件落地、MI300X 取舍、练习与 M1 测量的纠错与答疑"
   }
  ],
@@ -816,7 +816,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "目标有块缩放指令、两侧都带 scale、格式受这条指令支持时走原生，scale 在指令内乘；否则走软件换算：解码成 bf16、逐元素乘 scale、再做 bf16 矩阵乘；CDNA3 的模拟路径只接一侧带 scale，两侧都带时编译失败。"
+         "text": "目标有块缩放指令、两侧的元素与 scale 格式都受这条指令支持，并满足 Triton 3.7.1 原生模式的额外要求（如 sm_120 要求两侧都带 scale）时走原生，scale 在指令内乘；否则走软件换算：解码成 bf16、逐元素乘 scale、再做 bf16 矩阵乘；CDNA3 的模拟路径只接一侧带 scale，两侧都带时编译失败。"
         }
        ]
       },
@@ -855,13 +855,13 @@
        "parts": [
         {
          "type": "text",
-         "text": "“不走原生”有两种原因要分开：一侧根本不是低精度格式（如 bf16 × MXFP4）时，块缩放指令要求两侧都是 FP8、FP6 或 FP4，所有目标都走软件换算；一侧是 FP4 却不带 scale 时，sm_120 退回软件换算，是因为 Triton 3.7.1 的原生模式要求两侧都有 scale，不是指令本身的格式限制。"
+         "text": "“不走原生”有两种原因要分开：一侧根本不是低精度格式（如 bf16 × MXFP4）时，块缩放指令要求两侧都是 FP8、FP6 或 FP4，所有目标都走软件换算；一侧是 FP4 却不带 scale 时，sm_120 退回软件换算，是因为 Triton 3.7.1 的 sm_120 原生模式要求两侧都有 scale，不是指令本身的格式限制。"
         }
        ]
       }
      ]
     },
-    "锚点": "原生要指令、两侧 scale、格式三者都满足；否则软件换算；CDNA3 两侧带 scale 编译失败",
+    "锚点": "原生要有指令、格式受支持、过得了原生模式的额外要求；否则软件换算；CDNA3 两侧带 scale 编译失败",
     "来源": "块缩放矩阵乘学习记录 10-20 · 节点 5"
    },
    "source_ids": [
@@ -2337,6 +2337,86 @@
    "depends_on": []
   },
   {
+   "key": "nvfp4-no-fallback-off-blackwell",
+   "rank": 55,
+   "domain": "triton-block-scaled-matmul",
+   "recall_target": "Triton 3.7.1 中 NVFP4 的 tl.dot_scaled 为什么在 RTX 4090 和 MI355X 上都编不过, 这对格式选择意味着什么?",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "snapshot",
+    "product": "triton",
+    "version": "3.7.1"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "在 Triton 3.7.1 中，把 NVFP4 × NVFP4（E2M1 元素，每 16 个元素配一个 UE4M3 块 scale）的 tl.dot_scaled 分别编到 RTX 4090（sm_89，没有块缩放指令）和 MI355X（gfx950，CDNA4，有缩放 MFMA），各会怎样？为什么？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "两处都编译失败。RTX 4090 只能走软件换算，而它把 scale 字节直接移位成 bf16 的指数，只适用于只有指数的 E8M0；MI355X 的缩放 MFMA 只接 E8M0、每 32 个元素一个 scale，Triton 3.7.1 的退路在那里也没接住 NVFP4。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "RTX 4090",
+       "parts": [
+        {
+         "type": "text",
+         "text": "软件换算先把元素解码成 bf16，再把 E8M0 的 scale 字节零扩展、左移 7 位，正好落进 bf16 的 8 位指数段（两者 bias 都是 127），一次移位、没有误差，然后逐元素相乘、交给 bf16 的 mma.sync。这一步默认 scale 只有指数，UE4M3 带 3 位尾数，套不上，编译时断言失败；H100（sm_90）上也一样。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "MI355X",
+       "parts": [
+        {
+         "type": "text",
+         "text": "v_mfma_scale 的 64 个 lane 里，每个 lane 正好管 32 个 K 元素、对应一个 E8M0 scale；NVFP4 的 scale 类型和块大小都对不上，走不了原生。CDNA4 也登记了“解码 + 普通矩阵乘”的退路，但在 Triton 3.7.1 里它也没接住 NVFP4，编译报错。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "对照",
+       "parts": [
+        {
+         "type": "text",
+         "text": "同样两个目标上，MXFP4 在 RTX 4090 走软件换算、在 MI355X 走原生；在这次编译探测的目标里，NVFP4 只有 B200（sm_100）和 RTX 5090（sm_120）编得过。所以在 Triton 3.7.1 里选 NVFP4，就只能面向 Blackwell。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "换成 MXFP4 也不是哪里都能编：MI300X（gfx942）上 Triton 3.7.1 只模拟一侧带 scale，MXFP4 × MXFP4 同样编译失败。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "软件换算靠 E8M0 移位进 bf16 指数；缩放 MFMA 只认 E8M0、每 32 个一个；NVFP4 只在 Blackwell 上编得过",
+    "来源": "块缩放矩阵乘学习记录 10-20 · 节点 5"
+   },
+   "source_ids": [
+    "block-scaled-matmul-log"
+   ],
+   "content_summary": "软件换算靠 E8M0 移位进 bf16 指数、缩放 MFMA 只认 E8M0，NVFP4 在 Triton 3.7.1 只有 Blackwell 编得过",
+   "depends_on": []
+  },
+  {
    "key": "e2m1-beats-e3m0-near-top",
    "rank": 32,
    "domain": "triton-block-scaled-matmul",
@@ -3670,7 +3750,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "预排只关乎性能，不影响结果；只有一侧带 scale 或格式不受指令支持时，有块缩放指令的卡也会退回软件换算。"
+         "text": "预排只关乎性能，不影响结果；一侧不是低精度格式（如 bf16 × MXFP4），或格式、scale 过不了原生模式的要求（如 RTX 5090 要求两侧都带 scale）时，有块缩放指令的卡也会退回软件换算。"
         }
        ]
       }
@@ -3695,7 +3775,7 @@
     "port-tutorial-to-rtx5090"
    ],
    "review_resolution": {
-    "summary": "已依据更新后的子卡 06、09、11、12 复核：删去子卡不再支撑的 H100 一句，“别的卡”按 11 的判定规则改写，边界改为一侧带 scale 或格式不受支持时退回软件换算；四个锚点不变。"
+    "summary": "已依据更新后的子卡 11 复核：11 的判定规则把“两侧都带 scale”限定为 sm_120 原生模式的额外要求，本卡边界同步改为“一侧不是低精度格式，或过不了原生模式的要求时退回软件换算”；参考回答其余内容与四个评分锚点仍由子卡 06、09、11、12 支撑。"
    }
   },
   {

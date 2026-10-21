@@ -13,10 +13,10 @@
 | Triton Lesson 07 · Extern Functions | 24 | [打开预览](lesson-07-extern-functions.md) |
 | Triton Lesson 08 · Grouped GEMM | 37 | [打开预览](lesson-08-grouped-gemm.md) |
 | Triton Lesson 09 · Persistent Matmul | 41 | [打开预览](lesson-09-persistent-matmul.md) |
-| Triton Lesson 10 · Block-Scaled Matmul | 50 | [打开预览](lesson-10-block-scaled-matmul.md) |
+| Triton Lesson 10 · Block-Scaled Matmul | 51 | [打开预览](lesson-10-block-scaled-matmul.md) |
 | Triton 跨课辨析与综合 | 6 | [打开预览](cross-lesson-synthesis.md) |
 
-合计 **262 张**（2026-10-21 按审核修订后）。
+合计 **263 张**（2026-10-21 按审核修订，并补第 10 课节点 5 后）。
 
 预览来自上一级目录内的正式 XLSX，并保持卡片原有内容与顺序。每张卡末尾提供来源记录和表格行号；需要导入墨墨时，使用正式 XLSX 及其对应模板。
 

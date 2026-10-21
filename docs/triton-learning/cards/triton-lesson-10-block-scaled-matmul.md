@@ -5,8 +5,8 @@
     "id": "markji",
     "profile": "programming-lab-markji"
   },
-  "artifact_set_sha256": "09df9f0492be0ac774851896e75d9f1aedae6c8f3936338e357a77a6e5f46d0a",
-  "candidate_sha256": "888907094c75e8b82ae71b95a88574aa425f239d3512d3de41aa0a7e02dbf071",
+  "artifact_set_sha256": "addf88da03699cb4d574cfdc3d83b57cd34d4596f317d425709bdee27d9f771a",
+  "candidate_sha256": "27e9d0534ffb95a2b0fef2d7aa65089e57a6c557d66462f25039c37091f9f033",
   "cards": [
     {
       "content_sha256": "67fac8defcfebef76940a86226d7d4d593093848b289c623f5e366b24ce60411",
@@ -285,7 +285,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "be5a8e2b83d4f34af95b014e6a451939b1a5e83f56372c478e748e3597a6570d",
+      "content_sha256": "e54a5c1c51a95f1192711ffbeacf6cd6fa0dd0ae15daa519cff36e98c86f3b9a",
       "content_summary": "tl.dot_scaled 走原生、软件换算还是编译失败的判定规则，以及五种目标各落在哪一类",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -1277,13 +1277,13 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "fceb0c72a2ddcbedd8292bf23967bc2ba0bb107d174c4816e5caf1f0c12eb3f9",
+      "content_sha256": "030256112b852926af7fe5f8b6e2d4f1d2251c5087bfbfc810465d11973f5406",
       "content_summary": "口述 B200 上块缩放的 scale 位置、预排与路径，以及换卡后的落地",
       "dependency_content_sha256": {
         "mc-30df6d9a5c0fd8e684af2f17": "23fccd3f68e209681f61b053c1e479a800600219cf844faa191a3236fea81183",
         "mc-5a62d0166df698913c98a27d": "8d9b52bf220ec98a591658dc1b390cff5a5aa8a05707bd78f183462e4c359256",
         "mc-e236c2fffc4d370ff9caf8a7": "fa71174624dedb7b89ce4b1d5ecef80a366f5684221ae2c2b0b06e6c0e5e7bd0",
-        "mc-fb0c625aeade1143e630eb7b": "be5a8e2b83d4f34af95b014e6a451939b1a5e83f56372c478e748e3597a6570d"
+        "mc-fb0c625aeade1143e630eb7b": "e54a5c1c51a95f1192711ffbeacf6cd6fa0dd0ae15daa519cff36e98c86f3b9a"
       },
       "depends_on": [
         "mc-30df6d9a5c0fd8e684af2f17",
@@ -1309,7 +1309,7 @@
       "priority": 5,
       "quality": "A",
       "review_resolution": {
-        "summary": "已依据更新后的子卡 06、09、11、12 复核：删去子卡不再支撑的 H100 一句，“别的卡”按 11 的判定规则改写，边界改为一侧带 scale 或格式不受支持时退回软件换算；四个锚点不变。"
+        "summary": "已依据更新后的子卡 11 复核：11 的判定规则把“两侧都带 scale”限定为 sm_120 原生模式的额外要求，本卡边界同步改为“一侧不是低精度格式，或过不了原生模式的要求时退回软件换算”；参考回答其余内容与四个评分锚点仍由子卡 06、09、11、12 支撑。"
       },
       "source_ids": [
         "block-scaled-matmul-log"
@@ -1463,10 +1463,39 @@
       "successor_to": null,
       "template_id": "technical-qa",
       "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "e4689759e8f033a4cb208a6c9b2a71076d6d9e0c8d87d02c72d0ad778a1a7b07",
+      "content_summary": "软件换算靠 E8M0 移位进 bf16 指数、缩放 MFMA 只认 E8M0，NVFP4 在 Triton 3.7.1 只有 Blackwell 编得过",
+      "dependency_content_sha256": {},
+      "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "mechanism",
+        "domain": "triton-block-scaled-matmul",
+        "fact_scope": {
+          "kind": "snapshot",
+          "product": "triton",
+          "version": "3.7.1"
+        },
+        "recall_target": "triton 3.7.1 中 nvfp4 的 tl.dot_scaled 为什么在 rtx 4090 和 mi355x 上都编不过, 这对格式选择意味着什么?"
+      },
+      "layer": "mechanism",
+      "lifecycle": "active",
+      "logical_id": "mc-390d11525fd439f45c189931",
+      "misconception_of": null,
+      "priority": 5,
+      "quality": "A",
+      "source_ids": [
+        "block-scaled-matmul-log"
+      ],
+      "successor_to": null,
+      "template_id": "technical-qa",
+      "template_version": "1.1.0"
     }
   ],
-  "managed_body_sha256": "d700ad205b60e6a6a99d1f582e9cc36cec84985f37b7eeee69065055595ba770",
-  "manifest_payload_sha256": "0ff8499c007b57ba975e1fa7a52c682cd9edd9bf1c98d011e81ccf0ac860a537",
+  "managed_body_sha256": "015321c3e88e3d48f3f1b0cbd60bfbdd2ab6eb572d0fdb92fbfebff30caec43a",
+  "manifest_payload_sha256": "c7b4191c2f8befc440117ac19be0e4bed746e12ad842f48f4bca87925bb790ff",
   "schema": "memo-cards.artifact/v2",
   "sidecars": [
     {
@@ -1570,7 +1599,7 @@
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 52929,
+      "byte_size": 55194,
       "columns": [
         "问题",
         "答案",
@@ -1579,7 +1608,7 @@
       ],
       "kind": "markji-import-xlsx",
       "path": "docs/triton-learning/cards/triton-lesson-10-block-scaled-matmul-technical-qa.xlsx",
-      "row_count": 30,
+      "row_count": 31,
       "rows": [
         {
           "content_sha256": "67fac8defcfebef76940a86226d7d4d593093848b289c623f5e366b24ce60411",
@@ -1632,9 +1661,9 @@
           "row_sha256": "c4bfe8f0bae37c616438bac8a0b62c3502645c194a9f76e51a88c918b39c3c62"
         },
         {
-          "content_sha256": "be5a8e2b83d4f34af95b014e6a451939b1a5e83f56372c478e748e3597a6570d",
+          "content_sha256": "e54a5c1c51a95f1192711ffbeacf6cd6fa0dd0ae15daa519cff36e98c86f3b9a",
           "logical_id": "mc-fb0c625aeade1143e630eb7b",
-          "row_sha256": "18418ef7443e96d0e155d882f1d85686a7099a694b8a1bad6f200512355800db"
+          "row_sha256": "52947c67a1e5fd182be26873205ef448ab0a84e441ff8e90e64d02c011fe778d"
         },
         {
           "content_sha256": "23fccd3f68e209681f61b053c1e479a800600219cf844faa191a3236fea81183",
@@ -1730,16 +1759,21 @@
           "content_sha256": "3fbb7a91b3eab3e1eb7abbacd95fcb7f62cf79cd3912e4ea89ff61d5d54d85a2",
           "logical_id": "mc-546505f89a561f1a96c83248",
           "row_sha256": "a87475c300002090bcc08f83c7d890a1e62e91148b0162f914910dac520fc28e"
+        },
+        {
+          "content_sha256": "e4689759e8f033a4cb208a6c9b2a71076d6d9e0c8d87d02c72d0ad778a1a7b07",
+          "logical_id": "mc-390d11525fd439f45c189931",
+          "row_sha256": "11476d029161895fab279cc7c50429af7d177a9d2e448b9da948c23a90da6e64"
         }
       ],
-      "sha256": "ab57c1173abf95504d02989a08d8bfe83a02e8d03357779ff1ad5f01795f90f7",
+      "sha256": "aabe123820dd6252c3184e1603b64150a631961e569c670cdbdef95b6f39b429",
       "sheet_name": "cards",
-      "table_sha256": "3868a9e357bde299c9066230a331f16cccdf3c3dc821da5f557b72a85b703866",
+      "table_sha256": "35b6162a0d2068f54066c2d43e7ec2324d8536813446e8f22d7962584c2a0597",
       "template_id": "technical-qa",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 9958,
+      "byte_size": 10053,
       "columns": [
         "问题",
         "参考回答",
@@ -1756,9 +1790,9 @@
           "row_sha256": "dc876ec3f4bb73c55447c677c751dceb3f4536bbc67d6029483297ca61acc2fa"
         },
         {
-          "content_sha256": "fceb0c72a2ddcbedd8292bf23967bc2ba0bb107d174c4816e5caf1f0c12eb3f9",
+          "content_sha256": "030256112b852926af7fe5f8b6e2d4f1d2251c5087bfbfc810465d11973f5406",
           "logical_id": "mc-d1dda4cc075c9bc27a784223",
-          "row_sha256": "622714a0f863b61dedbfbed06a1730ba0d0081f9a59c6aff291c221ebecbaa0c"
+          "row_sha256": "c4611d3353db45089c392198d0b8ac4da518fa7eb3a317087880aaa43d4101e1"
         },
         {
           "content_sha256": "98a0888dba45f3c8478da8df8df2979b01a70d938108f01b29250857d068c226",
@@ -1771,20 +1805,20 @@
           "row_sha256": "029e5d8de42ddb6306f5382ea981c7fd860bcd436d43d6baabb434aa277e1a20"
         }
       ],
-      "sha256": "4419647fa0fcbd86e1805c907b566b7ebaafe1ab9344115f993266f7458f433a",
+      "sha256": "b3b213956385964629697dc55cd95e95fcab5bbd1c403c3ae021a8680e1d5a3e",
       "sheet_name": "cards",
-      "table_sha256": "1a5d0bdb9b01859f5918fe622f60d212aa7c08d82694efdc46cb7a2d89a4cba7",
+      "table_sha256": "3135c5ed4576208e086f0e4cf754509f4678b83af17378d3c3d73560aa48331d",
       "template_id": "oral",
       "template_version": "1.1.0"
     }
   ],
-  "source_fingerprint": "5ff014df2600a532906663348dcea6d68498e10a8b57da4071df3e6642b188d7",
+  "source_fingerprint": "0978be2420e385741d8f901733ac609323b738c5b530c16b5f00a6eec3f28efb",
   "sources": [
     {
       "collection": "triton-study-logs",
       "id": "block-scaled-matmul-log",
       "path": "docs/triton-learning/logs/2026-10-20-block-scaled-matmul.md",
-      "sha256": "eeeda67e2fe0658f83ba13940800d5b100f367a0265b0d68fa2d7cbce898e08b",
+      "sha256": "5cd7d2d14a150a4fbb22aaf87f201e1e6cc15d921f5f453e066aa96aaede6f9e",
       "summary": "10/14–10/20：浮点与块缩放格式、scale 乘在哪一步与预排、五种硬件落地、MI300X 取舍、练习与 M1 测量的纠错与答疑"
     }
   ],
@@ -1824,7 +1858,7 @@
 📍 [T#!939393#{{来源}}]
 ```
 
-导入文件：[triton-lesson-10-block-scaled-matmul-technical-qa.xlsx](triton-lesson-10-block-scaled-matmul-technical-qa.xlsx)（30 张卡）
+导入文件：[triton-lesson-10-block-scaled-matmul-technical-qa.xlsx](triton-lesson-10-block-scaled-matmul-technical-qa.xlsx)（31 张卡）
 
 ## 综合口述卡
 

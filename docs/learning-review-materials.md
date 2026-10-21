@@ -18,7 +18,7 @@
 | Triton 07：外部函数（libdevice） | [9 月 30 日–10 月 5 日](triton-learning/logs/2026-10-05-extern-functions.md) | [开课到确认结课 90 条](triton-learning/logs-raw/2026-10-05-extern-functions.md) | [24 张，3 个 XLSX](triton-learning/cards/triton-lesson-07-extern-functions.md) |
 | Triton 08：Grouped GEMM | [10 月 5–9 日](triton-learning/logs/2026-10-09-grouped-gemm.md) | [开课到确认结课 82 条](triton-learning/logs-raw/2026-10-09-grouped-gemm.md) | [37 张，3 个 XLSX](triton-learning/cards/triton-lesson-08-grouped-gemm.md) |
 | Triton 09：持久化矩阵乘 | [10 月 10–14 日](triton-learning/logs/2026-10-14-persistent-matmul.md) | [开课到确认结课 161 条](triton-learning/logs-raw/2026-10-14-persistent-matmul.md) | [41 张，3 个 XLSX](triton-learning/cards/triton-lesson-09-persistent-matmul.md) |
-| Triton 10：块缩放矩阵乘 | [10 月 14–20 日](triton-learning/logs/2026-10-20-block-scaled-matmul.md) | [开课到结课后的存档请求 199 条](triton-learning/logs-raw/2026-10-20-block-scaled-matmul.md) | [50 张，3 个 XLSX](triton-learning/cards/triton-lesson-10-block-scaled-matmul.md) |
+| Triton 10：块缩放矩阵乘 | [10 月 14–20 日](triton-learning/logs/2026-10-20-block-scaled-matmul.md) | [开课到结课后的存档请求 199 条](triton-learning/logs-raw/2026-10-20-block-scaled-matmul.md) | [51 张，3 个 XLSX](triton-learning/cards/triton-lesson-10-block-scaled-matmul.md) |
 | Triton 跨课辨析 | 引用第 01–10 课的 11 份结构化日志 | — | [6 张，1 个 XLSX](triton-learning/cards/triton-cross-lesson-synthesis.md) |
 | Rust 01：第一个程序与格式化输出 | [10 月 7–8 日，补整理](rust-learning/logs/2026-10-08-hello-formatting.md) | [开课到结课后的反馈 32 条](rust-learning/logs-raw/2026-10-08-hello-formatting.md) | [21 张，3 个 XLSX](rust-learning/cards/rust-lesson-01-hello-formatting.md) |
 | Rust 02：数据的形状 | [10 月 8–14 日](rust-learning/logs/2026-10-14-data-shapes.md) | [开课到确认结课 94 条](rust-learning/logs-raw/2026-10-14-data-shapes.md) | [42 张，3 个 XLSX](rust-learning/cards/rust-lesson-02-data-shapes.md) |
@@ -327,3 +327,28 @@ request 复核为 `no-op`、`would_write=false`。阅读版预览在 [Rust 复�
 上传第 02 课时，官方接口返回一次 HTTP 503，上传器立即停止，没有重试。核对后确认：第 12 张卡已创建，只是读回核验没有完成。随后用同一份 request 重新预览，已上传的 12 张按内容唯一匹配为 `skip` 并补做读回，剩余 5 张新建。
 
 结束后做了独立的只读双向比对：本地 256 张与远端逐字一致，没有缺卡、多卡或重复卡，只出现语法版本 3，回执记录的远端 ID、内容摘要与语法版本逐张吻合。跨课辨析的 6 张卡随后上传到学习者新建的 `跨课辨析` 章节：新增 6 张，读回核验通过，语法版本 3。远端合计 262 张，与本地一致。恢复回执保存在仓库外。
+
+## 2026-10-21 Triton 第 10 课节点 5 补充与墨墨原地更新
+
+第 10 课节点 5（五种硬件落地）原来只有一条日志条目，那些硬件细节只记在 Lesson 记录和图解页里。这次在原文里逐条找到当时的讲解和答题，在日志节点 5 补了 7 条，都引用 `msg-*`：
+
+- 6 条 [要点]：判定规则、B200、RTX 5090、MI355X 与两家预排、RTX 4090 的软件换算、MI300X；
+- 1 条 [纠错]：综合验收口述漏了软件换算的代价与边界。
+
+MI355X 一条附有复核更正：NVFP4 编不过，CDNA4 登记的通用退路在 Triton 3.7.1 中也报错了，这一点经编译探测核实。原文找不到的 4 处细节不补。
+
+卡片由 50 张变为 51 张：
+
+- 新增一张 A 级卡，说明 NVFP4 为什么离开 Blackwell 就编不过。
+- 改正两张卡的以偏概全：
+  - “两侧都带 scale”原来写成走原生路径的通用条件。编译探测显示，A 不带 scale 时，gfx950 仍走 `v_mfma_scale`，所以改为 sm_120 原生模式的额外要求；
+  - 两张卡是“五种目标的落地规则”卡和 B200 口述卡。
+- 两轮发布后，verify 为 `no-op`。
+
+墨墨侧，memo-cards 的上传器新增了更新已上传卡片的功能（agent-skills `7881db5`，D54），调用官方的 `UpdateCard`。在 `Triton 10` 章节：
+
+- 新卡追加在章节末尾；
+- “五种目标的落地规则”卡原地更新：卡片 ID 与 `root_id` 不变，`revision` 由 1 变为 2，读回核验通过；
+- B200 口述卡先由学习者在 App 里复习一次，再原地更新（卡片 ID 不变，`revision` 由 1 变为 2），用来检验更新会不会清掉复习记录；学习者随后确认，那次复习记录仍在。
+
+随后对整章做了只读预览：远端 51 张与本地逐张一致，全部为 skip。
