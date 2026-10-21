@@ -5,11 +5,11 @@
     "id": "markji",
     "profile": "programming-lab-markji"
   },
-  "artifact_set_sha256": "35a7620188978cec372199be913ebf621a6375ca41238fb0d0a9b6844086bce5",
-  "candidate_sha256": "76d419c94ff40253abe01478cd7150c09f0d37025f32dce75ba4fea6e83b72eb",
+  "artifact_set_sha256": "09df9f0492be0ac774851896e75d9f1aedae6c8f3936338e357a77a6e5f46d0a",
+  "candidate_sha256": "888907094c75e8b82ae71b95a88574aa425f239d3512d3de41aa0a7e02dbf071",
   "cards": [
     {
-      "content_sha256": "ce33c5292f052b3be13f5adc81952e4c1198d06c12fd169f3dfc710e7c76fc11",
+      "content_sha256": "67fac8defcfebef76940a86226d7d4d593093848b289c623f5e366b24ce60411",
       "content_summary": "scale 只平移；FP4 窗口 3.58 档必须分块，FP8 17.8 档常可整张量",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -36,8 +36,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "d8e7aff5b24ae8a733e575d3835c434c465ec6eac4ef7e795846f92f654fac70",
-      "content_summary": "MXFP4 与 NVFP4 的块大小、scale 类型、位数、对齐 6 的能力与代价",
+      "content_sha256": "77d4848c5ff60c4955257562af9c62f61fe6abf73c82ea88cac973baded10941",
+      "content_summary": "MXFP4 与 NVFP4 的块 scale 类型之争：E8M0 范围宽但对不准 6，E4M3 对得准但窗口窄、多读一趟",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -63,7 +63,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "ffa27069691e0796665d0a53a1a55bf78d3baaf2e845e8dc39d661a50b7caf76",
+      "content_sha256": "8a84d64b78a91da06c62043076285413652ee3e6614a9380688f77fc020e8af4",
       "content_summary": "NVFP4 每张量 scale 只定位 E4M3 窗口；块间跨度超过 17.8 档时小块 scale 下溢、整块变 0",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -90,7 +90,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "5118e552c2ebdcf077224f43f04bb1c42bdf64bf350b5b76c6141cf575106759",
+      "content_sha256": "27ccc4cd983a197bc58eebfc39cab098c4974028457245930412f3b304061345",
       "content_summary": "整 batch 共用的每张量 scale 让结果依赖 batch 组成；按 token 设第二级 scale",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -117,7 +117,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "867f4cd927a698aa588099b53a775cae7bc57be595a47a2fc1e91069f21ceee9",
+      "content_sha256": "4695cb40c657e53c8b64474a5c660590a187a9f36807a82f1d68bc32de0b8d3b",
       "content_summary": "OCP 向下取整让块最大值进最上档，代价是截断；向上取整避免截断但小值更易变 0",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -146,7 +146,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "714c83ede40e424991a6c519f5957b6acaf67e366136901400f2258e90565c19",
+      "content_sha256": "fa71174624dedb7b89ce4b1d5ecef80a366f5684221ae2c2b0b06e6c0e5e7bd0",
       "content_summary": "不随 k 变的 scale 提到最外层；块 scale 只能逐块乘，三种位置数学等价、按硬件选",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -173,7 +173,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "30ff4b583caf83cb29994761a9626026783de5b9c2c71d2efdb9d8a01fb477a2",
+      "content_sha256": "c31a39752a280c5af11ab15a0b8ae321649144da9fe9ad6913053bf4d98be279",
       "content_summary": "K 块须由整数个 scale 块组成且同起点；M、N 方向不必对齐；split-K 从 V 的倍数开始",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -200,8 +200,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "a53e7ad77d6de99834281ee9ce19ee1af3c993cfb319922a4bbb38f780c7946e",
-      "content_summary": "无块缩放指令时把 scale 放到部分和上需 V ≥ 指令 K；代价与 DeepGEMM 的 128 分组",
+      "content_sha256": "dfa884434bb15e74272c6dcf0d37b73ef501fe5665682e9e29a36e839d57882a",
+      "content_summary": "H100 上把 scale 乘在部分和上的代价与乘 scale 次数之比，以及 DeepGEMM 每 128 个 K 一组的两个理由",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -227,8 +227,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "79e569454836dc9619d1fa119df6b86d6e4680ce42eedd51c69fe5da4c34504b",
-      "content_summary": "5D 预排让字节顺序等于 TMEM 顺序；tcgen05.cp 原样拷；第 220 行只是视图",
+      "content_sha256": "8d9b52bf220ec98a591658dc1b390cff5a5aa8a05707bd78f183462e4c359256",
+      "content_summary": "5D 预排让字节顺序等于 TMEM 顺序；tcgen05.cp 原样拷；kernel 里的 reshape/trans 只是视图",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -256,7 +256,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "676b003180768f78f5b0597b60b9a9157d1e86467e3f2622fed1b6f205aad9ae",
+      "content_sha256": "489e8bad9dc91bbf86611c5da25a0a081c9643478f2704a2f96d709839612c40",
       "content_summary": "TMA 规则分别约束块与整个张量；二维 scale 描述符 MXFP4/MXFP8 建不起来；报错时机",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -285,8 +285,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "303b7a5d2bf7e60b4cf16a865275248e25c242a4fb2f4fa80e843b14c19dc897",
-      "content_summary": "五种目标上的落地：原生、软件换算、编译失败，scale 的位置与限制",
+      "content_sha256": "be5a8e2b83d4f34af95b014e6a451939b1a5e83f56372c478e748e3597a6570d",
+      "content_summary": "tl.dot_scaled 走原生、软件换算还是编译失败的判定规则，以及五种目标各落在哪一类",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -314,7 +314,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "937c7b19650e2ff83f6641c88115a6b896d4bd57adcc3f66fa450b19b3ce3c16",
+      "content_sha256": "23fccd3f68e209681f61b053c1e479a800600219cf844faa191a3236fea81183",
       "content_summary": "搬到 RTX 5090：绕过入口检查，缩小分块以适应寄存器与共享内存",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -343,8 +343,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "a46baec908042f52c153e1ee35093cb8d66243f2c39d316004e00488e67c6804",
-      "content_summary": "MI300X 上 bf16 对 MXFP4 权重：解码受访存、预填充受计算，容量是始终保留的好处",
+      "content_sha256": "58554aa9677a121a83c23ced304c6e658fa077a222a3237ba7777f30429ba842",
+      "content_summary": "MI300X 上 bf16 对 MXFP4 权重：解码最多快约 3.6 倍，预填充最多持平、解码藏不住时慢约四成",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -372,7 +372,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "f4070cdcf6bfb860ebfa1e8a2fec20af7f98fbe6d2ee8547d1429adfb5fe1273",
+      "content_sha256": "79ab2459a7162eb7f525e5b3d1083526b4fe0ad0489be53bf8b9b83aa70520a0",
       "content_summary": "按资源忙碌时间估算：解码对 MFMA 为 16c/BM，解码对带宽为 0.244c",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -399,7 +399,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "4fda5e015ec1e0cfa3c97778be5a8a55bfefe94f46e22d81581a99c63ef1edbe",
+      "content_sha256": "6a9c850c84d5fc3f8d067ed94cd87e47d1ce4921c457094e426eeace587cfe0f",
       "content_summary": "软件换算在每个 warp 内解码；warpsPerCTA 决定重复解码与每份的复用次数",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -418,8 +418,8 @@
       "lifecycle": "active",
       "logical_id": "mc-be5feb89a08576b9a714cf5b",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "block-scaled-matmul-log"
       ],
@@ -428,7 +428,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "f51876e32bf00e1b74fdde89e0e31c24fe796eb774995581fb0ee765c0fd8b2e",
+      "content_sha256": "7d28c6750b9ce83c1f4fa62929e7cd208027a677a7a0faa1acaf9dbaf9b80756",
       "content_summary": "打包 FP4 原样交给 dot_scaled；沿 K 的偏移按字节；rhs_scale 不转置",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -447,8 +447,8 @@
       "lifecycle": "active",
       "logical_id": "mc-23c1c68e40760d05b71a8647",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "block-scaled-matmul-log"
       ],
@@ -484,8 +484,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "a18858677f44074aa56c4f995817b54a402fee87975a8f08988065892c9df54b",
-      "content_summary": "总时间介于 max 与 sum 之间；warp 少、驻留少时靠近相加",
+      "content_sha256": "10a74e6ff07ccb1735736b4cb3afc0a42ac707d111508ac71c24511f875a4648",
+      "content_summary": "实际总时间靠近 max 还是 sum，由每个调度器上能轮流的 warp 数决定",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -501,8 +501,8 @@
       "lifecycle": "active",
       "logical_id": "mc-c87676f61863c78bcbf9f2e6",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "block-scaled-matmul-log"
       ],
@@ -538,7 +538,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "1b031cbfdbed1360fd916d851980ac4a43fb38e630fbc27b57ae319b09907f7d",
+      "content_sha256": "eccc0ea148135178f9a7af5a872b39cd623b78cfed98447d40aa18553b3f95cd",
       "content_summary": "离群值的影响要看占比与每块损失；真实系统用小块、Hadamard 旋转、敏感层 BF16",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -592,34 +592,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "a7e74733ef959865dd4622b360ccacfe8648a75c9286c703f16f4a3e9640988a",
-      "content_summary": "两种位置乘 scale 次数之比的含义；V 大于约 85 时部分和更省",
-      "dependency_content_sha256": {},
-      "depends_on": [],
-      "fact_status": "verified",
-      "identity": {
-        "assessment": "recall",
-        "domain": "triton-block-scaled-matmul",
-        "fact_scope": {
-          "kind": "evergreen"
-        },
-        "recall_target": "比较“乘在部分和上”与“乘在元素上”的乘 scale 次数, 比值 bm·bn/(v·(bm+bn)) 的含义是什么?"
-      },
-      "layer": "atomic",
-      "lifecycle": "active",
-      "logical_id": "mc-39eb3cefd390d467f780353e",
-      "misconception_of": null,
-      "priority": 4,
-      "quality": "B",
-      "source_ids": [
-        "block-scaled-matmul-log"
-      ],
-      "successor_to": null,
-      "template_id": "technical-qa",
-      "template_version": "1.1.0"
-    },
-    {
-      "content_sha256": "996da066c0c32fd06d61c90affa41a38bbcc95f20d69ba37b4484fe804529b5e",
+      "content_sha256": "f1311176e7d0b3001e5f8d3451507c9dab471a313406c6042a519bf0c17ff831",
       "content_summary": "不预排时全体 warp 搬 scale、读 4 遍、多两次等待",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -675,7 +648,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "89b2f8c5736936c5419091f13e480837a9641839179a0f610c999c731956fcad",
+      "content_sha256": "e926a60cff12385f62a841b53d7fe7d3680496c2a59acb014352100b0c9de05c",
       "content_summary": "BLOCK_K 只受粒度约束；TMEM 不紧，共享内存与级数才是限制",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -704,7 +677,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "0121c4fbb352e0dae43366626ef3c3755fb48da22283b9e9b1530e04a197b5a1",
+      "content_sha256": "9f4a978f5a9c23c4bb3b006d52c7fe25340d7e3253be76202747c4f508858cc6",
       "content_summary": "AMD 预排让每 lane 的 4 个 scale 相邻，LDS 读取从逐字节变成 32 位",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -733,7 +706,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "ce63446bc17ae4b5822ae988ea3329bf551ee571ff8affa39684c3bc05d88e97",
+      "content_sha256": "8aac8d8a023646bbda0d69eb7b40a6eb8ed92c17517ea82e7570f45d7f182b43",
       "content_summary": "FP4 编码等于有序格点下标；低半字节放偶数元素",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -760,7 +733,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "59dd853717fd026d8c2b0c7b60082c5f2019fb79f642ca1b513cfdac5a1f91ac",
+      "content_sha256": "bf5793840921b5f7974de23532e06036d6afd021e37b04f45819939a5ad64a7b",
       "content_summary": "数值测试分不出原生与软件路径，要查编译产物",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -779,8 +752,8 @@
       "lifecycle": "active",
       "logical_id": "mc-401590969bcaa1ef6ff794b7",
       "misconception_of": null,
-      "priority": 4,
-      "quality": "B",
+      "priority": 5,
+      "quality": "A",
       "source_ids": [
         "block-scaled-matmul-log"
       ],
@@ -789,7 +762,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "92ba9c40f4bacd0796048d97fc00c620aabcc6f63894bd8dda81b9faf91c8c76",
+      "content_sha256": "18bef0895bff69b7f3272b5ca7a6404d4e11a48e106331803e1c869591759723",
       "content_summary": "软件换算的解码与 scale 处理之分；SEL 是 NaN 处理，fast_math 可省",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -818,65 +791,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "e9cebefe830ad4b076a6b800fd3fef4fee96cf2df08b0b9e0d309c06c7f5aa59",
-      "content_summary": "Triton 用 prmt 查表把 8 个 FP4 转成 bf16，约 2.1 条/元素",
-      "dependency_content_sha256": {},
-      "depends_on": [],
-      "fact_status": "verified",
-      "identity": {
-        "assessment": "recall",
-        "domain": "triton-block-scaled-matmul",
-        "fact_scope": {
-          "kind": "snapshot",
-          "product": "triton",
-          "version": "3.7.1"
-        },
-        "recall_target": "triton 在 nvidia 上怎样把 fp4 解码成 bf16, 每个元素约几条指令?"
-      },
-      "layer": "atomic",
-      "lifecycle": "active",
-      "logical_id": "mc-40f72bc8635f39f0bf7723b3",
-      "misconception_of": null,
-      "priority": 4,
-      "quality": "B",
-      "source_ids": [
-        "block-scaled-matmul-log"
-      ],
-      "successor_to": null,
-      "template_id": "technical-qa",
-      "template_version": "1.1.0"
-    },
-    {
-      "content_sha256": "1cecfc0f59d2f5795b10f2eca2a775d84edfa2de6a2d84acd91d41626db62898",
-      "content_summary": "W4A16 在 M=16 只快约 7%：B 的解码才是大头",
-      "dependency_content_sha256": {},
-      "depends_on": [],
-      "fact_status": "verified",
-      "identity": {
-        "assessment": "recall",
-        "domain": "triton-block-scaled-matmul",
-        "fact_scope": {
-          "kind": "snapshot",
-          "product": "triton",
-          "version": "3.7.1"
-        },
-        "recall_target": "m = 16 时把 a 改存 bf16(w4a16)能让软件换算快多少, 为什么不多?"
-      },
-      "layer": "atomic",
-      "lifecycle": "active",
-      "logical_id": "mc-9c2d0dd6f8e7310510b51d0a",
-      "misconception_of": null,
-      "priority": 4,
-      "quality": "B",
-      "source_ids": [
-        "block-scaled-matmul-log"
-      ],
-      "successor_to": null,
-      "template_id": "technical-qa",
-      "template_version": "1.1.0"
-    },
-    {
-      "content_sha256": "d42b157e5707e59f1a7d9c8c44693d425829870228e4eb4aaf1f7efd62c3ef37",
+      "content_sha256": "7acdbf3e3622c530d3e86ccc8ff177818ea022edaae2aa593cae4bf07dbf803e",
       "content_summary": "E2M1 胜在块最大值附近格点多，而非 0 附近",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -903,7 +818,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "5913e6c461a52a239215169a8d9c328bd9693ba82631588c2a3681667140c7ec",
+      "content_sha256": "e296bc184d75bdd2d1adea21484221101e3990afc6a3666773e63de9045b88ae",
       "content_summary": "E8M0 指数 −127 到 127；截断避免全零块写出 NaN",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -930,7 +845,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "af419afe98b728ea7a835761d97fa926bff707c6cd0a8621bbec15ae41b4495f",
+      "content_sha256": "cf4134fb2ec766acc597a2299776777af8bc091932772b743e388e3e4307afba",
       "content_summary": "乘在部分和上需 V ≥ 指令 K；2 的幂 scale 可在低精度内换",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -957,7 +872,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "b6e3b2421995c107237fee95a93ce0ae4a673f15457776fa725e0673a0cf7665",
+      "content_sha256": "d2e0d0ef34cfe3b11a72b3b197563d4c1785a1eb1151b8d87fc65b5d2d45594a",
       "content_summary": "trans 管下标含义而非访存；写错静默算错",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -986,7 +901,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "e337b1e2017a38ccb4445b57d4b55585dd0dfc30d123153687d13daf9e7a8f51",
+      "content_sha256": "37f262ddfdb5265463a44759d02fa4643e7e5874e15914fbcddb1c202312d5e6",
       "content_summary": "MXFP4 权重始终保留的是容量，不是访存量",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -1013,8 +928,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "0108f046502de087050a45b6dbb0e509edf9955b6c26462ca3bc98a8344af7d3",
-      "content_summary": "强度与平衡点同单位：乘加 123，FLOP 247",
+      "content_sha256": "ff86c896e0c75e6bbfc42f6ce12fc0d8d22aa8c0302bd2fdb48a31f3684817c3",
+      "content_summary": "强度与平衡点同单位：乘加 123，FLOP 247；计入输出后 MXFP4 专家约 124，处在平衡点附近",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -1040,7 +955,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "9f75a73f094dc41307349ce2a4f8c3f50990c1da1154042541db12d9cd097f4e",
+      "content_sha256": "699cb403877bdc119a56a85b8c75aefa60c7f81aef71645f66020745140bdc72",
       "content_summary": "解码占比 16c/BLOCK_M 与 M 无关",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -1067,7 +982,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "146b63807c5b487fbb09cbabe8e53440ac0ce7cecde35e98f438c24a75c92154",
+      "content_sha256": "653f53412d5e0a3f06103e4224ce62d2fbd0fb5f10ef9981b92b91f9d8b00b72",
       "content_summary": "int 底数配 int 张量指数仍是 int，2⁻¹ 变 0；uint8 减法回绕",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -1086,8 +1001,8 @@
       "lifecycle": "active",
       "logical_id": "mc-e04e352a1f9e05fd644b3a02",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "block-scaled-matmul-log"
       ],
@@ -1096,7 +1011,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "4f44813d33237291d435ab80273c6df9e63d70242be55be29bf0acf2654e91ab",
+      "content_sha256": "d183e243dac9a8ec13b63d346e423e60cd7c667724c01857001b54d595a467ef",
       "content_summary": "块宽错编译报错，前进量错静默读错；测试要有多个 K 步",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -1123,7 +1038,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "bc0b9ba3fb886277448881cba49e976c7ab8efc3a09f22b6517e50009a902867",
+      "content_sha256": "e9b4e7d11c902752904fd33b8fb61e63199b47c38aa990206ed07caa886ab195",
       "content_summary": "小端位流：第 0 个元素在第 0 字节最低位；往返测试抓不到约定错",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -1150,7 +1065,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "609c87ead15a8cbf2d0bde0c7107446d86fd53cd0e6cafab428312ccbe5685d4",
+      "content_sha256": "871075c898af5d02b36a49177fac3d12e93e54f10d80b8125be2af3940695dc9",
       "content_summary": "复用次数按 warp 子块与实际解码的操作数算，不是 BLOCK_M",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -1179,7 +1094,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "8c2f69850070d9ec902be5179075fa23567c3bdb5111d904f978a5dfa8aeb4f4",
+      "content_sha256": "4f0133cb16c9cdf5f5ffb7720281fe473d4086448f9bb6de374c9bd82832ee3f",
       "content_summary": "按同一字节数算出的带宽差就是耗时比，不能当原因",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -1208,7 +1123,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "931c0f7b149f5f5c88bd6eb006b5d4a0316eaf7bb276fa9768e2c1166473c75a",
+      "content_sha256": "024730bdf0ce48f4f33e2429fe150079114416d1d1ac8682346d96f28fe758db",
       "content_summary": "计算受限时比值 = 峰值比 × 效率比；溢出出在未选中的配置",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -1237,7 +1152,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "2224b641cdd0c02c01cef82dde227ffd786d6805ec5836f96d220611065cd13d",
+      "content_sha256": "f08dcb8978f87f2af56f60209e2e8c75d5939da499c51057fd151cd58f1941dc",
       "content_summary": "指数取所在档的左端；尾数等分一档",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -1264,7 +1179,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "502dae92cc5cc30d7f38663af935b58b42dcb34f89dfe2a1185cd78f50f75811",
+      "content_sha256": "9349971fc93b083a4362a65e119529d8201b7c9180264c794e048584f9c4cc9e",
       "content_summary": "MX scale 交给 Triton 用 uint8；float8_e8m0fnu 的转换不是 OCP 取法",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -1293,7 +1208,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "c8abf6c2794a489fbf1fe3de92a3d6aeec1def6ccf86c52e7ac149f118c6bde1",
+      "content_sha256": "6eb520096680d3829e74d704ad86e5ed142f549773b2026c0009a9d8ea42ae77",
       "content_summary": "一个解码出的元素参与 BLOCK_M 次乘加，不是 BLOCK_M × K",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -1320,41 +1235,14 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "29ce303c06d05a79ff8400b05c3213a23751e994ca9ddf949436c3123badf682",
-      "content_summary": "乘 −sign 会把正数变成 −0；用 where 选 ±1",
-      "dependency_content_sha256": {},
-      "depends_on": [],
-      "fact_status": "verified",
-      "identity": {
-        "assessment": "discrimination",
-        "domain": "triton-block-scaled-matmul",
-        "fact_scope": {
-          "kind": "evergreen"
-        },
-        "recall_target": "整张量反量化时用 x *= -sign 取符号为什么会出错?"
-      },
-      "layer": "atomic",
-      "lifecycle": "active",
-      "logical_id": "mc-1d75315b1d98e6198d11bea5",
-      "misconception_of": null,
-      "priority": 4,
-      "quality": "B",
-      "source_ids": [
-        "block-scaled-matmul-log"
-      ],
-      "successor_to": null,
-      "template_id": "correction",
-      "template_version": "1.1.0"
-    },
-    {
-      "content_sha256": "81ce6a29d3885da3ba8da9f6a03111dc9941231c6c65556e2003a53f6ea7c5b9",
+      "content_sha256": "b35370dbc8afc5bfb4168ad5e4f2269e459fab8e367b53f260e915dc086372df",
       "content_summary": "口述块缩放格式的必要性、E2M1、MX 与 NVFP4 的取舍、scale 的取法",
       "dependency_content_sha256": {
-        "mc-1b27b1ffae129f2ba42ee08d": "d42b157e5707e59f1a7d9c8c44693d425829870228e4eb4aaf1f7efd62c3ef37",
-        "mc-26b2bd02cc7fc3baad3d7816": "867f4cd927a698aa588099b53a775cae7bc57be595a47a2fc1e91069f21ceee9",
-        "mc-c6ff59ea5ef045fc55f6a23f": "ce33c5292f052b3be13f5adc81952e4c1198d06c12fd169f3dfc710e7c76fc11",
-        "mc-d0cadfeaa8b31d4fdf194f4d": "ffa27069691e0796665d0a53a1a55bf78d3baaf2e845e8dc39d661a50b7caf76",
-        "mc-f976aa38b9879032b0c34640": "d8e7aff5b24ae8a733e575d3835c434c465ec6eac4ef7e795846f92f654fac70"
+        "mc-1b27b1ffae129f2ba42ee08d": "7acdbf3e3622c530d3e86ccc8ff177818ea022edaae2aa593cae4bf07dbf803e",
+        "mc-26b2bd02cc7fc3baad3d7816": "4695cb40c657e53c8b64474a5c660590a187a9f36807a82f1d68bc32de0b8d3b",
+        "mc-c6ff59ea5ef045fc55f6a23f": "67fac8defcfebef76940a86226d7d4d593093848b289c623f5e366b24ce60411",
+        "mc-d0cadfeaa8b31d4fdf194f4d": "8a84d64b78a91da06c62043076285413652ee3e6614a9380688f77fc020e8af4",
+        "mc-f976aa38b9879032b0c34640": "77d4848c5ff60c4955257562af9c62f61fe6abf73c82ea88cac973baded10941"
       },
       "depends_on": [
         "mc-1b27b1ffae129f2ba42ee08d",
@@ -1378,6 +1266,9 @@
       "misconception_of": null,
       "priority": 5,
       "quality": "A",
+      "review_resolution": {
+        "summary": "已依据更新后的子卡 01、02、03、05 复核：参考回答与五个锚点只用到子卡仍保留的事实（3.58 档、平移不加宽、E2M1 多给尾数、MX 与 NVFP4 的块大小／scale 类型／位数与代价、OCP 向下取整的截断代价），内容不需改动。"
+      },
       "source_ids": [
         "block-scaled-matmul-log"
       ],
@@ -1386,13 +1277,13 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "2dcb14cbb54462a6942e9f1d8f91e14289faae62eef319c743c3d80029497241",
+      "content_sha256": "fceb0c72a2ddcbedd8292bf23967bc2ba0bb107d174c4816e5caf1f0c12eb3f9",
       "content_summary": "口述 B200 上块缩放的 scale 位置、预排与路径，以及换卡后的落地",
       "dependency_content_sha256": {
-        "mc-30df6d9a5c0fd8e684af2f17": "937c7b19650e2ff83f6641c88115a6b896d4bd57adcc3f66fa450b19b3ce3c16",
-        "mc-5a62d0166df698913c98a27d": "79e569454836dc9619d1fa119df6b86d6e4680ce42eedd51c69fe5da4c34504b",
-        "mc-e236c2fffc4d370ff9caf8a7": "714c83ede40e424991a6c519f5957b6acaf67e366136901400f2258e90565c19",
-        "mc-fb0c625aeade1143e630eb7b": "303b7a5d2bf7e60b4cf16a865275248e25c242a4fb2f4fa80e843b14c19dc897"
+        "mc-30df6d9a5c0fd8e684af2f17": "23fccd3f68e209681f61b053c1e479a800600219cf844faa191a3236fea81183",
+        "mc-5a62d0166df698913c98a27d": "8d9b52bf220ec98a591658dc1b390cff5a5aa8a05707bd78f183462e4c359256",
+        "mc-e236c2fffc4d370ff9caf8a7": "fa71174624dedb7b89ce4b1d5ecef80a366f5684221ae2c2b0b06e6c0e5e7bd0",
+        "mc-fb0c625aeade1143e630eb7b": "be5a8e2b83d4f34af95b014e6a451939b1a5e83f56372c478e748e3597a6570d"
       },
       "depends_on": [
         "mc-30df6d9a5c0fd8e684af2f17",
@@ -1417,6 +1308,9 @@
       "misconception_of": null,
       "priority": 5,
       "quality": "A",
+      "review_resolution": {
+        "summary": "已依据更新后的子卡 06、09、11、12 复核：删去子卡不再支撑的 H100 一句，“别的卡”按 11 的判定规则改写，边界改为一侧带 scale 或格式不受支持时退回软件换算；四个锚点不变。"
+      },
       "source_ids": [
         "block-scaled-matmul-log"
       ],
@@ -1425,18 +1319,20 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "8430db281ea1cc6b2f18b85d7ac1466c20c10060ccdb7bff2a05b0ebdb940956",
+      "content_sha256": "98a0888dba45f3c8478da8df8df2979b01a70d938108f01b29250857d068c226",
       "content_summary": "口述 MI300X 上 MXFP4 权重的快慢判断与部署选择",
       "dependency_content_sha256": {
-        "mc-281380095aabd19ad91c51d6": "a46baec908042f52c153e1ee35093cb8d66243f2c39d316004e00488e67c6804",
-        "mc-455b749f88ebfaba60062e8d": "f4070cdcf6bfb860ebfa1e8a2fec20af7f98fbe6d2ee8547d1429adfb5fe1273",
-        "mc-63cae5cd70cc11611b5399eb": "9f75a73f094dc41307349ce2a4f8c3f50990c1da1154042541db12d9cd097f4e",
-        "mc-af0e33b93ba22e83c454dd0f": "e337b1e2017a38ccb4445b57d4b55585dd0dfc30d123153687d13daf9e7a8f51"
+        "mc-281380095aabd19ad91c51d6": "58554aa9677a121a83c23ced304c6e658fa077a222a3237ba7777f30429ba842",
+        "mc-455b749f88ebfaba60062e8d": "79ab2459a7162eb7f525e5b3d1083526b4fe0ad0489be53bf8b9b83aa70520a0",
+        "mc-63cae5cd70cc11611b5399eb": "699cb403877bdc119a56a85b8c75aefa60c7f81aef71645f66020745140bdc72",
+        "mc-6b8a6ac1e7ef6441eb8a60e1": "ff86c896e0c75e6bbfc42f6ce12fc0d8d22aa8c0302bd2fdb48a31f3684817c3",
+        "mc-af0e33b93ba22e83c454dd0f": "37f262ddfdb5265463a44759d02fa4643e7e5874e15914fbcddb1c202312d5e6"
       },
       "depends_on": [
         "mc-281380095aabd19ad91c51d6",
         "mc-455b749f88ebfaba60062e8d",
         "mc-63cae5cd70cc11611b5399eb",
+        "mc-6b8a6ac1e7ef6441eb8a60e1",
         "mc-af0e33b93ba22e83c454dd0f"
       ],
       "fact_status": "verified",
@@ -1456,6 +1352,9 @@
       "misconception_of": null,
       "priority": 5,
       "quality": "A",
+      "review_resolution": {
+        "summary": "已依据更新后的子卡 13、14、36、38 与新加入的 37 复核：强度计入输出字节后，M = 128 的专家处在平衡点附近，边界与第一个锚点已同步改写，并删去子卡不支撑的“wave 沿 M 排”。"
+      },
       "source_ids": [
         "block-scaled-matmul-log"
       ],
@@ -1464,14 +1363,14 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "356c9c055c9be63604e3aa16c65a75214d36ea640867e7400b7ad4bebbbb136e",
+      "content_sha256": "d63b8369a7758503ce339cb8b577733baa4ef13b757506433423bc2b9e9133af",
       "content_summary": "口述 RTX 5090 上原生对软件换算的测量、解释与预测错误",
       "dependency_content_sha256": {
-        "mc-62beb53d71b97bf090ffbd2f": "931c0f7b149f5f5c88bd6eb006b5d4a0316eaf7bb276fa9768e2c1166473c75a",
-        "mc-67d438cf55759feb8f8b68a8": "8c2f69850070d9ec902be5179075fa23567c3bdb5111d904f978a5dfa8aeb4f4",
-        "mc-79720aded9a054c2c531be18": "609c87ead15a8cbf2d0bde0c7107446d86fd53cd0e6cafab428312ccbe5685d4",
+        "mc-62beb53d71b97bf090ffbd2f": "024730bdf0ce48f4f33e2429fe150079114416d1d1ac8682346d96f28fe758db",
+        "mc-67d438cf55759feb8f8b68a8": "4f0133cb16c9cdf5f5ffb7720281fe473d4086448f9bb6de374c9bd82832ee3f",
+        "mc-79720aded9a054c2c531be18": "871075c898af5d02b36a49177fac3d12e93e54f10d80b8125be2af3940695dc9",
         "mc-82b94c492ffa21b4e82a3f04": "4e39e9a979a73098aba1f4c86f3141013c81dc6a264d981233fd0a067b97fbcc",
-        "mc-c87676f61863c78bcbf9f2e6": "a18858677f44074aa56c4f995817b54a402fee87975a8f08988065892c9df54b"
+        "mc-c87676f61863c78bcbf9f2e6": "10a74e6ff07ccb1735736b4cb3afc0a42ac707d111508ac71c24511f875a4648"
       },
       "depends_on": [
         "mc-62beb53d71b97bf090ffbd2f",
@@ -1497,20 +1396,81 @@
       "misconception_of": null,
       "priority": 5,
       "quality": "A",
+      "review_resolution": {
+        "summary": "已依据更新后的子卡 17、18、42、43、44 复核：比值、发射与等数据的估算、复用次数和 0.33 ms 余项都仍由子卡支撑；“指令数估算没有 profiler 证实”与 43 的证据边界一致；只在问题里补了版本。"
+      },
       "source_ids": [
         "block-scaled-matmul-log"
       ],
       "successor_to": null,
       "template_id": "oral",
       "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "2733e495067bd63784e2ad1832659ed392d1ee68cc7bec27dd5186ebc7514b46",
+      "content_summary": "MI300X 的 FP8 是 FNUZ：同位值减半、0x80 为 NaN；vLLM 置 0、重新解读、scale 乘 2",
+      "dependency_content_sha256": {},
+      "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "recall",
+        "domain": "triton-block-scaled-matmul",
+        "fact_scope": {
+          "commit": "8530aed2b78a19eb00e242031c22bb78d615eea2",
+          "kind": "snapshot",
+          "product": "vllm"
+        },
+        "recall_target": "mi300x 原生 fp8 是 fnuz 变体时, 为什么不能直接复用 ocp e4m3 权重的位模式, 要怎样转换?"
+      },
+      "layer": "atomic",
+      "lifecycle": "active",
+      "logical_id": "mc-c55a9823b372c95442dc2db8",
+      "misconception_of": null,
+      "priority": 5,
+      "quality": "A",
+      "source_ids": [
+        "block-scaled-matmul-log"
+      ],
+      "successor_to": null,
+      "template_id": "technical-qa",
+      "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "3fbb7a91b3eab3e1eb7abbacd95fcb7f62cf79cd3912e4ea89ff61d5d54d85a2",
+      "content_summary": "TMA 描述符靠形状和步长表达连续：首尾相接的维度自己合并；swizzle 限制最内维",
+      "dependency_content_sha256": {},
+      "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "recall",
+        "domain": "triton-block-scaled-matmul",
+        "fact_scope": {
+          "kind": "snapshot",
+          "product": "triton",
+          "version": "3.7.1"
+        },
+        "recall_target": "想让 tma 把首尾相接的几行当成一段连续数据时, 描述符里怎样表达, 有什么限制?"
+      },
+      "layer": "atomic",
+      "lifecycle": "active",
+      "logical_id": "mc-546505f89a561f1a96c83248",
+      "misconception_of": null,
+      "priority": 4,
+      "quality": "B",
+      "source_ids": [
+        "block-scaled-matmul-log"
+      ],
+      "successor_to": null,
+      "template_id": "technical-qa",
+      "template_version": "1.1.0"
     }
   ],
-  "managed_body_sha256": "69826090fa5ce8537c921c84d1b3e66bb448873817b611d1ab5f0d6565bd0d48",
-  "manifest_payload_sha256": "004c50d7f8d2d22dbf19e2a9d016c56b32d91978cc0e699ca8a66fdceec8675f",
+  "managed_body_sha256": "d700ad205b60e6a6a99d1f582e9cc36cec84985f37b7eeee69065055595ba770",
+  "manifest_payload_sha256": "0ff8499c007b57ba975e1fa7a52c682cd9edd9bf1c98d011e81ccf0ac860a537",
   "schema": "memo-cards.artifact/v2",
   "sidecars": [
     {
-      "byte_size": 30840,
+      "byte_size": 30975,
       "columns": [
         "意图",
         "场景",
@@ -1520,102 +1480,97 @@
       ],
       "kind": "markji-import-xlsx",
       "path": "docs/triton-learning/cards/triton-lesson-10-block-scaled-matmul-correction.xlsx",
-      "row_count": 17,
+      "row_count": 16,
       "rows": [
         {
-          "content_sha256": "d42b157e5707e59f1a7d9c8c44693d425829870228e4eb4aaf1f7efd62c3ef37",
+          "content_sha256": "7acdbf3e3622c530d3e86ccc8ff177818ea022edaae2aa593cae4bf07dbf803e",
           "logical_id": "mc-1b27b1ffae129f2ba42ee08d",
-          "row_sha256": "7de4d4397ea1be88d9a9d4ab8eb9615a980c551cfeef5933d062ef73c6c98e4e"
+          "row_sha256": "331901f9816cda70639ca738ffe360a36e845db48500511ab7fb74feec74dbbd"
         },
         {
-          "content_sha256": "5913e6c461a52a239215169a8d9c328bd9693ba82631588c2a3681667140c7ec",
+          "content_sha256": "e296bc184d75bdd2d1adea21484221101e3990afc6a3666773e63de9045b88ae",
           "logical_id": "mc-bd3becea988ba214a166dfb5",
-          "row_sha256": "ed18139b5bb3bc469ef53f5fc060e12dc0b9ee66299d6e5372c4edb78191563c"
+          "row_sha256": "3a49ec8bd69ab9a2660f0ed6a8fe31d263a1c0d8452a5f20b7f989b9b279d25d"
         },
         {
-          "content_sha256": "af419afe98b728ea7a835761d97fa926bff707c6cd0a8621bbec15ae41b4495f",
+          "content_sha256": "cf4134fb2ec766acc597a2299776777af8bc091932772b743e388e3e4307afba",
           "logical_id": "mc-22af7057aad390b599c70b08",
-          "row_sha256": "c5836b53e610b0f13dfc329e71be25f4dcf6ca088d123563ca00b7e7bcda4de4"
+          "row_sha256": "2f4534a614c0c24477f4a091f0ebd1f2ed0f6c31d9e5e4dbde956c5465b3552e"
         },
         {
-          "content_sha256": "b6e3b2421995c107237fee95a93ce0ae4a673f15457776fa725e0673a0cf7665",
+          "content_sha256": "d2e0d0ef34cfe3b11a72b3b197563d4c1785a1eb1151b8d87fc65b5d2d45594a",
           "logical_id": "mc-c4e84caf7808f58085e182fa",
-          "row_sha256": "11815add4c63fc183dc710f4f6e15ce4949922e16e8da622af4f9ccfc7e891d7"
+          "row_sha256": "72436009154930243e9adba314e28158c72bc5e9e9b40a0d746f690900cac8fe"
         },
         {
-          "content_sha256": "e337b1e2017a38ccb4445b57d4b55585dd0dfc30d123153687d13daf9e7a8f51",
+          "content_sha256": "37f262ddfdb5265463a44759d02fa4643e7e5874e15914fbcddb1c202312d5e6",
           "logical_id": "mc-af0e33b93ba22e83c454dd0f",
-          "row_sha256": "35e47a8d21f4c74d6f28d07dacc15fb933dabfc9b9e6bffe9adaf9b257074b0f"
+          "row_sha256": "13186f59b47ef24947b124f9e3b9010cd8e771e98f3e21bd6e9da19073abbd19"
         },
         {
-          "content_sha256": "0108f046502de087050a45b6dbb0e509edf9955b6c26462ca3bc98a8344af7d3",
+          "content_sha256": "ff86c896e0c75e6bbfc42f6ce12fc0d8d22aa8c0302bd2fdb48a31f3684817c3",
           "logical_id": "mc-6b8a6ac1e7ef6441eb8a60e1",
-          "row_sha256": "c6920ef29f88c259d33ea9944e6ba9ddb25388c8bdd57734e42b721d5ae116dd"
+          "row_sha256": "15de080627a3cc848e87f9ad546f9f5e52dcfcf7010eba5baa5c8688bbb56031"
         },
         {
-          "content_sha256": "9f75a73f094dc41307349ce2a4f8c3f50990c1da1154042541db12d9cd097f4e",
+          "content_sha256": "699cb403877bdc119a56a85b8c75aefa60c7f81aef71645f66020745140bdc72",
           "logical_id": "mc-63cae5cd70cc11611b5399eb",
-          "row_sha256": "043232bec9182208d7f331b84cd6e3299a9a04056aa6f8a8487c464c376f44cc"
+          "row_sha256": "106853c0df00b5581144a781412554dc8684dffdafc72c091d26af51094bf6b2"
         },
         {
-          "content_sha256": "146b63807c5b487fbb09cbabe8e53440ac0ce7cecde35e98f438c24a75c92154",
+          "content_sha256": "653f53412d5e0a3f06103e4224ce62d2fbd0fb5f10ef9981b92b91f9d8b00b72",
           "logical_id": "mc-e04e352a1f9e05fd644b3a02",
-          "row_sha256": "de56116787bd021f6dc6c91a5bc178caf4b291cd771f70a233707bc3369686be"
+          "row_sha256": "f786a067c6433d07a9a995d7659027879708f9e67da8199a2ee48c661b23d26a"
         },
         {
-          "content_sha256": "4f44813d33237291d435ab80273c6df9e63d70242be55be29bf0acf2654e91ab",
+          "content_sha256": "d183e243dac9a8ec13b63d346e423e60cd7c667724c01857001b54d595a467ef",
           "logical_id": "mc-e2fba85bcd99b38a89b3f5f8",
-          "row_sha256": "1cd869b34f40a88b968b7ccb527f3bb40703c09b0a2624e90bcfa557f3264c9b"
+          "row_sha256": "9a474f3adbf69d691f18d8c6b8d7125dfb38453517d3f08b13dbdf3a94f6df75"
         },
         {
-          "content_sha256": "bc0b9ba3fb886277448881cba49e976c7ab8efc3a09f22b6517e50009a902867",
+          "content_sha256": "e9b4e7d11c902752904fd33b8fb61e63199b47c38aa990206ed07caa886ab195",
           "logical_id": "mc-c9bcfe52ab839d10dad93cd1",
-          "row_sha256": "aed6503a820dea2686cf93eb25c7be0d5ef71d35e98564774a4df695c1cb2eb9"
+          "row_sha256": "59f6a85c25fca0ad03509663cf74177af220b07538ba8cf71137e0101ebdfa8d"
         },
         {
-          "content_sha256": "609c87ead15a8cbf2d0bde0c7107446d86fd53cd0e6cafab428312ccbe5685d4",
+          "content_sha256": "871075c898af5d02b36a49177fac3d12e93e54f10d80b8125be2af3940695dc9",
           "logical_id": "mc-79720aded9a054c2c531be18",
-          "row_sha256": "d5368aee152e982c9cf2aa772530ed29a012a1aa281e6bdb7ff5b4365fba3a10"
+          "row_sha256": "921af73cdf71dac23004687534f049cdf01a1a49a226627e6ac86279621da556"
         },
         {
-          "content_sha256": "8c2f69850070d9ec902be5179075fa23567c3bdb5111d904f978a5dfa8aeb4f4",
+          "content_sha256": "4f0133cb16c9cdf5f5ffb7720281fe473d4086448f9bb6de374c9bd82832ee3f",
           "logical_id": "mc-67d438cf55759feb8f8b68a8",
-          "row_sha256": "8b03e09fad90119ba7e2a90de57b896eb8d6e554eca142e8f53d031680b13d7f"
+          "row_sha256": "6d37ef35cbb7a28e96f014142125cb7ed799ebd07489bee6360cb522c9324821"
         },
         {
-          "content_sha256": "931c0f7b149f5f5c88bd6eb006b5d4a0316eaf7bb276fa9768e2c1166473c75a",
+          "content_sha256": "024730bdf0ce48f4f33e2429fe150079114416d1d1ac8682346d96f28fe758db",
           "logical_id": "mc-62beb53d71b97bf090ffbd2f",
-          "row_sha256": "1c3431ff11d54246f62e6e06d7d4d8b7df9227f8c16c30d68c4a38762a143b2f"
+          "row_sha256": "0e95b8e2ddbc23017ef5a11f10be4838fde9ba56cb9c7ed675b56707eede47c4"
         },
         {
-          "content_sha256": "2224b641cdd0c02c01cef82dde227ffd786d6805ec5836f96d220611065cd13d",
+          "content_sha256": "f08dcb8978f87f2af56f60209e2e8c75d5939da499c51057fd151cd58f1941dc",
           "logical_id": "mc-e6288e8d97ab5cfd9dc26f15",
-          "row_sha256": "3024c77a3e6381010d5ead9104f5cecb844bac4a1240465a440cd087111c196d"
+          "row_sha256": "a1679e3641f90ec5a7eae00231792be6e818d4a9536a0a12304c9e104c36f998"
         },
         {
-          "content_sha256": "502dae92cc5cc30d7f38663af935b58b42dcb34f89dfe2a1185cd78f50f75811",
+          "content_sha256": "9349971fc93b083a4362a65e119529d8201b7c9180264c794e048584f9c4cc9e",
           "logical_id": "mc-aff6698aa51d74780aa2bff5",
-          "row_sha256": "e823506a5305e24e74b5e58e15e13aa919dc249ac051d1bfdfb4a96bc5fbb278"
+          "row_sha256": "82fd3153c4ec6e1988528b2c967833934f92beed9ae4c35cd073777387b83db8"
         },
         {
-          "content_sha256": "c8abf6c2794a489fbf1fe3de92a3d6aeec1def6ccf86c52e7ac149f118c6bde1",
+          "content_sha256": "6eb520096680d3829e74d704ad86e5ed142f549773b2026c0009a9d8ea42ae77",
           "logical_id": "mc-c5458d9bf53e30e69cdf8922",
-          "row_sha256": "1332886658e4d7d7989ff974eaff3a8e036e76174b87a9b6399c4563b9d72573"
-        },
-        {
-          "content_sha256": "29ce303c06d05a79ff8400b05c3213a23751e994ca9ddf949436c3123badf682",
-          "logical_id": "mc-1d75315b1d98e6198d11bea5",
-          "row_sha256": "cb75a2e999ef7be65ff81f4ecb23cdaa840fe2929d867a40ff93ed9fe2e9a43c"
+          "row_sha256": "3853ac7377112a3ec31b57ccae66168dc79895fb771f8bc99a382793c7a4f451"
         }
       ],
-      "sha256": "4e61310fa980697d404e57d2e2b75d78512c9336cc463b74218146f29a7c0472",
+      "sha256": "9a1130697b01e1ce9194cd7c02fc2dd187c2e3c5c0a223f4be24ba19e8493d5c",
       "sheet_name": "cards",
-      "table_sha256": "aac9209bb07d393d6ea7b79c170700548c2479db83cd903b1e8729315bbbfa72",
+      "table_sha256": "5166276c98780bf25822b78e28c4d99cd482fb3b9e0a30451f4a65bc1d4d737d",
       "template_id": "correction",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 53904,
+      "byte_size": 52929,
       "columns": [
         "问题",
         "答案",
@@ -1624,87 +1579,87 @@
       ],
       "kind": "markji-import-xlsx",
       "path": "docs/triton-learning/cards/triton-lesson-10-block-scaled-matmul-technical-qa.xlsx",
-      "row_count": 31,
+      "row_count": 30,
       "rows": [
         {
-          "content_sha256": "ce33c5292f052b3be13f5adc81952e4c1198d06c12fd169f3dfc710e7c76fc11",
+          "content_sha256": "67fac8defcfebef76940a86226d7d4d593093848b289c623f5e366b24ce60411",
           "logical_id": "mc-c6ff59ea5ef045fc55f6a23f",
-          "row_sha256": "74bc034c419dab2550496dbedab751041df467587437d8deb81c03d6d0c758b0"
+          "row_sha256": "fdc2d13af02ae35285cec1647be892fb4b8d96804c32e7018d9d6e1694ba742c"
         },
         {
-          "content_sha256": "d8e7aff5b24ae8a733e575d3835c434c465ec6eac4ef7e795846f92f654fac70",
+          "content_sha256": "77d4848c5ff60c4955257562af9c62f61fe6abf73c82ea88cac973baded10941",
           "logical_id": "mc-f976aa38b9879032b0c34640",
-          "row_sha256": "8103b3a5405013844c8d7ed32d04a7c7f9409fd11fb5bc9d49175ed3b118887e"
+          "row_sha256": "e71a0bb4c7b7d61380fb73ff8fedf303e05502123b20c06dda94ef12b95e925a"
         },
         {
-          "content_sha256": "ffa27069691e0796665d0a53a1a55bf78d3baaf2e845e8dc39d661a50b7caf76",
+          "content_sha256": "8a84d64b78a91da06c62043076285413652ee3e6614a9380688f77fc020e8af4",
           "logical_id": "mc-d0cadfeaa8b31d4fdf194f4d",
-          "row_sha256": "2aa2e8f6365ff1ffa32b660d918867d9aec765bfbab4ffd168adc7da4af162b8"
+          "row_sha256": "3aca1c8dd6c7baa5b2a6db1bda2a7cac0f8b5ad295eafd7be42a6582d1b1551c"
         },
         {
-          "content_sha256": "5118e552c2ebdcf077224f43f04bb1c42bdf64bf350b5b76c6141cf575106759",
+          "content_sha256": "27ccc4cd983a197bc58eebfc39cab098c4974028457245930412f3b304061345",
           "logical_id": "mc-1b6b6bf5b5cae30680cd15b3",
-          "row_sha256": "388049c9a08bd2dded4084c2c627a7d91320f8314fbf5ace40134a8252be868a"
+          "row_sha256": "a6bf2ba3f3a306f2f177d7590c3f3aebb503ee81d7e26c09e82c3b55397f0d32"
         },
         {
-          "content_sha256": "867f4cd927a698aa588099b53a775cae7bc57be595a47a2fc1e91069f21ceee9",
+          "content_sha256": "4695cb40c657e53c8b64474a5c660590a187a9f36807a82f1d68bc32de0b8d3b",
           "logical_id": "mc-26b2bd02cc7fc3baad3d7816",
-          "row_sha256": "773148748107a71963f93ab49376fbc1576f532b930acf00d413bf156f57363f"
+          "row_sha256": "5684cb94c561377d4276033b307fbeb1a049cac09ee7f01964349c1965f83ec4"
         },
         {
-          "content_sha256": "714c83ede40e424991a6c519f5957b6acaf67e366136901400f2258e90565c19",
+          "content_sha256": "fa71174624dedb7b89ce4b1d5ecef80a366f5684221ae2c2b0b06e6c0e5e7bd0",
           "logical_id": "mc-e236c2fffc4d370ff9caf8a7",
-          "row_sha256": "0b4caa93e3b1a644013e6c848b6625e9d426d2f6bd064dcf06818eb8bd8e0c72"
+          "row_sha256": "4c1fcce6a658760c4e49781606fbde05529bd30e0651c283e05599529d4f64b1"
         },
         {
-          "content_sha256": "30ff4b583caf83cb29994761a9626026783de5b9c2c71d2efdb9d8a01fb477a2",
+          "content_sha256": "c31a39752a280c5af11ab15a0b8ae321649144da9fe9ad6913053bf4d98be279",
           "logical_id": "mc-385020ed4fdd34484e631abf",
-          "row_sha256": "1fd621d34a22d0a47e3c0b0e5a3510898b857cbcb9c6409e7878aa9262418271"
+          "row_sha256": "0e6aaa091344871ffaf48ce3fd3f77bbe637002b9657c84e6e4fd8fd30222981"
         },
         {
-          "content_sha256": "a53e7ad77d6de99834281ee9ce19ee1af3c993cfb319922a4bbb38f780c7946e",
+          "content_sha256": "dfa884434bb15e74272c6dcf0d37b73ef501fe5665682e9e29a36e839d57882a",
           "logical_id": "mc-0be1cfb5e7e0f6f93e2c2381",
-          "row_sha256": "fdd20bc0f4b8d4b23aef503cf32b93ba994fc46104a301b639ba48873e6f57db"
+          "row_sha256": "39d229d4bd0d680961fc5a0d76df09d8dad3cd7572478f26c699ec27b8072b5b"
         },
         {
-          "content_sha256": "79e569454836dc9619d1fa119df6b86d6e4680ce42eedd51c69fe5da4c34504b",
+          "content_sha256": "8d9b52bf220ec98a591658dc1b390cff5a5aa8a05707bd78f183462e4c359256",
           "logical_id": "mc-5a62d0166df698913c98a27d",
-          "row_sha256": "611f80e117bde827550e2e8220e2e77e2740675f439c50732938614af939bb16"
+          "row_sha256": "4548f00459049f7a1110e7548f053b7e10dca3445b41b46aa93049c23c9daa6d"
         },
         {
-          "content_sha256": "676b003180768f78f5b0597b60b9a9157d1e86467e3f2622fed1b6f205aad9ae",
+          "content_sha256": "489e8bad9dc91bbf86611c5da25a0a081c9643478f2704a2f96d709839612c40",
           "logical_id": "mc-dfa47e6149b7d295651f617c",
-          "row_sha256": "9e40b4d0967f3ce2c18b7828e90710eaf9b5ebc43ed25e54865136837060ca41"
+          "row_sha256": "c4bfe8f0bae37c616438bac8a0b62c3502645c194a9f76e51a88c918b39c3c62"
         },
         {
-          "content_sha256": "303b7a5d2bf7e60b4cf16a865275248e25c242a4fb2f4fa80e843b14c19dc897",
+          "content_sha256": "be5a8e2b83d4f34af95b014e6a451939b1a5e83f56372c478e748e3597a6570d",
           "logical_id": "mc-fb0c625aeade1143e630eb7b",
-          "row_sha256": "1be8c086e59de1a4d1fa5dc50a9b5d0521a939e17b610611021536d278fd49bb"
+          "row_sha256": "18418ef7443e96d0e155d882f1d85686a7099a694b8a1bad6f200512355800db"
         },
         {
-          "content_sha256": "937c7b19650e2ff83f6641c88115a6b896d4bd57adcc3f66fa450b19b3ce3c16",
+          "content_sha256": "23fccd3f68e209681f61b053c1e479a800600219cf844faa191a3236fea81183",
           "logical_id": "mc-30df6d9a5c0fd8e684af2f17",
-          "row_sha256": "b23e48a70c2d1568dc9a644b26d544a33be5ddd6f43b5ca033c11d0958c2617d"
+          "row_sha256": "63458c14cc1af6fa30007e505c5c0e556693c902c8cfbe984ed38aff746e5a5a"
         },
         {
-          "content_sha256": "a46baec908042f52c153e1ee35093cb8d66243f2c39d316004e00488e67c6804",
+          "content_sha256": "58554aa9677a121a83c23ced304c6e658fa077a222a3237ba7777f30429ba842",
           "logical_id": "mc-281380095aabd19ad91c51d6",
-          "row_sha256": "43787f5da1e66f00c2762f12c099511ce1a477e3ec88d8fc3dddeff77df618be"
+          "row_sha256": "88f6b0e28cf6d3f4599c6ba7098741fdb82e695fccc4863fce0193a70e085bba"
         },
         {
-          "content_sha256": "f4070cdcf6bfb860ebfa1e8a2fec20af7f98fbe6d2ee8547d1429adfb5fe1273",
+          "content_sha256": "79ab2459a7162eb7f525e5b3d1083526b4fe0ad0489be53bf8b9b83aa70520a0",
           "logical_id": "mc-455b749f88ebfaba60062e8d",
-          "row_sha256": "3246a66630a2d289132fb3896bdff7393ce89de001b2f42e46d45b8534e1d1e9"
+          "row_sha256": "2023815dc3bcd633258eb65b1b40bd320c3dd50c109e1dfbf7c1674fe45457b0"
         },
         {
-          "content_sha256": "4fda5e015ec1e0cfa3c97778be5a8a55bfefe94f46e22d81581a99c63ef1edbe",
+          "content_sha256": "6a9c850c84d5fc3f8d067ed94cd87e47d1ce4921c457094e426eeace587cfe0f",
           "logical_id": "mc-be5feb89a08576b9a714cf5b",
-          "row_sha256": "f5e17744f35932abc42c9ceca5feaa4f2c26e723eb88d85d438b4bff07f08042"
+          "row_sha256": "be1fa9fbcb7330b4661cdefb3bb48836d1545ec04b22e7f18dbd4ace9b8fae7f"
         },
         {
-          "content_sha256": "f51876e32bf00e1b74fdde89e0e31c24fe796eb774995581fb0ee765c0fd8b2e",
+          "content_sha256": "7d28c6750b9ce83c1f4fa62929e7cd208027a677a7a0faa1acaf9dbaf9b80756",
           "logical_id": "mc-23c1c68e40760d05b71a8647",
-          "row_sha256": "f437009173f09309d8c2ba4536e8450ea7fa8e849908833026586b57f6d445d5"
+          "row_sha256": "ef134a7c027201f7c721b63c94c914c38d4dd8fb93e7ce4dc7c2cf2e1cd64de2"
         },
         {
           "content_sha256": "4e39e9a979a73098aba1f4c86f3141013c81dc6a264d981233fd0a067b97fbcc",
@@ -1712,9 +1667,9 @@
           "row_sha256": "612a52bee53ea8948ba60362a24151d4080e5c80a31bd592d0dc0a848fe17bf3"
         },
         {
-          "content_sha256": "a18858677f44074aa56c4f995817b54a402fee87975a8f08988065892c9df54b",
+          "content_sha256": "10a74e6ff07ccb1735736b4cb3afc0a42ac707d111508ac71c24511f875a4648",
           "logical_id": "mc-c87676f61863c78bcbf9f2e6",
-          "row_sha256": "8393b317185a531f6a7c42f878373c3be076204742a32cef965347170f172ce2"
+          "row_sha256": "59325cfbedaa3d3c280d833b00b611d0aa1fc6791a4acc83aafa78248bfb25d8"
         },
         {
           "content_sha256": "255bc30bde5a2a8e36bd78f419434df0c457cd4e6f6ae7f37d1cee72daa5d7ca",
@@ -1722,9 +1677,9 @@
           "row_sha256": "5319df47a4e36ae2d2a157e282f2e1d5e90c9c09388628126de80186fe920dc9"
         },
         {
-          "content_sha256": "1b031cbfdbed1360fd916d851980ac4a43fb38e630fbc27b57ae319b09907f7d",
+          "content_sha256": "eccc0ea148135178f9a7af5a872b39cd623b78cfed98447d40aa18553b3f95cd",
           "logical_id": "mc-034e387fadad8ebbc0e6a813",
-          "row_sha256": "2bd7dabf118cfc9e0f908af7515f27213f6fa07959847ac8a5e6404e55de2377"
+          "row_sha256": "ebf3ab3452bdddcf24a7af09d8d568ec4749a1c88160395998e770f8b0300c74"
         },
         {
           "content_sha256": "d490c197a9aaddbd0b097208f6155739ebe5b63c613727449ef1d8006f02f720",
@@ -1732,14 +1687,9 @@
           "row_sha256": "8aa7c156ccbc192bb8fe4fc408f79371909975539bb73e05dcc9202822679250"
         },
         {
-          "content_sha256": "a7e74733ef959865dd4622b360ccacfe8648a75c9286c703f16f4a3e9640988a",
-          "logical_id": "mc-39eb3cefd390d467f780353e",
-          "row_sha256": "cf79c3f0bd4d961eec9d48d9ec6ab8701eeab17ad7fbc9401c45dca5545cd1a6"
-        },
-        {
-          "content_sha256": "996da066c0c32fd06d61c90affa41a38bbcc95f20d69ba37b4484fe804529b5e",
+          "content_sha256": "f1311176e7d0b3001e5f8d3451507c9dab471a313406c6042a519bf0c17ff831",
           "logical_id": "mc-baa834639ffae733c9e8be5d",
-          "row_sha256": "abfe039a59a4d21e5e3749687b71804953aa8fe26267178a40be4540bc81bfb7"
+          "row_sha256": "bc4a99efc74c8e9533d754b06ff73736682f7aab71570ba41a8356ced3fbfc79"
         },
         {
           "content_sha256": "f8f144cb1c42b41c682395daeeefa650ed97318962efb2b77bf4e4d7cc98ea82",
@@ -1747,49 +1697,49 @@
           "row_sha256": "bfab2b3ddf52fe5e7af43c0dd4bfe8cedd385b1be13ac04ef78201dfe5d51c4d"
         },
         {
-          "content_sha256": "89b2f8c5736936c5419091f13e480837a9641839179a0f610c999c731956fcad",
+          "content_sha256": "e926a60cff12385f62a841b53d7fe7d3680496c2a59acb014352100b0c9de05c",
           "logical_id": "mc-cf106f94c307b097e01f50c5",
-          "row_sha256": "f71c01b553611f6228d2d4875975d6b21d371e4cebf3134d3afaacd22941992d"
+          "row_sha256": "5e45a05a734b9a6301a2826f6a978d053f01e4e43b75b91d9f6dffff8db5b317"
         },
         {
-          "content_sha256": "0121c4fbb352e0dae43366626ef3c3755fb48da22283b9e9b1530e04a197b5a1",
+          "content_sha256": "9f4a978f5a9c23c4bb3b006d52c7fe25340d7e3253be76202747c4f508858cc6",
           "logical_id": "mc-32cb7a3958719df772201f26",
-          "row_sha256": "3504446151546e845d8d14a8d1cde87674b3d94a59deeba7050283f427ee94ae"
+          "row_sha256": "3bc4119f3040f6adccd24e2783baab6572ff12b579c1e567a086ed8c1b2f393c"
         },
         {
-          "content_sha256": "ce63446bc17ae4b5822ae988ea3329bf551ee571ff8affa39684c3bc05d88e97",
+          "content_sha256": "8aac8d8a023646bbda0d69eb7b40a6eb8ed92c17517ea82e7570f45d7f182b43",
           "logical_id": "mc-f5fd3b25c2b1051f48aa2bc0",
-          "row_sha256": "faad237b6c3d7caf37319859c97a1edd7c8b8c282ffe67a44052051266704812"
+          "row_sha256": "18ed755b986316a26859e52a0bdd547f4007465533dbd722586ab4bc62b8c2d5"
         },
         {
-          "content_sha256": "59dd853717fd026d8c2b0c7b60082c5f2019fb79f642ca1b513cfdac5a1f91ac",
+          "content_sha256": "bf5793840921b5f7974de23532e06036d6afd021e37b04f45819939a5ad64a7b",
           "logical_id": "mc-401590969bcaa1ef6ff794b7",
-          "row_sha256": "1cd167b6e5f47f3ddfbe5bcf0113e90f535ef71cc8a9b6655149561c86a53b80"
+          "row_sha256": "8464e0d6ff3354bf9e4a721587d8bcb0ffff15be8a92ba329603243e8321a0eb"
         },
         {
-          "content_sha256": "92ba9c40f4bacd0796048d97fc00c620aabcc6f63894bd8dda81b9faf91c8c76",
+          "content_sha256": "18bef0895bff69b7f3272b5ca7a6404d4e11a48e106331803e1c869591759723",
           "logical_id": "mc-739b495a4d363d6539380874",
-          "row_sha256": "f9fce1f4f4d1ff67441ed585112f81b52f30196798c2c657fce1eb14673734ad"
+          "row_sha256": "fe88342bfaee3c54c146eb8cbfe3215d0bc8b5589b477ff76823fb63056767af"
         },
         {
-          "content_sha256": "e9cebefe830ad4b076a6b800fd3fef4fee96cf2df08b0b9e0d309c06c7f5aa59",
-          "logical_id": "mc-40f72bc8635f39f0bf7723b3",
-          "row_sha256": "3e8a9c34c0d8811b038e6315a643825994b158f9f85417ce821f72e89b2e605f"
+          "content_sha256": "2733e495067bd63784e2ad1832659ed392d1ee68cc7bec27dd5186ebc7514b46",
+          "logical_id": "mc-c55a9823b372c95442dc2db8",
+          "row_sha256": "e39ec81af5b2f24ac2694502a14d0d6a0180ce0657ea4cc569d4ca253b93f6ad"
         },
         {
-          "content_sha256": "1cecfc0f59d2f5795b10f2eca2a775d84edfa2de6a2d84acd91d41626db62898",
-          "logical_id": "mc-9c2d0dd6f8e7310510b51d0a",
-          "row_sha256": "493a663b655382de34f9ef761f6e5df8c1406857ba4e0e91a858e5e591fa908d"
+          "content_sha256": "3fbb7a91b3eab3e1eb7abbacd95fcb7f62cf79cd3912e4ea89ff61d5d54d85a2",
+          "logical_id": "mc-546505f89a561f1a96c83248",
+          "row_sha256": "a87475c300002090bcc08f83c7d890a1e62e91148b0162f914910dac520fc28e"
         }
       ],
-      "sha256": "140074b91845e1c0f30890b42a35cbd736be354c2b2f71ba7e275998562699cd",
+      "sha256": "ab57c1173abf95504d02989a08d8bfe83a02e8d03357779ff1ad5f01795f90f7",
       "sheet_name": "cards",
-      "table_sha256": "985ac50c4723929a4c377fb5cc582fa63d2416e47ee968adc8c92efccbce0107",
+      "table_sha256": "3868a9e357bde299c9066230a331f16cccdf3c3dc821da5f557b72a85b703866",
       "template_id": "technical-qa",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 9812,
+      "byte_size": 9958,
       "columns": [
         "问题",
         "参考回答",
@@ -1801,40 +1751,40 @@
       "row_count": 4,
       "rows": [
         {
-          "content_sha256": "81ce6a29d3885da3ba8da9f6a03111dc9941231c6c65556e2003a53f6ea7c5b9",
+          "content_sha256": "b35370dbc8afc5bfb4168ad5e4f2269e459fab8e367b53f260e915dc086372df",
           "logical_id": "mc-b454b74ff5412e8cdecb6903",
           "row_sha256": "dc876ec3f4bb73c55447c677c751dceb3f4536bbc67d6029483297ca61acc2fa"
         },
         {
-          "content_sha256": "2dcb14cbb54462a6942e9f1d8f91e14289faae62eef319c743c3d80029497241",
+          "content_sha256": "fceb0c72a2ddcbedd8292bf23967bc2ba0bb107d174c4816e5caf1f0c12eb3f9",
           "logical_id": "mc-d1dda4cc075c9bc27a784223",
-          "row_sha256": "152ecc070203b12683a6728c7f9fa3c02b53e0e93ac8066f6bb76cf568489b28"
+          "row_sha256": "622714a0f863b61dedbfbed06a1730ba0d0081f9a59c6aff291c221ebecbaa0c"
         },
         {
-          "content_sha256": "8430db281ea1cc6b2f18b85d7ac1466c20c10060ccdb7bff2a05b0ebdb940956",
+          "content_sha256": "98a0888dba45f3c8478da8df8df2979b01a70d938108f01b29250857d068c226",
           "logical_id": "mc-3d3e052793ab6f4d8ea66293",
-          "row_sha256": "d17a3b616aacc35330bf7a4a6aa35590c7e2243d95b9aa7434b7a30759788b54"
+          "row_sha256": "24d9cc2cb3c4b5b2751a6c15679f4f84072adc0dedd33e6ff237ff3cde44d3be"
         },
         {
-          "content_sha256": "356c9c055c9be63604e3aa16c65a75214d36ea640867e7400b7ad4bebbbb136e",
+          "content_sha256": "d63b8369a7758503ce339cb8b577733baa4ef13b757506433423bc2b9e9133af",
           "logical_id": "mc-378dffdf971fa311ae0ebbf2",
-          "row_sha256": "da823f49a5752474a3d8379f9907efdb41568d0813b207f23e33ab0ec651c435"
+          "row_sha256": "029e5d8de42ddb6306f5382ea981c7fd860bcd436d43d6baabb434aa277e1a20"
         }
       ],
-      "sha256": "9996102d6ff0e2c03221b67733be1185c9174fbdf5e15c1dfb2f81d1ae05c157",
+      "sha256": "4419647fa0fcbd86e1805c907b566b7ebaafe1ab9344115f993266f7458f433a",
       "sheet_name": "cards",
-      "table_sha256": "f72423551f442abb0daf82568add419aca7d05e3f214c055c0dcb9ee96aca4f1",
+      "table_sha256": "1a5d0bdb9b01859f5918fe622f60d212aa7c08d82694efdc46cb7a2d89a4cba7",
       "template_id": "oral",
       "template_version": "1.1.0"
     }
   ],
-  "source_fingerprint": "9aede5ce2330eedac8c2dc3f1bc8ecff8f353a0d8ef681ab8c06196811b9c76e",
+  "source_fingerprint": "5ff014df2600a532906663348dcea6d68498e10a8b57da4071df3e6642b188d7",
   "sources": [
     {
       "collection": "triton-study-logs",
       "id": "block-scaled-matmul-log",
       "path": "docs/triton-learning/logs/2026-10-20-block-scaled-matmul.md",
-      "sha256": "34630f5faaffb19ce8e5e75d44ebdf508c87ee08c209442aa7ea0fc9fd9a2f36",
+      "sha256": "eeeda67e2fe0658f83ba13940800d5b100f367a0265b0d68fa2d7cbce898e08b",
       "summary": "10/14–10/20：浮点与块缩放格式、scale 乘在哪一步与预排、五种硬件落地、MI300X 取舍、练习与 M1 测量的纠错与答疑"
     }
   ],
@@ -1860,7 +1810,7 @@
 {{说明}}
 ```
 
-导入文件：[triton-lesson-10-block-scaled-matmul-correction.xlsx](triton-lesson-10-block-scaled-matmul-correction.xlsx)（17 张卡）
+导入文件：[triton-lesson-10-block-scaled-matmul-correction.xlsx](triton-lesson-10-block-scaled-matmul-correction.xlsx)（16 张卡）
 
 ## 技术问答卡
 
@@ -1874,7 +1824,7 @@
 📍 [T#!939393#{{来源}}]
 ```
 
-导入文件：[triton-lesson-10-block-scaled-matmul-technical-qa.xlsx](triton-lesson-10-block-scaled-matmul-technical-qa.xlsx)（31 张卡）
+导入文件：[triton-lesson-10-block-scaled-matmul-technical-qa.xlsx](triton-lesson-10-block-scaled-matmul-technical-qa.xlsx)（30 张卡）
 
 ## 综合口述卡
 

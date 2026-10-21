@@ -1,0 +1,1042 @@
+{
+  "schema": "memo-cards.request/v1",
+  "output_collection": "triton-cards",
+  "target": "docs/triton-learning/cards/triton-lesson-03-matrix-multiplication.md",
+  "selection": "complete",
+  "sources": [
+    {
+      "collection": "triton-study-logs",
+      "id": "lesson-03-concept-log",
+      "path": "docs/triton-learning/logs/2026-08-17-matrix-multiplication.md",
+      "sha256": "5d12fb944eeee2c6e3da3db3fa54efa131b8f98c7eef243e3ee8d6b695c3f1b6",
+      "summary": "Lesson 03 已核验概念节点、真实纠错与映射示例；不消费遗留项"
+    },
+    {
+      "collection": "triton-study-logs",
+      "id": "lesson-03-study-log",
+      "path": "docs/triton-learning/logs/2026-08-19-matrix-multiplication.md",
+      "sha256": "2cc3e5f83e899a5c97c91e46c65ac69f42dd18ce4141c1399ec22d3de0d47d23",
+      "summary": "Lesson 03 实践、纠错、性能证据解释与结课记录"
+    }
+  ],
+  "cards": [
+    {
+      "key": "card-01",
+      "rank": 1,
+      "assessment": "mechanism",
+      "domain": "blocked-matmul",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "追踪单个输出 tile 的分块加载、k 轴推进和累加数据流",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "计算 C=A×B，其中 A 的形状为 [M,K]、B 为 [K,N]。若一个 program 负责 C 的一个 [BLOCK_M,BLOCK_N] 输出块，它如何沿 K 轴完成这个块的计算？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "固定输出块覆盖的 M 行和 N 列，沿共享的 K 轴逐段加载 A、B，并把每段矩阵乘法的结果累加到同一输出块。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "为这块输出建立形状为 [BLOCK_M,BLOCK_N] 的 FP32 accumulator，并初始化为零。它的两个轴对应输出行和输出列，不包含 K 轴。"
+                }
+              ],
+              "label": "初始化"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "在当前 K 段，加载 A 的 [BLOCK_M,BLOCK_K] 块以及 B 的 [BLOCK_K,BLOCK_N] 块；两者共享同一段 K 坐标。"
+                }
+              ],
+              "label": "每轮加载"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "两块相乘得到 [BLOCK_M,BLOCK_N] 的部分和并加入 accumulator；随后 A、B 的读取位置都沿 K 轴前进 BLOCK_K 个元素（对 A 是移到后面的列，对 B 是移到后面的行），输出行列坐标保持不变。"
+                }
+              ],
+              "label": "乘加与推进"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "遍历全部 K 段后，accumulator 才包含完整点积，可以写回该 program 负责的 C 块。"
+                }
+              ],
+              "label": "完成输出"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "K 不是 BLOCK_K 的整数倍时，最后一段越界的 K 位置要在 load 时补零；超出 M/N 的输出位置在写回时丢弃。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "固定 M/N，遍历 K，累加部分和",
+        "来源": "Lesson 03 · 8/17 概念记录"
+      },
+      "source_ids": [
+        "lesson-03-concept-log"
+      ],
+      "content_summary": "从 A[M,K]、B[K,N] 与固定 C 输出块出发，解释 FP32 accumulator、沿 K 的加载乘加与指针推进，以及尾部处理的位置。",
+      "depends_on": []
+    },
+    {
+      "key": "card-02",
+      "rank": 2,
+      "assessment": "discrimination",
+      "domain": "triton-matmul",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "区分分块 matmul 中固定局部 offs_k 与指针推进后的全局 k 坐标",
+      "layer": "atomic",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 4,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Triton 分块矩阵乘法的 K 循环里，offs_k=tl.arange(0,BLOCK_K) 是块内的局部 K 偏移，每轮结束时把 A、B 的指针沿 K 推进 BLOCK_K。为什么 K 尾部的 load mask 不能直接写成 offs_k<K？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "因为 offs_k 是不随轮次变化的局部偏移，而 mask 要判断的是全局 K 坐标：第 t 轮（t 从 0 计）的全局坐标是 t×BLOCK_K+offs_k，正确条件是 t×BLOCK_K+offs_k<K，即 offs_k<K−t×BLOCK_K。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "指针推进后，同一组 offs_k=[0,…,BLOCK_K−1] 每轮指向不同的全局 K 坐标；变化的是指针基址，不是 offs_k 本身。"
+                }
+              ],
+              "label": "局部与全局"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "offs_k<K 只在第 0 轮与全局条件一致。例如 BLOCK_K=4、K=5：第 1 轮 offs_k 仍为 [0,1,2,3]，全部小于 5，全局坐标 5、6、7 的越界位置没有被屏蔽，读到的错误值会进入有效输出的累加。"
+                }
+              ],
+              "label": "写错的后果"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "只有 K 大于 BLOCK_K 且不是它的整数倍时，这个错误才会暴露；所以测试要有专门触发 K 尾部的 shape，例如 K=40、BLOCK_K=32。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "mask 比全局 K 坐标，不比局部偏移",
+        "来源": "Lesson 03 · 8/17 概念记录 · Triton 3.7.1"
+      },
+      "source_ids": [
+        "lesson-03-concept-log"
+      ],
+      "content_summary": "指针推进写法下，用全局 K=t×BLOCK_K+offs_k 说明 K 尾部 load mask 为何不能写成 offs_k<K。",
+      "depends_on": []
+    },
+    {
+      "key": "card-03",
+      "rank": 3,
+      "assessment": "mechanism",
+      "domain": "triton-matmul",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "解释为什么 k 尾部必须在 load 时补零而不能依赖 c store mask",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "计算 C[M,N]=A[M,K]×B[K,N] 时，若 K 不是 BLOCK_K 的整数倍，为什么不能只靠最终写回 C 的 mask 来处理 K 尾部的越界读取？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "因为 K 是每个有效输出元素内部的求和轴；错误的尾部输入会先进入有效结果的累加和，写回 mask 无法再把这些错误项剔除。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "C_{ij}=\\sum_{k=0}^{K-1}A_{ik}B_{kj}"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "对合法的 i、j，如果最后一块仍把 k≥K 的数据参与乘加，得到的 accumulator 就已经不是上式的结果。"
+                }
+              ],
+              "label": "污染发生的位置"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "最终 mask 只判断输出行 i<M、列 j<N 是否有效。它能丢弃不存在的 C 元素，却不能检查一个合法 C 元素内部哪些乘积来自错误 K 坐标。"
+                }
+              ],
+              "label": "写回 mask 的职责"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "因此 K 尾部必须在读取 A/B 时屏蔽并补零，使额外乘积为零；M/N 输出边界才由最终 store mask 裁掉。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "归约前补零，写回时裁边界",
+        "来源": "Lesson 03 · 8/17 概念记录；8/19 综合验收"
+      },
+      "source_ids": [
+        "lesson-03-concept-log",
+        "lesson-03-study-log"
+      ],
+      "content_summary": "用 C 的 K 轴点积解释错误输入如何污染有效输出，以及 load mask 与 store mask 的不同作用。",
+      "depends_on": []
+    },
+    {
+      "key": "card-04",
+      "rank": 4,
+      "assessment": "mechanism",
+      "domain": "blocked-matmul",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "解释 m/n 边界读取合法 dummy 数据不会污染有效输出的原因及与 mask 的关系",
+      "layer": "mechanism",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 4,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "在分块矩阵乘法 C[M,N]=A[M,K]×B[K,N] 的边界块中，为什么可以让超出 M/N 的位置通过取模读取合法的替代输入，再丢弃对应输出？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "因为 M/N 决定的是不同输出元素的位置，而不是同一个输出内部的求和项；无效行列位置的计算只会生成最终被丢弃的输出。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "例如无效的 A 行号对 M 取模、无效的 B 列号对 N 取模，可以让读取落在合法地址，同时保留固定大小的输入 tile。这里的替代值只是为无效输出位置提供占位计算。"
+                }
+              ],
+              "label": "替代输入的作用"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "矩阵乘法的每个 C[i,j] 只沿 K 求和，不会把别的输出行或列加进自己。有效 i、j 的点积仍使用其本来对应的 A 行和 B 列。"
+                }
+              ],
+              "label": "为何不污染有效结果"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "写回时必须用未经取模的原始输出行列号判断 i<M 且 j<N，丢弃替代位置算出的结果。"
+                }
+              ],
+              "label": "写回条件"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "M/N load 直接用 mask 也能保证正确，取模并不保证更快。这个理由不能用于 K：K 若回绕并参与求和，就会把重复乘积加进有效输出。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "无效输出可丢弃，归约污染不可丢弃",
+        "来源": "Lesson 03 · 8/17 概念记录"
+      },
+      "source_ids": [
+        "lesson-03-concept-log"
+      ],
+      "content_summary": "解释 M/N 是独立输出坐标、K 是归约坐标，因此合法替代输入只可服务于最终丢弃的输出。",
+      "depends_on": []
+    },
+    {
+      "key": "card-06",
+      "rank": 6,
+      "assessment": "discrimination",
+      "domain": "triton-matmul",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "判定 grouped ordering 中组内线性 pid 到 m/n tile 坐标的变化顺序",
+      "layer": "atomic",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 4,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Triton 官方 matmul 教程在单个 GEMM 内重排 PID（grouped ordering）。输出 tile 网格为 4 行×3 列、GROUP_SIZE_M=2 时，第一组里 PID 递增，输出 tile 坐标按什么规律变化？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "组内 PID 先沿 M 方向让 tile 行号递增、走完组高后，再换到下一个 tile 列（N 方向）：第一组依次处理 (0,0)、(1,0)、(0,1)、(1,1)、(0,2)、(1,2)。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "坐标写作 (输出 tile 行号,输出 tile 列号)，不是原矩阵中的单个元素坐标；第一组覆盖 tile 行 0、1，组高为 2。"
+                }
+              ],
+              "label": "坐标约定"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "把组内线性编号记作 p、实际组高记作 h，则组内行号为 p%h，tile 列号为 p//h；全局行号还需加上该组起始 tile 行号。"
+                }
+              ],
+              "label": "映射规律"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "相邻的 pid=2、3 负责 (0,1)、(1,1)：输出行不同、输出列相同，因此在相同 K 段读同一块 B 列 tile。"
+                }
+              ],
+              "label": "复用关系"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这是线性 PID 到输出坐标的映射，不保证 GPU 按这个顺序执行完成；最后一组不足两行时，h 要改用实际组高。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "组内先 M，后 N",
+        "来源": "Lesson 03 · 8/17 概念记录 · Triton 3.7.1"
+      },
+      "source_ids": [
+        "lesson-03-concept-log"
+      ],
+      "content_summary": "在单个 GEMM 内的 grouped ordering 中，说明组内 PID 先沿 M 后沿 N 的映射规律及相邻 PID 的 B tile 复用。",
+      "depends_on": []
+    },
+    {
+      "key": "card-07",
+      "rank": 7,
+      "assessment": "mechanism",
+      "domain": "triton-matmul",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "解释 grouped pid 映射为何必须使用尾组实际大小",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "分块矩阵乘法按 GROUP_SIZE_M 个输出 tile 行分组时，若最后一组不足整组，为什么 PID 映射必须使用尾组的实际行数？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "因为尾组实际只有剩下的 tile 行：组内行号用 p%h、列号用 p//h 计算（p 是组内线性编号），h 必须取尾组的实际组高；若仍用设定组高，就会映射出不存在的 tile，同时漏掉必须计算的 tile。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "设 tile 总行数为 num_pid_m，当前组的起始 tile 行号为 first_pid_m，则实际组高是 min(GROUP_SIZE_M,num_pid_m−first_pid_m)。"
+                }
+              ],
+              "label": "实际组高"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "tile 网格有 5 行、3 列，设定组高为 2。前两组覆盖行 0–3，尾组只有行 4，所以剩余 pid=12、13、14 应依次映射到 (4,0)、(4,1)、(4,2)。"
+                }
+              ],
+              "label": "具体例子"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "若尾组仍按两行计算，pid=13 会被映射到不存在的 (5,0)，pid=14 只到 (4,1)，导致必须计算的 (4,2) 没有 program 负责。"
+                }
+              ],
+              "label": "错误后果"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "完整组继续使用设定组高；仅当剩余 tile 行数不足一组时缩小。实际组高保证的是输出覆盖正确性，不能仅靠 store mask 修复遗漏。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "不越界，也不漏块",
+        "来源": "Lesson 03 · 8/17 概念记录；8/19 尾组变式"
+      },
+      "source_ids": [
+        "lesson-03-concept-log",
+        "lesson-03-study-log"
+      ],
+      "content_summary": "用 5×3 输出 tile 网格说明尾组实际组高如何同时避免非法行号和合法输出遗漏。",
+      "depends_on": []
+    },
+    {
+      "key": "card-08",
+      "rank": 8,
+      "assessment": "discrimination",
+      "domain": "triton-api",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "区分 triton 的 reduction tl.min 与 elementwise tl.minimum",
+      "layer": "atomic",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 4,
+      "template_id": "correction",
+      "fields": {
+        "意图": "在 Triton kernel 里计算输出 tile 尾组的实际组高：在两个标量之间取较小值。",
+        "场景": "在 Triton 3.7.1 中：num_pid_m 是输出 tile 的总行数，first_pid_m 是当前组的起始 tile 行号，GROUP_SIZE_M 是设定组高；实际组高取 num_pid_m − first_pid_m 与 GROUP_SIZE_M 中较小的一个。",
+        "正确": "tl.minimum(num_pid_m - first_pid_m, GROUP_SIZE_M)，或教程使用的 Python 内建 min(num_pid_m - first_pid_m, GROUP_SIZE_M)",
+        "错误": "this_group_size_m = tl.min(num_pid_m - first_pid_m, GROUP_SIZE_M)",
+        "说明": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "错在把归约 API tl.min 当成两数取小：它的第二个位置参数是归约轴，GROUP_SIZE_M 被当成了轴号，于是编译阶段就报 invalid axis。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "tl.minimum 与 JIT 中的内建 min 都表示两个值取小，这里比较的是两个标量；tl.min 则把一个张量沿指定轴归约。"
+                }
+              ],
+              "label": "两类 API"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "第一版的数值用例全部停在编译阶段，报错指向 axis 而不是数值结果，这正是参数被当成归约轴的信号。"
+                }
+              ],
+              "label": "诊断线索"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "需要沿张量的某个轴求最小值时，tl.min 仍是对应的归约操作；以上 API 语义按 Triton 3.7.1 核对。"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "source_ids": [
+        "lesson-03-study-log"
+      ],
+      "content_summary": "恢复 tl.min(num_pid_m - first_pid_m, GROUP_SIZE_M) 的真实错误，区分归约 tl.min 与两值取小的 tl.minimum／内建 min。",
+      "depends_on": []
+    },
+    {
+      "key": "card-09",
+      "rank": 9,
+      "assessment": "mechanism",
+      "domain": "matmul-performance",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "解释仅凭 shape、program 数量和 k-loop 次数不能裁决 tile 配置性能的原因",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "为同一个矩阵乘法 A[M,K]×B[K,N] 选择 BLOCK_M、BLOCK_N、BLOCK_K 时，为什么只比较输入 shape、program 数和 K 循环次数，仍不能确定哪组 tile 配置最快？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "因为 tile 大小同时改变复用收益，以及边界浪费和资源占用两类代价；program 更少或 K 循环更短只反映了部分开销，不等于总延迟更低。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "[BLOCK_M,BLOCK_K]×[BLOCK_K,BLOCK_N] 的一次块乘里，每个 A 元素参与 BLOCK_N 次乘加、每个 B 元素参与 BLOCK_M 次；tile 越大，每次加载的数据用得越多。"
+                }
+              ],
+              "label": "复用收益"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "M/N 尾部不满时，大 tile 会多算不写回的位置。例如 M=N=130：128×128 tile 只要 4 个 program，名义输出却有 65,536 个；64×64 tile 要 9 个，名义输出 36,864 个；有效输出都是 16,900 个。"
+                }
+              ],
+              "label": "边界浪费"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "更大的输出 tile 需要更大的 accumulator，可能提高寄存器占用，让同时驻留的 program/warp 变少，隐藏访存与执行延迟的机会也随之减少。"
+                }
+              ],
+              "label": "资源占用"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "warps/stages、GPU 架构和编译结果也会改变实际瓶颈；shape 分析只适合筛选候选和提出预测，最终以目标 GPU 上相同输入、可比计时条件下的测量为准。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "复用收益与资源代价共同决定性能",
+        "来源": "Lesson 03 · 8/17 概念记录"
+      },
+      "source_ids": [
+        "lesson-03-concept-log"
+      ],
+      "content_summary": "说明 tile 配置同时影响复用收益、边界浪费与寄存器驻留，计数只能筛候选而不能裁决性能。",
+      "depends_on": []
+    },
+    {
+      "key": "group-size-benchmark-correction",
+      "rank": 10,
+      "assessment": "discrimination",
+      "domain": "gpu-performance-evidence",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "纠正把无法与运行漂移区分的配置差异说成对性能影响较小",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "correction",
+      "fields": {
+        "意图": "根据 ABBA 顺序的 benchmark 读数，给出 GROUP_SIZE_M=1 与 2 的性能结论。",
+        "场景": "RTX 5090 上的 matmul，M=N=K=4096，固定 64×64×32 block、4 warps、3 stages 和同一输入，只改变 GROUP_SIZE_M；按 1→2→2→1 的顺序测得 median 0.6687、0.6902、0.6943、0.6975 ms（group 1 首末两次相差约 4%）。",
+        "正确": "只能说：在这台 RTX 5090、该 shape、固定 launch 配置和本次方法下，GROUP_SIZE_M 的影响无法与约 4% 的运行状态漂移稳定分离；既不支持 group 2 更快，也不支持 group 1 更快。",
+        "错误": "在当前环境和固定配置上，对性能影响较小",
+        "说明": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "错在把“分不出差异”升级成“差异很小”：配置差异与约 4% 的运行漂移混在一起时，看不清差异可能是噪声太大，而不是差异本身小。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "前半程 group 1 更快、后半程 group 2 略快，两对比较的方向相反；同一个 group 1 首末两次就差约 4%，配置带来的差异淹没在漂移里。"
+                }
+              ],
+              "label": "读数为何分不开"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这组读数既不支持 group 2 更快，也不能反过来断言 group 1 更快；结论只限于本机、该 shape、固定配置和本次测量方法。"
+                }
+              ],
+              "label": "能下的结论"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这次“分不出来”不能外推成 grouped ordering 没有收益；换设备、shape、分组大小或测量方法都要重新测量。"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "source_ids": [
+        "lesson-03-study-log"
+      ],
+      "content_summary": "用 RTX 5090 上 ABBA 四个 median 的读数，纠正把无法与漂移区分的差异说成影响较小。",
+      "depends_on": []
+    },
+    {
+      "key": "card-11",
+      "rank": 11,
+      "assessment": "mechanism",
+      "domain": "triton-matmul-performance",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "解释 grouped ordering 何时可能通过 l2 locality 显著获益",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "在单个 GEMM 内，grouped ordering 只重排线性 PID 到输出 tile 的映射。为什么这样可能提高 GPU 的 L2 cache 命中率并加速分块矩阵乘法？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "它让需要相同 A/B 输入 tile 的 program 在映射上更接近，缩短数据再次被访问的间隔；如果数据此时仍在 L2 中，就可能减少重复从显存读取的流量。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "同一输出 tile 列的不同行，会在相同 K 段使用同一个 B tile；同一输出 tile 行的不同列，也会使用相同 A tile。分组排序尝试让这些复用更及时。"
+                }
+              ],
+              "label": "复用机会"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "“访问间隔短”必须短到数据尚未被其他访问从 L2 淘汰，才可能转化为命中收益。"
+                }
+              ],
+              "label": "缓存条件"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "二维 tile 网格较大、留有重排空间，计算对访存较敏感，且 group size 与并发窗口（同时活跃的那一小批 program）、block 配置和目标架构匹配时，减少显存流量更有机会降低耗时。"
+                }
+              ],
+              "label": "何时更有帮助"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "PID 映射不强制实际调度顺序；L2 容量和并发访问也会改变数据驻留。因此 grouped ordering 不能保证每次更快，更不能推出 group size 越大越快。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "复用赶在 L2 淘汰之前",
+        "来源": "Lesson 03 · 8/19 实践记录 · grouped ordering"
+      },
+      "source_ids": [
+        "lesson-03-study-log"
+      ],
+      "content_summary": "串联输出 tile 的 A/B 复用、重排后的访问间隔与 L2 驻留条件，并限定性能结论。",
+      "depends_on": []
+    },
+    {
+      "key": "card-12",
+      "rank": 12,
+      "assessment": "oral",
+      "domain": "triton-matmul-performance",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "综合说明 grouped ordering 的加速机制并解释一次证据不足的测量",
+      "layer": "oral",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 4,
+      "template_id": "oral",
+      "fields": {
+        "问题": "面试官问：“你在 RTX 5090 上只改 GROUP_SIZE_M=1/2 对比 matmul，看不出稳定的性能差异，那 grouped ordering 还有用吗？”请在 60–90 秒内回答：它靠什么机制争取收益、什么条件下更可能见效，以及你会怎样解读这次结果。",
+        "参考回答": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "有用，但不是必然加速：它靠缩短 A/B tile 的复用间隔来争取 L2 命中；这次对照只说明在本机该配置下，差异无法与运行漂移区分，不能说明它没用。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "同一输出 tile 列的 program 在相同 K 段共用 B tile，同一 tile 行的共用 A tile；分组让这些 program 在映射上更接近，若再次访问时数据仍在 L2，就能少读显存。"
+                }
+              ],
+              "label": "复用机制"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "二维 tile 网格较大、kernel 对访存敏感、group size 与并发窗口和 block 配置匹配时更可能见效；PID 映射也不强制实际调度顺序。"
+                }
+              ],
+              "label": "生效条件"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "两种配置的差异与约 4% 的运行漂移混在一起，只能报告证据不足：既不能说哪组更快，也不能说真实影响很小；结论只限所测设备、shape、配置和计时口径。"
+                }
+              ],
+              "label": "解读结果"
+            }
+          ]
+        },
+        "评分锚点": [
+          "说出复用来源：同列 program 共用 B tile、同行共用 A tile，分组让它们在映射上更接近",
+          "说明复用必须发生在数据仍驻留 L2 时，才会减少显存读取",
+          "说出至少两个生效条件：二维 tile 网格较大、访存敏感、group size 与并发窗口匹配",
+          "把这次结果表述为无法与漂移区分的证据不足，不说成影响很小，并限定外推范围"
+        ],
+        "来源": "Lesson 03 · 8/17 概念记录；8/19 性能解释"
+      },
+      "source_ids": [
+        "lesson-03-concept-log",
+        "lesson-03-study-log"
+      ],
+      "content_summary": "以面试追问为场景，口述 grouped ordering 的 L2 复用机制、生效条件，以及一次证据不足的测量怎样解读。",
+      "depends_on": [
+        "card-11",
+        "group-size-benchmark-correction"
+      ],
+      "review_resolution": {
+        "summary": "已对照更新后的 card-11 与新子卡 group-size-benchmark-correction 复核：参考回答只使用两张子卡中的复用机制、生效条件、约 4% 漂移与证据不足结论，四个评分锚点与题面三问一一对应。"
+      }
+    },
+    {
+      "key": "grouped-vs-rowmajor-loads",
+      "rank": 13,
+      "assessment": "mechanism",
+      "domain": "triton-matmul-performance",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "用 9×9 block 例子数出 row-major 与分组顺序的输入 block 加载量并说明差距来源",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Triton 官方 matmul 教程用一个例子说明单个 GEMM 内的 grouped ordering：A、B 都是 9×9 个 block，要算出最先的 9 个输出 block。按 row-major 顺序需要加载 90 个输入 block，按每组 3 个 tile 行的 grouped ordering 只需 54 个。这两个数分别怎样数出来？差距来自哪里？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "输出 block (i,j) 需要 A 的第 i 个 tile 行和 B 的第 j 个 tile 列；一批输出覆盖的不同 tile 行数加不同 tile 列数越少，要加载的输入 block 就越少。row-major 的 9 个输出排成 1×9，分组后排成 3×3。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "A、B 都是 9×9 个 block，所以一个 A tile 行或一个 B tile 列各含沿 K 方向的 9 个 block。"
+                }
+              ],
+              "label": "计数单位"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "前 9 个输出 block 同在第 0 个 tile 行：需要 1 个 A tile 行和全部 9 个 B tile 列，共 9+81=90 个。"
+                }
+              ],
+              "label": "row-major"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "每组 3 个 tile 行、组内先沿 M，前 9 个输出 block 是左上的 3×3：需要 3 个 A tile 行和 3 个 B tile 列，共 27+27=54 个。"
+                }
+              ],
+              "label": "grouped"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这是假设每个不同的输入 block 只加载一次的理想化计数；实际能省多少显存流量，还要看这些 block 被再次使用时是否仍在 L2 中。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "覆盖的行数加列数越少，输入 block 越少",
+        "来源": "Lesson 03 · 8/19 实践记录 · grouped ordering 访存对比"
+      },
+      "source_ids": [
+        "lesson-03-study-log"
+      ],
+      "content_summary": "用教程 9×9 block 例子，按 A tile 行与 B tile 列计数，说明 row-major 90 与分组 54 的差距来源。",
+      "depends_on": []
+    },
+    {
+      "key": "matmul-kernel-walkthrough-oral",
+      "rank": 14,
+      "assessment": "oral",
+      "domain": "triton-matmul",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "综合走读 triton matmul kernel 从 pid 映射到写回的流程与 m/n/k 边界处理",
+      "layer": "oral",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 4,
+      "template_id": "oral",
+      "fields": {
+        "问题": "面试官请你走读 Triton 官方 matmul 教程的 kernel：C[M,N]=A[M,K]×B[K,N]，每个 program 负责一个 [BLOCK_M,BLOCK_N] 的输出 tile。请在 60–90 秒内按执行顺序讲清：program 怎样从 pid 找到自己的 tile、怎样沿 K 算完它，以及 M/N/K 三类边界分别在哪一步处理、为什么。",
+        "参考回答": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "pid 先映射到输出 tile，再沿 K 循环乘加到 FP32 accumulator，最后带 mask 写回；K 尾部在 load 时补零，M/N 越界只在写回时丢弃。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "grouped ordering 把线性 pid 映射成 (pid_m, pid_n)：组内行号 p%h、列号 p//h；尾组的 h 取实际剩余行数，否则会越界又漏块。"
+                }
+              ],
+              "label": "定位 tile"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "accumulator 为 [BLOCK_M,BLOCK_N]、初值为零；每轮加载 A 的 [BLOCK_M,BLOCK_K] 与 B 的 [BLOCK_K,BLOCK_N]，乘加后两边读取位置沿 K 前进 BLOCK_K。"
+                }
+              ],
+              "label": "K 循环"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "K 是归约轴：越界的 K 位置必须在 load 时补零，错误项一旦加进有效的 C[i,j]，写回 mask 就剔除不了。"
+                }
+              ],
+              "label": "K 尾部"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "M/N 是独立的输出坐标：越界行列可取模读合法的替代数据，结果在写回时按原始行列号 mask 丢弃；直接用 load mask 也正确，取模不保证更快。"
+                }
+              ],
+              "label": "M/N 边界"
+            }
+          ]
+        },
+        "评分锚点": [
+          "pid 经分组映射到输出 tile，尾组用实际组高，避免越界和漏块",
+          "FP32 accumulator 固定在一个输出 tile 上，沿 K 逐段加载 A、B 并乘加，读取位置沿 K 前进",
+          "K 尾部在 load 时补零，因为累加进有效输出的错误项无法被写回 mask 剔除",
+          "M/N 越界可取模读替代数据，写回时按原始行列号 mask 丢弃"
+        ],
+        "来源": "Lesson 03 · 8/17 概念记录；8/19 实践记录"
+      },
+      "source_ids": [
+        "lesson-03-concept-log",
+        "lesson-03-study-log"
+      ],
+      "content_summary": "以面试走读为场景，串联 grouped PID 映射与尾组、K 循环与 FP32 累加、K 尾部补零和 M/N 写回 mask。",
+      "depends_on": [
+        "card-01",
+        "card-03",
+        "card-04",
+        "card-07"
+      ]
+    }
+  ]
+}

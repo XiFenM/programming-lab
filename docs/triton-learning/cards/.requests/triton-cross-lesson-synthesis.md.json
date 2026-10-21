@@ -1,0 +1,559 @@
+{
+ "schema": "memo-cards.request/v1",
+ "output_collection": "triton-cards",
+ "target": "docs/triton-learning/cards/triton-cross-lesson-synthesis.md",
+ "selection": "selected",
+ "sources": [
+  {
+   "id": "l01-vector-add",
+   "collection": "triton-study-logs",
+   "path": "docs/triton-learning/logs/2026-07-27-vector-add.md",
+   "sha256": "fd35cf8d15f471bd99f209791d53a5367de1b1c3a143849ff0eac886de9383aa",
+   "summary": "向量加法：mask、归约与计时"
+  },
+  {
+   "id": "l02-fused-softmax",
+   "collection": "triton-study-logs",
+   "path": "docs/triton-learning/logs/2026-08-07-fused-softmax.md",
+   "sha256": "44335bf79ea2330369e998c0b83a173fd98473bb2c9a0554d7916a3fecaac432",
+   "summary": "Fused Softmax：−inf padding、persistent 分配"
+  },
+  {
+   "id": "l03-matmul-0817",
+   "collection": "triton-study-logs",
+   "path": "docs/triton-learning/logs/2026-08-17-matrix-multiplication.md",
+   "sha256": "5d12fb944eeee2c6e3da3db3fa54efa131b8f98c7eef243e3ee8d6b695c3f1b6",
+   "summary": "矩阵乘：局部 offs_k 与全局 K 坐标、分组 PID"
+  },
+  {
+   "id": "l03-matmul-0819",
+   "collection": "triton-study-logs",
+   "path": "docs/triton-learning/logs/2026-08-19-matrix-multiplication.md",
+   "sha256": "2cc3e5f83e899a5c97c91e46c65ac69f42dd18ce4141c1399ec22d3de0d47d23",
+   "summary": "矩阵乘：K 尾部补零、grouped ordering 的 L2 复用"
+  },
+  {
+   "id": "l04-dropout",
+   "collection": "triton-study-logs",
+   "path": "docs/triton-learning/logs/2026-08-24-low-memory-dropout.md",
+   "sha256": "333dfa19abf05e89eefc53f29c0aeebbcd1241d3ce9ad74f38afab1ec4c40df9",
+   "summary": "Low-Memory Dropout：global offsets、seed 取代 mask"
+  },
+  {
+   "id": "l05-layer-norm",
+   "collection": "triton-study-logs",
+   "path": "docs/triton-learning/logs/2026-09-14-layer-norm.md",
+   "sha256": "3dbda96ab8eae4588e1279f26b31a1a5819b7ae64eb169e1448ace1a7fd75e0f",
+   "summary": "LayerNorm：中心化后的 padding、参数梯度分组"
+  },
+  {
+   "id": "l06-attention-0919",
+   "collection": "triton-study-logs",
+   "path": "docs/triton-learning/logs/2026-09-19-fused-attention.md",
+   "sha256": "1e51f24058b1b7b546dd9c901fab1f48e8adb1e21b6279d495940be36f864d56",
+   "summary": "Fused Attention：只存行统计量、反向重算 P"
+  },
+  {
+   "id": "l06-attention-0924",
+   "collection": "triton-study-logs",
+   "path": "docs/triton-learning/logs/2026-09-24-fused-attention.md",
+   "sha256": "755e51eeb97bc72caf893978d40e46aff500b2e185096fdfba1dc5632ec2a17f",
+   "summary": "Fused Attention：K/V 补零与 softmax 分母、TMA 对齐"
+  },
+  {
+   "id": "l08-grouped-gemm",
+   "collection": "triton-study-logs",
+   "path": "docs/triton-learning/logs/2026-10-09-grouped-gemm.md",
+   "sha256": "310ba83ca4f5759ac15c40421e414457bfa66a62773b4646bb385526bb47b770",
+   "summary": "Grouped GEMM：块队列、步长领取、原子计数器"
+  },
+  {
+   "id": "l09-persistent",
+   "collection": "triton-study-logs",
+   "path": "docs/triton-learning/logs/2026-10-14-persistent-matmul.md",
+   "sha256": "39c7eb19c1bff2b0f45e7abe31df12c068ef1392da1d197ccafbfa053d493743",
+   "summary": "持久化矩阵乘：省掉发射与退出、何时没有收益"
+  },
+  {
+   "id": "l10-block-scaled",
+   "collection": "triton-study-logs",
+   "path": "docs/triton-learning/logs/2026-10-20-block-scaled-matmul.md",
+   "sha256": "eeeda67e2fe0658f83ba13940800d5b100f367a0265b0d68fa2d7cbce898e08b",
+   "summary": "块缩放矩阵乘：TMA 块规则与报错时机"
+  }
+ ],
+ "cards": [
+  {
+   "key": "padding-identity-rule",
+   "rank": 1,
+   "domain": "triton-cross-lesson",
+   "recall_target": "masked 位置的填充值怎样才安全：变换后仍须是归约的单位元",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "masked load 给越界位置填的值，随后还要经过运算再进入归约。为什么同样是补 0，在矩阵乘的 K 尾部是安全的，到了 LayerNorm 求方差和 Attention 的 softmax 分母里却会出错？判断一个填充值安不安全，通用规则是什么？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "规则：填充值经过归约之前的所有运算后，仍须是该归约的单位元，也就是不改变结果的那个值。补 0 只在 0 原样进入求和时安全；中间有平移或取指数时，要按变换之后的值来判断。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "K 尾部",
+       "parts": [
+        {
+         "type": "text",
+         "text": "点积沿 K 求和，补 0 让乘积为 0，正是求和的单位元。K 尾部若读进垃圾值，错误会先累加进有效的 C[i,j]，写回时的 mask 已经修不了，所以必须在 load 时补 0。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "softmax",
+       "parts": [
+        {
+         "type": "text",
+         "text": "求行最大值和指数和时填 −inf：它不改变有限的行最大值，减去最大值后仍是 −inf，exp 得 0，不进分母。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "LayerNorm",
+       "parts": [
+        {
+         "type": "text",
+         "text": "先减均值再平方：补的 0 变成 −mean，平方后多出 mean²，方差偏大，要在中心化之后再把无效位置置 0。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Attention",
+       "parts": [
+        {
+         "type": "text",
+         "text": "补 0 的 K 与 q 的点积为 0，exp(0 − m) 仍是正数，进了分母；补 0 的 V 也消不掉这一项，无效 key 要在 score 上屏蔽成 −inf。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "规则只管数学上是否中性；访存是否合法另由 load/store 的 mask 保证，填充值不能代替边界检查。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "填充值经过变换后仍须是归约的单位元；补 0 只对原样求和安全",
+    "来源": "跨课 · 向量加法、Softmax、矩阵乘、LayerNorm、Attention 学习记录"
+   },
+   "source_ids": [
+    "l01-vector-add",
+    "l02-fused-softmax",
+    "l03-matmul-0819",
+    "l05-layer-norm",
+    "l06-attention-0924"
+   ],
+   "content_summary": "填充值变换后仍须是归约单位元：K 尾部补 0 安全，softmax 填 −inf，LayerNorm 中心化后要再置 0，Attention 补 0 的 K 仍进分母",
+   "depends_on": []
+  },
+  {
+   "key": "three-meanings-of-group",
+   "rank": 2,
+   "domain": "triton-cross-lesson",
+   "recall_target": "区分矩阵乘的 GROUP_SIZE_M、LayerNorm 参数梯度分组与 grouped GEMM",
+   "assessment": "recall",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Triton 教程里有三处叫“group”的东西：矩阵乘的 GROUP_SIZE_M、LayerNorm 反向把参数梯度的临时槽分成 G 组、grouped GEMM。它们各把什么分成组，为了解决什么问题？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "三者同名不同义：矩阵乘的分组是给同一个 GEMM 的 program 排顺序，LayerNorm 的分组是给部分和分配共享槽，grouped GEMM 的 group 是一次发射里的一组独立矩阵乘。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "矩阵乘",
+       "parts": [
+        {
+         "type": "text",
+         "text": "GROUP_SIZE_M 让连续的 program 先沿 M 方向走完一组 tile 行。同时活跃的一小批 program 用到的 A 行 tile 和 B 列 tile 更少，更可能命中 L2：8 个 program 的窗口从约 9 种输入 tile 降到 6 种。计算结果不变。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "LayerNorm",
+       "parts": [
+        {
+         "type": "text",
+         "text": "M 行的参数梯度贡献不再各存一份 [M,N]，而是累加进 G 组共享的 [G,N] 部分和；同组 program 要用锁互斥地读改写，最后由第二个 kernel 汇总各组。省的是临时空间，代价是争锁。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "grouped GEMM",
+       "parts": [
+        {
+         "type": "text",
+         "text": "一组尺寸不同的矩阵乘（例如 MoE 各专家）一次发射算完：所有问题的块排成一条队列，固定数量的 CTA 按步长领取，省掉逐个调用的多次发射和空闲的 SM。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "复习时先分清是在排顺序、分槽位，还是打包多个问题，不要按名字套用结论。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "排顺序（L2 复用）／分槽位（省空间、要加锁）／打包多个 GEMM（一次发射）",
+    "来源": "跨课 · 矩阵乘、LayerNorm、Grouped GEMM 学习记录"
+   },
+   "source_ids": [
+    "l03-matmul-0817",
+    "l03-matmul-0819",
+    "l05-layer-norm",
+    "l08-grouped-gemm"
+   ],
+   "content_summary": "三处 group 同名不同义：矩阵乘的 PID 分组为 L2 复用，LayerNorm 的 G 组共享部分和槽并加锁，grouped GEMM 一次发射一组独立矩阵乘",
+   "depends_on": []
+  },
+  {
+   "key": "persistent-static-stride-rule",
+   "rank": 3,
+   "domain": "triton-cross-lesson",
+   "recall_target": "固定数量的 program 循环领任务：静态步长规则为何不漏不重，何时改用动态领取",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Triton 的 persistent softmax（按行领）、教程的 grouped GEMM（一组矩阵乘的块）和持久化矩阵乘（单个 GEMM 的 tile）都只发射固定数量 P 个 program，让每个 program 循环领任务。三者共同的分配规则是什么、为什么不漏不重？什么情况下该改成运行时动态领取？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "共同规则是静态步长分配：program p 依次处理第 p、p+P、p+2P… 号任务，P 是实际发射的 program 数。每个任务号 r 都能唯一写成 r = p + kP（0 ≤ p < P），所以既不漏也不重。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "任务单位",
+       "parts": [
+        {
+         "type": "text",
+         "text": "persistent softmax 领的是行；grouped GEMM 把所有问题的块首尾相接排成一条队列再按步长领，各 program 的块数最多差 1，但工作量不一定相等；持久化矩阵乘领的是同一个 GEMM 的输出 tile，每个 SM 只付一次发射与退出。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "动态领取",
+       "parts": [
+        {
+         "type": "text",
+         "text": "任务耗时差异很大时（例如 K 相差很大的几组矩阵乘），改用一个全局计数器：空闲的 program 原子地读出旧值并加 1，读到的就是自己的任务号，旧值不小于任务总数就退出。代价是每领一次做一次原子操作，各任务工作量相同时没有收益。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "步长必须等于实际发射的 program 数；任务数不多于 SM 数时，没有可以摊薄的发射，持久化的收益为零。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "r = p + kP 唯一分解；块数均分≠工作量均分；耗时差异大时改用原子计数器",
+    "来源": "跨课 · Softmax、Grouped GEMM、持久化矩阵乘学习记录"
+   },
+   "source_ids": [
+    "l02-fused-softmax",
+    "l08-grouped-gemm",
+    "l09-persistent"
+   ],
+   "content_summary": "固定 P 个 program 按 r=p+kP 静态步长领任务不漏不重；块数均分不等于工作量均分；耗时差异大时改用原子计数器动态领取",
+   "depends_on": []
+  },
+  {
+   "key": "tma-two-16-byte-rules",
+   "rank": 4,
+   "domain": "triton-cross-lesson",
+   "recall_target": "TMA 描述符的两条 16 字节规则：整个张量与块各约束什么，连续为何不等于对齐",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "snapshot",
+    "product": "triton",
+    "version": "3.7.1"
+   },
+   "quality": "A",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 5,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "在 Triton 3.7.1 中用 TMA 描述符搬数据，有两条都带“16 字节”的规则：一条约束整个张量，一条约束每次搬运的块（box）。两条各约束什么量？为什么 x.is_contiguous() 为真时仍可能不满足？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "整个张量：基址 16 字节对齐，最后一维步长为 1，其余各维的字节步长是 16 的倍数。块：最内维的字节数必须是 16 的倍数。连续只说明元素紧挨着存放，不说明起点和行距对齐。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "张量",
+       "parts": [
+        {
+         "type": "text",
+         "text": "FP16 的 [T,D] 行距是 2D 字节，所以要求 D 是 8 的倍数；基址用 data_ptr() % 16 == 0 判断。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "块",
+       "parts": [
+        {
+         "type": "text",
+         "text": "块每维最多 256 个元素，这条管的是一次搬运，不是整个张量；NVFP4 的 scale 块 [128, 16] 最内维正好 16 字节，可以建。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "连续≠对齐",
+       "parts": [
+        {
+         "type": "text",
+         "text": "x[1:] 仍然连续，但 FP16 下基址偏了 2 字节，不再对齐；它已连续时 .contiguous() 可能原样返回，不能指望它修正对齐。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "何时暴露",
+       "parts": [
+        {
+         "type": "text",
+         "text": "Python 端构造 TensorDescriptor 时会断言起点和行距对齐；块最内维的字节数在构造时不检查，用 tl.make_tensor_descriptor 在 kernel 里建时，编译期就检查。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "主机端描述符的块最内维不足 16 字节要到启动时才失败，这是按 CUDA 文档推断的，没有在 sm_100 上实测。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "张量管基址与行距，块管最内维字节数；连续≠对齐",
+    "来源": "跨课 · Attention、块缩放矩阵乘学习记录"
+   },
+   "source_ids": [
+    "l06-attention-0924",
+    "l10-block-scaled"
+   ],
+   "content_summary": "TMA 张量规则约束基址与行距 16 字节对齐，块规则约束最内维字节数；x[1:] 连续但不对齐；构造时查行距、编译期查 device 端块",
+   "depends_on": []
+  },
+  {
+   "key": "store-or-recompute",
+   "rank": 5,
+   "domain": "triton-cross-lesson",
+   "recall_target": "反向需要的中间量是存下来还是重算：seeded dropout 与 FlashAttention 的取舍",
+   "assessment": "mechanism",
+   "layer": "mechanism",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "反向需要前向的某个中间量时，可以把它存下来，也可以在反向里重算。seeded dropout 不存 mask，FlashAttention 不存概率矩阵 P：两者各存了什么、重算了什么？能据此断言一定更快吗？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "两者都只存很小的状态、重算体积大的中间量：dropout 只存 seed，随机数由 seed 和 offset 现场生成；Attention 只存每个 query 一个的行统计量 M，反向按块重算 P。省的是存储和读写，代价是额外的计算，不能据此断言更快。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "dropout",
+       "parts": [
+        {
+         "type": "text",
+         "text": "不再物化、保存和读取完整的 mask，持久状态从 O(N) 降为 O(1)；但输入输出、逐元素选择与缩放仍在，还要现场算 tl.rand。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "Attention",
+       "parts": [
+        {
+         "type": "text",
+         "text": "以 [B,H,N,D]=[2,4,128,64] 为例，完整的 P 有 131072 个元素，形状为 [B,H,N] 的行统计量只有 1024 个；反向要重算 QKᵀ 与指数。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "取舍要看重算的计算量和省下的显存流量哪个更贵；课上两处都只论证了省下什么，没有测量哪种更快。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "只存小状态、重算大中间量；省存储与读写，多付计算",
+    "来源": "跨课 · Low-Memory Dropout、Fused Attention 学习记录"
+   },
+   "source_ids": [
+    "l04-dropout",
+    "l06-attention-0919"
+   ],
+   "content_summary": "seeded dropout 只存 seed、重算随机数，FlashAttention 只存行统计量 M、反向重算 P；省存储读写、多付计算，不能断言更快",
+   "depends_on": []
+  },
+  {
+   "key": "local-vs-global-offsets",
+   "rank": 6,
+   "domain": "triton-cross-lesson",
+   "recall_target": "块内局部偏移与全局坐标：K 尾部 mask 与 tl.rand 各该用哪一个",
+   "assessment": "recall",
+   "layer": "atomic",
+   "fact_scope": {
+    "kind": "evergreen"
+   },
+   "quality": "B",
+   "fact_status": "verified",
+   "lifecycle": "active",
+   "priority": 4,
+   "template_id": "technical-qa",
+   "fields": {
+    "问题": "Triton kernel 里常同时有块内局部偏移（如 tl.arange(0, BLOCK)）和全局坐标（块起点 + 局部偏移）。矩阵乘按 K 推进指针时的尾部 mask、seeded dropout 调用 tl.rand 时，各该用哪一个？用错会怎样？",
+    "答案": {
+     "blocks": [
+      {
+       "type": "lead",
+       "parts": [
+        {
+         "type": "text",
+         "text": "凡是要和全局边界比较、或要求每个元素各不相同的地方，都用全局坐标；局部偏移只在块内定位。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "K 尾部 mask",
+       "parts": [
+        {
+         "type": "text",
+         "text": "指针沿 K 推进后，局部 offs_k 每一轮都是 [0,1,2,3]，第二轮对应的全局 K 坐标是 [4,5,6,7]；mask 要拿全局坐标和 K 比，K=5 时后三个 lane 要屏蔽，只看局部偏移判断不出来。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "tl.rand",
+       "parts": [
+        {
+         "type": "text",
+         "text": "随机数由 (seed, offset) 决定：传局部 offset 时，pid 0 与 pid 1 拿到同一组随机数，x[8:12] 会重复 x[0:4] 的 keep/drop 决策；传全局 offset，两块才分别用 F(seed, 0..7) 和 F(seed, 8..15)。"
+        }
+       ]
+      },
+      {
+       "type": "boundary",
+       "parts": [
+        {
+         "type": "text",
+         "text": "用错通常不会报错，只会让结果或随机模式静默出错。"
+        }
+       ]
+      }
+     ]
+    },
+    "锚点": "比边界、要唯一的用全局坐标；局部偏移只在块内定位",
+    "来源": "跨课 · 矩阵乘、Low-Memory Dropout 学习记录"
+   },
+   "source_ids": [
+    "l03-matmul-0817",
+    "l04-dropout"
+   ],
+   "content_summary": "K 尾部 mask 要比全局 K 坐标，tl.rand 要传全局 offset；局部偏移只在块内定位，用错会静默出错",
+   "depends_on": []
+  }
+ ]
+}

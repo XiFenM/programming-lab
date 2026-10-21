@@ -1,0 +1,970 @@
+{
+  "schema": "memo-cards.request/v1",
+  "output_collection": "triton-cards",
+  "target": "docs/triton-learning/cards/triton-lesson-01-vector-add.md",
+  "selection": "complete",
+  "sources": [
+    {
+      "collection": "triton-study-logs",
+      "id": "lesson01-structured",
+      "path": "docs/triton-learning/logs/2026-07-27-vector-add.md",
+      "sha256": "fd35cf8d15f471bd99f209791d53a5367de1b1c3a143849ff0eac886de9383aa",
+      "summary": "已核验结构化日志：L01 向量运算、真实 mask 纠错与基础 Benchmark 复盘；不消费 raw 对话。"
+    }
+  ],
+  "cards": [
+    {
+      "key": "card-01",
+      "rank": 1,
+      "assessment": "recall",
+      "domain": "triton",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "确定 masked load 的结果形状由局部 pointer tensor 决定",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "correction",
+      "fields": {
+        "意图": "Triton 向量 kernel 的尾块只有部分位置有效时，每个 program 执行的 tl.load(x_ptr + offsets, mask=mask) 返回的 tensor 的 shape 由什么决定？",
+        "场景": "Triton 3.7.1；offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)，mask = offsets < N，输入 x 共有 N 个元素；wrapper 事先用 torch.empty_like(x) 分配了与输入同样大小的输出。",
+        "正确": "由当前 program 的局部 pointer tensor x_ptr + offsets 的形状决定，即 [BLOCK_SIZE]；与 N、输出分配的大小和有效元素个数都无关。",
+        "错误": "“数据目的地已经开辟好了与数据源大小一样的空间，所以返回形状与数据源固定一样”；后来又说“根据输入tensor的形状决定的”",
+        "说明": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "两句都把形状来源放在了这次 load 之外：先归因于输出的预先分配，后归因于整个输入 tensor。tl.load 逐位置处理传入的指针，返回值就具有这组局部指针的形状；mask 只控制各位置是否读取内存。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "例如 offsets 有 4 个位置，x_ptr + offsets 就有 4 个指针。即使 mask 为 [True, True, False, False]，load 结果仍有 4 个位置，而不会缩成 2 个。"
+                }
+              ],
+              "label": "局部形状"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "false 位置不从对应地址读数据；指定 other 时得到该替代值，未指定时不能假设其数值有效。"
+                }
+              ],
+              "label": "无效位置"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "输出预先分配多大、整个 PyTorch 输入有多少元素，都不决定这次局部 load 的 shape；预先分配输出只是为了让后续 store 有地方写。"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "source_ids": [
+        "lesson01-structured"
+      ],
+      "content_summary": "题面给出 load 代码与输出分配，只问 shape 来源；错误栏改用两句原话，说明首句点明错误范围。",
+      "depends_on": []
+    },
+    {
+      "key": "card-02",
+      "rank": 2,
+      "assessment": "mechanism",
+      "domain": "triton",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "解释 load mask 无法自动排除归约中无效 lane 的因果链",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Triton kernel 先用 tl.load 的 mask 屏蔽尾块越界位置，再对加载结果做 sum 或 max 归约。为什么仍需处理无效位置的值，不能只依靠 load mask？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "load mask 保证无效地址不被读取，却不会把无效逻辑位置从结果 tensor 中删除；后续归约仍会合并这些位置的值。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "假设四个局部位置只有前两个有效。load 后仍有四个值；若后两个未定义，直接对四个值求和或求最大值，就可能污染本来有效的归约结果。"
+                }
+              ],
+              "label": "问题如何产生"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "应在归约前把无效位置设成不改变该归约结果的值，即该运算的单位元：求和用 0，求最大值用负无穷（同理，乘积用 1、求最小值用正无穷）；通常直接作为 tl.load 的 other 填入。"
+                }
+              ],
+              "label": "归约前处理"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "最后的 store mask 只能控制结果写到哪里，不能从已污染的归约结果中撤销无效项的影响。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "屏蔽读取 → 位置仍在 → 归约前填单位元",
+        "来源": "Triton 3.7.1 · L01 日志：masked load 与 reduction"
+      },
+      "source_ids": [
+        "lesson01-structured"
+      ],
+      "content_summary": "四位置例子解释污染路径；归约前处理补成单位元规则（sum 0、max −∞、prod 1、min +∞）。",
+      "depends_on": [
+        "card-01"
+      ],
+      "review_resolution": {
+        "summary": "已依据更新后的 card-01（错误栏改为两句原话、题面给出 load 代码与输出分配）复核本卡：归约污染的因果链、单位元规则与 store mask 边界仍成立，回忆目标未变。"
+      }
+    },
+    {
+      "key": "store-mask-boundary",
+      "rank": 3,
+      "assessment": "mechanism",
+      "domain": "triton",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "解释条件写回的 store mask 为什么要显式合并边界条件与数值条件",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Triton 条件写回 kernel 的尾块中，offsets 可能越过长度 N。load 用 mask=offsets < N、other=-inf 读入 x；store 的 mask 只写 x > threshold，靠 -inf 通不过这个比较来挡住越界 lane。如果之后把写回条件改成 x < threshold，越界 lane 会怎样？store 的 mask 应怎样构造，才能不论比较条件怎样变都不写越界地址？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "改成 x < threshold 后，-inf 对任何有限阈值都满足条件，越界 lane 会通过 mask 去写非法地址。稳健写法是把边界条件与数值条件取逻辑与：write_mask = (offsets < N) & condition，让边界谓词单独负责排除越界地址，数值条件只决定要不要写。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "在 x > threshold 下，-inf 不会大于任何有限阈值，越界 lane 确实不会被写回；这个推导本身没错，只是安全性依赖于填充值与比较方向的特定关系。"
+                }
+              ],
+              "label": "原推导为何成立"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "other 只是 load 给未读取位置的替代数值，不是 tl.store 会自动继承的边界保护。比较方向或阈值一变（例如改成 x < threshold，或 x >= threshold 而阈值恰为 -inf），sentinel 就可能通过条件；显式合并后，越界位置的 mask 恒为 false。"
+                }
+              ],
+              "label": "为何要显式合并"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "other 仍然有用：未读取位置参与后续计算（例如归约）时取什么值由它决定；但它不能代替写回时的边界条件。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "sentinel 只对特定比较成立；边界谓词单独负责越界",
+        "来源": "Triton 3.7.1 · L01 日志：条件写回的边界 mask"
+      },
+      "source_ids": [
+        "lesson01-structured"
+      ],
+      "content_summary": "原红色纠错卡改为技术问答：学习者的 -inf 推导是对的；用改变比较方向的情境考查为何要显式合并边界谓词。",
+      "depends_on": []
+    },
+    {
+      "key": "card-05",
+      "rank": 5,
+      "assessment": "recall",
+      "domain": "triton",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "区分 constexpr 在单次特化内固定与跨 launch 可变化",
+      "layer": "atomic",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 4,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Triton 向量 kernel 把 BLOCK_SIZE 声明为 tl.constexpr，用它构造 tl.arange(0, BLOCK_SIZE)；wrapper 按输入长度从 256、512、1024 中挑一个值传入。tl.constexpr 要求的“固定”是在什么范围内固定？每换到一个新值，第一次 launch 时会发生什么？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "只要求在一次编译特化内固定：不同 launch 可以传入不同的 Python 整数；每个新值第一次使用时，Triton 会 JIT 编译出与之匹配的特化，之后同一取值复用已编译的版本。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "编译器在生成这一版本的 kernel 时，需要知道 BLOCK_SIZE，才能确定块级表达式的形状和相关编译决策。"
+                }
+              ],
+              "label": "固定在哪里"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "wrapper 本次传 256、下次传 512 都合法；两次调用分别使用与该取值匹配的特化。"
+                }
+              ],
+              "label": "怎样变化"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "值必须在 launch 前就是确定的 Python 整数，不能等 kernel 执行时再按运行时 tensor 的值决定；每个新值都要付一次编译，所以候选值宜少。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "特化内固定；新值首用即编译",
+        "来源": "Triton 3.7.1 · L01 日志：constexpr 的取值范围、首次调用含 JIT"
+      },
+      "source_ids": [
+        "lesson01-structured"
+      ],
+      "content_summary": "二选一改为情境题，考“固定”的范围；补每个新取值首次使用触发 JIT 编译、之后复用；降为 B。",
+      "depends_on": []
+    },
+    {
+      "key": "card-06",
+      "rank": 6,
+      "assessment": "recall",
+      "domain": "triton",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "判断 grid 依赖尚待绑定的 meta-parameters 时采用 callable grid",
+      "layer": "atomic",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 4,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "启动 Triton 向量 kernel 时，program 数需要按输入长度和 BLOCK_SIZE 计算。什么情况下应使用 lambda META: ... 形式的 callable grid，而不是提前算好的 tuple grid？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "当 grid 依赖的配置要等 Triton 绑定本次 meta-parameters 后才确定时，用 callable grid 延后计算。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "例如 autotune 正在选择 BLOCK_SIZE，grid 也必须跟随当前候选配置变化。callable grid 接收本次 META，再据此计算覆盖输入所需的 program 数。"
+                }
+              ],
+              "label": "配置尚未确定"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "如果 wrapper 已知道输入长度 N 和本次 BLOCK_SIZE，就可以提前计算 triton.cdiv(N, BLOCK_SIZE)，并作为 tuple grid 传入。"
+                }
+              ],
+              "label": "配置已经确定"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "输入长度每次不同，并不自动要求 callable grid；关键是计算 grid 所需的值在什么时候才能确定。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "看配置何时确定",
+        "来源": "Triton 3.7.1 · L01 日志：callable grid"
+      },
+      "source_ids": [
+        "lesson01-structured"
+      ],
+      "content_summary": "给出向量覆盖任务与 autotune 时机，明确 callable/tuple 的判断条件。",
+      "depends_on": []
+    },
+    {
+      "key": "card-07",
+      "rank": 7,
+      "assessment": "recall",
+      "domain": "triton",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "区分 triton block_size 的逻辑位置数与实际 gpu 线程数",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Triton 向量 kernel 用 tl.program_id(0) 确定当前块，用 tl.arange(0, BLOCK_SIZE) 构造块内位置，再用 tl.load/tl.store 访存。BLOCK_SIZE 是哪一层的数量？它和这个 program 实际使用的 GPU threads/warps 是什么关系？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "BLOCK_SIZE 是 block-tensor 层的逻辑位置数，即一个 program 的块级 tensor 有多少个元素位置；实际用多少 threads/warps 由编译器映射决定，二者没有一一对应，不能把 BLOCK_SIZE 当成线程数。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "tl.program_id 位于 program-instance 层，表示当前是 grid 中的第几个 program；tl.arange 与 tl.load/tl.store 位于 block-tensor 层，对整块逻辑位置逐 lane 运算和访存。"
+                }
+              ],
+              "label": "分层"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "编译器再把块级操作映射到 GPU 的线程和 warp；逻辑元素的组织与硬件执行资源的组织是不同层次。"
+                }
+              ],
+              "label": "硬件层"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "例如 BLOCK_SIZE=4 只说明 arange 产生四个逻辑位置，不能据此断言 GPU 启动了四个线程。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "program → block tensor → threads/warps",
+        "来源": "Triton 3.7.1 · L01 日志：抽象层复述"
+      },
+      "source_ids": [
+        "lesson01-structured"
+      ],
+      "content_summary": "是非题改为分层定位题：BLOCK_SIZE 属于 block-tensor 层，与 threads/warps 的关系由编译器映射决定。",
+      "depends_on": []
+    },
+    {
+      "key": "card-08",
+      "rank": 8,
+      "assessment": "recall",
+      "domain": "triton",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "由一维地址计算判断连续布局假设与 stride 支持条件",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "一个 Triton 一维向量 kernel 用 ptr + offsets 读取元素。若 wrapper 开始接受每隔一个元素取一次的切片等非连续输入，为什么仅删除连续性检查还不够？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "ptr + offsets 默认相邻逻辑元素也位于相邻存储位置。非连续一维 view 的逻辑索引必须先乘以 stride，才能对应正确地址。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这里 stride 是相邻两个逻辑元素在底层存储中相隔的元素数，不是字节数。stride 为 2 时，逻辑位置 i 的存储偏移是 i × 2：逻辑位置 1 应读 base[2]，只做 ptr + offsets 却会读到 base[1]。"
+                }
+              ],
+              "label": "stride 的含义"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "kernel 需要接收该输入的 stride，并按 ptr + offsets * stride 生成指针；否则仍会读取连续存储中的元素，得到错误数据。"
+                }
+              ],
+              "label": "地址计算"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "wrapper 的接口范围必须与 kernel 的地址实现一致。放宽校验只能允许数据进入，不能自动改变实际访存方式。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "逻辑 offset × 存储 stride",
+        "来源": "Triton 3.7.1 · L01 日志：连续性契约与地址计算"
+      },
+      "source_ids": [
+        "lesson01-structured"
+      ],
+      "content_summary": "stride 例子改写为存储偏移 i×2（逻辑位置 1 → base[2]），并升为 A。",
+      "depends_on": []
+    },
+    {
+      "key": "card-09",
+      "rank": 9,
+      "assessment": "mechanism",
+      "domain": "triton",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "解释有效 gb/s 上升不能直接证明真实 dram 带宽或代码优化提升",
+      "layer": "mechanism",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 4,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "比较向量 kernel 的整块输入与稍长的尾块输入时，尾块的“有效 GB/s”反而更高。写出两者有效 GB/s 之比与有效元素数、测得耗时的关系，并据此说明这个比值上升可能来自哪里。",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "比值等于有效元素数之比乘以耗时的反比：尾块多出几个有效元素而耗时相同，或尾块的测得耗时因测量波动落到更低的计时档位，比值就会上升。这只是工作量与测得时间的比值变化，不能据此认定 DRAM 带宽或 kernel 优化提高。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "令 N_exact、N_tail 分别表示整块和尾块用例的有效元素数，t_exact、t_tail 表示测得耗时，G 表示有效 GB/s。两组用例每个元素计入相同有效字节数时，有如下关系。"
+                }
+              ],
+              "label": "符号定义"
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "\\frac{G_{\\mathrm{tail}}}{G_{\\mathrm{exact}}}=\\frac{N_{\\mathrm{tail}}}{N_{\\mathrm{exact}}}\\frac{t_{\\mathrm{exact}}}{t_{\\mathrm{tail}}}"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "有效字节数不是硬件实际传输的 DRAM 字节数。没有对应的受控测量或硬件证据，不能把比值上升直接解释为物理带宽增加或已证明的 GPU 优化。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "有效字节 / 测量时间；不是硬件流量计数",
+        "来源": "L01 日志：尾块有效 GB/s 复盘"
+      },
+      "source_ids": [
+        "lesson01-structured"
+      ],
+      "content_summary": "是非题改为推导比值并说明上升来源；原“如何解读”并入结论；降为 B。",
+      "depends_on": []
+    },
+    {
+      "key": "bandwidth-factor-three",
+      "rank": 10,
+      "assessment": "mechanism",
+      "domain": "triton",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "估算向量加法每元素的字节与运算量，解释其受带宽限制及有效带宽系数 3",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "fp32 向量加法 z = x + y 处理 N 个元素。按算法最低数据流量，每个元素要搬运多少字节、做几次运算？据此说明它为什么通常受内存带宽限制。",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "每个元素读 x、读 y、写 z 各 4 字节，共 12 字节，却只做 1 次加法：计算极少、数据搬运很多，耗时主要由内存读写决定，所以通常受带宽限制。benchmark 有效带宽公式里的系数 3 就是这两读一写。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "\\text{GB/s}=\\frac{3\\times N\\times\\text{element\\_size}\\times10^{-9}}{\\text{ms}\\times10^{-3}}"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "每 12 字节只对应 1 次加法；算术单元很快就能算完这些加法，大部分时间花在等数据读写上。"
+                }
+              ],
+              "label": "算一笔"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "公式按算法最低数据量计字节，不是硬件计数器测得的 DRAM 流量；缓存、写策略和其他内部流量都没有计入。"
+                }
+              ],
+              "label": "“有效”的含义"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "带宽受限描述的是输入足够大时的稳态：小输入时 kernel launch 和固定开销占主导，有效 GB/s 偏低且容易波动。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "两读一写 12 B 对 1 次加法 → 带宽受限；系数 3",
+        "来源": "L01 日志：带宽受限与有效带宽"
+      },
+      "source_ids": [
+        "lesson01-structured"
+      ],
+      "content_summary": "新增：fp32 向量加法每元素 12 字节对 1 次加法，解释带宽受限、系数 3 与有效带宽口径。",
+      "depends_on": []
+    },
+    {
+      "key": "batched-timing-window",
+      "rank": 11,
+      "assessment": "mechanism",
+      "domain": "triton",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "解释 do_bench 的 rep 与批量计时各改变什么，以及批量平均为何不能替代单次调用结果",
+      "layer": "mechanism",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 4,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "在 Triton 3.7.1 中用 triton.testing.do_bench 测一个只需几微秒的向量 kernel，单次计时窗口太短。把 rep=100 调大，改变的是什么？若改为在一个样本里连续调用 100 次、再用总时间除以 100，这个平均值测到的又是什么？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "调大 rep 只会增加样本数，每个样本仍只包住一次调用，窗口不会变长；批量调用确实拉长了窗口，但测到的是连续执行时每次调用的平均成本，缓存状态和发射方式都已不同于原来的单次调用，是另一种指标。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "rep 的单位是毫秒，表示总共采样多久；它只决定样本数，每个正式样本仍用一对 GPU event 包住一次 fn()。"
+                }
+              ],
+              "label": "采样预算"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "do_bench 在每个正式样本前清一次 L2 cache；100 次调用算作一个样本时，只有第一次调用前清过缓存，后续调用可能读到前一次留在缓存里的数据，连续发射的方式也与单次调用不同。"
+                }
+              ],
+              "label": "批量改变了什么"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "两种结果都可以报告，但要分别说明测量方式与适用场景；批量结果更平滑，不等于它是原单次指标的更精确版本。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "rep 只加样本；批量拉长窗口也换了场景",
+        "来源": "Triton 3.7.1 · L01 日志：do_bench 采样口径与批量计时"
+      },
+      "source_ids": [
+        "lesson01-structured"
+      ],
+      "content_summary": "合并原 10（rep 是总采样预算）与原 11（批量计时换了场景）为一条闭合链，补 do_bench 每样本清 L2 的机制。",
+      "depends_on": []
+    },
+    {
+      "key": "async-gpu-timing",
+      "rank": 12,
+      "assessment": "mechanism",
+      "domain": "triton",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "解释 gpu launch 异步与首次 jit 为何让 cpu 计时失真及正确计时做法",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "用 time.perf_counter() 在调用一次 Triton kernel wrapper 的前后各取一次时间，把差值当作 kernel 耗时。这个读数会漏算什么、又可能多算什么？应怎样正确计时（以 Triton 3.7.1 的 do_bench 为参照）？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "kernel launch 只是把工作排进 GPU stream，wrapper 返回时 GPU 可能还没算完，CPU 计时会漏掉这段执行；首次调用还会触发 JIT 编译，把编译时间多算进去。正确做法是先预热，再在开始和停止计时前同步 GPU，或改用 GPU event 计时。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "CPU 可能只等到 kernel 被提交就停止计时。返回 output 本身是安全的：同一 stream 上依赖它的后续操作仍按顺序执行，只是计时读数偏小。"
+                }
+              ],
+              "label": "漏算"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "每种配置（例如新的 BLOCK_SIZE）第一次使用时要编译对应特化，之后复用缓存，所以首次调用不能代表稳态性能。"
+                }
+              ],
+              "label": "多算"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "先跑过预热调用；开始计时前和停止计时前各调用一次 torch.cuda.synchronize()。"
+                }
+              ],
+              "label": "手写计时"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "先调用并同步一次 fn()，编译不进入正式样本；再预热，并在每个正式样本前清 L2、用一对 GPU event 包住一次调用。"
+                }
+              ],
+              "label": "do_bench"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这样测到的是稳态运行性能，不是首次调用延迟；编译开销依然存在，只是不计入正式样本。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "launch 只入队 → 同步或 event；首次含 JIT → 预热",
+        "来源": "Triton 3.7.1 · L01 日志：异步执行与计时"
+      },
+      "source_ids": [
+        "lesson01-structured"
+      ],
+      "content_summary": "新增：launch 异步使 CPU 计时漏算、首次 JIT 使其多算；给出同步与预热做法及 do_bench 的处理。",
+      "depends_on": []
+    },
+    {
+      "key": "card-13",
+      "rank": 13,
+      "assessment": "mechanism",
+      "domain": "triton",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "解释 false predicate 直接禁用 lane 访存及其与物理事务粒度的区别",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Triton 向量 kernel 的尾块用 mask 关闭越界位置的 tl.load/tl.store。有人把这些位置没有访存解释成“GPU 或编译器把冗余访存优化掉了”。在 Triton 3.7.1 为 NVIDIA GPU 生成的 PTX 里，这些访存为什么没有发生？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "因为访存本身就是有条件执行的：生成的 PTX 用 guard predicate 修饰 load/store（形如 @%p1 ld.global），predicate 为 false 的 lane 从一开始就不执行对应地址的读写，不是先访问、再由优化撤销。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "mask 被编译成访存指令的执行条件；尾块中越界 lane 的谓词为 false，对应的读写根本不会执行。"
+                }
+              ],
+              "label": "执行条件"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "predicate 只关掉 false lane 的访存：地址与谓词计算、program 调度仍有成本，有效 lane 的访存仍按硬件事务粒度进行。以上只在 NVIDIA PTX 上核对过，其他后端（如 AMD）的底层形式未核对。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "条件访存 ≠ 事后优化",
+        "来源": "Triton 3.7.1 · L01 日志：predicate 因果模型"
+      },
+      "source_ids": [
+        "lesson01-structured"
+      ],
+      "content_summary": "二选一改为真实误区情境；正面写明 Triton 3.7.1 与 NVIDIA PTX；事务粒度压入边界并注明证据范围。",
+      "depends_on": []
+    },
+    {
+      "key": "card-14",
+      "rank": 14,
+      "assessment": "oral",
+      "domain": "triton",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "综合解释固定形状尾块中 load、归约、store 与 predicate 的职责和边界",
+      "layer": "oral",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 4,
+      "template_id": "oral",
+      "fields": {
+        "问题": "向面试官解释：一个 Triton 向量 kernel 的最后一块只有部分位置有效，加载结果还要参与归约，最后按条件写回。请用约 60 秒说明 mask 在读取与形状、归约、写回三处各负责什么。",
+        "参考回答": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "mask 逐位置控制访存，但不改变块的静态形状；要让整条计算链正确，还得分别处理归约里的无效值和写回时的地址边界。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "load 结果的形状跟随该 program 的局部 pointer tensor；false 位置不读对应地址（访存带 predicate，不是事后优化），却仍占一个逻辑位置。"
+                }
+              ],
+              "label": "读取与形状"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "归约会合并所有位置，所以先给无效位置填该归约的单位元，例如 sum 填 0、max 填负无穷；store mask 无法修复已被污染的归约结果。"
+                }
+              ],
+              "label": "归约"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "条件写回时把地址有效的 boundary mask 与数值条件取逻辑与，不靠填充值恰好通不过比较来防越界；合法地址上 false store 不写入，原值保留。"
+                }
+              ],
+              "label": "写回"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "mask 关掉的只是 false lane 的访存，地址计算和调度仍有成本。"
+                }
+              ]
+            }
+          ]
+        },
+        "评分锚点": [
+          "形状来自局部 pointer tensor",
+          "false lane 不访存（predicate）",
+          "归约前填单位元",
+          "写回合并 boundary 与 condition"
+        ],
+        "来源": "Triton 3.7.1 · L01 日志：mask 相关要点与复述"
+      },
+      "source_ids": [
+        "lesson01-structured"
+      ],
+      "content_summary": "写明听众；四个锚点对应题面三处并各有子卡支撑；子卡改为 01、02、新 03、13（原 04 删除）。",
+      "depends_on": [
+        "card-01",
+        "card-02",
+        "store-mask-boundary",
+        "card-13"
+      ],
+      "review_resolution": {
+        "summary": "已依据更新后的 card-01、card-02、store-mask-boundary、card-13 复核：四个评分锚点分别由这些子卡支撑；原 04 删除后，‘false store 不写入、原值保留’由 card-13 支撑；参考回答约 335 字，可在 60 秒内讲完。"
+      }
+    }
+  ]
+}

@@ -8,7 +8,7 @@
    "id": "block-scaled-matmul-log",
    "collection": "triton-study-logs",
    "path": "docs/triton-learning/logs/2026-10-20-block-scaled-matmul.md",
-   "sha256": "34630f5faaffb19ce8e5e75d44ebdf508c87ee08c209442aa7ea0fc9fd9a2f36",
+   "sha256": "eeeda67e2fe0658f83ba13940800d5b100f367a0265b0d68fa2d7cbce898e08b",
    "summary": "10/14–10/20：浮点与块缩放格式、scale 乘在哪一步与预排、五种硬件落地、MI300X 取舍、练习与 M1 测量的纠错与答疑"
   }
  ],
@@ -57,7 +57,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "每块各自平移，窗口只需盖住块内的跨度，离群值只坏它所在的那一块。例：64 个数里有一个 12，MXFP4 每块一个 scale 时 23 个非零数变 0，整行一个 scale 时变 0 的有 42 个。"
+         "text": "每块各自平移，窗口只需盖住块内的跨度，离群值只坏它所在的那一块：整行共用一个 scale 时，远离离群值的整块小数都会掉出窗口；每块一个 scale 时，受害的只有含离群值的那一块。"
         }
        ]
       },
@@ -67,7 +67,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "12 到 0.01 约 10 档，E4M3 一个 scale 就装得下：同一个例子整行只用一个 scale，也没有数变 0。"
+         "text": "E4M3 的窗口约 17.8 档：一组从 0.01 到 12 的数跨 log₂(12 ÷ 0.01) ≈ 10.2 档，一个整张量 scale 就装得下；同一组数放进 E2M1 的 3.58 档就装不下。"
         }
        ]
       },
@@ -107,7 +107,7 @@
    "priority": 5,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "MXFP4 和 NVFP4 的元素都是 E2M1。两者的块大小、块 scale 的类型、每个数平均占几位、块最大值能否对准 E2M1 的最大值 6、量化要读几趟数据各是怎样？各自的代价在哪里？",
+    "问题": "MXFP4 和 NVFP4 的元素都是 E2M1：MXFP4 每 32 个元素配一个 E8M0 块 scale（只能是 2 的幂），每个数平均 4.25 位；NVFP4 每 16 个元素配一个 E4M3 块 scale，外加每张量一个 FP32 scale，每个数平均 4.5 位。这两种块 scale 类型各带来什么好处、付出什么代价？",
     "答案": {
      "blocks": [
       {
@@ -115,7 +115,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "MXFP4 每 32 个元素一个 E8M0 scale（只能是 2 的幂），每个数 4.25 位；NVFP4 每 16 个元素一个 E4M3 scale，再加每张量一个 FP32 scale，每个数 4.5 位。"
+         "text": "MXFP4 的 E8M0 scale 范围宽、各块互不影响，但只能整档移动，对不准 E2M1 的最大值 6；NVFP4 的 E4M3 scale 能对准 6，但窗口窄，要靠每张量的 FP32 scale 定位，量化还要多读一趟。"
         }
        ]
       },
@@ -125,7 +125,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "E8M0 只能整档移动，块最大值一般对不准 6：按 OCP 规则向下取会截断（尾数大于 1.5 时最大值饱和），向上取则浪费顶端格点、更多小数变 0；E8M0 有 254 档，各块互不影响。"
+         "text": "E8M0 有 254 档，每块各取各的 2 的幂，块与块的幅度差几十档也装得下；代价是块最大值缩放后一般落不到 6 上，顶端的格点要么用不满、要么被截断。"
         }
        ]
       },
@@ -135,38 +135,19 @@
        "parts": [
         {
          "type": "text",
-         "text": "E4M3 的 3 位尾数能把块最大值对到 6 附近，块更小，一个离群值只连累 15 个数；但 E4M3 只有约 17.8 档，要靠每张量的 FP32 scale 定位窗口，量化前得先求整张量 amax，多一趟显存往返。"
-        }
-       ]
-      },
-      {
-       "type": "point",
-       "label": "硬件",
-       "parts": [
-        {
-         "type": "text",
-         "text": "MX 是 OCP 标准，NVIDIA Blackwell 与 AMD CDNA4 原生支持；NVFP4 由 NVIDIA 提出，Blackwell 原生支持。"
-        }
-       ]
-      },
-      {
-       "type": "boundary",
-       "parts": [
-        {
-         "type": "text",
-         "text": "每张量 scale 只平移 E4M3 的窗口、不加宽；块与块的 amax 相差超过约 17.8 档时，NVFP4 的小块会出问题。"
+         "text": "E4M3 的 3 位尾数能把块最大值细调到 6 附近，顶端格点用得满；块更小，一个离群值只连累 15 个数。代价是 E4M3 只有约 17.8 档：每张量 scale 只决定这个窗口放在哪，量化前得先求整张量的 amax，多一趟显存往返。"
         }
        ]
       }
      ]
     },
-    "锚点": "32·E8M0·4.25 位 对 16·E4M3+FP32·4.5 位；对不准 6 对多一趟",
+    "锚点": "E8M0：范围宽、对不准 6；E4M3：对得准 6、窗口窄、多一趟",
     "来源": "块缩放矩阵乘学习记录 10-20 · 节点 2"
    },
    "source_ids": [
     "block-scaled-matmul-log"
    ],
-   "content_summary": "MXFP4 与 NVFP4 的块大小、scale 类型、位数、对齐 6 的能力与代价",
+   "content_summary": "MXFP4 与 NVFP4 的块 scale 类型之争：E8M0 范围宽但对不准 6，E4M3 对得准但窗口窄、多读一趟",
    "depends_on": []
   },
   {
@@ -185,7 +166,7 @@
    "priority": 5,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "NVFP4 的两级 scale：每张量 s_enc = 6 × 448 / amax_张量；每块的 scale = amax_块 / 6 × s_enc，再舍入成 E4M3（最大 448，最小正数 2⁻⁹，约 17.8 档）。若一张激活张量各块的 amax 从 3×10⁴ 到 2×10⁻³，哪些块会出问题？每张量 scale 能不能解决？MXFP4 呢？",
+    "问题": "NVFP4 的两级 scale：每张量 s_enc = 6 × 448 / amax_张量；每块的 scale = amax_块 / 6 × s_enc，再舍入成 E4M3（最大 448，最小正数 2⁻⁹，约 17.8 档）。若一张激活张量各块的 amax 从 3×10⁴ 到 2×10⁻³，哪些块会出问题？为什么每张量 scale 解决不了？",
     "答案": {
      "blocks": [
       {
@@ -209,7 +190,7 @@
       },
       {
        "type": "point",
-       "label": "MXFP4",
+       "label": "对照 MXFP4",
        "parts": [
         {
          "type": "text",
@@ -263,7 +244,7 @@
    "priority": 5,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "vLLM 服务里，某一层的输入激活在线量化成 NVFP4，第二级 scale 由整个 batch 共用一个 FP32（s_enc = 6 × 448 / 整个 batch 的 amax），块 scale 存成 E4M3（最小正数 2⁻⁹）。平时各块 amax 在 0.01 到 10 之间。某次 batch 里混进一个异常 token，它有一块的 amax 是 10⁴：同一 batch 里有些 token 输出明显出错，有些没事，单独跑出错的 token 又正常。原因是什么？换成 MXFP4 会怎样？怎么修？",
+    "问题": "vLLM 服务里，某一层的输入激活在线量化成 NVFP4，第二级 scale 由整个 batch 共用一个 FP32（s_enc = 6 × 448 / 整个 batch 的 amax），块 scale 存成 E4M3（最小正数 2⁻⁹）。平时各块 amax 在 0.01 到 10 之间。某次 batch 里混进一个异常 token，它有一块的 amax 是 10⁴：同一 batch 里有些 token 输出明显出错，有些没事，单独跑出错的 token 又正常。为什么一个 token 的结果会取决于同一 batch 里还有谁？怎样修，代价是什么？",
     "答案": {
      "blocks": [
       {
@@ -292,16 +273,6 @@
         {
          "type": "text",
          "text": "没有异常 token，第二级 scale 不会被抬高；一个 token 的结果于是取决于同一 batch 里还有谁，线上很难排查。"
-        }
-       ]
-      },
-      {
-       "type": "point",
-       "label": "MXFP4",
-       "parts": [
-        {
-         "type": "text",
-         "text": "每块各取各的 2 的幂 scale，别的块不受影响；异常值只拖累同块的数，但块是 32 个，比 NVFP4 的 16 个连累更多。"
         }
        ]
       },
@@ -353,7 +324,7 @@
    "priority": 5,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "MXFP4 量化时，OCP 规则取块 scale X = 2^e，e = ⌊log₂(amax)⌋ − 2（amax 是块内最大绝对值）。为什么对 log₂(amax) 向下取整、再减 2？这样取的代价是什么？另一种取法“向上取整”X = 2^⌈log₂(amax ÷ 6)⌉ 换来了什么、丢掉了什么？",
+    "问题": "MXFP4 量化时，OCP 规则取块 scale X = 2^e，e = ⌊log₂(amax)⌋ − 2（amax 是块内最大绝对值）；Triton 3.7.1 的 triton_kernels 默认用向上取整 X = 2^⌈log₂(amax ÷ 6)⌉。OCP 为什么对 log₂(amax) 向下取整再减 2？和向上取整相比，两种取法各把误差留在哪里？",
     "答案": {
      "blocks": [
       {
@@ -367,7 +338,7 @@
       },
       {
        "type": "point",
-       "label": "代价",
+       "label": "向下取的代价",
        "parts": [
         {
          "type": "text",
@@ -387,21 +358,11 @@
       },
       {
        "type": "point",
-       "label": "实测与选择",
+       "label": "总误差",
        "parts": [
         {
          "type": "text",
-         "text": "2²² 个随机数上两种取法的总误差相近，区别在误差落在谁身上；OCP 规定向下取，Triton 的 triton_kernels 默认向上取，NVIDIA 的 MXFP8 训练配方也改用向上取。"
-        }
-       ]
-      },
-      {
-       "type": "point",
-       "label": "实现",
-       "parts": [
-        {
-         "type": "text",
-         "text": "⌊log₂⌋ 直接读 FP32 的指数位（bits & 0x7F800000），不要用浮点 log2：float32 的 log2(7.9999995) 会得到 3.0，正确的 ⌊log₂⌋ 是 2。"
+         "text": "2²² 个随机数上两种取法的总误差相近，区别在误差落在块最大值上还是小值上。"
         }
        ]
       },
@@ -416,7 +377,7 @@
       }
      ]
     },
-    "锚点": "读指数位；最大值进 [4, 8)；截断最大值 对 小数变 0",
+    "锚点": "最大值进 [4, 8)；向下取截断最大值，向上取让小数变 0",
     "来源": "块缩放矩阵乘学习记录 10-20 · 练习 P1"
    },
    "source_ids": [
@@ -441,7 +402,7 @@
    "priority": 5,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "块缩放矩阵乘 C = A·B：A 的每行、B 的每列沿 K 每 V 个元素共用一个块 scale，另外可能有每张量（或每行、每列）的 scale。这两类 scale 各能放在计算的哪一步乘？DeepSeek-V3 在 Hopper 上把 scale 乘在部分和上，没有原生指令的硬件把 scale 乘在元素上，Blackwell 在指令内部乘，三种做法谁对？",
+    "问题": "块缩放矩阵乘 C = A·B：A 的每行、B 的每列沿 K 每 V 个元素共用一个块 scale，另外可能有每张量（或每行、每列）的 scale。一个 scale 能放在计算的哪一步乘，由什么决定？按这条规则，这两类 scale 各能放在哪？",
     "答案": {
      "blocks": [
       {
@@ -465,11 +426,11 @@
       },
       {
        "type": "point",
-       "label": "三种位置",
+       "label": "三种放法",
        "parts": [
         {
          "type": "text",
-         "text": "块 scale 乘在元素上（解码成 bf16 再乘，Triton 无原生指令时的后备、AMD CDNA3 的模拟）、乘在每块的部分和上（DeepSeek-V3 在 Hopper 上每 128 个 K 取出部分和）、在 MMA 指令内部（Blackwell 的 tcgen05.mma、sm_120 的 mma.sync 块缩放、CDNA4 的 scaled MFMA），三者数学上等价。"
+         "text": "块 scale 因此有三种放法，数学上等价：乘在元素上（解码成 bf16 再乘，Triton 无原生指令时的后备、AMD CDNA3 的模拟）、乘在每块的部分和上（DeepSeek-V3 在 Hopper 上每 128 个 K 取出部分和）、在 MMA 指令内部乘（Blackwell 的 tcgen05.mma、sm_120 的块缩放 mma.sync、CDNA4 的 scaled MFMA）。"
         }
        ]
       },
@@ -488,7 +449,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "tl.dot_scaled 只算块 scale 这两层；不随 k 变的 scale（比如 NVFP4 的每张量 FP32）要在 kernel 的 epilogue 里自己乘。"
+         "text": "tl.dot_scaled 只处理块 scale 与元素这两层；不随 k 变的 scale（比如 NVFP4 的每张量 FP32）要在 kernel 的 epilogue 里自己乘。"
         }
        ]
       }
@@ -519,7 +480,7 @@
    "priority": 5,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "写块缩放矩阵乘 kernel 时，scale 的分块（沿 K 每 V 个元素一块，量化时就定了）与 kernel 的分块（BLOCK_M、BLOCK_N、BLOCK_K）必须怎样对齐？K 方向与 M、N 方向有什么不同？自己写 split-K 时要注意什么？",
+    "问题": "写块缩放矩阵乘 kernel 时，scale 的分块（沿 K 每 V 个元素一块，量化时就定了）与 kernel 的分块（BLOCK_M、BLOCK_N、BLOCK_K）必须怎样对齐？为什么 K 方向和 M、N 方向的要求不同？",
     "答案": {
      "blocks": [
       {
@@ -597,7 +558,7 @@
    "priority": 5,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "H100（sm_90）有 FP8 张量核（wgmma 支持 E4M3，每条指令 K = 32），但没有块缩放指令，累加器在寄存器里；Triton 3.7.1 把 MXFP8 的 tl.dot_scaled 编成 bf16 矩阵乘，用不上 FP8 张量核。若一定要用上 FP8 张量核，scale 该放在哪一步？要满足什么条件、代价在哪？NVFP4 行不行？DeepGEMM 为什么每 128 个 K 才乘一次 scale、取 BLOCK_K = 128？",
+    "问题": "H100（sm_90）有 FP8 张量核（wgmma 支持 E4M3，每条指令 K = 32），但没有块缩放指令，累加器在寄存器里；Triton 3.7.1 把 MXFP8 的 tl.dot_scaled 编成 bf16 矩阵乘，用不上 FP8 张量核。若改成把 MXFP8（V = 32）的块 scale 乘在部分和上：每 V 个 K 先用 FP8 张量核算出部分和，再乘 sA·sB 加进总累加器。和乘在元素上相比，这样多付什么代价？DeepGEMM 为什么改成每 128 个 K 才乘一次 scale？",
     "答案": {
      "blocks": [
       {
@@ -605,47 +566,37 @@
        "parts": [
         {
          "type": "text",
-         "text": "scale 要挪到每个 scale 块的部分和上：每 V 个 K 先用 FP8 张量核算出部分和 P_j，再乘 sA·sB 加进总累加器；条件是 V ≥ 指令的 K。"
+         "text": "代价有三项：乘 scale 的次数变多、部分和与总累加器同时占寄存器、每段都要等异步 wgmma 出结果；每 128 个 K 一组把乘 scale 和等待都降到 V = 32 时的 1/4，还顺带修了 FP8 累加的精度。"
         }
        ]
       },
       {
        "type": "point",
-       "label": "MXFP8",
+       "label": "乘几次",
        "parts": [
         {
          "type": "text",
-         "text": "V = 32 正好等于 wgmma 的 K = 32，可行。"
+         "text": "一个 BM × BN 的输出块在一个 scale 块上：乘在部分和上，每个部分和乘一次，共 BM·BN 次；乘在元素上，每个输入元素乘一次，共 V·(BM + BN) 次。比值 BM·BN / (V·(BM + BN)) 在 128 × 256、V = 32 时约 2.7。"
         }
        ]
       },
       {
        "type": "point",
-       "label": "代价",
+       "label": "摊到每次乘加",
        "parts": [
         {
          "type": "text",
-         "text": "多出的乘法（128 × 256 的块、V = 32 时约是乘在元素上的 2.7 倍）、部分和与总累加器同时占寄存器（这个块 bf16 版本已用满 255 个）、异步 wgmma 每段都要等结果。"
+         "text": "乘在元素上每次乘加摊到 1/BM + 1/BN 次乘 scale（128 × 256 时约 1/85），乘在部分和上摊到 1/V 次，所以 V 大于约 85 时部分和更省；V = 128 时比值约 0.67。"
         }
        ]
       },
       {
        "type": "point",
-       "label": "NVFP4",
+       "label": "累加精度",
        "parts": [
         {
          "type": "text",
-         "text": "V = 16 小于 K = 32，一条指令的部分和横跨两个 scale 块，拆不开，行不通。"
-        }
-       ]
-      },
-      {
-       "type": "point",
-       "label": "每 128 个",
-       "parts": [
-        {
-         "type": "text",
-         "text": "乘 scale 和等待都降到 V = 32 时的 1/4（乘法比约 0.67）；而且 H800 的 FP8 累加只保留约 14 位，每 128 个元素提升到 FP32 累加顺带修了精度。"
+         "text": "H800 的 FP8 累加只保留约 14 位，每 128 个元素把部分和提升到 FP32 累加，顺带修了精度；这和少乘 scale 一起，是 DeepGEMM 取 BLOCK_K = 128 的两个理由。"
         }
        ]
       },
@@ -654,19 +605,19 @@
        "parts": [
         {
          "type": "text",
-         "text": "换来的是 FP8 张量核约为 bf16 两倍的峰值；多出的乘法能否藏在 MMA 后面，要靠测量。"
+         "text": "这里只数乘 scale 的次数：没算解码的成本，次数也不等于时间；多出的乘法能否藏在 MMA 后面，要靠测量。"
         }
        ]
       }
      ]
     },
-    "锚点": "V ≥ 指令 K；2.7 倍乘法、两套累加器、等待；128 一组兼修精度",
+    "锚点": "多乘 scale、两套累加器、每段等待；BM·BN 对 V·(BM + BN)；128 一组降到 1/4、兼修累加精度",
     "来源": "块缩放矩阵乘学习记录 10-20 · 节点 5"
    },
    "source_ids": [
     "block-scaled-matmul-log"
    ],
-   "content_summary": "无块缩放指令时把 scale 放到部分和上需 V ≥ 指令 K；代价与 DeepGEMM 的 128 分组",
+   "content_summary": "H100 上把 scale 乘在部分和上的代价与乘 scale 次数之比，以及 DeepGEMM 每 128 个 K 一组的两个理由",
    "depends_on": []
   },
   {
@@ -687,7 +638,7 @@
    "priority": 5,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "Triton 的块缩放教程在 sm_100（B200）上，把逻辑形状 [M, K/V] 的 scale 在主机端预排成 (M/128, K/V/4, 32, 4, 4)，kernel 第 220 行再用 reshape、trans、reshape 还原成 [BLOCK_M, BLOCK_K/V] 交给 tl.dot_scaled。为什么要这样排？那串 reshape、trans 为什么不搬数据？",
+    "问题": "Triton 3.7.1 的块缩放教程在 sm_100（B200）上，把逻辑形状 [M, K/V] 的 scale 在主机端预排成 (M/128, K/V/4, 32, 4, 4)；kernel 里再用 reshape(rep_m, rep_k, 32, 4, 4).trans(0, 3, 2, 1, 4).reshape(BLOCK_M, BLOCK_K // V) 还原成逻辑形状交给 tl.dot_scaled。为什么要这样预排？那串 reshape、trans 为什么不搬数据？",
     "答案": {
      "blocks": [
       {
@@ -715,13 +666,13 @@
        "parts": [
         {
          "type": "text",
-         "text": "kc（第几组 4 个 scale）放在块的紧外层、mb（第几个 128 行组）放最外层，一个 K 步要用的块就是连续的；TMA 的块每维不超过 256，所以每块 512 字节写成 2 × 256。"
+         "text": "kc（第几组 4 个 scale）放在块的紧外层、mb（第几个 128 行组）放最外层，一个 K 步要用的块就是连续的。"
         }
        ]
       },
       {
        "type": "point",
-       "label": "第 220 行",
+       "label": "reshape 与 trans",
        "parts": [
         {
          "type": "text",
@@ -746,7 +697,7 @@
    "source_ids": [
     "block-scaled-matmul-log"
    ],
-   "content_summary": "5D 预排让字节顺序等于 TMEM 顺序；tcgen05.cp 原样拷；第 220 行只是视图",
+   "content_summary": "5D 预排让字节顺序等于 TMEM 顺序；tcgen05.cp 原样拷；kernel 里的 reshape/trans 只是视图",
    "depends_on": []
   },
   {
@@ -767,7 +718,7 @@
    "priority": 5,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "在 sm_100 上把 A 的块 scale 按逻辑形状 [M, K/V] 行优先存（每个 scale 1 字节），建二维 TMA 描述符，每次搬的块是 [BLOCK_M, BLOCK_K/V]：NVFP4 为 [128, 16]，MXFP4 为 [128, 8]，MXFP8 为 [128, 4]，K = 8192。TMA 的三条规则“每维不超过 256 个元素”“最内维的字节数是 16 的倍数”“行距是 16 字节的倍数”各约束哪个形状？哪些格式建不起来？用 Triton 主机端的 TensorDescriptor 时，错误在哪一步暴露？",
+    "问题": "在 sm_100 上用 Triton 3.7.1 建二维 TMA 描述符：A 的块 scale 按逻辑形状 [M, K/V] 行优先存（每个 scale 1 字节），每次搬的块是 [BLOCK_M, BLOCK_K/V]：NVFP4 为 [128, 16]，MXFP4 为 [128, 8]，MXFP8 为 [128, 4]，K = 8192。TMA 的三条规则“每维不超过 256 个元素”“最内维的字节数是 16 的倍数”“行距是 16 字节的倍数”各约束哪个形状，哪些格式因此建不起来？用主机端的 TensorDescriptor 时，这个错误在哪一步暴露？",
     "答案": {
      "blocks": [
       {
@@ -791,11 +742,21 @@
       },
       {
        "type": "point",
-       "label": "何时报错",
+       "label": "主机端",
        "parts": [
         {
          "type": "text",
-         "text": "编译和在 Python 端构造 TensorDescriptor 都能通过，要到启动 kernel、调用 cuTensorMapEncodeTiled 时才失败；在 kernel 里用 tl.make_tensor_descriptor 建描述符时，编译期就检查最后一维至少 16 字节。"
+         "text": "块最内维不足 16 字节时，编译和在 Python 端构造 TensorDescriptor 都能通过；按 CUDA 文档，要到启动 kernel、调用 cuTensorMapEncodeTiled 时才被拒（未在 sm_100 上实测）。行距不是 16 字节的倍数时则不同，构造 TensorDescriptor 这一步就断言失败。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "kernel 内",
+       "parts": [
+        {
+         "type": "text",
+         "text": "在 kernel 里用 tl.make_tensor_descriptor 建描述符时，编译期就检查最后一维至少 16 字节。"
         }
        ]
       },
@@ -820,7 +781,7 @@
       }
      ]
     },
-    "锚点": "块对张量；最内维 ≥ 16 字节；主机端描述符启动时才报错",
+    "锚点": "块对张量；最内维 ≥ 16 字节；主机端：最内维启动时才被拒，行距构造时就查",
     "来源": "块缩放矩阵乘学习记录 10-20 · 节点 4"
    },
    "source_ids": [
@@ -847,7 +808,7 @@
    "priority": 5,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "Triton 3.7.1 把同一行 tl.dot_scaled（比如 MXFP4 × MXFP4，两侧都带 scale）编译到 B200（sm_100）、RTX 5090（sm_120）、RTX 4090（sm_89）、MI355X（gfx950，CDNA4）和 MI300X（gfx942，CDNA3），各落成什么指令？scale 放在哪里？代价或限制在哪里？",
+    "问题": "Triton 3.7.1 编译同一行 tl.dot_scaled（MXFP4 × MXFP4，两侧都带 scale）时，按什么规则决定走原生块缩放指令、走软件换算还是编译失败？按这条规则，B200（sm_100）、RTX 5090（sm_120）、MI355X（gfx950，CDNA4）、RTX 4090（sm_89）和 MI300X（gfx942，CDNA3）各落在哪一类？",
     "答案": {
      "blocks": [
       {
@@ -855,57 +816,37 @@
        "parts": [
         {
          "type": "text",
-         "text": "按目标三选一：有块缩放指令的走原生，scale 在指令内乘；没有的走软件换算，解码成 bf16、逐元素乘 scale、再做 bf16 矩阵乘；CDNA3 两侧都带 scale 时编译失败。"
+         "text": "目标有块缩放指令、两侧都带 scale、格式受这条指令支持时走原生，scale 在指令内乘；否则走软件换算：解码成 bf16、逐元素乘 scale、再做 bf16 矩阵乘；CDNA3 的模拟路径只接一侧带 scale，两侧都带时编译失败。"
         }
        ]
       },
       {
        "type": "point",
-       "label": "sm_100",
+       "label": "原生",
        "parts": [
         {
          "type": "text",
-         "text": "tcgen05.mma 块缩放，scale 和累加器都在 TMEM，靠 5D 预排加 tcgen05.cp 送进去。"
+         "text": "sm_100 的 tcgen05.mma，scale 和累加器都在 TMEM；sm_120 的块缩放 mma.sync，scale 和累加器都在寄存器；gfx950 的 scaled MFMA，scale 在 VGPR，只认 E8M0。"
         }
        ]
       },
       {
        "type": "point",
-       "label": "sm_120",
+       "label": "软件换算",
        "parts": [
         {
          "type": "text",
-         "text": "mma.sync … block_scale，每个线程交一个 32 位寄存器的 scale、用 byte-id 选字节，累加器也在寄存器；FP8 × FP4 混合格式被拒，走软件换算。"
+         "text": "sm_89 没有块缩放指令，解码后用 bf16 的 mma.sync，只省显存不省算力。"
         }
        ]
       },
       {
        "type": "point",
-       "label": "gfx950",
+       "label": "编译失败",
        "parts": [
         {
          "type": "text",
-         "text": "v_mfma_scale_f32_16x16x128_f8f6f4，scale 在 VGPR 里、用 op_sel 选字节，只认 E8M0，NVFP4 编译失败。"
-        }
-       ]
-      },
-      {
-       "type": "point",
-       "label": "sm_89",
-       "parts": [
-        {
-         "type": "text",
-         "text": "软件换算加 bf16 的 mma.sync m16n8k16，只省显存不省算力；换算默认 scale 是 E8M0，NVFP4 编译失败。"
-        }
-       ]
-      },
-      {
-       "type": "point",
-       "label": "gfx942",
-       "parts": [
-        {
-         "type": "text",
-         "text": "只登记了一侧带 scale 的模拟路径，两侧都带 scale 时报 Unsupported DotScaleOp；bf16 × MXFP4 用 upcast_mxfp 解码再做 bf16 MFMA。"
+         "text": "gfx942 只登记了一侧带 scale 的模拟路径（比如 bf16 × MXFP4），两侧都带 scale 时报 Unsupported DotScaleOp。"
         }
        ]
       },
@@ -914,19 +855,19 @@
        "parts": [
         {
          "type": "text",
-         "text": "只有一侧带 scale（比如 bf16 激活 × MXFP4 权重）时，所有目标都走软件换算，因为块缩放指令要求两侧都是 FP8、FP6 或 FP4。"
+         "text": "“不走原生”有两种原因要分开：一侧根本不是低精度格式（如 bf16 × MXFP4）时，块缩放指令要求两侧都是 FP8、FP6 或 FP4，所有目标都走软件换算；一侧是 FP4 却不带 scale 时，sm_120 退回软件换算，是因为 Triton 3.7.1 的原生模式要求两侧都有 scale，不是指令本身的格式限制。"
         }
        ]
       }
      ]
     },
-    "锚点": "原生三家都用 32 位装 4 个 scale；软件换算用 bf16；CDNA3 两侧失败",
+    "锚点": "原生要指令、两侧 scale、格式三者都满足；否则软件换算；CDNA3 两侧带 scale 编译失败",
     "来源": "块缩放矩阵乘学习记录 10-20 · 节点 5"
    },
    "source_ids": [
     "block-scaled-matmul-log"
    ],
-   "content_summary": "五种目标上的落地：原生、软件换算、编译失败，scale 的位置与限制",
+   "content_summary": "tl.dot_scaled 走原生、软件换算还是编译失败的判定规则，以及五种目标各落在哪一类",
    "depends_on": []
   },
   {
@@ -947,7 +888,7 @@
    "priority": 5,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "Triton 块缩放教程按 B200（sm_100）写：块 128 × 256，FP4 的 BLOCK_K = 256，4 级流水，4 个 warp。要在 RTX 5090（sm_120，每个 CTA 最多 101,376 字节共享内存，每个线程最多 255 个寄存器）上运行，要改什么？为什么？",
+    "问题": "Triton 3.7.1 的块缩放教程按 B200（sm_100）写：块 128 × 256，FP4 的 BLOCK_K = 256，4 级流水，4 个 warp。要在 RTX 5090（sm_120，每个 CTA 最多 101,376 字节共享内存，每个线程最多 255 个寄存器）上运行，要改什么？为什么？",
     "答案": {
      "blocks": [
       {
@@ -955,7 +896,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "原生指令照样有，但累加器从 TMEM 挪到了寄存器、共享内存也小了一半多，必须缩小分块，还要绕过入口检查。"
+         "text": "原生指令照样有，但累加器从 TMEM 挪到了寄存器、共享内存也小了一半多：要绕过入口检查，并按寄存器和共享内存的预算缩小分块。"
         }
        ]
       },
@@ -975,7 +916,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "128 × 256 的 FP32 累加器分给 4 个 warp，每个线程 256 个，已超过 255 个的上限；编译记录里用满 255 个并溢出。"
+         "text": "每个线程的累加器寄存器数 = BM·BN ÷ 线程数：128 × 256 的 FP32 累加器分给 4 个 warp（128 个线程），每个线程 256 个，已超过 255 个的上限，还没算别的寄存器。"
         }
        ]
       },
@@ -985,7 +926,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "教程配置要 152,152 到 165,976 字节，放不下。"
+         "text": "每级用量 × 级数要放进 101,376 字节：教程配置要 15 万字节以上，放不下。"
         }
        ]
       },
@@ -995,7 +936,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "128 × 128、3 级、8 个 warp：MXFP4 要 69,680 字节、199 个寄存器，累加器每线程 64 个，没有溢出。"
+         "text": "128 × 128、3 级、8 个 warp：累加器每线程 64 个，MXFP4 约用 7 万字节共享内存，没有溢出。"
         }
        ]
       },
@@ -1004,13 +945,13 @@
        "parts": [
         {
          "type": "text",
-         "text": "NVFP4、MXFP4、MXFP8 在 sm_120 上都是原生指令，FP8 × FP4 混合走软件换算；教程的 5D scale 写法可以照用。"
+         "text": "教程的 5D scale 写法在 sm_120 上可以照用。"
         }
        ]
       }
      ]
     },
-    "锚点": "入口检查；累加器进寄存器；128×128、3 级、8 个 warp",
+    "锚点": "入口检查；BM·BN ÷ 线程数 对 255；每级 × 级数 对 101,376",
     "来源": "块缩放矩阵乘学习记录 10-20 · 节点 5"
    },
    "source_ids": [
@@ -1045,7 +986,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "先拿计算强度和平衡点比：平衡点约 247 FLOP/字节，即约 123 次乘加/字节；低于它受访存限制，高于它受计算限制。"
+         "text": "解码（M = 8）时 B 最多快约 3.6 倍；预填充（M = 4096）时 B 最多和 A 持平，解码藏不住时慢约四成。依据是拿计算强度和平衡点（约 247 FLOP/字节，即约 123 次乘加/字节）比。"
         }
        ]
       },
@@ -1055,7 +996,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "受访存限制，B 读的字节约为 A 的 1/3.6，最多快约 3.6 倍；前提是解码跟得上带宽，这要用掉向量单元八到九成的吞吐。"
+         "text": "强度远低于平衡点，受访存限制：B 读的字节约为 A 的 1/3.6，最多快约 3.6 倍；前提是解码跟得上带宽，这要用掉向量单元约八成的吞吐。"
         }
        ]
       },
@@ -1065,17 +1006,17 @@
        "parts": [
         {
          "type": "text",
-         "text": "受计算限制，B 少读的只是一小部分字节（激活和输出不变），换不来时间，B 最多和 A 一样快；只看解码能不能藏进 MFMA（约占 MFMA 时间的四成）：藏住时差不多，藏不住时 B 慢约四成。"
+         "text": "受计算限制，B 少读的只是一小部分字节（激活和输出不变），换不来时间；只看解码能不能藏进 MFMA（约占 MFMA 时间的四成）：藏住时差不多，藏不住时 B 慢约四成。"
         }
        ]
       },
       {
        "type": "point",
-       "label": "始终的好处",
+       "label": "容量",
        "parts": [
         {
          "type": "text",
-         "text": "显存容量：专家权重小约 3.8 倍。gpt-oss-120b 的 MLP 存 bf16 约 229 GB，超过单卡的 192 GB；存 MXFP4 约 61 GB。"
+         "text": "与负载无关，B 的权重小约 3.8 倍，省下的显存可以给 KV cache。"
         }
        ]
       },
@@ -1084,19 +1025,19 @@
        "parts": [
         {
          "type": "text",
-         "text": "强度要计入激活和输出的字节，单位要和平衡点一致；靠近平衡点时，结论对解码代价很敏感，要实测。"
+         "text": "强度要计入激活、权重、scale 和输出的字节，单位要和平衡点一致；靠近平衡点时，结论对解码代价很敏感，要实测。"
         }
        ]
       }
      ]
     },
-    "锚点": "平衡点 123 次乘加/字节；解码看带宽、预填充看解码能否藏住；容量始终都有",
+    "锚点": "解码最多快约 3.6 倍、预填充最多持平；平衡点 123 次乘加/字节；容量始终都有",
     "来源": "块缩放矩阵乘学习记录 10-20 · 综合验收"
    },
    "source_ids": [
     "block-scaled-matmul-log"
    ],
-   "content_summary": "MI300X 上 bf16 对 MXFP4 权重：解码受访存、预填充受计算，容量是始终保留的好处",
+   "content_summary": "MI300X 上 bf16 对 MXFP4 权重：解码最多快约 3.6 倍，预填充最多持平、解码藏不住时慢约四成",
    "depends_on": []
   },
   {
@@ -1133,7 +1074,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "t_valu / t_mfma = (c ÷ P_valu) ÷ (BLOCK_M ÷ P_mfma) = 16c / BLOCK_M：c 是每解码一个 FP4、每个 lane 要执行几条向量指令，BLOCK_M 是一个解码出的 FP4 参与的乘加次数，16 = 653.7 ÷ 40.9。"
+         "text": "t_valu / t_mfma = (c ÷ P_valu) ÷ (BLOCK_M ÷ P_mfma) = 16c / BLOCK_M：P_valu 是向量单元每秒按 lane 计的指令数，P_mfma 是 MFMA 每秒的乘加数，16 = 653.7 ÷ 40.9；c 是每解码一个 FP4、每个 lane 要执行几条向量指令，BLOCK_M 是一个解码出的 FP4 参与的乘加次数。"
         }
        ]
       },
@@ -1163,7 +1104,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "从编出的代码里数：每个 wave 每个 K 步的非 MFMA 向量指令数 ÷ 每个 lane 解码的 FP4 数，例如 222 ÷ 64 ≈ 3.5。"
+         "text": "从能运行的配置编出的代码里数：每个 wave 每个 K 步的非 MFMA 向量指令数 ÷ 每个 lane 解码的 FP4 数，例如 MI300X 上 BLOCK_K = 128 的配置是 104 ÷ 32 ≈ 3.25；只编译不会检查 LDS 上限，先确认配置放得下。"
         }
        ]
       },
@@ -1199,13 +1140,13 @@
     "product": "triton",
     "version": "3.7.1"
    },
-   "quality": "A",
+   "quality": "B",
    "fact_status": "verified",
    "lifecycle": "active",
-   "priority": 5,
+   "priority": 4,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "Triton 的软件换算路径（FP4 解码成 bf16 再做矩阵乘）在 ttg.local_load 之后、按 dot 操作数的布局，在每个 warp（AMD 上叫 wave）自己的寄存器里解码。一个 CTA 的输出块由 warpsPerCTA 规定的若干 warp 分工计算。排法怎样影响“每个元素被解码几次、每一份参与几次乘加”？以 128 × 128 的 CTA 块、8 个 wave 排成 [1, 8] 和 [2, 4] 为例（写法是 [M 方向的 wave 数, N 方向的 wave 数]）。",
+    "问题": "在 Triton 3.7.1 的软件换算路径里（A 是 bf16 激活，B 是要解码成 bf16 的 FP4 权重），一个 CTA 的输出块由 warpsPerCTA 规定的若干 warp（AMD 上叫 wave）分工计算，写法是 [M 方向的 wave 数, N 方向的 wave 数]。以 AMD CDNA 上 128 × 128 的 CTA 块、8 个 wave 排成 [1, 8] 和 [2, 4] 为例，排法怎样影响每个权重元素被解码几次、每一份参与几次乘加？",
     "答案": {
      "blocks": [
       {
@@ -1213,7 +1154,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "每个 warp 只管自己的子块，只解码自己的 MMA 要用的那部分数据；warp 之间不共享寄存器，用到同一行 A 或同一列 B 的 warp 各解码一份。"
+         "text": "每个 wave 只算自己的子块，在自己的寄存器里存累加器、解码自己要用的那部分 B；wave 之间不共享寄存器，M 方向有几个 wave，同一列 B 就被解码几份。"
         }
        ]
       },
@@ -1243,7 +1184,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "Triton 里写不了，由编译器决定：gfx942 的一侧模拟路径写死为 [1, 8]，gfx950 拆成“解码 + 普通矩阵乘”后按启发式排成 [2, 4]。"
+         "text": "Triton 里写不了，由编译器决定：Triton 3.7.1 中 gfx942 的一侧模拟路径写死为 [1, 8]，gfx950 拆成“解码 + 普通矩阵乘”后按启发式排成 [2, 4]。"
         }
        ]
       },
@@ -1252,13 +1193,13 @@
        "parts": [
         {
          "type": "text",
-         "text": "M 很小时 Triton 还会交换操作数（算 B·Aᵀ），这时每个 warp 的子块可能只有 16 行 B × 8 行 A，复用次数更低。"
+         "text": "这里只比较了解码次数和从 LDS 读取的量；CDNA3 的 LDS 带宽没有查到官方数字，两种排法没有折算成时间。"
         }
        ]
       }
      ]
     },
-    "锚点": "各 warp 解码自己的片段；排法决定复用次数；排法由编译器定",
+    "锚点": "M 方向几个 wave 就解码几份；排法决定复用次数；排法由编译器定",
     "来源": "块缩放矩阵乘学习记录 10-20 · 综合验收"
    },
    "source_ids": [
@@ -1279,13 +1220,13 @@
     "product": "triton",
     "version": "3.7.1"
    },
-   "quality": "A",
+   "quality": "B",
    "fact_status": "verified",
    "lifecycle": "active",
-   "priority": 5,
+   "priority": 4,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "Triton kernel 用指针读入 MXFP4 矩阵乘的操作数：A 是 [M, K // 2] 的 uint8（沿 K 两个 FP4 拼一个字节），它的 scale 是 [M, K // 32] 的 uint8；B 按 [N, K // 2] 存，scale 是 [N, K // 32]。packed 数据要不要在 kernel 里拆成两个元素？读取的偏移哪些要减半？B 和它的 scale 怎样传给 tl.dot_scaled？",
+    "问题": "在 Triton 3.7.1 的 kernel 里用指针读入 MXFP4 矩阵乘的操作数：A 是 [M, K // 2] 的 uint8（沿 K 两个 FP4 拼一个字节），它的 scale 是 [M, K // 32] 的 uint8；B 按 [N, K // 2] 存，scale 是 [N, K // 32]。把这些交给 tl.dot_scaled 之前，packed 数据要不要在 kernel 里拆成两个元素？读取的偏移哪些要减半？",
     "答案": {
      "blocks": [
       {
@@ -1293,7 +1234,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "不用拆：把打包的 uint8 块原样传给 tl.dot_scaled，格式写 \"e2m1\"；接口规定第一个元素在低 4 位。"
+         "text": "不用拆：把打包的 uint8 块原样传给 tl.dot_scaled，格式写 \"e2m1\"（接口规定第一个元素在低 4 位）；偏移只有沿 K 的要从元素数换成字节数。"
         }
        ]
       },
@@ -1319,20 +1260,11 @@
       },
       {
        "type": "point",
-       "label": "B",
+       "label": "B 的传法",
        "parts": [
         {
          "type": "text",
          "text": "b 按 [N, K // 2] 读入后以 b.T 传入；rhs_scale 保持 [N, K // 32]，不要转置。"
-        }
-       ]
-      },
-      {
-       "type": "boundary",
-       "parts": [
-        {
-         "type": "text",
-         "text": "块宽（tl.arange 的长度）和前进量是两件事：块宽错了，编译时的形状检查会报错；前进量错了只会静默读错位置。"
         }
        ]
       }
@@ -1435,13 +1367,13 @@
    "fact_scope": {
     "kind": "evergreen"
    },
-   "quality": "A",
+   "quality": "B",
    "fact_status": "verified",
    "lifecycle": "active",
-   "priority": 5,
+   "priority": 4,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "估算一个 kernel 的总时间：已知最忙的 SM 上发射指令要 t_issue，把最少要搬的字节搬完要 t_mem。两部分完全重叠和完全不重叠时，总时间各是多少？实际更可能靠近哪一端，由什么决定？以 RTX 5090 上 M = 16 的 W8A16 变式为例（bf16 激活 × MXFP8 权重）：t_issue ≈ 20.3 µs，t_mem ≈ 39.1 µs，每个 SM 同一时刻只驻留 1 个 CTA。",
+    "问题": "估算一个 kernel 的总时间：已知最忙的 SM 上发射指令要 t_issue，把最少要搬的字节搬完要 t_mem。两部分完全重叠时总时间是 max(t_issue, t_mem)，完全不重叠时是两者之和。实际更靠近哪一端，由什么决定？以 RTX 5090 上 M = 16 的 W8A16 变式为例（bf16 激活 × MXFP8 权重）：t_issue ≈ 20.3 µs，t_mem ≈ 39.1 µs，每个 SM 同一时刻只驻留 1 个 CTA。",
     "答案": {
      "blocks": [
       {
@@ -1449,27 +1381,17 @@
        "parts": [
         {
          "type": "text",
-         "text": "完全重叠时总时间等于较长的一项 max(t_issue, t_mem)，完全不重叠时是两者之和；例子里是 39.1 到 59.4 µs，受显存限制。"
+         "text": "看每个调度器上有几个 warp 能轮流：只有 1 到 2 个时，一个 warp 等数据，没有别的 warp 能补上，实际靠近相加。例子里每个 SM 只驻留 1 个 CTA，总时间在 39.1 到 59.4 µs 之间，更靠近 59.4 µs。"
         }
        ]
       },
       {
        "type": "point",
-       "label": "为什么取较长的",
+       "label": "实测印证",
        "parts": [
         {
          "type": "text",
-         "text": "两件事都必须做完，重叠最多只能把短的藏进长的里，就像两个线程并行跑完再 join；若取 20 µs，等于假设 70 MB 能在 20 µs 内搬完，需要约 3.5 TB/s 的带宽。"
-        }
-       ]
-      },
-      {
-       "type": "point",
-       "label": "靠近哪端",
-       "parts": [
-        {
-         "type": "text",
-         "text": "看每个调度器上有几个 warp 轮流：只有 1 到 2 个时，一个 warp 等数据，没有别的 warp 能补上，实际靠近相加；M = 16 实测的软件路径就是这样（估计相加 44.7 µs，实测 45.1 µs）。"
+         "text": "M = 16 实测的软件路径也是这样：发射约 24.5 µs 加等数据 20.2 µs ≈ 44.7 µs，接近实测的 45.1 µs。"
         }
        ]
       },
@@ -1494,13 +1416,13 @@
       }
      ]
     },
-    "锚点": "下限取较长的一项、上限相加；warp 少则靠近相加",
+    "锚点": "warp 少、驻留少则靠近相加；两项接近时谁限制要看重叠",
     "来源": "块缩放矩阵乘学习记录 10-20 · M1 复查"
    },
    "source_ids": [
     "block-scaled-matmul-log"
    ],
-   "content_summary": "总时间介于 max 与 sum 之间；warp 少、驻留少时靠近相加",
+   "content_summary": "实际总时间靠近 max 还是 sum，由每个调度器上能轮流的 warp 数决定",
    "depends_on": []
   },
   {
@@ -1597,7 +1519,7 @@
    "priority": 4,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "块缩放 FP4 里，若块内有一个约 8 倍的离群值、块 scale 对齐离群值，同块其余正常值都挤在块最大值的 1/8 以下，这时 E3M0 在这些正常值上比 E2M1 准。为什么“离群值毕竟是少数，所以仍选 E2M1”这句理由不完整？真实系统用哪些办法压低离群值的损失？",
+    "问题": "块缩放 FP4 里，若块内有一个约 8 倍的离群值、块 scale 对齐离群值，同块其余正常值都挤在块最大值的 1/8 以下，这时 E3M0 在这些正常值上比 E2M1 准。为什么“离群值毕竟是少数，所以仍选 E2M1”这句理由不完整？真实系统又怎样从块大小、量化前的变换和层的精度三方面压低离群值的损失？",
     "答案": {
      "blocks": [
       {
@@ -1605,27 +1527,17 @@
        "parts": [
         {
          "type": "text",
-         "text": "还要看每个离群块损失多大：E2M1 在 1/8 以下只有 1/12 一个非零格点，离群块里误差大得多；离群值越大，需要的离群块占比越小，就能让结论反过来。"
+         "text": "还要看每个离群块损失多大：E2M1 在 1/8 以下只有 1/12 一个非零格点，离群块里误差大得多；8 倍离群值时，离群块约占 10% 就让 E3M0 的总误差反超，离群值越大，所需的占比越小。"
         }
        ]
       },
       {
        "type": "point",
-       "label": "量级",
+       "label": "块大小",
        "parts": [
         {
          "type": "text",
-         "text": "8 倍离群值时，离群块约占 10%，E3M0 的总误差就开始小于 E2M1；20 倍时只要约 2% 到 3%。"
-        }
-       ]
-      },
-      {
-       "type": "point",
-       "label": "更小的块",
-       "parts": [
-        {
-         "type": "text",
-         "text": "NVFP4 每 16 个一块，一个离群值只拖累 15 个数。"
+         "text": "块越小，一个离群值连累的数越少：NVFP4 每 16 个一块，只拖累 15 个数。"
         }
        ]
       },
@@ -1635,17 +1547,17 @@
        "parts": [
         {
          "type": "text",
-         "text": "量化前乘一个随机 Hadamard 矩阵 H（元素是 ±1/4，各行两两正交），离群值被摊到 16 个数上；两个输入沿 K 乘同一个 H，因为 H·Hᵀ = I，乘积不变。NVIDIA 的 NVFP4 训练只在求权重梯度（Wgrad）的矩阵乘上用。"
+         "text": "量化前乘一个 16 × 16 的随机 Hadamard 矩阵 H（元素是 ±1/4，各行两两正交），离群值被摊到 16 个数上；两个输入沿 K 乘同一个 H，因为 H·Hᵀ = I，乘积不变。"
         }
        ]
       },
       {
        "type": "point",
-       "label": "高精度",
+       "label": "层的精度",
        "parts": [
         {
          "type": "text",
-         "text": "约 15% 的敏感线性层保持 BF16。"
+         "text": "对量化敏感的层保留 BF16。"
         }
        ]
       },
@@ -1654,7 +1566,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "旋转也不是万能：每块都有 8 倍离群值的极端设定下，模拟的 32 点 Hadamard 只把 E2M1 的误差从 0.47 降到 0.37。"
+         "text": "10% 只是一个数量级，具体的反超点取决于数据分布。"
         }
        ]
       }
@@ -1748,74 +1660,6 @@
    "depends_on": []
   },
   {
-   "key": "scale-multiply-count-ratio",
-   "rank": 22,
-   "domain": "triton-block-scaled-matmul",
-   "recall_target": "比较“乘在部分和上”与“乘在元素上”的乘 scale 次数, 比值 BM·BN/(V·(BM+BN)) 的含义是什么?",
-   "assessment": "recall",
-   "layer": "atomic",
-   "fact_scope": {
-    "kind": "evergreen"
-   },
-   "quality": "B",
-   "fact_status": "verified",
-   "lifecycle": "active",
-   "priority": 4,
-   "template_id": "technical-qa",
-   "fields": {
-    "问题": "一个 CTA 负责 BM × BN 的输出块，沿 K 每 V 个元素一个 scale。在一个 scale 块上，“乘在部分和上”和“乘在元素上”各要乘几次 scale？比值 BM·BN / (V·(BM + BN)) 怎样理解？什么时候前者更省？",
-    "答案": {
-     "blocks": [
-      {
-       "type": "lead",
-       "parts": [
-        {
-         "type": "text",
-         "text": "乘在元素上，每个输入元素乘一次，共 V·(BM + BN) 次；乘在部分和上，每个部分和乘一次，共 BM·BN 次；后者除以前者就是这个比值。"
-        }
-       ]
-      },
-      {
-       "type": "point",
-       "label": "摊到乘加",
-       "parts": [
-        {
-         "type": "text",
-         "text": "乘在元素上，每次乘加摊到 1/BM + 1/BN 次乘 scale（128 × 256 时约 1/85）；乘在部分和上摊到 1/V 次。所以 V 大于约 85 时后者更省。"
-        }
-       ]
-      },
-      {
-       "type": "point",
-       "label": "数值",
-       "parts": [
-        {
-         "type": "text",
-         "text": "128 × 256 的块：V = 32 时比值约 2.7，V = 128 时约 0.67。"
-        }
-       ]
-      },
-      {
-       "type": "boundary",
-       "parts": [
-        {
-         "type": "text",
-         "text": "这里只数乘 scale：没算解码的成本，次数也不等于时间；而且乘在部分和上还要求 V ≥ 指令的 K。"
-        }
-       ]
-      }
-     ]
-    },
-    "锚点": "分母数输入、分子数输出；1/BM + 1/BN 对 1/V",
-    "来源": "块缩放矩阵乘学习记录 10-20 · 节点 5"
-   },
-   "source_ids": [
-    "block-scaled-matmul-log"
-   ],
-   "content_summary": "两种位置乘 scale 次数之比的含义；V 大于约 85 时部分和更省",
-   "depends_on": []
-  },
-  {
    "key": "unshuffled-scale-path-cost",
    "rank": 23,
    "domain": "triton-block-scaled-matmul",
@@ -1833,7 +1677,7 @@
    "priority": 4,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "sm_100 上，若 scale 按逻辑二维存、能建起描述符（比如 NVFP4），kernel 不做 reshape、trans，直接把 [128, BLOCK_K/V] 的 scale 交给 tl.dot_scaled，scale 从 SMEM 进 TMEM 的路径会变成什么样？和教程的 5D 预排相比，多出来的代价在哪里？",
+    "问题": "在 Triton 3.7.1 中、sm_100 上，若 scale 按逻辑二维存、能建起描述符（比如 NVFP4），kernel 不做 reshape、trans，直接把 [128, BLOCK_K/V] 的 scale 交给 tl.dot_scaled，scale 从 SMEM 进 TMEM 的路径会变成什么样？和教程的 5D 预排相比，多出来的代价在哪里？",
     "答案": {
      "blocks": [
       {
@@ -1871,7 +1715,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "教程的做法是一个线程发 12 条 tcgen05.cp（NVFP4，A 4 块、B 8 块），.warpx4 在拷贝时就写好 4 份副本，MMA 之前不用等。"
+         "text": "教程的做法是每个 K 步由一个线程发 12 条 tcgen05.cp（NVFP4，A 4 块、B 8 块），.warpx4 在拷贝时就写好 4 份副本，MMA 之前不用等。"
         }
        ]
       },
@@ -1991,7 +1835,7 @@
    "priority": 4,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "sm_100 的块缩放教程里，一块预排 scale 覆盖 128 行 × 4 个 scale（沿 K 共 4V 个元素）。BLOCK_K 是不是因此被 TMEM 和 V 定死了？它的取值受哪些条件约束？往上加大时真正受什么限制？",
+    "问题": "Triton 3.7.1 的 sm_100 块缩放教程里，一块预排 scale 覆盖 128 行 × 4 个 scale（沿 K 共 4V 个元素）。BLOCK_K 的取值受哪些条件约束，往上加大时真正受什么限制？",
     "答案": {
      "blocks": [
       {
@@ -2009,7 +1853,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "不是瓶颈：教程的 NVFP4 配置里，一个 K 步的 scale 只占 TMEM 512 列中的 48 列，128 × 256 的 FP32 累加器占 256 列。"
+         "text": "不是瓶颈：一个 K 步的 scale 加上 FP32 累加器，也远没用满 TMEM 的 512 列。"
         }
        ]
       },
@@ -2019,32 +1863,13 @@
        "parts": [
         {
          "type": "text",
-         "text": "真正的限制是每级用量 × 流水级数：NVFP4 每级约 55 KB，4 级约 221 KB；BLOCK_K 翻倍到 512，同样的共享内存只够 2 级。"
-        }
-       ]
-      },
-      {
-       "type": "point",
-       "label": "对照",
-       "parts": [
-        {
-         "type": "text",
-         "text": "DeepGEMM 在软件里每 128 个元素乘一次 scale，BLOCK_K 必须等于 scale 块，所以它断言 BLOCK_K == 128。"
-        }
-       ]
-      },
-      {
-       "type": "boundary",
-       "parts": [
-        {
-         "type": "text",
-         "text": "sm_120 每个 CTA 只有 101,376 字节共享内存，教程的配置在那里放不下。"
+         "text": "真正的限制是每级用量 × 流水级数：BLOCK_K 翻倍，每级用量也约翻倍，同样的共享内存只够一半的级数。"
         }
        ]
       }
      ]
     },
-    "锚点": "rep_k × 4V；TMEM 不紧；共享内存 × 级数",
+    "锚点": "rep_k × 4V、指令 K 的倍数；TMEM 不紧；共享内存 × 级数",
     "来源": "块缩放矩阵乘学习记录 10-20 · 节点 4"
    },
    "source_ids": [
@@ -2071,7 +1896,7 @@
    "priority": 4,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "Triton 块缩放教程为 MI355X（gfx950，CDNA4）另写了 shuffle_scales_cdna4。它和 NVIDIA sm_100 的 5D 预排，目标有什么不同？不预排会多付什么？",
+    "问题": "Triton 3.7.1 的块缩放教程为 MI355X（gfx950，CDNA4）另写了 shuffle_scales_cdna4。它和 NVIDIA sm_100 的 5D 预排，目标有什么不同？不预排会多付什么？",
     "答案": {
      "blocks": [
       {
@@ -2099,7 +1924,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "scale 按逻辑形状存时，从 LDS 读 scale 要 36 条逐字节的 ds_read_u8，还要拼字节；预排后只要 6 条 32 位读；从显存读进 LDS 的指令两者相同。"
+         "text": "scale 按逻辑形状存时，从 LDS 读 scale 要逐字节读、再把字节拼起来；预排后每个 lane 一次 32 位读就拿到 4 个 scale；从显存读进 LDS 的指令两者相同。"
         }
        ]
       },
@@ -2173,11 +1998,11 @@
       },
       {
        "type": "point",
-       "label": "解包",
+       "label": "解包（延伸）",
        "parts": [
         {
          "type": "text",
-         "text": "byte & 0xF 是元素 2j，byte >> 4 是元素 2j+1，再交错放回；低 3 位查表，第 3 位定符号，最后乘 2^(scale 字节 − 127)。"
+         "text": "byte & 0xF 是元素 2j，byte >> 4 是元素 2j+1，再交错放回；低 3 位查表，最高位（bit 3）是符号位，整张量上用 torch.where(sign == 1, -v, v) 放回符号（分支改成两边都算、再按条件挑），最后乘 2^(scale 字节 − 127)。"
         }
        ]
       },
@@ -2213,13 +2038,13 @@
     "product": "triton",
     "version": "3.7.1"
    },
-   "quality": "B",
+   "quality": "A",
    "fact_status": "verified",
    "lifecycle": "active",
-   "priority": 4,
+   "priority": 5,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "一个块缩放矩阵乘 kernel 在 RTX 5090 上数值测试全部通过。为什么这还不能说明它走了原生块缩放指令？要怎样检查？",
+    "问题": "在 Triton 3.7.1 中，一个块缩放矩阵乘 kernel 编到 RTX 5090（sm_120）后数值测试全部通过。为什么这还不能说明它走了原生块缩放指令？要怎样检查？",
     "答案": {
      "blocks": [
       {
@@ -2289,7 +2114,7 @@
    "priority": 4,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "Triton 3.7.1 没有原生块缩放指令可用时，把 tl.dot_scaled 拆成软件换算。哪些操作数需要“解码”、哪些需要“scale 处理”，各包含哪些工作？RTX 5090 上 M = 16 的实测软件路径（A 是不带 scale 的 MXFP4，B 是带 scale 的 MXFP4），每个 warp 每个 K 步的 1842 条指令怎样拆？tl.dot_scaled 的 fast_math=True 省掉什么？",
+    "问题": "Triton 3.7.1 在没有原生块缩放指令可用时，把 tl.dot_scaled 拆成软件换算。以 RTX 5090 上的一条软件路径为例：A 是不带 scale 的 MXFP4，B 是带 scale 的 MXFP4。哪些操作数要做“解码”、哪些要做“scale 处理”，各由什么决定？其中哪一部分可以用 fast_math=True 省掉？",
     "答案": {
      "blocks": [
       {
@@ -2297,17 +2122,17 @@
        "parts": [
         {
          "type": "text",
-         "text": "以 FP4 存放的操作数都要解码（4 位码查表换成 bf16，与有没有 scale 无关）；只有带 scale 的操作数才做 scale 处理，即乘 scale 与 NaN 处理。"
+         "text": "解码看存储格式：以 FP4 存放的操作数都要把 4 位码换成 bf16，与有没有 scale 无关；scale 处理看有没有 scale：只有带 scale 的操作数才乘 scale、做 NaN 处理。例子里 A、B 都要解码，只有 B 做 scale 处理。"
         }
        ]
       },
       {
        "type": "point",
-       "label": "拆分",
+       "label": "解码",
        "parts": [
         {
          "type": "text",
-         "text": "查表换算 816 条（A、B 全部 12,288 个元素）、重排与搬运约 433 条、B 的 NaN 处理 SEL 256 条（每个 B 元素 1 条）、乘 scale 的 HMUL2 128 条（每条乘两个 bf16）、其他 209 条。"
+         "text": "在 NVIDIA 上是 Triton 内联 PTX 的一次查表：prmt 按编码在两张字节表里挑出 bf16 的高、低字节，平均每个元素约 2 条指令。"
         }
        ]
       },
@@ -2317,7 +2142,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "DecomposeScaledBlocked 逐元素做 where(scale == 0xFF, NaN, x)，因为把 scale 字节左移成 bf16 后，255 会变成 Inf 而不是 NaN。"
+         "text": "DecomposeScaledBlocked 逐元素做 where(scale == 0xFF, NaN, x)，因为把 scale 字节左移成 bf16 后，255 会变成 Inf 而不是 NaN；在 SASS 里就是 B 每个元素 1 条 SEL。"
         }
        ]
       },
@@ -2327,7 +2152,17 @@
        "parts": [
         {
          "type": "text",
-         "text": "fast_math=True 时跳过 NaN 检查，这 256 条 SEL 就没有了，约占循环的 14%；代价是 scale 字节为 0xFF 时不再得到 NaN。"
+         "text": "fast_math=True 跳过 NaN 检查，这些 SEL 就没有了，在 M = 16 那次约占循环指令的 14%；代价是 scale 字节为 0xFF 时不再得到 NaN。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "W4A16",
+       "parts": [
+        {
+         "type": "text",
+         "text": "A 改存 bf16 只去掉解码里较小、较便宜的一块（A 没有 scale 处理），按编译产物估算收益有限，没有实测。"
         }
        ]
       },
@@ -2342,7 +2177,7 @@
       }
      ]
     },
-    "锚点": "解码看存储格式，scale 处理看有没有 scale；SEL 是 NaN 处理",
+    "锚点": "解码看存储格式，scale 处理看有没有 scale；SEL 是 NaN 处理，fast_math 去掉它",
     "来源": "块缩放矩阵乘学习记录 10-20 · M1 复查"
    },
    "source_ids": [
@@ -2352,24 +2187,24 @@
    "depends_on": []
   },
   {
-   "key": "fp4-to-bf16-lut",
-   "rank": 30,
+   "key": "mi300x-fp8-fnuz-conversion",
+   "rank": 53,
    "domain": "triton-block-scaled-matmul",
-   "recall_target": "Triton 在 NVIDIA 上怎样把 FP4 解码成 bf16, 每个元素约几条指令?",
+   "recall_target": "MI300X 原生 FP8 是 FNUZ 变体时, 为什么不能直接复用 OCP E4M3 权重的位模式, 要怎样转换?",
    "assessment": "recall",
    "layer": "atomic",
    "fact_scope": {
     "kind": "snapshot",
-    "product": "triton",
-    "version": "3.7.1"
+    "product": "vllm",
+    "commit": "8530aed2b78a19eb00e242031c22bb78d615eea2"
    },
-   "quality": "B",
+   "quality": "A",
    "fact_status": "verified",
    "lifecycle": "active",
-   "priority": 4,
+   "priority": 5,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "Triton 3.7.1 的 Fp4ToFpOpToLLVM 用一段内联 PTX，把一个 32 位寄存器里的 8 个 FP4（E2M1）编码转成 8 个 bf16。它是怎样做的？每个元素平均约几条指令？",
+    "问题": "在 MI300X（gfx942，CDNA3）上部署一个按 OCP E4M3（PyTorch 的 float8_e4m3fn）量化的 FP8 checkpoint：权重是 FP8 字节，另配权重 scale 和输入 scale。为什么不能把这些字节直接当成 MI300X 原生的 FP8 来用？要怎样转换（以 vLLM commit 8530aed 的 normalize_e4m3fn_to_e4m3fnuz 为例）？",
     "答案": {
      "blocks": [
       {
@@ -2377,27 +2212,27 @@
        "parts": [
         {
          "type": "text",
-         "text": "做一次查表：E2M1 编码的低 3 位是有序格点的下标，用 prmt（相当于 CUDA 的 __byte_perm：从两个 32 位寄存器拼成的 8 个字节里，按选择器的每个半字节挑一个字节）分别查 bf16 的低字节表和高字节表。"
+         "text": "MI300X 原生的 FP8 是 FNUZ 变体：bias 是 8 而不是 7，同样的位表示的值正好是 OCP E4M3 的一半，而且 0x80 在 OCP 里是 −0，在 FNUZ 里是 NaN。直接复用字节，反量化的值整体小一半，原来的 −0 变成 NaN。"
         }
        ]
       },
       {
        "type": "point",
-       "label": "步骤",
+       "label": "格式差别",
        "parts": [
         {
          "type": "text",
-         "text": "先用 & 0x77777777 去掉符号位得到下标，用 & 0x88888888 再右移 3 位取出符号；查低字节表（0xC0800000、0xC0804000）和高字节表（0x3F3F3F00、0x40404040），负数在高字节补 0x80；后 4 个编码右移 16 位再查一遍，最后 4 条 prmt 把低、高字节交错拼成 4 个 bf16x2。"
+         "text": "FNUZ 没有 −0 和 Inf，0x80 是唯一的 NaN，最大值 240（OCP E4M3 是 448）；比如字节 0x7E 在 OCP 里是 448，在 FNUZ 里是 224。"
         }
        ]
       },
       {
        "type": "point",
-       "label": "条数",
+       "label": "转换",
        "parts": [
         {
          "type": "text",
-         "text": "共 2 条 and、3 条 shr、10 条 prmt、2 条 or，17 条处理 8 个元素，平均每个元素约 2.1 条。"
+         "text": "vLLM 做三步：把字节 0x80 改成 0；把同样的位按 FNUZ 重新解读；把权重 scale 和输入 scale 都乘 2。同样的位在 FNUZ 里只有一半大，scale 翻倍后反量化的结果不变。"
         }
        ]
       },
@@ -2406,26 +2241,26 @@
        "parts": [
         {
          "type": "text",
-         "text": "先清掉符号位还有一个原因：prmt 选择器半字节的最高位另有含义，表示把所选字节的符号位复制满整个字节。"
+         "text": "这是 CDNA3 的问题：MI350 系列（CDNA4）改用了 OCP 格式，不需要这一步；换到别的加速器时，先查清它原生的 FP8 是哪一种变体。"
         }
        ]
       }
      ]
     },
-    "锚点": "两张字节表加符号；17 条处理 8 个元素",
-    "来源": "块缩放矩阵乘学习记录 10-20 · M1 复查"
+    "锚点": "FNUZ：bias 8、同位值减半、0x80 是 NaN；0x80 → 0、按 FNUZ 解读、scale × 2",
+    "来源": "块缩放矩阵乘学习记录 10-20 · 节点 1"
    },
    "source_ids": [
     "block-scaled-matmul-log"
    ],
-   "content_summary": "Triton 用 prmt 查表把 8 个 FP4 转成 bf16，约 2.1 条/元素",
+   "content_summary": "MI300X 的 FP8 是 FNUZ：同位值减半、0x80 为 NaN；vLLM 置 0、重新解读、scale 乘 2",
    "depends_on": []
   },
   {
-   "key": "w4a16-small-gain-m16",
-   "rank": 31,
+   "key": "tma-declare-contiguity-by-shape",
+   "rank": 54,
    "domain": "triton-block-scaled-matmul",
-   "recall_target": "M = 16 时把 A 改存 bf16（W4A16）能让软件换算快多少, 为什么不多?",
+   "recall_target": "想让 TMA 把首尾相接的几行当成一段连续数据时, 描述符里怎样表达, 有什么限制?",
    "assessment": "recall",
    "layer": "atomic",
    "fact_scope": {
@@ -2439,7 +2274,7 @@
    "priority": 4,
    "template_id": "technical-qa",
    "fields": {
-    "问题": "RTX 5090 上 M = 16、N = K = 8192 的软件换算路径（A、B 都是 MXFP4，A 不带 scale）实测 45.1 µs。若把 A 改存 bf16（W4A16，只有 B 要解码），按编译出的 SASS 估算能快多少？为什么去掉 A 的解码收益不大？",
+    "问题": "在 Triton 3.7.1 里给 NVIDIA 的 TMA 建描述符：一块 scale 是 16 行 × 16 个字节，这 16 行在显存里首尾相接（行距正好 16 字节）。想在描述符里把它们表示成一段连续的 256 字节，而不是 16 段 16 字节，该怎样表达？",
     "答案": {
      "blocks": [
       {
@@ -2447,27 +2282,37 @@
        "parts": [
         {
          "type": "text",
-         "text": "本机编译每个 warp 每个 K 步 1608 条（原来 1842 条），发射约 21.4 µs，显存约 20.3 µs，两项几乎一样长；按两项相加估约 41.7 µs，只快约 7%。"
+         "text": "没有单独的“连续”声明，形状和步长本身就是声明：把首尾相接的几行在形状里合成一维，比如 [16, 16] 写成 [256]，在主机端先把张量 reshape 成合并后的形状，再建描述符。"
         }
        ]
       },
       {
        "type": "point",
-       "label": "原因",
+       "label": "合并条件",
        "parts": [
         {
          "type": "text",
-         "text": "A 只占每个 warp 每个 K 步解码的 12,288 个元素里的 4096 个，又没有 scale 处理，只要查表那约 2.1 条/元素；B 每个元素约 5.4 条（含 NaN 处理与乘 scale），一点没少。"
+         "text": "描述符只认“地址 = 起点 + Σ 下标 × 步长”：相邻两维能合并，当且仅当外层步长 = 内层大小 × 内层步长，也就是两维首尾相接。"
         }
        ]
       },
       {
        "type": "point",
-       "label": "副作用",
+       "label": "Triton",
        "parts": [
         {
          "type": "text",
-         "text": "A 改成 bf16 后，读共享内存的指令从 19 条增加到 35 条。"
+         "text": "TensorDescriptor.from_tensor 按张量原有的形状和步长建描述符，不会替你合并。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "swizzle",
+       "parts": [
+        {
+         "type": "text",
+         "text": "“最内维尽量拉到 256”只对不做 swizzle 的描述符成立：开了 swizzle 时，块的最内维不能超过 swizzle 宽度。"
         }
        ]
       },
@@ -2476,19 +2321,19 @@
        "parts": [
         {
          "type": "text",
-         "text": "两项接近时，模型里一点小误差就会让“谁是限制”翻过来（按题设估是显存略长，按实际编译是发射略长），更稳妥的说法是“两者相当”；这些只是编译估算，没有实测。"
+         "text": "TMA 硬件内部会不会把首尾相接的短行拼成大消息，NVIDIA 没有公开；“最内维越大、消息越大”只出自教程注释，没有测量过。"
         }
        ]
       }
      ]
     },
-    "锚点": "1608 对 1842 条；21.4 对 20.3 µs；A 是解码里小而便宜的一块",
-    "来源": "块缩放矩阵乘学习记录 10-20 · M1 复查"
+    "锚点": "形状和步长就是声明；外层步长 = 内层大小 × 内层步长；swizzle 限制最内维",
+    "来源": "块缩放矩阵乘学习记录 10-20 · 节点 4"
    },
    "source_ids": [
     "block-scaled-matmul-log"
    ],
-   "content_summary": "W4A16 在 M=16 只快约 7%：B 的解码才是大头",
+   "content_summary": "TMA 描述符靠形状和步长表达连续：首尾相接的维度自己合并；swizzle 限制最内维",
    "depends_on": []
   },
   {
@@ -2508,7 +2353,7 @@
    "template_id": "correction",
    "fields": {
     "意图": "解释在都配块 scale 的前提下，4 位元素格式为什么选 E2M1（1 位尾数），而不是范围更宽的 E3M0（0 位尾数）。",
-    "场景": "第 10 课节点 2 检查题：一张激活张量每行近似服从均值为 0 的正态分布；同事提议用 E3M0（非负值 0、0.25、0.5、1、2、4、8、16，约 6 档）代替 E2M1（约 3.58 档）。两种格式都按块最大值取 scale 时比较精度。",
+    "场景": "一张激活张量每行近似服从均值为 0 的正态分布；同事提议用 E3M0（非负值 0、0.25、0.5、1、2、4、8、16，约 6 档）代替 E2M1（约 3.58 档）。两种格式都按块最大值取 scale 时比较精度。",
     "正确": "点积误差由块内较大的数主导：E2M1 在块最大值往下的 1/4 到 1 这一段有 5 个格点，E3M0 只有 3 个；E3M0 多出的格点在 1/8 以下，那里的数小，舍入误差本来就小。",
     "错误": "考虑到同一个token内的数大致服从均值为0的正态分布，那我认为接近0的小范围有更多格点会更好，所以业界可能选E2M1加块scale。",
     "说明": {
@@ -2587,7 +2432,7 @@
    "template_id": "correction",
    "fields": {
     "意图": "说明 MX 格式的 E8M0 scale 能表示的指数范围，以及量化器为什么把 e 截到 [−127, 127]。",
-    "场景": "第 10 课练习：MXFP4 量化规则写“e = ⌊log₂(amax)⌋ − 2，截到 [−127, 127]，scale 字节 = e + 127”，学习者对截断范围有疑问。",
+    "场景": "写 MXFP4 量化器时，规则是“e = ⌊log₂(amax)⌋ − 2，截到 [−127, 127]，scale 字节 = e + 127”，学习者对截断范围有疑问。",
     "正确": "E8M0 是无符号字节减 127，字节 255 留给 NaN，可用的指数是 −127 到 127；截到 −127 保证 scale 字节落在 0 到 254，永远写不出 255。",
     "错误": "为什么是截到[-127, 127]，而不是[-128, 128]。因为UE8M0的指数上范围不应该是[-128,128]吗？",
     "说明": {
@@ -2666,7 +2511,7 @@
    "template_id": "correction",
    "fields": {
     "意图": "判断在有低精度 MMA 指令、但没有块缩放指令的硬件上，块 scale 应乘在元素上还是部分和上。",
-    "场景": "第 10 课节点 3 答疑：块 scale 可以乘在输入元素上、部分和上或 MMA 指令内部；这里讨论没有指令内缩放、只有 FP8 等低精度 MMA 的硬件。",
+    "场景": "块 scale 可以乘在输入元素上、部分和上或 MMA 指令内部；这里讨论没有指令内缩放、只有 FP8 等低精度 MMA 的硬件。",
     "正确": "乘在部分和上的硬前提是 scale 块不比一条 MMA 指令的 K 小；而且 2 的幂 scale 在一定窗口内可以乘在元素上、结果仍留在低精度格式里，所以“乘在元素上就用不了低精度 MMA”不成立。",
     "错误": "对于一款有低精度MMA指令的硬件，我想利用低精度MMA的高性能，那么我肯定是会把scale在部分和上是吧？因为如果放在输入元素上，那么已经提升精度了，就没法用低精度MMA了。",
     "说明": {
@@ -2697,16 +2542,6 @@
         {
          "type": "text",
          "text": "E2M1 的值乘 2^s，s 在 −8 到 6 之间时在 E4M3 里仍然精确；可以把每块的 scale 拆成“一个 K 块内的公共指数 × 相对部分”，相对部分乘在元素上，公共部分每个 K 块乘一次部分和。"
-        }
-       ]
-      },
-      {
-       "type": "point",
-       "label": "取舍",
-       "parts": [
-        {
-         "type": "text",
-         "text": "没有低精度 MMA 时默认乘在元素上；要不要改，看多出的乘法、是否打乱 MMA 主循环、数值范围、访存还是计算受限、MMA 自身的累加精度。"
         }
        ]
       },
@@ -2747,8 +2582,8 @@
    "template_id": "correction",
    "fields": {
     "意图": "说明块缩放 kernel 把预排的 scale 还原成逻辑形状时，中间那次 trans 起什么作用，以及漏掉或写错的后果。",
-    "场景": "第 10 课节点 4 检查题：假设 TMEM 的格子从 32 位变成 64 位，物理形状变成 [M/128, K/V/8, 32, 4, 8]；问 kernel 里 trans(0, 3, 2, 1, 4) 的维度顺序要不要改、为什么。",
-    "正确": "trans 不读写数据，它让最后一次 reshape 合出的下标正好是 tl.dot_scaled 要的行号 32g + r 和列号 4kc + c；访存是否连续，在定物理排法时就定了。",
+    "场景": "Triton 3.7.1 的 sm_100 块缩放教程把 scale 预排成 [M/128, K/V/4, 32, 4, 4]，kernel 里用 reshape、trans(0, 3, 2, 1, 4)、reshape 还原。假设 TMEM 的格子从 32 位变成 64 位，物理形状变成 [M/128, K/V/8, 32, 4, 8]；问 trans(0, 3, 2, 1, 4) 的维度顺序要不要改、为什么。",
+    "正确": "trans 不读写数据，它让最后一次 reshape 合出的下标正好是 tl.dot_scaled 要的行号 32g + r 和列号 8kc + c（64 位格子一格装 8 个 scale）；访存是否连续，在定物理排法时就定了。",
     "错误": "trans 的维度顺序不用变。因为调整维度顺序是为了让行和列的层级维度放在一起，应该是可以更好的连续访存。",
     "说明": {
      "blocks": [
@@ -2767,7 +2602,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "把 [1, 4, 32, 4, 4] 直接 reshape 成 [128, 16]，行号变成 32·kc + r、列号变成 4g + c：逻辑位置 (37, 10) 会取到第 69 行第 6 列的 scale，结果算错而不是变慢。"
+         "text": "以原来的 32 位布局为例：把 [1, 4, 32, 4, 4] 直接 reshape 成 [128, 16]，行号变成 32·kc + r、列号变成 4g + c，逻辑位置 (37, 10) 会取到第 69 行第 6 列的 scale，结果算错而不是变慢。"
         }
        ]
       },
@@ -2816,7 +2651,7 @@
    "template_id": "correction",
    "fields": {
     "意图": "说明在 MI300X 上把 MoE 专家权重从 bf16 改存 MXFP4、矩阵乘仍用 bf16 MFMA 时，无论解码还是预填充都保留的好处是什么。",
-    "场景": "第 10 课综合验收：权重存 bf16（方式 A）对存 MXFP4 并在 kernel 里解码（方式 B）；负载分解码（每个专家 M = 8）和预填充（M = 4096）两种。",
+    "场景": "MI300X 上的 MoE 专家权重：存 bf16（方式 A）对存 MXFP4、在 kernel 里解码后仍用 bf16 MFMA（方式 B）；负载分解码（每个专家 M = 8）和预填充（M = 4096）两种，学习者估算时取 N = K = 1000。",
     "正确": "始终保留的是显存容量：权重小约 3.8 倍，省下的显存可以放 KV cache、服务更多请求；少读字节只有在受访存限制时才能换成时间。",
     "错误": "无论哪种负载，方式B实打实地减少了需要的访存数据量，是有好处的。",
     "说明": {
@@ -2836,7 +2671,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "B 最多和 A 一样快，剩下只看解码能不能藏进 MFMA；说“看访存效率和解码的权衡”也不准确。"
+         "text": "B 最多和 A 一样快，剩下只看解码能不能藏进 MFMA。"
         }
        ]
       },
@@ -2884,9 +2719,9 @@
    "priority": 5,
    "template_id": "correction",
    "fields": {
-    "意图": "判断一个矩阵乘受访存还是计算限制时，统一计算强度和平衡点的单位。",
-    "场景": "第 10 课综合验收复查：MI300X，DeepSeek-V3 式路由下每个专家 M = 128、N = K = 1024，权重存 MXFP4；平衡点按 bf16 稠密峰值与带宽算约 247 FLOP/字节，即约 123 次乘加/字节。",
-    "正确": "M·N·K ÷ 字节的单位是“次乘加/字节”，要和 123 比；按 FLOP 算要再乘 2，才和 247 比。这里 MXFP4 的 163.8 次乘加/字节已经越过平衡点，受计算限制。",
+    "意图": "用计算强度判断 MI300X 上一个 MoE 专家的矩阵乘（权重存 MXFP4）受访存还是计算限制，并说明算出的强度该怎样和平衡点比较。",
+    "场景": "MI300X 的 bf16 稠密峰值 1307.4 TFLOPS、显存带宽 5.3 TB/s，平衡点约 247 FLOP/字节。DeepSeek-V3 式路由下每个专家 M = 128，权重 N = K = 1024 存 MXFP4（每 32 个 FP4 配 1 字节 scale），激活和输出都是 bf16。",
+    "正确": "M·N·K ÷ 字节得到的是“次乘加/字节”，要和约 123 次乘加/字节比；按 FLOP 算要再乘 2，才和 247 比。字节计入激活、权重、scale 和 bf16 输出后，这里约 124 次乘加/字节，几乎正好落在平衡点上，访存和计算两种限制都要考虑。",
     "错误": "对于mxfp4的存法，计算强度为128*1024*1024/(2*128*1024+0.5*1024*1024+1024*1024/32)=163.84 ，相比于平衡点依旧是低的。所以瓶颈依旧是访存",
     "说明": {
      "blocks": [
@@ -2895,7 +2730,17 @@
        "parts": [
         {
          "type": "text",
-         "text": "规格表的 TFLOPS 把一次乘加算 2 次运算（1307.4 TFLOPS 就是每秒 653.7 万亿次乘加），分子只写 M·N·K 时得到的是乘加次数。"
+         "text": "错在比较的单位：规格表的 TFLOPS 把一次乘加算 2 次运算（1307.4 TFLOPS 就是每秒 653.7 万亿次乘加），163.84 是次乘加/字节，拿它和 247 FLOP/字节比，等于把平衡点抬高了一倍。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "输出字节",
+       "parts": [
+        {
+         "type": "text",
+         "text": "原式和原题都没计入 bf16 输出的 262,144 字节（题目让先忽略激活和输出），这一项不算原答的错。计入后分母是 1,081,344 字节，134,217,728 ÷ 1,081,344 ≈ 124.1；输出若为 fp32，约 99.9，低于平衡点。"
         }
        ]
       },
@@ -2905,7 +2750,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "bf16 方式的 56.9 比 123 和 247 都低，结论碰巧不变；MXFP4 的 163.8 正好落在两者之间，单位一混，瓶颈就判反了。"
+         "text": "bf16 方式计入输出后约 51.2，比 123 和 247 都低，单位混用碰巧不改变结论；落在 123 和 247 之间的强度，单位一混就会判错。"
         }
        ]
       },
@@ -2915,7 +2760,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "每个强度都写上单位，平衡点只用一种：按乘加是 123，按 FLOP 是 247。"
+         "text": "每个强度都写上单位，平衡点只用一种：按乘加是 123，按 FLOP 是 247；字节要计入输入、scale 和输出。"
         }
        ]
       },
@@ -2934,7 +2779,7 @@
    "source_ids": [
     "block-scaled-matmul-log"
    ],
-   "content_summary": "强度与平衡点同单位：乘加 123，FLOP 247",
+   "content_summary": "强度与平衡点同单位：乘加 123，FLOP 247；计入输出后 MXFP4 专家约 124，处在平衡点附近",
    "depends_on": []
   },
   {
@@ -2953,9 +2798,9 @@
    "priority": 5,
    "template_id": "correction",
    "fields": {
-    "意图": "判断 MXFP4 权重的解码开销相对 MFMA 的比例是否随 M 变化。",
-    "场景": "第 10 课综合验收复查：MI300X，bf16 激活 × MXFP4 权重，每个专家 M = 128，BLOCK_M = 128，8 个 wave 全沿 N 排（每个权重元素在 CTA 内只解码一次）；按 bf16 存的方式受访存限制，用时约 2.2T（T 是 MFMA 按峰值算完的时间）。",
-    "正确": "解码相对 MFMA 的比例是 16c / BLOCK_M（c 是每个 FP4 的向量指令数），与 M 无关：M = 128 时解码占比和 M = 4096 时一样，约 43%。MXFP4 方式受计算限制，用时 1T 到 1.43T，仍比 bf16 快约 1.5 到 2.2 倍。",
+    "意图": "说明每个专家 M = 128 时，M 的大小怎样影响 MXFP4 权重的解码能否藏进 MFMA，并据此判断方式 B 会不会比方式 A 慢。",
+    "场景": "MI300X，bf16 激活 × 权重 N = K = 1024，BLOCK_M = 128，8 个 wave 全沿 N 排（每个权重元素在 CTA 内只解码一次）；每个专家 M = 4096 时，按编译产物估，解码约为 MFMA 时间的 43%。现在每个专家只分到 M = 128：方式 A 存 bf16 权重，受访存限制，用时约 2.4T；方式 B 存 MXFP4、在 kernel 里解码，访存约 0.99T。T 是 MFMA 按峰值算完的时间，访存与计算按重叠估。",
+    "正确": "解码相对 MFMA 的比例是 16c / BLOCK_M（c 是每个 FP4 的向量指令数），与 M 无关：M = 128 时和 M = 4096 时一样约 43%。B 用时 1T（解码全藏住）到 1.43T（全藏不住），仍比 A 的约 2.4T 快约 1.7 到 2.4 倍。",
     "错误": "B可能还比A慢。到不了3.8倍是因为B还需要付出解码的开销。因为这时M数值小，我怀疑MFMA无法藏住解码开销。",
     "说明": {
      "blocks": [
@@ -2964,7 +2809,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "每个 CTA 把自己那块权重解码一次，每个解码出的 FP4 和这个 CTA 的 BLOCK_M 行各做一次乘加：解码总量是 N·K·cdiv(M, BLOCK_M)，乘加总量是 cdiv(M, BLOCK_M)·BLOCK_M·N·K，相除只剩 BLOCK_M。"
+         "text": "错在把“藏不住”归因于 M 小：每个 CTA 把自己那块权重解码一次，每个解码出的 FP4 和这个 CTA 的 BLOCK_M 行各做一次乘加，解码总量 N·K·cdiv(M, BLOCK_M)，乘加总量 cdiv(M, BLOCK_M)·BLOCK_M·N·K，相除只剩 BLOCK_M。"
         }
        ]
       },
@@ -2974,7 +2819,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "“藏不住”只说明 B 要多花时间，要把总时间算出来再和 A 比。"
+         "text": "“藏不住”只说明 B 要多花时间，要把总时间算出来再和 A 比：B 最慢也只是 1.43T；访存与计算不重叠时，A 约 3.4T、B 约 2.0T 到 2.4T，B 仍更快。"
         }
        ]
       },
@@ -2984,7 +2829,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "B 越过了平衡点，用时由 MFMA 决定，就算解码不花时间，也最多快 2.2 倍。"
+         "text": "激活和输出的字节不会变少，总字节只少约 2.4 倍；B 的访存约 0.99T，已和 MFMA 的 1T 相当，就算解码不花时间，也最多快约 2.4 倍。"
         }
        ]
       },
@@ -3018,14 +2863,14 @@
     "product": "pytorch",
     "version": "2.13.0"
    },
-   "quality": "A",
+   "quality": "B",
    "fact_status": "verified",
    "lifecycle": "active",
-   "priority": 5,
+   "priority": 4,
    "template_id": "correction",
    "fields": {
-    "意图": "解释量化代码里用 torch.pow(2, -e) 求 2^(−e) 时，结果为什么是 0，并指出同类的整数陷阱。",
-    "场景": "第 10 课练习：一块数的 amax 是 15.6875，e = 1，存在 int32 张量里；计算 data * torch.pow(2, -1*e) 时，整块变成 0 和 −0。",
+    "意图": "解释量化代码里用 torch.pow(2, -e) 求 2^(−e) 时，结果为什么是 0。",
+    "场景": "在 PyTorch 2.13.0 中写 MXFP4 量化：一块数的 amax 是 15.6875，e = 1，存在 int32 张量里；计算 data * torch.pow(2, -1*e) 时，整块变成 0 和 −0。",
     "正确": "底数是 Python int、指数是 int32 张量，结果仍是 int32，2⁻¹ 在整数里是 0；要写成 2.0 ** -e、torch.exp2(-e.float()) 或 torch.ldexp(data, -e)。",
     "错误": "为什么会变成很多0？torch.pow(2, -1*e)应该就只是一个1/2呀？",
     "说明": {
@@ -3051,7 +2896,7 @@
       },
       {
        "type": "point",
-       "label": "同类",
+       "label": "同类陷阱（延伸）",
        "parts": [
         {
          "type": "text",
@@ -3093,8 +2938,8 @@
    "priority": 5,
    "template_id": "correction",
    "fields": {
-    "意图": "区分块缩放 kernel 里“块宽”和“前进量”两种 BLOCK_K // 2，并说明把前进量误写成 BLOCK_K 会发生什么、测试怎样才能抓到。",
-    "场景": "第 10 课 A6：一个 K 步处理 BLOCK_K 个 FP4 元素；packed 每步前进 BLOCK_K // 2 字节，scale 前进 BLOCK_K // 32。学习者在 GPU 上把它们改成 BLOCK_K 试验，第一次实测得到编译错误 lhs_scale must be a tensor of shape [..., 128, 8]。",
+    "意图": "判断块缩放 kernel 里把每个 K 步的前进量 BLOCK_K // 2 误写成 BLOCK_K 会发生什么，以及测试怎样才能抓到这种错。",
+    "场景": "块缩放 kernel 一个 K 步处理 BLOCK_K 个 FP4 元素；packed 每步前进 BLOCK_K // 2 字节，scale 前进 BLOCK_K // 32。学习者在 GPU 上把代码改成 BLOCK_K 试验，第一次实测得到编译错误 lhs_scale must be a tensor of shape [..., 128, 8]。",
     "正确": "块宽不变、只改前进量时能编译：packed 读到约 2 倍远、scale 读到约 32 倍远的位置，越过本行甚至张量末尾，多个 K 步的数值测试失败，结果里出现巨大误差、inf 和 nan。",
     "错误": "如果误写成BLOCK_K，就会导致读取数据过多，dot_scaled输入的数据形状不符合预期，会编译报错。",
     "说明": {
@@ -3104,7 +2949,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "第一次改的是块宽（tl.arange 的长度，决定张量形状，dot_scaled 在编译时检查），所以报编译错误；A6 问的是前进量 k_id * BLOCK_K // 2，它决定第 k 步从哪个字节开始读。"
+         "text": "第一次改的是块宽（tl.arange 的长度，决定张量形状，dot_scaled 在编译时检查），所以报编译错误；题目问的是前进量 k_id * BLOCK_K // 2，它决定第 k 步从哪个字节开始读。"
         }
        ]
       },
@@ -3163,7 +3008,7 @@
    "template_id": "correction",
    "fields": {
     "意图": "把 6 位的 FP6 编码沿 K 打包成字节时，按小端位流放置各位，并说明为什么只做往返测试发现不了位序约定上的错。",
-    "场景": "第 10 课 V1：MXFP6（E3M2）每个编码 6 位，约定把每行看成一条小端位流：第 i 个元素占第 6i 到 6i+5 位，位流第 b 位放在第 ⌊b/8⌋ 个字节的第 b mod 8 位。以编码 1、2、3、4 为例，字节写成最高位在左。",
+    "场景": "MXFP6（E3M2）每个编码 6 位，约定把每行看成一条小端位流：第 i 个元素占第 6i 到 6i+5 位，位流第 b 位放在第 ⌊b/8⌋ 个字节的第 b mod 8 位。以编码 1、2、3、4 为例，字节写成最高位在左。",
     "正确": "第 0 个元素在第 0 个字节的最低 6 位：编码 1、2、3、4 打成 10000001 00110000 00010000，每个编码自己的最低位也落在位流里较低的位置。",
     "错误": "把第 0 个元素放在第 0 个字节的最高位、从左往右排，打出 00000100 00100000 11000100。",
     "说明": {
@@ -3234,7 +3079,7 @@
    "template_id": "correction",
    "fields": {
     "意图": "预测 RTX 5090 上块缩放矩阵乘原生路径与软件换算路径的耗时比时，正确估算软件路径的解码开销。",
-    "场景": "第 10 课 M1：同一个 MXFP4 kernel 去掉 A 的 scale，迫使 sm_120 走软件换算（A、B 的 FP4 都解码成 bf16），N = K = 8192，M = 16 与 M = 8192；学习者在运行前写预测，T 是 BF16 矩阵乘按峰值算完的时间。",
+    "场景": "RTX 5090（sm_120）、Triton 3.7.1：同一个 MXFP4 kernel 去掉 A 的 scale，迫使 sm_120 走软件换算（A、B 的 FP4 都解码成 bf16），N = K = 8192，M = 16 与 M = 8192；学习者在运行前写预测，T 是 BF16 矩阵乘按峰值算完的时间。",
     "正确": "解码在每个 warp 自己的寄存器里做，A 也是 FP4、同样要解码；M = 16 时每个 warp 只负责 16 行 B × 8 行 A，每个 K 步解码 12,288 个元素、只做 65,536 次乘加，平均每个元素只参与 5.3 次（M = 8192 的选中配置是 21 次）。",
     "错误": "解码假设和amd的之前一样需要3.5条指令，那么解码的时间比例大概是(3.5/52.4)/(128/104.75) = 0.0547T，比矩阵乘加小很多。",
     "说明": {
@@ -3245,6 +3090,16 @@
         {
          "type": "text",
          "text": "按 128 次算，等于把 BLOCK_M 当成了复用次数；按实际的 5.3 次，M = 16 时解码时间约为 1.6T，是估计的 30 倍。"
+        }
+       ]
+      },
+      {
+       "type": "point",
+       "label": "式子",
+       "parts": [
+        {
+         "type": "text",
+         "text": "原式的结构是 (每个元素的向量指令数 ÷ 向量单元的速率) ÷ (复用次数 ÷ 张量核的速率)：52.4 是 RTX 5090 每秒约 52.4 万亿条 lane 指令，104.75 是 BF16 张量核每秒约 104.75 万亿次乘加。"
         }
        ]
       },
@@ -3274,7 +3129,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "还默认了几部分完全重叠、两条路径都能跑到峰值；MB 再乘 1024² 与带宽取 1.75 TB/s 两处在比值里互相抵消。"
+         "text": "还默认了几部分完全重叠、两条路径都能跑到峰值。"
         }
        ]
       },
@@ -3315,7 +3170,7 @@
    "template_id": "correction",
    "fields": {
     "意图": "解释基准测试里两条路径搬同样多的字节、耗时却不同的原因。",
-    "场景": "第 10 课 M1，RTX 5090，M = 16：原生 0.0287 ms，按最少字节算 1263 GB/s；软件换算 0.0451 ms，804 GB/s；带宽峰值 1792 GB/s，软件路径还只用到 BF16 算力峰值的 22.7%。",
+    "场景": "RTX 5090、Triton 3.7.1，M = 16：原生 0.0287 ms，按最少字节算 1263 GB/s；软件换算 0.0451 ms，804 GB/s；带宽峰值 1792 GB/s，软件路径还只用到 BF16 算力峰值的 22.7%。",
     "正确": "带宽一列是同一个字节数除以时间，1263 ÷ 804 就是 0.0451 ÷ 0.0287，只是把耗时比换了个写法；要回答的是同样的字节为什么搬得慢：软件路径既没到带宽上限也没到算力上限，卡在发射解码指令和等数据上。",
     "错误": "对于M=16，似乎主要因为访存的速度相差较大……带宽差距接近1.5倍，导致最终耗时比值在1.5倍左右。",
     "说明": {
@@ -3345,7 +3200,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "SASS 计数：软件路径每个 warp 每个 K 步 1842 条指令（原生 166 条），最忙的 SM 上发射约 24.5 µs，加上搬最少字节的 20.2 µs 约 44.7 µs，接近实测的 45.1 µs。"
+         "text": "SASS 计数：软件路径每个 warp 每个 K 步 1842 条指令（原生 166 条），最忙的 SM 上发射约 24.5 µs，加上搬最少字节的 20.2 µs 约 44.7 µs，接近实测的 45.1 µs；这是静态估算，没有 profiler 数据证实。"
         }
        ]
       },
@@ -3386,8 +3241,8 @@
    "template_id": "correction",
    "fields": {
     "意图": "解释 RTX 5090 上 M = 8192（计算受限）时，软件换算对原生的耗时比为什么不是两种张量核的峰值比 8。",
-    "场景": "第 10 课 M1，M = 8192：原生 1.379 ms（FP4 峰值的 47.6%），软件换算 6.010 ms（BF16 峰值的 87.3%），比值 4.368；选配置那一段输出里，有几个软件候选寄存器溢出。",
-    "正确": "计算受限时，比值 = 峰值比 × 效率比 = 8 × (47.6% ÷ 87.3%) ≈ 4.4；溢出出现在没被选中的配置上，选中的软件配置 128 × 64 × 64 用 229 个寄存器，没有溢出。",
+    "场景": "RTX 5090、Triton 3.7.1，M = 8192：原生 1.379 ms（FP4 峰值的 47.6%），软件换算 6.010 ms（BF16 峰值的 87.3%），比值 4.368；选配置那一段输出里，有几个软件候选寄存器溢出。",
+    "正确": "计算受限时，比值 = 峰值比 × 效率比 = 8 × (47.6% ÷ 87.3%) ≈ 4.4：原生只到 FP4 峰值的一半不到；看到的寄存器溢出出在没被选中的配置上，选中的软件配置用 229 个寄存器，没有溢出。",
     "错误": "对于M=8192，我发现软件的测试上出现了寄存器溢出。但这样的话，软件应该更慢，比值应该更高呀。我不明白为什么比值低了。",
     "说明": {
      "blocks": [
@@ -3406,7 +3261,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "张量核 0.66 ms、发射 0.20 ms、显存 0.19 ms，相加 1.05 ms，实测 1.38 ms；多出的约 0.33 ms 分不出来源，可能是 2 级流水加每 SM 1 个 CTA 的空泡、运行时的频率与功耗，或这条指令本来就到不了白皮书的峰值。"
+         "text": "原生路径的张量核、发射、显存三部分相加约 1.05 ms，实测 1.38 ms，多出的约 0.33 ms 目前分不出来源；要用 Nsight Compute 看张量核的忙碌比例与 warp 停顿原因、记录运行时频率与功耗，或单测 OMMA 的小 kernel 来分辨。"
         }
        ]
       },
@@ -3455,7 +3310,7 @@
    "template_id": "correction",
    "fields": {
     "意图": "说明浮点数 v = 2^(E − bias) × (1 + M / 2^m) 里，指数段选的是哪一个 2 的幂，尾数段怎样表示两个 2 的幂之间的数。",
-    "场景": "第 10 课节点 1：理解浮点公式时，学习者用“指数找 2 的幂、尾数在两个 2 的幂之间表示数”的直觉来读公式。",
+    "场景": "初学浮点表示时，学习者用“指数找 2 的幂、尾数在两个 2 的幂之间表示数”的直觉来读这个公式。",
     "正确": "指数取不超过 x 的最大 2 的幂，即 x 所在那一档 [2^k, 2^(k+1)) 的左端；尾数把这一档等分成 2^m 份，M 是格点的编号。",
     "错误": "指数段 E（e 位）2^(E − bias)寻找确定要表示的数的最近的2的幂次，尾数段 M（m 位）在两个2的幂次之间进行表示数。",
     "说明": {
@@ -3526,7 +3381,7 @@
    "template_id": "correction",
    "fields": {
     "意图": "选择 MX scale 张量在 PyTorch 与 Triton 之间传递时的 dtype。",
-    "场景": "第 10 课练习：quantize_mxfp4 返回 packed（FP4 编码）和 scales（E8M0 字节），kernel 里把 scales 交给 tl.dot_scaled。",
+    "场景": "Triton 3.7.1 与 PyTorch 2.13：quantize_mxfp4 返回 packed（FP4 编码）和 scales（E8M0 字节），kernel 里把 scales 交给 tl.dot_scaled。",
     "正确": "packed 和 scales 都用 uint8：uint8 只是装 8 个位的容器，这些位按什么格式解读由接口约定；Triton 3.7.1 只认 uint8 的 scale。",
     "错误": "packed数据使用uint8数据类型，scales使用float8_e8m0fnu数据类型吗？",
     "说明": {
@@ -3556,7 +3411,7 @@
        "parts": [
         {
          "type": "text",
-         "text": ".to(torch.float8_e8m0fnu) 是就近舍入，不是 OCP 的向下取：7.5 那一块会得到字节 128（scale 2），OCP 要的是 127。"
+         "text": ".to(torch.float8_e8m0fnu) 是就近舍入，不是 OCP 的向下取：amax = 7.5 的块，OCP 取 2^(⌊log₂ 7.5⌋ − 2) = 1（字节 127）；把 amax / 4 = 1.875 直接转成 float8_e8m0fnu，会舍入成 2（字节 128）。"
         }
        ]
       },
@@ -3575,7 +3430,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "以上以 Triton 3.7.1 和 PyTorch 2.13 为准。"
+         "text": "需要 E8M0 的语义时，在 PyTorch 一侧用 view 切换解读，不要用 .to() 转换取值。"
         }
        ]
       }
@@ -3605,7 +3460,7 @@
    "template_id": "correction",
    "fields": {
     "意图": "计算块缩放矩阵乘的一个 CTA 里，一个解码出的权重元素 w[k][n] 参与几次乘加。",
-    "场景": "第 10 课综合验收第二次复查：MI300X，bf16 激活 × MXFP4 权重，BLOCK_M = 32，N = K = 1024，8 个 wave 全沿 N 排。",
+    "场景": "MI300X，bf16 激活 × MXFP4 权重，BLOCK_M = 32，N = K = 1024，8 个 wave 全沿 N 排；沿用每个 FP4 的解码要 c = 3.5 条向量指令的估计。",
     "正确": "它只参与 BLOCK_M = 32 次乘加，累加进同一列 n 的 32 行；K 方向的其他位置是别的元素。",
     "错误": "解码出的fp4是权重，一个元素在一个CTA中需要参与BLOCK_M*K=32*1024=32768次乘加。",
     "说明": {
@@ -3644,7 +3499,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "若 M 方向有多个 wave（比如 warpsPerCTA = [2, 4]），每个 wave 各解码一份，每份只参与 BLOCK_M / 2 次乘加。"
+         "text": "c = 3.5 来自一个超出 CDNA3 LDS 上限、跑不起来的编译配置；换成能运行的配置，c ≈ 3.25，比值约 1.63，结论不变。"
         }
        ]
       }
@@ -3655,75 +3510,6 @@
     "block-scaled-matmul-log"
    ],
    "content_summary": "一个解码出的元素参与 BLOCK_M 次乘加，不是 BLOCK_M × K",
-   "depends_on": []
-  },
-  {
-   "key": "sign-multiply-negative-zero",
-   "rank": 48,
-   "domain": "triton-block-scaled-matmul",
-   "recall_target": "整张量反量化时用 x *= -sign 取符号为什么会出错?",
-   "assessment": "discrimination",
-   "layer": "atomic",
-   "fact_scope": {
-    "kind": "evergreen"
-   },
-   "quality": "B",
-   "fact_status": "verified",
-   "lifecycle": "active",
-   "priority": 4,
-   "template_id": "correction",
-   "fields": {
-    "意图": "把逐元素的“符号位为 1 才取负”改写成整张量运算时，正确地放回符号。",
-    "场景": "第 10 课 R-04：把 dequantize_mxfp4 的 Python 循环改成整张量运算；low、high 是解出的绝对值张量，low_sign、high_sign 是取值 0 或 1 的符号位张量。",
-    "正确": "要表达“符号位为 0 乘 1、为 1 乘 −1”，例如 low *= torch.where(low_sign == 1, -1, 1)。",
-    "错误": "low *= -low_sign；high *= -high_sign",
-    "说明": {
-     "blocks": [
-      {
-       "type": "lead",
-       "parts": [
-        {
-         "type": "text",
-         "text": "符号位为 0 时乘的是 −0，所有正数都变成 −0.0：[3.0, 1.5] 配符号位 [0, 1]，得到 [−0.0, −1.5]。"
-        }
-       ]
-      },
-      {
-       "type": "point",
-       "label": "思路",
-       "parts": [
-        {
-         "type": "text",
-         "text": "整张量改写和把 C 循环改成 SIMD 一样：分支改成两边都算、再按条件挑，torch.where 相当于 AVX 的 blend。"
-        }
-       ]
-      },
-      {
-       "type": "point",
-       "label": "另外两个坑",
-       "parts": [
-        {
-         "type": "text",
-         "text": "uint8 的下标张量会被当成布尔掩码，要先转成 long；格点表要建在输入所在的设备上。"
-        }
-       ]
-      },
-      {
-       "type": "boundary",
-       "parts": [
-        {
-         "type": "text",
-         "text": "改写后先在随机输入上逐字节比较新旧两版的输出，确认完全一致。"
-        }
-       ]
-      }
-     ]
-    }
-   },
-   "source_ids": [
-    "block-scaled-matmul-log"
-   ],
-   "content_summary": "乘 −sign 会把正数变成 −0；用 where 选 ±1",
    "depends_on": []
   },
   {
@@ -3814,7 +3600,10 @@
     "mxfp4-vs-nvfp4",
     "nvfp4-per-tensor-scale-window",
     "ocp-scale-floor-tradeoff"
-   ]
+   ],
+   "review_resolution": {
+    "summary": "已依据更新后的子卡 01、02、03、05 复核：参考回答与五个锚点只用到子卡仍保留的事实（3.58 档、平移不加宽、E2M1 多给尾数、MX 与 NVFP4 的块大小／scale 类型／位数与代价、OCP 向下取整的截断代价），内容不需改动。"
+   }
   },
   {
    "key": "oral-block-scaled-on-hardware",
@@ -3834,7 +3623,7 @@
    "priority": 5,
    "template_id": "oral",
    "fields": {
-    "问题": "面试官问：“讲讲块缩放矩阵乘在 B200 上怎么做，换到别的卡会怎样。”以 Triton 教程的 MXFP4 × MXFP4 kernel 为例，用约 60–90 秒讲清：scale 在哪一步乘、怎样排、怎样进到矩阵单元，以及搬到 RTX 5090 和没有块缩放指令的硬件上会怎样。",
+    "问题": "面试官问：“讲讲块缩放矩阵乘在 B200 上怎么做，换到别的卡会怎样。”以 Triton 3.7.1 教程的 MXFP4 × MXFP4 kernel 为例，用约 60–90 秒讲清：scale 在哪一步乘、怎样排、怎样进到矩阵单元，以及搬到 RTX 5090 和没有块缩放指令的硬件上会怎样。",
     "参考回答": {
      "blocks": [
       {
@@ -3842,7 +3631,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "scale 沿 K 变，只能逐块乘；B200 的 tcgen05.mma 把块 scale 当指令的操作数，在每块的部分和上乘，FP4 的算力全部保住，代价转到了 scale 的布局上。"
+         "text": "scale 沿 K 变，只能逐块乘；B200 的 tcgen05.mma 在指令内部乘块 scale，FP4 的算力全部保住，代价转到了 scale 的布局上。"
         }
        ]
       },
@@ -3862,7 +3651,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "5D TMA 把整块搬进 SMEM，一个线程发 tcgen05.cp 原样拷进 TMEM；kernel 里的 reshape、trans 只是 SMEM 描述符上的视图，不搬数据。"
+         "text": "TMA 把整块搬进 SMEM，一个线程发 tcgen05.cp 原样拷进 TMEM；kernel 里的 reshape、trans 只是 SMEM 描述符上的视图，不搬数据。"
         }
        ]
       },
@@ -3872,7 +3661,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "RTX 5090 的 mma.sync 从寄存器读 scale、累加器也在寄存器，要缩小分块；MI355X 从 VGPR 读、只认 E8M0；RTX 4090、H100 走软件换算，解码成 bf16 再用 bf16 张量核；Triton 3.7.1 在 MI300X 上两侧都带 scale 时编译失败。"
+         "text": "RTX 5090 的块缩放 mma.sync 从寄存器读 scale、累加器也在寄存器，要缩小分块；MI355X 的 scaled MFMA 从 VGPR 读、只认 E8M0；RTX 4090 没有块缩放指令，解码成 bf16、逐元素乘 scale 再用 bf16 张量核；MI300X 上两侧都带 scale 时编译失败。"
         }
        ]
       },
@@ -3881,7 +3670,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "预排只关乎性能，不影响结果；格式受指令限制，比如 RTX 5090 不接 FP8 × FP4 混合。"
+         "text": "预排只关乎性能，不影响结果；只有一侧带 scale 或格式不受指令支持时，有块缩放指令的卡也会退回软件换算。"
         }
        ]
       }
@@ -3904,7 +3693,10 @@
     "why-preshuffle-5d",
     "five-landings",
     "port-tutorial-to-rtx5090"
-   ]
+   ],
+   "review_resolution": {
+    "summary": "已依据更新后的子卡 06、09、11、12 复核：删去子卡不再支撑的 H100 一句，“别的卡”按 11 的判定规则改写，边界改为一侧带 scale 或格式不受支持时退回软件换算；四个锚点不变。"
+   }
   },
   {
    "key": "oral-mi300x-mxfp4-weights",
@@ -3924,7 +3716,7 @@
    "priority": 5,
    "template_id": "oral",
    "fields": {
-    "问题": "请用约 60–90 秒向面试官讲清：在 MI300X 上用 Triton 跑 MoE，专家权重存 bf16，还是存 MXFP4、在 kernel 里解码后用 bf16 MFMA？解码与预填充各怎样判断快慢，怎样量化解码的开销，部署时最终选哪个？",
+    "问题": "请用约 60–90 秒向面试官讲清：在 MI300X 上用 Triton 3.7.1 跑 MoE，专家权重存 bf16，还是存 MXFP4、在 kernel 里解码后用 bf16 MFMA？解码与预填充各怎样判断快慢，怎样量化解码的开销，部署时最终选哪个？",
     "参考回答": {
      "blocks": [
       {
@@ -3932,7 +3724,7 @@
        "parts": [
         {
          "type": "text",
-         "text": "先拿计算强度和平衡点（约 123 次乘加/字节）比，判断瓶颈；再算显存、MFMA、向量单元各自要忙多久，能重叠就取最长、不能就相加。"
+         "text": "先拿计算强度和平衡点（约 123 次乘加/字节，字节计入激活、权重、scale 和输出）比，判断瓶颈；再算显存、MFMA、向量单元各自要忙多久，能重叠就取最长、不能就相加。"
         }
        ]
       },
@@ -3971,14 +3763,14 @@
        "parts": [
         {
          "type": "text",
-         "text": "强度的单位要和平衡点一致；靠近平衡点、BLOCK_M 变小或 wave 沿 M 排时，解码代价会改变结论，最终要实测。"
+         "text": "每个专家只分到约 128 行时，MXFP4 正好落在平衡点附近，访存和计算都要考虑；BLOCK_M 变小时解码代价会改变结论，最终要实测。"
         }
        ]
       }
      ]
     },
     "评分锚点": [
-     "用平衡点判断解码与预填充的瓶颈，单位一致",
+     "用平衡点判断解码与预填充的瓶颈，强度计入全部字节、单位一致",
      "说出解码跟不跟得上带宽的量化判据",
      "说出 16c/BLOCK_M 与 M 无关",
      "说出容量才是始终保留的好处"
@@ -3993,8 +3785,12 @@
     "mi300x-mxfp4-weight-decision",
     "busy-time-overlap-method",
     "w4a16-benefit-is-capacity",
-    "decode-ratio-independent-of-m"
-   ]
+    "decode-ratio-independent-of-m",
+    "intensity-units-mac-vs-flop"
+   ],
+   "review_resolution": {
+    "summary": "已依据更新后的子卡 13、14、36、38 与新加入的 37 复核：强度计入输出字节后，M = 128 的专家处在平衡点附近，边界与第一个锚点已同步改写，并删去子卡不支撑的“wave 沿 M 排”。"
+   }
   },
   {
    "key": "oral-m1-native-vs-software",
@@ -4014,7 +3810,7 @@
    "priority": 5,
    "template_id": "oral",
    "fields": {
-    "问题": "请用约 60–90 秒向面试官讲清你在 RTX 5090 上做的一次受控测量：同一个 MXFP4 kernel 去掉 A 的 scale，迫使 Triton 走软件换算，和原生块缩放指令相比；N = K = 8192，M = 16 与 M = 8192 的结果是什么？怎样解释？你的预测错在哪里？",
+    "问题": "请用约 60–90 秒向面试官讲清你在 RTX 5090 上做的一次受控测量：同一个 MXFP4 kernel 去掉 A 的 scale，迫使 Triton 3.7.1 走软件换算，和原生块缩放指令相比；N = K = 8192，M = 16 与 M = 8192 的结果是什么？怎样解释？你的预测错在哪里？",
     "参考回答": {
      "blocks": [
       {
@@ -4086,7 +3882,10 @@
     "m1-prediction-decode-reuse",
     "issue-time-from-instruction-counts",
     "overlap-bounds-and-limiter"
-   ]
+   ],
+   "review_resolution": {
+    "summary": "已依据更新后的子卡 17、18、42、43、44 复核：比值、发射与等数据的估算、复用次数和 0.33 ms 余项都仍由子卡支撑；“指令数估算没有 profiler 证实”与 43 的证据边界一致；只在问题里补了版本。"
+   }
   }
  ]
 }

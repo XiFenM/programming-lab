@@ -5,12 +5,12 @@
     "id": "markji",
     "profile": "programming-lab-markji"
   },
-  "artifact_set_sha256": "f47655704345e2e5da8b23d79d9dca9924717265be31daee86c485760e7dd7e7",
-  "candidate_sha256": "56d1df5459fef6e5b175d977e58a881b44e06cfe5244b4ae7d50d5b8c60b1b4e",
+  "artifact_set_sha256": "744c6d90568e197929c6f8ac9efb53d07e90ddcd2da5eccd2b1f1d0a6181b512",
+  "candidate_sha256": "ca7d9a7baff8c7d248bbea85ca0c863953678b0b5849c0a28adba221074859a9",
   "cards": [
     {
-      "content_sha256": "be717113fce320e4608ce71343ced1f3dbca72ee0be643a4f87b3c25a5e9511e",
-      "content_summary": "逐个调用闲置 SM 且多次发射，补齐白算零，grouped 一次发射但要设备侧调度并共用块大小",
+      "content_sha256": "85c6640d3476d76f6f24bc53bc7311addfba3d682ca31dee2bc69e96e3d85da5",
+      "content_summary": "逐个调用闲置 SM 且多次发射，补齐白算零；grouped 一次发射，代价是扫描、共用块大小与只均分块数",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -36,7 +36,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "adcf62225977727b8a4af1c4d3e9b5ea062a32b3f981fb6eb0eba269b3c2b50e",
+      "content_sha256": "7f3f26e6b37500cc021053572c507dd62d79c27f19a06cf3114e4709f63046d8",
       "content_summary": "地址当整数存进设备表、kernel 内转成指针；类型、对齐与生命周期信息随之丢失",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -65,8 +65,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "792406d45ba708b822b076e4ecfa73bbed0a14600faea7baa66d498d78f6cb9c",
-      "content_summary": "偏移表是地址表的特例；PyTorch 在设备上展开偏移表而不读回行数，教程在主机上建表",
+      "content_sha256": "7979b8d78e46e7d13f0ba533ac9a12f43582d7cae81e3ff4aa042ab6244e6337",
+      "content_summary": "偏移表是地址表的特例，所以 PyTorch 能在设备上从 offs 展开地址、不读回行数；教程在主机上建表",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -94,7 +94,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "556d8f5d183b6a91eb691013c46bfb42dd29ae969034ecb434b86c615d68035a",
+      "content_sha256": "8a589d73702b30a5f8d1f3566a57abc59ea739e33422929e57ed12f82c7e3c5f",
       "content_summary": "块排成队列、CTA 按步长 NUM_SM 领取并用前缀和定位问题；只均分块数不均分工作量",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -123,8 +123,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "a12c2b879df5daaac004004048ba9fd05d38de8b86b058a181a06d8ed6886cf8",
-      "content_summary": "缩小块只把最忙 CTA 的工作量降 8%，却让访存翻倍、固定开销变多；需实测决定",
+      "content_sha256": "1ccbf4c5f932c490da5d8155228c6842d1b26dc02c73fcc2eee297c29a66a012",
+      "content_summary": "缩小块只能把最忙 CTA 压到平均值附近，却让每次乘加的读入量翻倍、按块计的开销变多；块大小需实测决定",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -152,8 +152,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "57781db70941f5a184ea01819328259b1d0cec30111bbb8135fb2288a600b2fa",
-      "content_summary": "一块不可切分是不均衡的根因；按 K 降序排序或 Stream-K 切分 K 循环可以改进",
+      "content_sha256": "0c567a62375449a3d73038b20a27e2082094a3f6ac38f19c86d607f2ae4289bd",
+      "content_summary": "一块不可切分是不均衡的根因；按 K 降序排序让相邻块工作量相近，Stream-K 切分 K 循环但要合并部分和",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -181,8 +181,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "e7750eb89546bbb7da78e01252d640ce06f21b4b3a2532ca1e1df08b13cd2372",
-      "content_summary": "顺序扫描的步数是 CTA 数乘问题数；CUTLASS 用 warp 内前缀和或主机预计算降低",
+      "content_sha256": "ace1cabf4e14206d5b6d23cd1518ff8eec1533bcfca95f792598b89c7b3d3eef",
+      "content_summary": "顺序扫描的步数是 CTA 数乘问题数；CUTLASS 的 warp 内前缀和与主机预计算不需逐个问题扫描（动机为推断）",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -210,7 +210,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "88a8d1f7a49fc6eee77ce8131f3a3cea6c6b6f28788dff4dcbaa9ea21e3277d8",
+      "content_sha256": "e3374f38611c208faa8ec216f9ff4f00150a7b8a26a43114d687f45e8462a568",
       "content_summary": "无 mask 时 M 不整写坏 C 之后的内存，N 不整绕行并竞争写，K 不整读入别处数据",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -239,8 +239,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "b40b2e7d8c7f1dd3d1ba9a6cdf7c1e9cb91ff0af3344fb0483d2ee08fbb6fba7",
-      "content_summary": "输入嵌进 NaN、输出嵌进哨兵值的缓冲区，四周至少留一整块，越界读写都会暴露",
+      "content_sha256": "e23c995a53b48d3a58e6a3518d18525966e5379b4e5b1a1e73f974a80e97112d",
+      "content_summary": "输入嵌进 NaN、输出嵌进哨兵值的缓冲区，四周至少留一整块；被测函数接收视图并按 stride(0) 取行步长",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -266,8 +266,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "fe332142dd8cdda609f94502b6f3fb57739fc1a9e2f54c286c936bbded054264",
-      "content_summary": "tl.multiple_of 是不被检查的对齐保证，决定能否用 16 字节异步拷贝和流水，不成立即未定义行为",
+      "content_sha256": "9670e31d0ad44b3c4d3284954bece2c358a1fc25acaf51cf7b7a73721de635b2",
+      "content_summary": "tl.multiple_of 是不被检查的对齐保证，替代张量参数在发射时的对齐特化，决定能否用 16 字节异步拷贝和流水；不成立属未定义行为",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -295,8 +295,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "224e3d9af520594ccb0bfaf799da2d74b9c89eafbf5b8b9e7e8aaff269978b7a",
-      "content_summary": "每行行首都要对齐；行步长只是 8 字节倍数时如实保证 8 仍有流水，TMA 不能降档",
+      "content_sha256": "c642651878e82ebdb1e094ef30593be774d52eb72e8136631015381c7fc59c21",
+      "content_summary": "每行行首都要对齐；行步长只是 8 字节倍数时如实保证 8，宽度减半、流水仍在，TMA 不能降档",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -324,7 +324,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "e40fae97951862358c355d6d3dc38c139ee3cad5dea4dd8859a9e8b64cb8572d",
+      "content_sha256": "0f7a3989e413288be1ec058e199ef2da7bd71590adcfca4aa34e67fe59e757cb",
       "content_summary": "cp.async 只有显存到共享内存一个方向；给 C 加保证只把写指令变宽，异步写回需要 TMA",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -353,8 +353,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "2bec3d36c2fd2ecea5ed75df81d7fdaa5c9199e132fdb326d5654b940f81e630",
-      "content_summary": "描述符让硬件处理界外从而不要求整块，但要求对齐与全局暂存区，无 TMA 时改写成指针加 mask",
+      "content_sha256": "ae364cb560d13968fe54fcd9f9edbc2e9025e38b496c24c648322ba250e8ae90",
+      "content_summary": "描述符让硬件处理界外从而不要求整块，代价是 16 字节对齐、设备端现场创建与全局暂存区",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -382,7 +382,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "2ab23c834825c2fa9e21f2473bf78e442e8bf7f56633c593754c29473fa17a3c",
+      "content_sha256": "7c9ea3ca38aa6a2eb817ae2ccf309671117627911d0ca2fb1b39b03b5f9ceaa8",
       "content_summary": "输出补齐只是分配方式不需拷贝，输入补齐必须拷贝，所以 PyTorch 对输入报错、对输出自己补宽",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -401,8 +401,8 @@
       "lifecycle": "active",
       "logical_id": "mc-2d820b27e07e1e50f11a0cad",
       "misconception_of": null,
-      "priority": 4,
-      "quality": "B",
+      "priority": 5,
+      "quality": "A",
       "source_ids": [
         "grouped-gemm-log"
       ],
@@ -411,7 +411,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "606ec25edcbec9034eda20caaaefc5ae0ecadaa60722e87550e38818d1778960",
+      "content_sha256": "ebb25314c99e708aed07add890e1da10e561ce06d79283d8b8d4c439258d5545",
       "content_summary": "B.T 只是视图，.contiguous() 才重排内存，kernel 内的 b.T 只贴转置标记；视图不能交给描述符版",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -440,7 +440,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "a98a3e11e2e716ceec214eba5613fc29d4e2acafc239e60b58cd692a335b3079",
+      "content_sha256": "cf6c2e14339e7494c8f096beea156de5e3739b8180ed61f48b385388f414539f",
       "content_summary": "真实 MoE 只有 M 参差：N、K 整块且对齐成立、调度天然均衡，要处理的是不满的行和扫描开销",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -467,8 +467,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "82f28bcc8cb4f25e9ae67aef5ae2039384a2afdc203b1cebcfd5f3e49d7f6539",
-      "content_summary": "行方向的 mask 保持 16 字节异步拷贝，三向 mask 退回逐元素读；N、K 整块时行 mask 就够",
+      "content_sha256": "d845b378c7dd9964cb1c675985dda32a36412c23be13278464730b729b990932",
+      "content_summary": "宽度取指针对齐与 mask 恒定长度的较小者：行 mask 保持 16 字节异步拷贝，表里读出的 N、K 让三向 mask 的宽度降到 2 字节",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -496,8 +496,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "ed4b0819f9516a07c9d66f0b2d7835de26cda6253b968188c103e0903593a46f",
-      "content_summary": "新后端上两版都退回同步搬运；先保证 M 方向正确与行数不回主机，再优化搬运",
+      "content_sha256": "c20b49ad844ab18255cac7614e10e5c70eac08978b6a68bfd82e7eadec533e17",
+      "content_summary": "调度、地址表与行 mask 与后端无关；描述符版是否改写成指针加 mask 取决于后端的 pass；先保 M 方向正确与行数不回主机",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -525,8 +525,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "f33d40ab38b57130989c3b3a6a7dfb1913f135e876d57f3f072ff0c3fd636360",
-      "content_summary": "kernel 只见整数表无法验证假定，漏掉检查多为静默错误；检查放在包装函数并各自对应一条假定",
+      "content_sha256": "1c103bd7c8db2d4a09f255b529baf662f1222c592a8826eb527b4d12d58f935d",
+      "content_summary": "kernel 只见整数表无法验证假定，漏掉检查多为静默错误；包装函数是最后的检查点，每项检查对应一条假定",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -554,7 +554,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "8328e570c4b45a255920f903c631948a8e9115d1f914df877c4ad13623b01e4b",
+      "content_sha256": "1e10f279785f23357c998274c9baabe593d00dba330fded7459469e70cfb2c5a",
       "content_summary": "循环携带变量的类型不能变；类型一致时原地加完整偏移会逐轮累加",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -583,34 +583,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "e872261a678ac37c9e550f01c2b5782e41a6090fcd598c856a108b306688b2df",
-      "content_summary": "行步长取 stride(0) 而非列数；视图的行步长大于列数，用错不报错只是结果错",
-      "dependency_content_sha256": {},
-      "depends_on": [],
-      "fact_status": "verified",
-      "identity": {
-        "assessment": "recall",
-        "domain": "triton-grouped-gemm",
-        "fact_scope": {
-          "kind": "evergreen"
-        },
-        "recall_target": "交给按行步长寻址的 kernel 时, 行步长应从哪里取?"
-      },
-      "layer": "atomic",
-      "lifecycle": "active",
-      "logical_id": "mc-f2703926f8452ddfb07707ea",
-      "misconception_of": null,
-      "priority": 4,
-      "quality": "B",
-      "source_ids": [
-        "grouped-gemm-log"
-      ],
-      "successor_to": null,
-      "template_id": "technical-qa",
-      "template_version": "1.1.0"
-    },
-    {
-      "content_sha256": "d1b8526da4f9e6f20cf9963cd63950debb613239b6c0d6ffb9ac8400642e8b01",
+      "content_sha256": "b396e7408888887c4ba97d2b9b76ab3b3910ff3ae551c7ee2663c425fa077a6a",
       "content_summary": "CTA 是任务、SM 是硬件；小问题让 SM 闲置，应说 SM 的利用率",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -637,7 +610,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "36d0f81b04fd45c2b003c81ed8af4ac66a9ef230e9e9cdf053a511483b8fab50",
+      "content_sha256": "b3344e1e21ea8e2e201d3be906cd698e4118f9ef769ecf724c899f76a153b539",
       "content_summary": "行步长由最后一维决定；B 转置存放后满足对齐，描述符版里不满足的是 C",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -666,7 +639,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "c62856ec54e0daefdf089b9b7cc52213aca3fbe72a3bcf604e1177e5c98226b1",
+      "content_sha256": "69d0f0d9b4da915c17eaac890677490e45112b73fed573e60e669553c28c7f4a",
       "content_summary": "动态领取只需一个原子计数器；每块一个标记要清零、搜索并重试",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -693,7 +666,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "c7bf3f9ecd7ac17b73323bd899644dd7bc888f548d80a1a0de1bf8602ce483de",
+      "content_sha256": "7e27573510d206d73ecd48e1a0a31f3f4c3ee323ea61516a6706b78be98c125b",
       "content_summary": "回退路径除多次发射和 SM 闲置外，还要把偏移表读回主机造成一次同步",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -722,7 +695,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "cd8753c550ba52f41382f957eab0f2cbfa82c7fcf332b04682e0d199f2dffe87",
+      "content_sha256": "4af44641aa8a32b406b4929e0b1513c5ff3195fa56783e8ab3b8d678509456b1",
       "content_summary": "data_ptr 是字节地址，偏移须乘元素大小；kernel 内转成指针后才按元素计",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -751,7 +724,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "917daee34357fe29e521548de402067270a6e6f45846cc1ea5ea0783c87765de",
+      "content_sha256": "1f243618149ff7ad2355b3b6ac12e45cc72252b067740164cea51b07fef012f6",
       "content_summary": "溢出的是行数乘步长乘元素大小的乘积；offs 保持 int32，先在设备上转 int64 再乘",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -780,35 +753,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "de1d2f634d1f768856d008b1c18233ebdb88395b9105b4754a7841bb3366c4ee",
-      "content_summary": "整组共用的特化标志要遍历所有问题来定，不能只看循环里剩下的最后一个",
-      "dependency_content_sha256": {},
-      "depends_on": [],
-      "fact_status": "verified",
-      "identity": {
-        "assessment": "discrimination",
-        "domain": "triton-grouped-gemm",
-        "fact_scope": {
-          "kind": "evergreen"
-        },
-        "recall_target": "为整组问题选择 kernel 特化的标志应依据什么来定?"
-      },
-      "layer": "atomic",
-      "lifecycle": "active",
-      "logical_id": "mc-f1f63fdbab207650a86976a3",
-      "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
-      "source_ids": [
-        "grouped-gemm-log"
-      ],
-      "successor_to": null,
-      "template_id": "correction",
-      "template_version": "1.1.0"
-    },
-    {
-      "content_sha256": "882a478ec4581056518a12ef50573d1ce9fc1d6f099039c9810fca37a1823133",
-      "content_summary": "所有张量与同一个设备比较；它保护表中地址在 kernel 运行设备上有效",
+      "content_sha256": "02faaaeecc11ae6f6907ccbb08a2f0c64aec44e7a65ca156793e57425e2c110e",
+      "content_summary": "设备检查保护表中地址在 kernel 运行设备上有效，不是要求 CUDA；所有张量要与同一个设备比较",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -836,8 +782,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "75dec7187f2896676aae9c52034c9fc72947613bd27af153f36f6497366d8b43",
-      "content_summary": "对齐保证不成立是未定义行为且不改变请求的字节，数值测试测不出，只能用参数测试覆盖",
+      "content_sha256": "f0fcf09b770768fb609120c16f11589571ab31f88798d48cf49bd719da340e7f",
+      "content_summary": "对齐保证不成立是未定义行为，结果可对可错也可能报异常，数值测试测不出，只能用参数测试覆盖；维数检查去掉后行为不变",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -865,7 +811,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "44a931499956a910e44ca73cad41c47c9411784be993b734485146152762e613",
+      "content_sha256": "6735aca7e1d0d9636a0b74ba665454c03cd3c3e407d0d0368b2fb1ea3cf2e8d9",
       "content_summary": "保证只在调用了 tl.multiple_of 的指针上；指针版的 C 没有对齐假定，不应检查",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -894,19 +840,19 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "eb8957726b41b72a674f625cd153535e618f4802df65404b851b75e09c3a3bbe",
-      "content_summary": "口述 grouped GEMM 的地址表、队列与步长领取、收益代价与满块边界",
+      "content_sha256": "d942196d5e9fc38f943bf1157ea6452ce0e518f7e0ffd3924f95719094357796",
+      "content_summary": "口述 grouped GEMM 的地址表、队列与步长领取、收益代价，以及满块假定与真实 MoE 只有行数参差",
       "dependency_content_sha256": {
-        "mc-4cb9703d2980c4bdd7ab2cd9": "be717113fce320e4608ce71343ced1f3dbca72ee0be643a4f87b3c25a5e9511e",
-        "mc-7eb958bcfe8137ad5610eb65": "82f28bcc8cb4f25e9ae67aef5ae2039384a2afdc203b1cebcfd5f3e49d7f6539",
-        "mc-8757b9f6e70151e0f6984d61": "556d8f5d183b6a91eb691013c46bfb42dd29ae969034ecb434b86c615d68035a",
-        "mc-8b3156614883d3ed58facc2c": "88a8d1f7a49fc6eee77ce8131f3a3cea6c6b6f28788dff4dcbaa9ea21e3277d8",
-        "mc-f837b672b778ec0219eaadef": "adcf62225977727b8a4af1c4d3e9b5ea062a32b3f981fb6eb0eba269b3c2b50e"
+        "mc-4cb9703d2980c4bdd7ab2cd9": "85c6640d3476d76f6f24bc53bc7311addfba3d682ca31dee2bc69e96e3d85da5",
+        "mc-8757b9f6e70151e0f6984d61": "8a589d73702b30a5f8d1f3566a57abc59ea739e33422929e57ed12f82c7e3c5f",
+        "mc-87ec651f88fce5d9d7a20a58": "cf6c2e14339e7494c8f096beea156de5e3739b8180ed61f48b385388f414539f",
+        "mc-8b3156614883d3ed58facc2c": "e3374f38611c208faa8ec216f9ff4f00150a7b8a26a43114d687f45e8462a568",
+        "mc-f837b672b778ec0219eaadef": "7f3f26e6b37500cc021053572c507dd62d79c27f19a06cf3114e4709f63046d8"
       },
       "depends_on": [
         "mc-4cb9703d2980c4bdd7ab2cd9",
-        "mc-7eb958bcfe8137ad5610eb65",
         "mc-8757b9f6e70151e0f6984d61",
+        "mc-87ec651f88fce5d9d7a20a58",
         "mc-8b3156614883d3ed58facc2c",
         "mc-f837b672b778ec0219eaadef"
       ],
@@ -927,6 +873,9 @@
       "misconception_of": null,
       "priority": 5,
       "quality": "A",
+      "review_resolution": {
+        "summary": "已按更新后的子卡复核：子卡改为 why-grouped、address-table-indirection、static-strided-scheduling、full-tile-assumption-failures、moe-real-scale；参考回答删去子卡之外的两句，边界改为真实 MoE 只有行数参差；五个锚点均有子卡支撑。"
+      },
       "source_ids": [
         "grouped-gemm-log"
       ],
@@ -935,14 +884,14 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "3fb1485e322d2aa59ddc917905cf47cfd90b530cb9bee9582af39bee73b9adfa",
-      "content_summary": "口述对齐保证、异步拷贝的档位、mask 的影响与 TMA 描述符的条件和回退",
+      "content_sha256": "9f5cee992d882b71fe27a4cb292ed437dc44dfaa4b2759581a149a82d31ab0b0",
+      "content_summary": "口述对齐保证、异步拷贝的档位、mask 的影响与 TMA 描述符的条件，以及违反保证属未定义行为",
       "dependency_content_sha256": {
-        "mc-0dded41e05aaaec7ff1dcf5e": "2bec3d36c2fd2ecea5ed75df81d7fdaa5c9199e132fdb326d5654b940f81e630",
-        "mc-1c0584cb957cee3a2629ad34": "e40fae97951862358c355d6d3dc38c139ee3cad5dea4dd8859a9e8b64cb8572d",
-        "mc-56b14f2e2270888b7db0a794": "fe332142dd8cdda609f94502b6f3fb57739fc1a9e2f54c286c936bbded054264",
-        "mc-7a2b8dde2017ce97c129968a": "224e3d9af520594ccb0bfaf799da2d74b9c89eafbf5b8b9e7e8aaff269978b7a",
-        "mc-7eb958bcfe8137ad5610eb65": "82f28bcc8cb4f25e9ae67aef5ae2039384a2afdc203b1cebcfd5f3e49d7f6539"
+        "mc-0dded41e05aaaec7ff1dcf5e": "ae364cb560d13968fe54fcd9f9edbc2e9025e38b496c24c648322ba250e8ae90",
+        "mc-1c0584cb957cee3a2629ad34": "0f7a3989e413288be1ec058e199ef2da7bd71590adcfca4aa34e67fe59e757cb",
+        "mc-56b14f2e2270888b7db0a794": "9670e31d0ad44b3c4d3284954bece2c358a1fc25acaf51cf7b7a73721de635b2",
+        "mc-7a2b8dde2017ce97c129968a": "c642651878e82ebdb1e094ef30593be774d52eb72e8136631015381c7fc59c21",
+        "mc-7eb958bcfe8137ad5610eb65": "d845b378c7dd9964cb1c675985dda32a36412c23be13278464730b729b990932"
       },
       "depends_on": [
         "mc-0dded41e05aaaec7ff1dcf5e",
@@ -968,6 +917,9 @@
       "misconception_of": null,
       "priority": 5,
       "quality": "A",
+      "review_resolution": {
+        "summary": "已按更新后的子卡复核：违反对齐保证改为未定义行为、可能报错读错或碰巧正确；mask 的原因与 row-mask-keeps-async 的宽度规则一致；删去没有 TMA 时的回退；锚点 5 改为不能指望报错。"
+      },
       "source_ids": [
         "grouped-gemm-log"
       ],
@@ -976,21 +928,21 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "d262d36a94f8601cfb46e8b8e11610e84669015ea38b68f0929cfe0fe85ae302",
+      "content_sha256": "7b82f2511192176c17ff731b44cf59b402be59d10435afd67351791c8cd185c6",
       "content_summary": "口述 kernel 的输入假定由包装函数保证、保护区与参数测试的分工以及数值测试的盲区",
       "dependency_content_sha256": {
-        "mc-24a5f092066054573d026d16": "44a931499956a910e44ca73cad41c47c9411784be993b734485146152762e613",
-        "mc-341b7b7b70e55196c7f63ae3": "75dec7187f2896676aae9c52034c9fc72947613bd27af153f36f6497366d8b43",
-        "mc-5041b4749a815ed256ca914e": "b40b2e7d8c7f1dd3d1ba9a6cdf7c1e9cb91ff0af3344fb0483d2ee08fbb6fba7",
-        "mc-92948c07aa071915af8a9d1d": "f33d40ab38b57130989c3b3a6a7dfb1913f135e876d57f3f072ff0c3fd636360",
-        "mc-f1f63fdbab207650a86976a3": "de1d2f634d1f768856d008b1c18233ebdb88395b9105b4754a7841bb3366c4ee"
+        "mc-24a5f092066054573d026d16": "6735aca7e1d0d9636a0b74ba665454c03cd3c3e407d0d0368b2fb1ea3cf2e8d9",
+        "mc-341b7b7b70e55196c7f63ae3": "f0fcf09b770768fb609120c16f11589571ab31f88798d48cf49bd719da340e7f",
+        "mc-5041b4749a815ed256ca914e": "e23c995a53b48d3a58e6a3518d18525966e5379b4e5b1a1e73f974a80e97112d",
+        "mc-92948c07aa071915af8a9d1d": "1c103bd7c8db2d4a09f255b529baf662f1222c592a8826eb527b4d12d58f935d",
+        "mc-d8e3e65238ac006bc0e9c895": "0bc7754b8ab9a29688008bc54173c29bc76792a9072c5c72b97f1f2f3b6a4c6c"
       },
       "depends_on": [
         "mc-24a5f092066054573d026d16",
         "mc-341b7b7b70e55196c7f63ae3",
         "mc-5041b4749a815ed256ca914e",
         "mc-92948c07aa071915af8a9d1d",
-        "mc-f1f63fdbab207650a86976a3"
+        "mc-d8e3e65238ac006bc0e9c895"
       ],
       "fact_status": "verified",
       "identity": {
@@ -1009,20 +961,166 @@
       "misconception_of": null,
       "priority": 5,
       "quality": "A",
+      "review_resolution": {
+        "summary": "已按更新后的子卡复核：子卡 flag-from-all-problems 换成 special-case-position-testing；删去子卡之外的同一设备；测试盲区与 alignment-check-untestable 的更正一致；五个锚点均有子卡支撑。"
+      },
       "source_ids": [
         "grouped-gemm-log"
       ],
       "successor_to": null,
       "template_id": "oral",
       "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "ad9b1b07b19dd09f2897e95b0b301980638465fc44751f19c741072d9c0f4e64",
+      "content_summary": "固定 CTA 循环领多块时，描述符版发起 TMA 写回后不等待就算下一块，写回与计算重叠；每块一个 CTA 没有这个机会",
+      "dependency_content_sha256": {},
+      "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "mechanism",
+        "domain": "triton-grouped-gemm",
+        "fact_scope": {
+          "kind": "snapshot",
+          "product": "triton",
+          "version": "3.7.1"
+        },
+        "recall_target": "固定数量的 cta 循环领多块相比每块一个 cta, 给描述符版的写回带来什么重叠机会?"
+      },
+      "layer": "mechanism",
+      "lifecycle": "active",
+      "logical_id": "mc-4a0b029427535b3bd13b3151",
+      "misconception_of": null,
+      "priority": 4,
+      "quality": "B",
+      "source_ids": [
+        "grouped-gemm-log"
+      ],
+      "successor_to": null,
+      "template_id": "technical-qa",
+      "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "a189db829d3ab6ebe41fced3639b95eb851ca1b98ecda047eb939f0b54952b18",
+      "content_summary": "用读回调用会抛 AssertionError 的张量子类代替 offs，打印也会触发；拦不住先转存到普通张量再读回",
+      "dependency_content_sha256": {},
+      "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "mechanism",
+        "domain": "triton-grouped-gemm",
+        "fact_scope": {
+          "kind": "snapshot",
+          "product": "pytorch",
+          "version": "2.13.0"
+        },
+        "recall_target": "怎样在测试里证明被测代码没有把设备张量读回主机, 这种检查拦不住什么?"
+      },
+      "layer": "mechanism",
+      "lifecycle": "active",
+      "logical_id": "mc-76013dacd88d00aaaf9163f5",
+      "misconception_of": null,
+      "priority": 4,
+      "quality": "B",
+      "source_ids": [
+        "grouped-gemm-log"
+      ],
+      "successor_to": null,
+      "template_id": "technical-qa",
+      "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "0bc7754b8ab9a29688008bc54173c29bc76792a9072c5c72b97f1f2f3b6a4c6c",
+      "content_summary": "整组标志只看最后一个问题时，特殊问题都排在末尾的测试会碰巧通过；测试要变换特殊元素的位置",
+      "dependency_content_sha256": {},
+      "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "mechanism",
+        "domain": "triton-grouped-gemm",
+        "fact_scope": {
+          "kind": "evergreen"
+        },
+        "recall_target": "整组共用的特化标志被写成只看最后一个问题时, 为什么测试没发现, 测试输入应怎样设计?"
+      },
+      "layer": "mechanism",
+      "lifecycle": "active",
+      "logical_id": "mc-d8e3e65238ac006bc0e9c895",
+      "misconception_of": null,
+      "priority": 4,
+      "quality": "B",
+      "source_ids": [
+        "grouped-gemm-log"
+      ],
+      "successor_to": null,
+      "template_id": "technical-qa",
+      "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "d3d1f52878e87742141c05e4d36771344be744a75bdd85bbccd346095cd7965c",
+      "content_summary": "& 优先级高于 <，a < M & b < K 被解析成链式比较；每个比较都加括号",
+      "dependency_content_sha256": {},
+      "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "recall",
+        "domain": "triton-grouped-gemm",
+        "fact_scope": {
+          "kind": "snapshot",
+          "product": "triton",
+          "version": "3.7.1"
+        },
+        "recall_target": "构造 mask 时 a < m & b < k 为什么报错, 应怎样写?"
+      },
+      "layer": "atomic",
+      "lifecycle": "active",
+      "logical_id": "mc-1f8f9a157e092f249e1409c7",
+      "misconception_of": null,
+      "priority": 4,
+      "quality": "B",
+      "source_ids": [
+        "grouped-gemm-log"
+      ],
+      "successor_to": null,
+      "template_id": "technical-qa",
+      "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "cb163177f4b779750d4c6ecee9165264aef0adb9ac7797552da662edf94c2840",
+      "content_summary": "对齐要求看行步长字节数是否为 16 的倍数，不是连续；连续的 K=1020 输入不满足，补宽步长的不连续输出反而满足",
+      "dependency_content_sha256": {},
+      "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "discrimination",
+        "domain": "triton-grouped-gemm",
+        "fact_scope": {
+          "kind": "snapshot",
+          "product": "pytorch",
+          "version": "2.13.0"
+        },
+        "recall_target": "tma 描述符对矩阵内存布局的要求是行步长对齐还是张量连续?"
+      },
+      "layer": "atomic",
+      "lifecycle": "active",
+      "logical_id": "mc-1f4cfaee97d004836018847d",
+      "misconception_of": null,
+      "priority": 4,
+      "quality": "B",
+      "source_ids": [
+        "grouped-gemm-log"
+      ],
+      "successor_to": null,
+      "template_id": "correction",
+      "template_version": "1.1.0"
     }
   ],
-  "managed_body_sha256": "467d52a55bab41696b7b9eb470979a9b7b15cfd0bc9c063a3dbed5c64567e71d",
-  "manifest_payload_sha256": "ee66eb10f34498b74831016e0e0a553f3d5c7289c1931fca0b3a2c1a3c468be2",
+  "managed_body_sha256": "ed96b26c7ab9731bb60d1fae7c0aab7a8c4a9301644a546bc7435181879854ce",
+  "manifest_payload_sha256": "3521f1a7bc4f56400350a2bc8076b9ecded68e67c6b9c927a590ac94032d1790",
   "schema": "memo-cards.artifact/v2",
   "sidecars": [
     {
-      "byte_size": 18485,
+      "byte_size": 19391,
       "columns": [
         "意图",
         "场景",
@@ -1035,64 +1133,64 @@
       "row_count": 10,
       "rows": [
         {
-          "content_sha256": "d1b8526da4f9e6f20cf9963cd63950debb613239b6c0d6ffb9ac8400642e8b01",
+          "content_sha256": "b396e7408888887c4ba97d2b9b76ab3b3910ff3ae551c7ee2663c425fa077a6a",
           "logical_id": "mc-6d12446548eaa6fcae440a49",
-          "row_sha256": "3bf8452b7f310e22c6672c6f047b458eeddf1a566d0159e6decb5e2e77f7b19a"
+          "row_sha256": "5d3a6084afa74ca7e3d08dacbb9e94743b23b744c4dd0d69994603c3c1299b10"
         },
         {
-          "content_sha256": "36d0f81b04fd45c2b003c81ed8af4ac66a9ef230e9e9cdf053a511483b8fab50",
+          "content_sha256": "b3344e1e21ea8e2e201d3be906cd698e4118f9ef769ecf724c899f76a153b539",
           "logical_id": "mc-6543932dde3b79554cadacf3",
-          "row_sha256": "4fdfd4effe323273c74f3280a9f2b8697addc5da02ae51bbc455c7973fe58f20"
+          "row_sha256": "f0b858238e3ac2d989fe2d472a1744d783ce2b77a8ff2baae05c6f3b6bf04349"
         },
         {
-          "content_sha256": "c62856ec54e0daefdf089b9b7cc52213aca3fbe72a3bcf604e1177e5c98226b1",
+          "content_sha256": "69d0f0d9b4da915c17eaac890677490e45112b73fed573e60e669553c28c7f4a",
           "logical_id": "mc-9d887183d7e364cedaccc1b9",
-          "row_sha256": "434e12d25e7232a82101ca6579b982822b4a2db06b85168c15a1ddf711fe6baf"
+          "row_sha256": "da8458831a8614b9b6a48f1166c1183986c27d432d7b25895cab4d4079a7c423"
         },
         {
-          "content_sha256": "c7bf3f9ecd7ac17b73323bd899644dd7bc888f548d80a1a0de1bf8602ce483de",
+          "content_sha256": "7e27573510d206d73ecd48e1a0a31f3f4c3ee323ea61516a6706b78be98c125b",
           "logical_id": "mc-326c0f996505f917401f4aab",
-          "row_sha256": "2cd47c721741074ee60e722c038b00306c1f292e6ff534133cf534570be94783"
+          "row_sha256": "04520027b08c4e8a4ec7da94276a6bc41d77b44343464b1747333600422d963d"
         },
         {
-          "content_sha256": "cd8753c550ba52f41382f957eab0f2cbfa82c7fcf332b04682e0d199f2dffe87",
+          "content_sha256": "4af44641aa8a32b406b4929e0b1513c5ff3195fa56783e8ab3b8d678509456b1",
           "logical_id": "mc-1ca1121c65b8603e9099171f",
-          "row_sha256": "a56299b39376c9b823e0cd5ba114bfa913e15939f56ea75a52dd62a1b19c1e01"
+          "row_sha256": "73d6abb81d0f93943de3f8214be3ce7214d2ad956d96cbd7526488d59435f6f6"
         },
         {
-          "content_sha256": "917daee34357fe29e521548de402067270a6e6f45846cc1ea5ea0783c87765de",
+          "content_sha256": "1f243618149ff7ad2355b3b6ac12e45cc72252b067740164cea51b07fef012f6",
           "logical_id": "mc-c34a65e437f7a61c22c5c782",
-          "row_sha256": "6b8e179d34fd7170f85a5ad20d4d3bac755a010122c7a474d2cee75e33720478"
+          "row_sha256": "c0def2f7633a14dd081d5d8b001e3de4827606a329df4cc9ac95bcbdcf4c37c0"
         },
         {
-          "content_sha256": "de1d2f634d1f768856d008b1c18233ebdb88395b9105b4754a7841bb3366c4ee",
-          "logical_id": "mc-f1f63fdbab207650a86976a3",
-          "row_sha256": "bf47e2854f7b52fcdcc56bc4ab08c1a8dd54d42614dc4d21c45befc7da046ab1"
-        },
-        {
-          "content_sha256": "882a478ec4581056518a12ef50573d1ce9fc1d6f099039c9810fca37a1823133",
+          "content_sha256": "02faaaeecc11ae6f6907ccbb08a2f0c64aec44e7a65ca156793e57425e2c110e",
           "logical_id": "mc-29b23c98f69ce1c8edae90fb",
-          "row_sha256": "d3443950c3f16f5c4b0cc72cd837ea3c6f0c27dd4c7eaf1c05fd1eab3100ce92"
+          "row_sha256": "142ca3afa2a3fbf299a347c4f88be5b1f258413eb7e5731881df51f2213069dd"
         },
         {
-          "content_sha256": "75dec7187f2896676aae9c52034c9fc72947613bd27af153f36f6497366d8b43",
+          "content_sha256": "f0fcf09b770768fb609120c16f11589571ab31f88798d48cf49bd719da340e7f",
           "logical_id": "mc-341b7b7b70e55196c7f63ae3",
-          "row_sha256": "114afadf356ff449c7ff119d4b15a16840e80bb81ff14602051ac5f6cfa53f95"
+          "row_sha256": "0a59aaf4629589e4991a7832376adefc3b75b00379fcbbccb084dafa227dc96a"
         },
         {
-          "content_sha256": "44a931499956a910e44ca73cad41c47c9411784be993b734485146152762e613",
+          "content_sha256": "6735aca7e1d0d9636a0b74ba665454c03cd3c3e407d0d0368b2fb1ea3cf2e8d9",
           "logical_id": "mc-24a5f092066054573d026d16",
-          "row_sha256": "5ed1cc33774dafd9e84ac0ad4ece9d51bc1397c2a23c99307038720ad58ccaab"
+          "row_sha256": "b8bc4e9e91feaa45fc8bd75018c71f12a3a3ad60e299d9633ad215cfb597cf35"
+        },
+        {
+          "content_sha256": "cb163177f4b779750d4c6ecee9165264aef0adb9ac7797552da662edf94c2840",
+          "logical_id": "mc-1f4cfaee97d004836018847d",
+          "row_sha256": "183ea9caa4887b61063f591bc9d9d5ae461b624ad5158b3ada21981869f24f7b"
         }
       ],
-      "sha256": "3fc2b616f9dbd5519d8894b82e28021e586e85c495d21c78e217c1bd31ad0c9b",
+      "sha256": "0dcf214f40051a0d455ed2a472377c2e0ec93cd845eb3ad2190c693ed0e8e832",
       "sheet_name": "cards",
-      "table_sha256": "36f03c003bfafa1bc34047ca4be54d68bd3dd4176ccd425528e78135f8673fdd",
+      "table_sha256": "5d44942896b07aefbe01575bd2be165bfc5281191c5daf27bf92362bc8b9761c",
       "template_id": "correction",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 35479,
+      "byte_size": 40040,
       "columns": [
         "问题",
         "答案",
@@ -1101,122 +1199,137 @@
       ],
       "kind": "markji-import-xlsx",
       "path": "docs/triton-learning/cards/triton-lesson-08-grouped-gemm-technical-qa.xlsx",
-      "row_count": 21,
+      "row_count": 24,
       "rows": [
         {
-          "content_sha256": "be717113fce320e4608ce71343ced1f3dbca72ee0be643a4f87b3c25a5e9511e",
+          "content_sha256": "85c6640d3476d76f6f24bc53bc7311addfba3d682ca31dee2bc69e96e3d85da5",
           "logical_id": "mc-4cb9703d2980c4bdd7ab2cd9",
-          "row_sha256": "ded2da341391ae4338217e9bf14d984370277d072a45651d34fde8ffec005da2"
+          "row_sha256": "26a850036252f3938402efbc47896b73e4171e93449e123da9966f231ef30fe6"
         },
         {
-          "content_sha256": "adcf62225977727b8a4af1c4d3e9b5ea062a32b3f981fb6eb0eba269b3c2b50e",
+          "content_sha256": "7f3f26e6b37500cc021053572c507dd62d79c27f19a06cf3114e4709f63046d8",
           "logical_id": "mc-f837b672b778ec0219eaadef",
-          "row_sha256": "aeb1d6cb6b0d54e16d347826cf976bd32ba38909d1de7b0434a3739c6a978687"
+          "row_sha256": "83925964b7c7b3e12e5315b873cd1c1b7d23844db8b2beea87f584bce61944de"
         },
         {
-          "content_sha256": "792406d45ba708b822b076e4ecfa73bbed0a14600faea7baa66d498d78f6cb9c",
+          "content_sha256": "7979b8d78e46e7d13f0ba533ac9a12f43582d7cae81e3ff4aa042ab6244e6337",
           "logical_id": "mc-31294289c7cb07c96f94ec7f",
-          "row_sha256": "1c7886ad571b727db22d84cdc2b219b56b9304e2a4df75354488e388457aa802"
+          "row_sha256": "5143fe957f5a36f970ee0a5ac0ac846301dba7334f10fa650d10741daffd1274"
         },
         {
-          "content_sha256": "556d8f5d183b6a91eb691013c46bfb42dd29ae969034ecb434b86c615d68035a",
+          "content_sha256": "8a589d73702b30a5f8d1f3566a57abc59ea739e33422929e57ed12f82c7e3c5f",
           "logical_id": "mc-8757b9f6e70151e0f6984d61",
-          "row_sha256": "6b22ad06624601635aac34633f072748d7a21472262e85ca3e195fcb2807efe6"
+          "row_sha256": "1ac556b36fd6092b146579112ed84824a7548b2c8e444113b8ffd15ed9ec3ef9"
         },
         {
-          "content_sha256": "a12c2b879df5daaac004004048ba9fd05d38de8b86b058a181a06d8ed6886cf8",
+          "content_sha256": "1ccbf4c5f932c490da5d8155228c6842d1b26dc02c73fcc2eee297c29a66a012",
           "logical_id": "mc-690767f768283d26c6271c5a",
-          "row_sha256": "24862b2e71fb7c5cb44bd33c566d184dc72714d1153d8a2002ce8c8bb0f08a76"
+          "row_sha256": "1a261f775631b17cebe23c565f052365d687695e0783a92c0ca71acff75f93a5"
         },
         {
-          "content_sha256": "57781db70941f5a184ea01819328259b1d0cec30111bbb8135fb2288a600b2fa",
+          "content_sha256": "0c567a62375449a3d73038b20a27e2082094a3f6ac38f19c86d607f2ae4289bd",
           "logical_id": "mc-409e92184013cece6069baea",
-          "row_sha256": "38799e3ae30ebcb487820ca8b111838cce1aa7ff66c64eea67d52bdc0dd4ca0d"
+          "row_sha256": "3b2dee31701655128931864844a82f23c1917acefbdf401216c3fd42b3122e66"
         },
         {
-          "content_sha256": "e7750eb89546bbb7da78e01252d640ce06f21b4b3a2532ca1e1df08b13cd2372",
+          "content_sha256": "ace1cabf4e14206d5b6d23cd1518ff8eec1533bcfca95f792598b89c7b3d3eef",
           "logical_id": "mc-c5bf630863ad40f35afaa9a4",
-          "row_sha256": "247aac8ae7921ad8738960b39f5807cb240b1a26a4803451302c5830b5e6a4f0"
+          "row_sha256": "65e6db6c9723134be518fc2812d3e2f68384d533e6b303e04551ba0d2741d678"
         },
         {
-          "content_sha256": "88a8d1f7a49fc6eee77ce8131f3a3cea6c6b6f28788dff4dcbaa9ea21e3277d8",
+          "content_sha256": "e3374f38611c208faa8ec216f9ff4f00150a7b8a26a43114d687f45e8462a568",
           "logical_id": "mc-8b3156614883d3ed58facc2c",
-          "row_sha256": "86cee517d3ad4dbc5e59de20c7290584d46d3db6e2ebc5c15020568f83bca500"
+          "row_sha256": "3ae43f747e97e88ef5a4c736b0d991b73beb161850256f4118ff1e14ebe08b2b"
         },
         {
-          "content_sha256": "b40b2e7d8c7f1dd3d1ba9a6cdf7c1e9cb91ff0af3344fb0483d2ee08fbb6fba7",
+          "content_sha256": "e23c995a53b48d3a58e6a3518d18525966e5379b4e5b1a1e73f974a80e97112d",
           "logical_id": "mc-5041b4749a815ed256ca914e",
-          "row_sha256": "879a4511909b6ce07449b0b35b80cf54d6c05f46bcdd0f41cdac2405f03fe53c"
+          "row_sha256": "914e1e8a3e54b8191c0112854ddcb95c12432d9fc556f95c6957f8f96f233379"
         },
         {
-          "content_sha256": "fe332142dd8cdda609f94502b6f3fb57739fc1a9e2f54c286c936bbded054264",
+          "content_sha256": "9670e31d0ad44b3c4d3284954bece2c358a1fc25acaf51cf7b7a73721de635b2",
           "logical_id": "mc-56b14f2e2270888b7db0a794",
-          "row_sha256": "50d3d8abc682b1bf987c9d83c6175419f0d2d4d046ae81108c5caca668c14934"
+          "row_sha256": "89b7cb730be4ca4777e8741c50ca44b422b8cf8aedd745d5632a28a6eae5d813"
         },
         {
-          "content_sha256": "224e3d9af520594ccb0bfaf799da2d74b9c89eafbf5b8b9e7e8aaff269978b7a",
+          "content_sha256": "c642651878e82ebdb1e094ef30593be774d52eb72e8136631015381c7fc59c21",
           "logical_id": "mc-7a2b8dde2017ce97c129968a",
-          "row_sha256": "1ed63026382cf33edaf1a627b13b1a9630fc54b5fa04023bfa65a2d8f12c2e3b"
+          "row_sha256": "9f363b2216ca3aeff443a85586ba67ccd54399de6b279ab6da78e5f22b94c611"
         },
         {
-          "content_sha256": "e40fae97951862358c355d6d3dc38c139ee3cad5dea4dd8859a9e8b64cb8572d",
+          "content_sha256": "0f7a3989e413288be1ec058e199ef2da7bd71590adcfca4aa34e67fe59e757cb",
           "logical_id": "mc-1c0584cb957cee3a2629ad34",
-          "row_sha256": "856905163440814ecc8bab8fa88d0236a40f02819094b2a2bd0022185ad92a0f"
+          "row_sha256": "4f53c2e50a36253269b1e67dc6f3d38fb778c8614cc16eb7bd7cde8b042ae11b"
         },
         {
-          "content_sha256": "2bec3d36c2fd2ecea5ed75df81d7fdaa5c9199e132fdb326d5654b940f81e630",
+          "content_sha256": "ae364cb560d13968fe54fcd9f9edbc2e9025e38b496c24c648322ba250e8ae90",
           "logical_id": "mc-0dded41e05aaaec7ff1dcf5e",
-          "row_sha256": "7a0d2ec60108edada8ae891d9ff1824ae9c9e1ddb1fa5ffd68de9d449f7f5986"
+          "row_sha256": "f6864e5ff84f680174e65b99b4504342448753787758c460e91d285295782d33"
         },
         {
-          "content_sha256": "2ab23c834825c2fa9e21f2473bf78e442e8bf7f56633c593754c29473fa17a3c",
+          "content_sha256": "7c9ea3ca38aa6a2eb817ae2ccf309671117627911d0ca2fb1b39b03b5f9ceaa8",
           "logical_id": "mc-2d820b27e07e1e50f11a0cad",
-          "row_sha256": "81b331fc482641e26f39ce5d17114188e2c2d4149a3f7de4cd635834a02c0f6e"
+          "row_sha256": "f1a60de0d25112aa6350d344d0d35f7d5cbffd7db3a645fb3565a182eba7d655"
         },
         {
-          "content_sha256": "606ec25edcbec9034eda20caaaefc5ae0ecadaa60722e87550e38818d1778960",
+          "content_sha256": "ebb25314c99e708aed07add890e1da10e561ce06d79283d8b8d4c439258d5545",
           "logical_id": "mc-a50b796c2d19272f9e534f31",
-          "row_sha256": "e9795113643f8b3251d934342da70c81575139498789950c27b7fba787f0c0b7"
+          "row_sha256": "f607ef0289f724de2d99c94c7f56a7fea29acc356b3eba2c78d09a91337b8543"
         },
         {
-          "content_sha256": "a98a3e11e2e716ceec214eba5613fc29d4e2acafc239e60b58cd692a335b3079",
+          "content_sha256": "cf6c2e14339e7494c8f096beea156de5e3739b8180ed61f48b385388f414539f",
           "logical_id": "mc-87ec651f88fce5d9d7a20a58",
-          "row_sha256": "322f1de2557411fd11b88791026e23459ee13e37fc9e5099c70287a0ebd2b8b9"
+          "row_sha256": "64179c460644c73f49dea746a41716a17efe24c5a4a07d3a3e83090bd50b94f2"
         },
         {
-          "content_sha256": "82f28bcc8cb4f25e9ae67aef5ae2039384a2afdc203b1cebcfd5f3e49d7f6539",
+          "content_sha256": "d845b378c7dd9964cb1c675985dda32a36412c23be13278464730b729b990932",
           "logical_id": "mc-7eb958bcfe8137ad5610eb65",
-          "row_sha256": "b6c8638fa33003f52e85d499a50a26fea2970a9df45ba18d595c4641e9f69008"
+          "row_sha256": "34b41fb2f2ce7604fe97fdd47927772578881c52fe394f74667d446e121e1db0"
         },
         {
-          "content_sha256": "ed4b0819f9516a07c9d66f0b2d7835de26cda6253b968188c103e0903593a46f",
+          "content_sha256": "c20b49ad844ab18255cac7614e10e5c70eac08978b6a68bfd82e7eadec533e17",
           "logical_id": "mc-60e5eabe7206b7eecd8194ca",
-          "row_sha256": "c9d433d4fd56e158cfdbee8fa358bc2d427a6d7d0e3fd5e5dd61ba8b6cf5650b"
+          "row_sha256": "000d67ad507a3e0fa0a769695decead19aa3b29fea6e6aa3383c22c3e45e9cf8"
         },
         {
-          "content_sha256": "f33d40ab38b57130989c3b3a6a7dfb1913f135e876d57f3f072ff0c3fd636360",
+          "content_sha256": "1c103bd7c8db2d4a09f255b529baf662f1222c592a8826eb527b4d12d58f935d",
           "logical_id": "mc-92948c07aa071915af8a9d1d",
-          "row_sha256": "8c05bf89c9655a94f7640184ce90b665c6bb5fa90471432d64bd23b2fcf5425f"
+          "row_sha256": "ace206016e29adfbcea80f7ee989420f2519f121b1fcb684c59bb9f0f26973eb"
         },
         {
-          "content_sha256": "8328e570c4b45a255920f903c631948a8e9115d1f914df877c4ad13623b01e4b",
+          "content_sha256": "1e10f279785f23357c998274c9baabe593d00dba330fded7459469e70cfb2c5a",
           "logical_id": "mc-60337711491bb26fd6a0fc5a",
-          "row_sha256": "53b6be391f2e4201a83133cb500d8a7568f71873ab228761153a092a5db15967"
+          "row_sha256": "1441dd5c6b96c1751e0957725e8299cba004f1dfdbe1d92ce69a41093dbf2209"
         },
         {
-          "content_sha256": "e872261a678ac37c9e550f01c2b5782e41a6090fcd598c856a108b306688b2df",
-          "logical_id": "mc-f2703926f8452ddfb07707ea",
-          "row_sha256": "150fd2a4cd1f7bf52c7ae5e88aa6407de4468a800360b6f7f323361a61c408e2"
+          "content_sha256": "ad9b1b07b19dd09f2897e95b0b301980638465fc44751f19c741072d9c0f4e64",
+          "logical_id": "mc-4a0b029427535b3bd13b3151",
+          "row_sha256": "15db0ffae0ded798530b864f0d1297da95b3cd5726d64f6de08d8c67b0340e80"
+        },
+        {
+          "content_sha256": "a189db829d3ab6ebe41fced3639b95eb851ca1b98ecda047eb939f0b54952b18",
+          "logical_id": "mc-76013dacd88d00aaaf9163f5",
+          "row_sha256": "075adfaa14d7a0dabed8c371f2fb44eaa7131fc85c8a3c953c740dc446ffec0b"
+        },
+        {
+          "content_sha256": "0bc7754b8ab9a29688008bc54173c29bc76792a9072c5c72b97f1f2f3b6a4c6c",
+          "logical_id": "mc-d8e3e65238ac006bc0e9c895",
+          "row_sha256": "5aacc36f0f2494b658f9059d511faa2698edd1fbbebb7e994650889df9a7eb8d"
+        },
+        {
+          "content_sha256": "d3d1f52878e87742141c05e4d36771344be744a75bdd85bbccd346095cd7965c",
+          "logical_id": "mc-1f8f9a157e092f249e1409c7",
+          "row_sha256": "ddc545334f69123bef594d4720ca7951156752229f25a39f575506720112d805"
         }
       ],
-      "sha256": "0984bc3a39fb14e283ebb1574823704f706a449d992334048bb670ee31704d56",
+      "sha256": "6b594c6b4191176389de5173b6e4b6e1dbcbc15b66424c87ee2bae4873032016",
       "sheet_name": "cards",
-      "table_sha256": "1694691e522bc843a219ddc824cfd0e4e2e64cbbcc7cb46b2551a940a74b7eb1",
+      "table_sha256": "cda6006baf61a504db1a9ea3aa77e7687cf4126edf7ed6ab3b6923538a63b453",
       "template_id": "technical-qa",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 8382,
+      "byte_size": 8611,
       "columns": [
         "问题",
         "参考回答",
@@ -1228,35 +1341,35 @@
       "row_count": 3,
       "rows": [
         {
-          "content_sha256": "eb8957726b41b72a674f625cd153535e618f4802df65404b851b75e09c3a3bbe",
+          "content_sha256": "d942196d5e9fc38f943bf1157ea6452ce0e518f7e0ffd3924f95719094357796",
           "logical_id": "mc-7fadec68d292af7ebc7a38a7",
-          "row_sha256": "1fa78fe94c297de88ffa96e995b3df25fb1bf3915ac52b704ebb5eb84e2ae357"
+          "row_sha256": "4e38f0e1e52e87ff1b3d19bea6551adc37e8592d6b4a67ba20f162d9b0a9496d"
         },
         {
-          "content_sha256": "3fb1485e322d2aa59ddc917905cf47cfd90b530cb9bee9582af39bee73b9adfa",
+          "content_sha256": "9f5cee992d882b71fe27a4cb292ed437dc44dfaa4b2759581a149a82d31ab0b0",
           "logical_id": "mc-9e911b985cc1ce276f1ebe37",
-          "row_sha256": "198dd507d8dd03b0345cd12a153baa4438bbc4b2038eea26629f9b9b0981d11d"
+          "row_sha256": "91c5b342d0544f711f1cda9a9ea3a9586ae90222be17e2711a3b5eed687c44c9"
         },
         {
-          "content_sha256": "d262d36a94f8601cfb46e8b8e11610e84669015ea38b68f0929cfe0fe85ae302",
+          "content_sha256": "7b82f2511192176c17ff731b44cf59b402be59d10435afd67351791c8cd185c6",
           "logical_id": "mc-2a6dc333c733daf798c752ba",
-          "row_sha256": "a3eceac573e803936dccf5b03143fd4b5b09de9e0e3c12c5392c9a2feca7c193"
+          "row_sha256": "3c473abd8ad61adbde6f1ab63f430c8bc820c7fc0b489ccb1faecec8b332e827"
         }
       ],
-      "sha256": "0364d6e9b51d002073f5847a68ef57fff9e291c1991e6610ec030e86ffce2342",
+      "sha256": "18a132559bd0214736459e02b3354c7006efe9e8bc31824059f977d8af9cd6d6",
       "sheet_name": "cards",
-      "table_sha256": "9ffcae8254a3df39f8c34b5854b1fced5b215ff6a4765465275c86c1a2de2ae2",
+      "table_sha256": "959e1a592aea171272365091d4bd3b13f6f063e5e8446c32f319050f5aa967ce",
       "template_id": "oral",
       "template_version": "1.1.0"
     }
   ],
-  "source_fingerprint": "f3c848cdcd125cb81992c38e816b2262935cc80ee53703e22ef978993adcdc73",
+  "source_fingerprint": "762ff07a08c42e4c4ab5b487b0381f30ffaddaed4783156a0a24aec8ee9e20c1",
   "sources": [
     {
       "collection": "triton-study-logs",
       "id": "grouped-gemm-log",
       "path": "docs/triton-learning/logs/2026-10-09-grouped-gemm.md",
-      "sha256": "9c5f117ccd3e5cc326b257099a99fc7a65dc1645d24c8551abdf4212e38af253",
+      "sha256": "310ba83ca4f5759ac15c40421e414457bfa66a62773b4646bb385526bb47b770",
       "summary": "10/5–10/9：grouped GEMM 的调度、对齐与 TMA、任意尺寸实现的纠错与答疑"
     }
   ],
@@ -1296,7 +1409,7 @@
 📍 [T#!939393#{{来源}}]
 ```
 
-导入文件：[triton-lesson-08-grouped-gemm-technical-qa.xlsx](triton-lesson-08-grouped-gemm-technical-qa.xlsx)（21 张卡）
+导入文件：[triton-lesson-08-grouped-gemm-technical-qa.xlsx](triton-lesson-08-grouped-gemm-technical-qa.xlsx)（24 张卡）
 
 ## 综合口述卡
 

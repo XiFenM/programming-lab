@@ -5,12 +5,12 @@
     "id": "markji",
     "profile": "programming-lab-markji"
   },
-  "artifact_set_sha256": "f1041dcf0ef6e7ff24043edc0d23bf671844ee5e0be39ac9eaeb8d7a79415c12",
-  "candidate_sha256": "91268c8666a63a84da5124d05daecc3d814f9eca84263c9fe8fdcfd665ace9b6",
+  "artifact_set_sha256": "83b8a558e8221a0ec8d82caa0e95d75caf8782fe96fc319269ac235717ec5e32",
+  "candidate_sha256": "09f721e72a1dd212db42ab105a21e81ca36444585b2b52bf36d76805e651ce7c",
   "cards": [
     {
-      "content_sha256": "4b87c511c0408fb58bc5b1dafe173780525f2df02f3718c0f3697345d1f3bf2b",
-      "content_summary": "定义按行 softmax 的补齐场景、有效输入前提和 m，串联 max/exp/sum 的正确性。",
+      "content_sha256": "4ed77bcd3d9903374938b7035c003d99130ebc54ac12eef0286f5e5c01730495",
+      "content_summary": "题面写明补到 next_power_of_2(N)；零填充对分母的影响改为“必然增大（下溢除外）”。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -36,54 +36,25 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "952be6f18d66688f649d3c95ad81bbf5bd7e72846bda08f5c0aa378a65117ecb",
-      "content_summary": "在题面定义 M/N，分别解释空 batch 与空归约域，并保留实现范围。",
+      "content_sha256": "5c4f1ddececc83f95fad391002628346ea76ce84b11085d8742513164ec67781",
+      "content_summary": "新增：分子分母同乘 exp(−m) 故结果不变；指数输入 ≤ 0 防上溢；非有限输入仍可能得 NaN。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
       "identity": {
-        "assessment": "discrimination",
-        "domain": "triton-softmax",
-        "fact_scope": {
-          "kind": "snapshot",
-          "product": "programming-lab triton lesson02",
-          "version": "2026-08-07 learning baseline"
-        },
-        "recall_target": "区分本课 softmax 接口的空 batch 与空归约维度约定"
-      },
-      "layer": "atomic",
-      "lifecycle": "active",
-      "logical_id": "mc-a0616b26964c9ef9372bef32",
-      "misconception_of": null,
-      "priority": 3,
-      "quality": "B",
-      "source_ids": [
-        "softmax-log"
-      ],
-      "successor_to": null,
-      "template_id": "technical-qa",
-      "template_version": "1.1.0"
-    },
-    {
-      "content_sha256": "abb18105a1c07e4a451e6460330985c893bf9d8bfe13b9e8c83fac8b5c123bc6",
-      "content_summary": "测试按行计算的 softmax kernel 时，假设每行非空且有效输入都为有限值，我们希望检查“每行元素之和接近 1”这一不变量。应该对输入矩阵 X 还是输出矩阵 Y 求行和，为什么？",
-      "dependency_content_sha256": {},
-      "depends_on": [],
-      "fact_status": "verified",
-      "identity": {
-        "assessment": "discrimination",
-        "domain": "softmax-math",
+        "assessment": "mechanism",
+        "domain": "triton",
         "fact_scope": {
           "kind": "evergreen"
         },
-        "recall_target": "判断 softmax 行和归一化不变量属于输出而非输入"
+        "recall_target": "解释 softmax 先减行最大值为何结果不变、能防止什么以及不能保证什么"
       },
-      "layer": "atomic",
+      "layer": "mechanism",
       "lifecycle": "active",
-      "logical_id": "mc-9bb771500be5bf1f92614113",
+      "logical_id": "mc-1cbf2e7f12f4c8144f731151",
       "misconception_of": null,
-      "priority": 3,
-      "quality": "B",
+      "priority": 5,
+      "quality": "A",
       "source_ids": [
         "softmax-log"
       ],
@@ -92,8 +63,35 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "17c2cc2bcde5411d47a65816502988474ed18c7475ff2518cba6a841f9554623",
-      "content_summary": "定义 persistent 行循环和一次迭代，明确 num_stages 的作用域与数据依赖。",
+      "content_sha256": "a7ee368f2ae6754e42eff8d0a458b3d674765ea8147caf87c3e7be3c0e4c9713",
+      "content_summary": "新增：逐步计数 naive 读 5MN+2M、写 3MN+2M，对比 fused 2MN，比值 4+2/N；省的是 DRAM 往返而非计算。",
+      "dependency_content_sha256": {},
+      "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "mechanism",
+        "domain": "triton",
+        "fact_scope": {
+          "kind": "evergreen"
+        },
+        "recall_target": "估算 naive 与 fused softmax 的全局内存搬运量并说明 fusion 省下什么"
+      },
+      "layer": "mechanism",
+      "lifecycle": "active",
+      "logical_id": "mc-1f92d177462e95f9f49f06eb",
+      "misconception_of": null,
+      "priority": 5,
+      "quality": "A",
+      "source_ids": [
+        "softmax-log"
+      ],
+      "successor_to": null,
+      "template_id": "technical-qa",
+      "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "5ca8b76b4343f37dddb8404ec8285ddb8afb2c21d45be54c444286e953da2078",
+      "content_summary": "去掉附带的是非问，结论直接给出作用域（同 program 行循环的跨迭代在途）；worker 误解移入边界；正面写明 Triton 3.7.1。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -121,35 +119,35 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "058465854d1e46cdf8b1914f547225393aa2f38193d2ca019a70f996d470627e",
-      "content_summary": "补 SM 固定容量和驻留定义，解释资源代价，避免把驻留下降直接说成单阶段变慢。",
+      "content_sha256": "f552c51141f5044396c6476a87e3f70cb8d8cb2f18220ad5a7b5e0cc1a9a6113",
+      "content_summary": "原 05 由技术问答改为真实纠错卡：保留原话，点明错在把资源代价落到单个 stage 变慢。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
       "identity": {
-        "assessment": "mechanism",
-        "domain": "gpu-execution",
+        "assessment": "discrimination",
+        "domain": "triton",
         "fact_scope": {
           "kind": "evergreen"
         },
-        "recall_target": "解释增加软件流水资源压力为何可能先减少并行驻留容量"
+        "recall_target": "纠正把流水资源代价归为单个 stage 变慢的误解:资源压力先减少每 sm 的驻留数"
       },
-      "layer": "mechanism",
+      "layer": "atomic",
       "lifecycle": "active",
-      "logical_id": "mc-fe47de7ce75e682e7494cc9c",
+      "logical_id": "mc-e722fbbdd4ce4c40df8796d5",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "softmax-log"
       ],
       "successor_to": null,
-      "template_id": "technical-qa",
+      "template_id": "correction",
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "ebd87915d413ab70afd58f3b77dac009e510bfa65e40b6bf299a939dbb316759",
-      "content_summary": "在题面明确性能判断，定义 occupancy 的分子分母并保留真实错误原话。",
+      "content_sha256": "652f01b7950c5273b04ff5b1906d02b4b8652359e3ac9a2ce6c66f44748abddb",
+      "content_summary": "场景不再写出定义；正确栏给出驻留容量定义；说明首句界定错误范围（“不一定用得好”是对的）。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -202,46 +200,35 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "29ca21cf0b8b4a321b26a5ec8a90555a3f020c3f0adb3d77d3d824d8cbd24751",
-      "content_summary": "定义 M/P 与行分配后推导单迭代情形，区别跨 program 调度和循环流水。",
-      "dependency_content_sha256": {
-        "mc-2c14f887e9971035fd276088": "17c2cc2bcde5411d47a65816502988474ed18c7475ff2518cba6a841f9554623",
-        "mc-6a3bd974f47fdf662ef670cc": "2d62441c50d10b09d9daa48825f9f6aa7d31269e2937de5629f8e8228f3583f1"
-      },
-      "depends_on": [
-        "mc-2c14f887e9971035fd276088",
-        "mc-6a3bd974f47fdf662ef670cc"
-      ],
+      "content_sha256": "27f1ddb6d453eeb7db5cec4338eabd08e8e7cee818a8bb91af1cd58be80e506d",
+      "content_summary": "原 08 由技术问答改为真实纠错卡：保留跨 program 交错的原话，区分硬件调度与 tl.range 跨迭代流水。",
+      "dependency_content_sha256": {},
+      "depends_on": [],
       "fact_status": "verified",
       "identity": {
-        "assessment": "mechanism",
-        "domain": "triton-softmax",
+        "assessment": "discrimination",
+        "domain": "triton",
         "fact_scope": {
-          "kind": "snapshot",
-          "product": "programming-lab triton lesson02",
-          "version": "2026-08-07 learning baseline"
+          "kind": "evergreen"
         },
-        "recall_target": "解释本课 grid 等于行数时没有同 program 跨行迭代可供流水"
+        "recall_target": "纠正把不同 program 交错执行当作 tl.range 跨迭代流水的误解"
       },
-      "layer": "mechanism",
+      "layer": "atomic",
       "lifecycle": "active",
-      "logical_id": "mc-e088d59bc183346ef7718aa1",
+      "logical_id": "mc-4b58cd831ef5e06216ffdd48",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
-      "review_resolution": {
-        "summary": "已重新对照本课 card-04, card-07 的增强题答复核本卡：场景与符号定义一致，机制关系和适用边界仍成立，参考回答及评分锚点由这些子卡支持；本轮只增强表达，没有扩大原知识目标。"
-      },
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "softmax-log"
       ],
       "successor_to": null,
-      "template_id": "technical-qa",
+      "template_id": "correction",
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "f46138e0470bdca0bbaa9c414e621e33939278f945a3613d43e965b38b9394af",
-      "content_summary": "补保持算法不变的性能比较条件，说明驻留数量与在途迭代各自影响。",
+      "content_sha256": "3602bc5f70bad11890768aa4cd9670e9733939bb0dcff339256a6aad418704af",
+      "content_summary": "题面加上“tl.range 行循环的 num_stages”区分线索，避免与 matmul 的 kernel 参数 num_stages 混答。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -267,8 +254,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "9a9e6c008951d001ef176c0c718771f03ad8e956171577d1bbbdc075e8e51e36",
-      "content_summary": "解释资源为何参与默认 grid，定义同一特化并补参数对应与排查目标。",
+      "content_sha256": "a30010c27ed0d7e68e8fca31629a10df92cb9bddbbb53cd7609671f9d261a2fc",
+      "content_summary": "改为情境题（官方 648 能否沿用 → 用自身特化的资源），补 864 反例与按 N 取块大小的排查点；降为 B。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -284,8 +271,8 @@
       "lifecycle": "active",
       "logical_id": "mc-14e074440686c51694404e59",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "softmax-log"
       ],
@@ -294,8 +281,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "8a399b8f1721657a7f1fdafdeedc7c39f9df731a87afd22021199ee08338cef9",
-      "content_summary": "定义 grid cap 的来由，分别说明理论容量、全设备启动量和 achieved occupancy。",
+      "content_sha256": "c514589006e0edafa504efd9ddf1388583a3314aaec04f72b5eaba724d1d59fc",
+      "content_summary": "是非题改为“该怎样算”；运行时 achieved occupancy 标为延伸；降为 B。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -311,8 +298,8 @@
       "lifecycle": "active",
       "logical_id": "mc-e7250d3c9195bcac9febca8b",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "softmax-log"
       ],
@@ -321,8 +308,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "978810c2f0a0d4449d92c4bc5a39d1d109c19aa3ef16c478f580c9190bcf8231",
-      "content_summary": "把准备后 wrapper 定义为实验对象，明确哪些步骤在边界内外与比较条件。",
+      "content_sha256": "b1d7417227359e3dbcdede871a7eafdb4e41a796b4b62c069cf4a717ba327a99",
+      "content_summary": "题面改为反驳“只测 kernel 才公平”的情境，考计时边界由要回答的问题决定；降为 B。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -338,8 +325,8 @@
       "lifecycle": "active",
       "logical_id": "mc-a6376571125a23f801d94f15",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "softmax-log"
       ],
@@ -348,22 +335,22 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "f264b887a93aa2029f5337b2cbca0771f6f03c9f35ae2605c60b480915ca3fa8",
-      "content_summary": "解释把正确性检查移出 benchmark 的安排，明确独立测试职责与配置覆盖。",
+      "content_sha256": "f1a443ae088b21e4ef6e2d61371eb0de9376801bba4bf7402aa4cace2c3305d6",
+      "content_summary": "新增：整行一个静态块的原因（编译期块形状、整行归约）、越过 2 的幂即换特化、须装进片上资源的上限。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
       "identity": {
-        "assessment": "discrimination",
-        "domain": "gpu-benchmark-method",
+        "assessment": "mechanism",
+        "domain": "triton",
         "fact_scope": {
           "kind": "evergreen"
         },
-        "recall_target": "区分独立功能测试与 benchmark 对正确性和性能证据的职责"
+        "recall_target": "解释整行由一个 program 的静态 2 的幂块负责的原因、代价与上限"
       },
-      "layer": "atomic",
+      "layer": "mechanism",
       "lifecycle": "active",
-      "logical_id": "mc-41745e10797fdfa3f4097eec",
+      "logical_id": "mc-b91e2f8be53d73a72abc622c",
       "misconception_of": null,
       "priority": 5,
       "quality": "A",
@@ -375,8 +362,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "9e1fbb6bfb473905faba63c911ffca3bfe839f64a71dc9175535a05a100b184f",
-      "content_summary": "题面重建 stages/资源/grid 联动实验，限定策略比较与后续因果对照。",
+      "content_sha256": "fe99556fda57bbd12d9c0d7dab13f086ddeb3ca1e44a5ca50baaa9360852d954",
+      "content_summary": "是非题改为“比较的究竟是什么”，题面给出 432/540/324 的联动 grid；降为 B。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -392,8 +379,8 @@
       "lifecycle": "active",
       "logical_id": "mc-f17f63dac191a159febbc944",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "softmax-log"
       ],
@@ -429,21 +416,21 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "4b8f156d7abc708e7797bc7b62b9dff7224b26d687dbefdaf305dc16dfb0cc91",
-      "content_summary": "口述题明示行循环设置，独立串联迭代条件、重叠收益、驻留代价和归因。",
+      "content_sha256": "fac292dbf590eba8481021f87f6db5808c47a045d823b0fe81e059888d7d7b4b",
+      "content_summary": "写明听众与 Triton 3.7.1；子卡 05、08 换成两张新纠错卡；参考回答压缩到 60 秒内。",
       "dependency_content_sha256": {
-        "mc-2c14f887e9971035fd276088": "17c2cc2bcde5411d47a65816502988474ed18c7475ff2518cba6a841f9554623",
-        "mc-44d3da87054aeaef39448cf4": "f46138e0470bdca0bbaa9c414e621e33939278f945a3613d43e965b38b9394af",
-        "mc-e088d59bc183346ef7718aa1": "29ca21cf0b8b4a321b26a5ec8a90555a3f020c3f0adb3d77d3d824d8cbd24751",
-        "mc-f17f63dac191a159febbc944": "9e1fbb6bfb473905faba63c911ffca3bfe839f64a71dc9175535a05a100b184f",
-        "mc-fe47de7ce75e682e7494cc9c": "058465854d1e46cdf8b1914f547225393aa2f38193d2ca019a70f996d470627e"
+        "mc-2c14f887e9971035fd276088": "5ca8b76b4343f37dddb8404ec8285ddb8afb2c21d45be54c444286e953da2078",
+        "mc-44d3da87054aeaef39448cf4": "3602bc5f70bad11890768aa4cd9670e9733939bb0dcff339256a6aad418704af",
+        "mc-4b58cd831ef5e06216ffdd48": "27f1ddb6d453eeb7db5cec4338eabd08e8e7cee818a8bb91af1cd58be80e506d",
+        "mc-e722fbbdd4ce4c40df8796d5": "f552c51141f5044396c6476a87e3f70cb8d8cb2f18220ad5a7b5e0cc1a9a6113",
+        "mc-f17f63dac191a159febbc944": "fe99556fda57bbd12d9c0d7dab13f086ddeb3ca1e44a5ca50baaa9360852d954"
       },
       "depends_on": [
         "mc-2c14f887e9971035fd276088",
         "mc-44d3da87054aeaef39448cf4",
-        "mc-e088d59bc183346ef7718aa1",
-        "mc-f17f63dac191a159febbc944",
-        "mc-fe47de7ce75e682e7494cc9c"
+        "mc-4b58cd831ef5e06216ffdd48",
+        "mc-e722fbbdd4ce4c40df8796d5",
+        "mc-f17f63dac191a159febbc944"
       ],
       "fact_status": "verified",
       "identity": {
@@ -463,7 +450,7 @@
       "priority": 4,
       "quality": "A",
       "review_resolution": {
-        "summary": "已重新对照本课 card-04, card-09, card-08, card-14, card-05 的增强题答复核本卡：场景与符号定义一致，机制关系和适用边界仍成立，参考回答及评分锚点由这些子卡支持；本轮只增强表达，没有扩大原知识目标。"
+        "summary": "已依据更新后的 card-04、card-09、card-14 与新纠错卡 pm-pipeline-correction、resource-residency-correction 复核：作用域、单次迭代无跨行流水、延迟隐藏与驻留权衡、联动归因四个锚点都有子卡支撑；参考回答约 350 字，可在 60 秒内讲完。"
       },
       "source_ids": [
         "softmax-log"
@@ -473,54 +460,39 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "46bb791ce2bb38622ef776869f03e6774bb3d1158451932215e963d5ac4e3dfc",
-      "content_summary": "口述题给出审查对象，补齐 wrapper/资源/正确性/因果四条可执行核对线。",
-      "dependency_content_sha256": {
-        "mc-14e074440686c51694404e59": "9a9e6c008951d001ef176c0c718771f03ad8e956171577d1bbbdc075e8e51e36",
-        "mc-41745e10797fdfa3f4097eec": "f264b887a93aa2029f5337b2cbca0771f6f03c9f35ae2605c60b480915ca3fa8",
-        "mc-a6376571125a23f801d94f15": "978810c2f0a0d4449d92c4bc5a39d1d109c19aa3ef16c478f580c9190bcf8231",
-        "mc-e7250d3c9195bcac9febca8b": "8a399b8f1721657a7f1fdafdeedc7c39f9df731a87afd22021199ee08338cef9",
-        "mc-f17f63dac191a159febbc944": "9e1fbb6bfb473905faba63c911ffca3bfe839f64a71dc9175535a05a100b184f"
-      },
-      "depends_on": [
-        "mc-14e074440686c51694404e59",
-        "mc-41745e10797fdfa3f4097eec",
-        "mc-a6376571125a23f801d94f15",
-        "mc-e7250d3c9195bcac9febca8b",
-        "mc-f17f63dac191a159febbc944"
-      ],
+      "content_sha256": "e5898cce23900516c2d90ae9be3702972129f683fd7eda6f449b5466bd93dafd",
+      "content_summary": "新增：静态 grid-stride 与动态任务队列的分配时机对比，判断依据是任务来源与成本差异。",
+      "dependency_content_sha256": {},
+      "depends_on": [],
       "fact_status": "verified",
       "identity": {
-        "assessment": "oral",
-        "domain": "gpu-performance-evidence",
+        "assessment": "discrimination",
+        "domain": "triton",
         "fact_scope": {
           "kind": "evergreen"
         },
-        "recall_target": "综合说明准备后 wrapper 性能比较的计时和证据边界"
+        "recall_target": "比较静态 grid-stride 与动态任务队列两种 persistent 的任务分配方式与适用负载"
       },
-      "layer": "oral",
+      "layer": "atomic",
       "lifecycle": "active",
-      "logical_id": "mc-d6afcb3c2c8463b1444bbe94",
+      "logical_id": "mc-312ed81b22df320ca2241130",
       "misconception_of": null,
       "priority": 4,
-      "quality": "A",
-      "review_resolution": {
-        "summary": "已重新对照本课 card-10, card-13, card-12, card-11, card-14 的增强题答复核本卡：场景与符号定义一致，机制关系和适用边界仍成立，参考回答及评分锚点由这些子卡支持；本轮只增强表达，没有扩大原知识目标。"
-      },
+      "quality": "B",
       "source_ids": [
         "softmax-log"
       ],
       "successor_to": null,
-      "template_id": "oral",
+      "template_id": "technical-qa",
       "template_version": "1.1.0"
     }
   ],
-  "managed_body_sha256": "68ce3a8d53ae9479e275838b3272c4d525d179757eb54835317b4fd0b643309b",
-  "manifest_payload_sha256": "b93c21933f13087d1d7ba3bc2a4c5b9c37fc8a61c50f12d9d4a32fbdc4cd2b33",
+  "managed_body_sha256": "b41e10f0a0ed4df5bd646e36a8c7876776bfc8221dfa01bc8eaa0fa5369d2e47",
+  "manifest_payload_sha256": "3b477124877a309d94d9fd706ac061895aa4a95eb2204f336988f0273e597c45",
   "schema": "memo-cards.artifact/v2",
   "sidecars": [
     {
-      "byte_size": 4038,
+      "byte_size": 7503,
       "columns": [
         "意图",
         "场景",
@@ -530,22 +502,32 @@
       ],
       "kind": "markji-import-xlsx",
       "path": "docs/triton-learning/cards/triton-lesson-02-fused-softmax-correction.xlsx",
-      "row_count": 1,
+      "row_count": 3,
       "rows": [
         {
-          "content_sha256": "ebd87915d413ab70afd58f3b77dac009e510bfa65e40b6bf299a939dbb316759",
+          "content_sha256": "f552c51141f5044396c6476a87e3f70cb8d8cb2f18220ad5a7b5e0cc1a9a6113",
+          "logical_id": "mc-e722fbbdd4ce4c40df8796d5",
+          "row_sha256": "a9fc1a6b735c00d4713ddd913419ba1a414959b903385f23c41ace1bb4cec9d8"
+        },
+        {
+          "content_sha256": "652f01b7950c5273b04ff5b1906d02b4b8652359e3ac9a2ce6c66f44748abddb",
           "logical_id": "mc-c913f6453bf2816a27739147",
-          "row_sha256": "c459903b0db2390a81bb870d8daf3d458ec5fbcd7b2ac2e2b5c2eec6f1a9ae2c"
+          "row_sha256": "f61766146ea5361133545f035f9295f31e92970c3837ba69b9c074c47b496ed1"
+        },
+        {
+          "content_sha256": "27f1ddb6d453eeb7db5cec4338eabd08e8e7cee818a8bb91af1cd58be80e506d",
+          "logical_id": "mc-4b58cd831ef5e06216ffdd48",
+          "row_sha256": "a8a910a6ff39dc8afda4c31625670c98fecf607658f791bf9efe70457db4c2e3"
         }
       ],
-      "sha256": "69541eb54d4a935061adcfcc2355ee8ddc2c0a3c20a8537ceacc65d5b45af123",
+      "sha256": "a1664f4f9e6fe4dc5aa165085b4fae5ee72ba1558cacebdd4d93bca8c0565cfd",
       "sheet_name": "cards",
-      "table_sha256": "c48d45497b6a5ffb8ff7a4e47e85288ae2d91295e8306affb5b42b4e8314b238",
+      "table_sha256": "a97f45451a7639fec1ec21413b1b3c7485feecf81877d7d108097a5e904bbf3a",
       "template_id": "correction",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 22496,
+      "byte_size": 22538,
       "columns": [
         "问题",
         "答案",
@@ -554,32 +536,27 @@
       ],
       "kind": "markji-import-xlsx",
       "path": "docs/triton-learning/cards/triton-lesson-02-fused-softmax-technical-qa.xlsx",
-      "row_count": 14,
+      "row_count": 13,
       "rows": [
         {
-          "content_sha256": "4b87c511c0408fb58bc5b1dafe173780525f2df02f3718c0f3697345d1f3bf2b",
+          "content_sha256": "4ed77bcd3d9903374938b7035c003d99130ebc54ac12eef0286f5e5c01730495",
           "logical_id": "mc-85fe37304bbbe805507fa2a3",
-          "row_sha256": "d859a7e3de79f25d30107bbdd7cc53c159a7992c3e6b35b4f22b8a064f7b13d4"
+          "row_sha256": "d5ca19073e30600c3e30097a46427ce196c6ab8299a1a9bee31f0b92063e1e0b"
         },
         {
-          "content_sha256": "952be6f18d66688f649d3c95ad81bbf5bd7e72846bda08f5c0aa378a65117ecb",
-          "logical_id": "mc-a0616b26964c9ef9372bef32",
-          "row_sha256": "d391ebc866b160b5638825dcdf11863898a237f9c827a2a26601783efeeae801"
+          "content_sha256": "5c4f1ddececc83f95fad391002628346ea76ce84b11085d8742513164ec67781",
+          "logical_id": "mc-1cbf2e7f12f4c8144f731151",
+          "row_sha256": "ab9fab8c87df35880336d9529dc0e8392f41f8841c4fa413189111049c439b8b"
         },
         {
-          "content_sha256": "abb18105a1c07e4a451e6460330985c893bf9d8bfe13b9e8c83fac8b5c123bc6",
-          "logical_id": "mc-9bb771500be5bf1f92614113",
-          "row_sha256": "f4aebf6ff41c31a83ebd88bd8efccc7d60f92d5bffb840a7bedec0a3b25a35c1"
+          "content_sha256": "a7ee368f2ae6754e42eff8d0a458b3d674765ea8147caf87c3e7be3c0e4c9713",
+          "logical_id": "mc-1f92d177462e95f9f49f06eb",
+          "row_sha256": "8b02941b13daf05a7b52885d700338522a6a4f05a7f693cbdf54eb92c7bd44d4"
         },
         {
-          "content_sha256": "17c2cc2bcde5411d47a65816502988474ed18c7475ff2518cba6a841f9554623",
+          "content_sha256": "5ca8b76b4343f37dddb8404ec8285ddb8afb2c21d45be54c444286e953da2078",
           "logical_id": "mc-2c14f887e9971035fd276088",
-          "row_sha256": "5558da43f5bbd94c90d98f09f912f3e987a2f39e9238a8fad756497589fa3dc1"
-        },
-        {
-          "content_sha256": "058465854d1e46cdf8b1914f547225393aa2f38193d2ca019a70f996d470627e",
-          "logical_id": "mc-fe47de7ce75e682e7494cc9c",
-          "row_sha256": "474b8c55609bb39b995ad81d5ce0ac00397794a1f5a1205415bab50dee01354d"
+          "row_sha256": "cb059dd1dbd073d54a0eff72fa1f61c54d2931677fdce6a85a540320a85e1480"
         },
         {
           "content_sha256": "2d62441c50d10b09d9daa48825f9f6aa7d31269e2937de5629f8e8228f3583f1",
@@ -587,54 +564,54 @@
           "row_sha256": "24d08e4d3fbae2a248b61d628a78b45c5208d128a93dd7273c17d466ff2e29b8"
         },
         {
-          "content_sha256": "29ca21cf0b8b4a321b26a5ec8a90555a3f020c3f0adb3d77d3d824d8cbd24751",
-          "logical_id": "mc-e088d59bc183346ef7718aa1",
-          "row_sha256": "ad1f4ecc16427f015e3408fb8e51fd2dd120c7d6f1d5b1af1bff531fd5a9ef6a"
-        },
-        {
-          "content_sha256": "f46138e0470bdca0bbaa9c414e621e33939278f945a3613d43e965b38b9394af",
+          "content_sha256": "3602bc5f70bad11890768aa4cd9670e9733939bb0dcff339256a6aad418704af",
           "logical_id": "mc-44d3da87054aeaef39448cf4",
-          "row_sha256": "23ae37c27a7b3ce4b1fcbf4a89bdc4b05db4ba9df2fd44700580f8a3e3597acf"
+          "row_sha256": "8bf813b98858c9cf6c26f73423e1a3bfb693022eb786372ba7e445b87fa73bd6"
         },
         {
-          "content_sha256": "9a9e6c008951d001ef176c0c718771f03ad8e956171577d1bbbdc075e8e51e36",
+          "content_sha256": "a30010c27ed0d7e68e8fca31629a10df92cb9bddbbb53cd7609671f9d261a2fc",
           "logical_id": "mc-14e074440686c51694404e59",
-          "row_sha256": "668598d34527c9ce7bfbd1e0cfc3e338d51df2a3a545b07a4dfdbf3a3cf94190"
+          "row_sha256": "b5202435de79f954950aad0664ab44b463cddbec142731a39e2931bac4f0edd2"
         },
         {
-          "content_sha256": "8a399b8f1721657a7f1fdafdeedc7c39f9df731a87afd22021199ee08338cef9",
+          "content_sha256": "c514589006e0edafa504efd9ddf1388583a3314aaec04f72b5eaba724d1d59fc",
           "logical_id": "mc-e7250d3c9195bcac9febca8b",
-          "row_sha256": "b8f51c0e19351a0e3a681210df7e38605ab527be76cc81e918c2cb98b3c82fcc"
+          "row_sha256": "c8a0dbaf5e7a868913353b8896b6f9a27827a11ec210637865fa891508e21ed6"
         },
         {
-          "content_sha256": "978810c2f0a0d4449d92c4bc5a39d1d109c19aa3ef16c478f580c9190bcf8231",
+          "content_sha256": "b1d7417227359e3dbcdede871a7eafdb4e41a796b4b62c069cf4a717ba327a99",
           "logical_id": "mc-a6376571125a23f801d94f15",
-          "row_sha256": "ddb93d5752b36f47a141fbb2d73bca00a2268d43752698e4602a624a57461cc4"
+          "row_sha256": "f10621e29b666e618042a65b38e7ddf456d659fa97aeecb7852375302abaf566"
         },
         {
-          "content_sha256": "f264b887a93aa2029f5337b2cbca0771f6f03c9f35ae2605c60b480915ca3fa8",
-          "logical_id": "mc-41745e10797fdfa3f4097eec",
-          "row_sha256": "49833e603008439fe94aa999b9f11786d328ec709ba8aeaa915b9f7e0102dbe8"
+          "content_sha256": "f1a443ae088b21e4ef6e2d61371eb0de9376801bba4bf7402aa4cace2c3305d6",
+          "logical_id": "mc-b91e2f8be53d73a72abc622c",
+          "row_sha256": "dadccfd116fdd9e86b28bd097fdde70d102a1ed1b5b451150c9c45a994500896"
         },
         {
-          "content_sha256": "9e1fbb6bfb473905faba63c911ffca3bfe839f64a71dc9175535a05a100b184f",
+          "content_sha256": "fe99556fda57bbd12d9c0d7dab13f086ddeb3ca1e44a5ca50baaa9360852d954",
           "logical_id": "mc-f17f63dac191a159febbc944",
-          "row_sha256": "efba7aa7b2fe3fc3034b0908df379a360b12e4cec35dd0dc3db5a49c3c60b36e"
+          "row_sha256": "6cf76abea310e3a325463de8290f7a99608e0c7b56b60d94acbe995717f59508"
         },
         {
           "content_sha256": "5dd6cb5d641dc1169f597bd7975543655944c8cde714a049e0c7d0a8efd24662",
           "logical_id": "mc-40a03076a6306ec969dbdd18",
           "row_sha256": "efe778e1e2a397fbe2268ab562fb3c4873d4c3010c303b2a2a23943ebc8bc0b0"
+        },
+        {
+          "content_sha256": "e5898cce23900516c2d90ae9be3702972129f683fd7eda6f449b5466bd93dafd",
+          "logical_id": "mc-312ed81b22df320ca2241130",
+          "row_sha256": "0e55b4c011efb9c2daae011fa2dc549f7b6c349424c2351962ddca7fdd006130"
         }
       ],
-      "sha256": "8a9cee75297c28473ce88197caf46569b2e4a779d197e5e3ed73bd6444dfbcd9",
+      "sha256": "5a22fa9e59c031ebc60de59cb0960bd8a8e02a2f2ad6dcf00a4ba4e33f803648",
       "sheet_name": "cards",
-      "table_sha256": "1e00bd65a5d049be376d5e4ec03e3fb524eb5e18990428bdf023c6f3a2789f5b",
+      "table_sha256": "303f42421dc53b57521daac4b0a25cc3467857e9478fb93d06f645e9ae6c03cf",
       "template_id": "technical-qa",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 6270,
+      "byte_size": 4284,
       "columns": [
         "问题",
         "参考回答",
@@ -643,33 +620,28 @@
       ],
       "kind": "markji-import-xlsx",
       "path": "docs/triton-learning/cards/triton-lesson-02-fused-softmax-oral.xlsx",
-      "row_count": 2,
+      "row_count": 1,
       "rows": [
         {
-          "content_sha256": "4b8f156d7abc708e7797bc7b62b9dff7224b26d687dbefdaf305dc16dfb0cc91",
+          "content_sha256": "fac292dbf590eba8481021f87f6db5808c47a045d823b0fe81e059888d7d7b4b",
           "logical_id": "mc-5a4591a30e434953f66de828",
-          "row_sha256": "ea23e5db73d9aacb1c0c8c0908477d80d1b5998553a410b64948c2886b432188"
-        },
-        {
-          "content_sha256": "46bb791ce2bb38622ef776869f03e6774bb3d1158451932215e963d5ac4e3dfc",
-          "logical_id": "mc-d6afcb3c2c8463b1444bbe94",
-          "row_sha256": "ab916a27069da203879062ef0ba841d9059a869c1cd4cea4143d66831f23e43c"
+          "row_sha256": "1ded434ac84976f5e305a16255a7632aa12367a7a50596029ceb7d1dac3e3019"
         }
       ],
-      "sha256": "09aff0e4d4d1045a79d9a35993d02db064ecee27233f93e3ae79c6c3e430c17a",
+      "sha256": "d80401ed687ae587897dc0154b65efbf1b86f2c5d1b51a6bf9e3e88c2de021e7",
       "sheet_name": "cards",
-      "table_sha256": "1a1617f6d79712dd12bb3ea605f5c277c39e5e6f52e5979388a615155360b903",
+      "table_sha256": "eb4007a3e14b63c63d83036b4b0455fdfb59cb7b050f0862daa7624291423cd9",
       "template_id": "oral",
       "template_version": "1.1.0"
     }
   ],
-  "source_fingerprint": "491ce1c1c95e4de6397a9c6a4f1313d093de55a01025810c62b25c058c60f5c7",
+  "source_fingerprint": "1b2377df7b2e1c6b177b867d3a272c112d412f4bbbd0230e340caed8d664fb15",
   "sources": [
     {
       "collection": "triton-study-logs",
       "id": "softmax-log",
       "path": "docs/triton-learning/logs/2026-08-07-fused-softmax.md",
-      "sha256": "12f4e78d92ec0101c2c17adf3e613a3512ae6087eb37a8a68ebd36965eff8617",
+      "sha256": "44335bf79ea2330369e998c0b83a173fd98473bb2c9a0554d7916a3fecaac432",
       "summary": "第02课已核验结构化日志；按冻结 A–E 段原消息编号追溯；未直接消费 raw 对话，不纳入未完成性能因果研究。"
     }
   ],
@@ -695,7 +667,7 @@
 {{说明}}
 ```
 
-导入文件：[triton-lesson-02-fused-softmax-correction.xlsx](triton-lesson-02-fused-softmax-correction.xlsx)（1 张卡）
+导入文件：[triton-lesson-02-fused-softmax-correction.xlsx](triton-lesson-02-fused-softmax-correction.xlsx)（3 张卡）
 
 ## 技术问答卡
 
@@ -709,7 +681,7 @@
 📍 [T#!939393#{{来源}}]
 ```
 
-导入文件：[triton-lesson-02-fused-softmax-technical-qa.xlsx](triton-lesson-02-fused-softmax-technical-qa.xlsx)（14 张卡）
+导入文件：[triton-lesson-02-fused-softmax-technical-qa.xlsx](triton-lesson-02-fused-softmax-technical-qa.xlsx)（13 张卡）
 
 ## 综合口述卡
 
@@ -723,4 +695,4 @@
 📍 [T#!939393#{{来源}}]
 ```
 
-导入文件：[triton-lesson-02-fused-softmax-oral.xlsx](triton-lesson-02-fused-softmax-oral.xlsx)（2 张卡）
+导入文件：[triton-lesson-02-fused-softmax-oral.xlsx](triton-lesson-02-fused-softmax-oral.xlsx)（1 张卡）

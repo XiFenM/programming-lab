@@ -4,18 +4,19 @@
 
 | 课程 | 卡片数量 | 预览 |
 | --- | ---: | --- |
-| Triton Lesson 01 · Vector Add | 15 | [打开预览](lesson-01-vector-add.md) |
+| Triton Lesson 01 · Vector Add | 13 | [打开预览](lesson-01-vector-add.md) |
 | Triton Lesson 02 · Fused Softmax | 17 | [打开预览](lesson-02-fused-softmax.md) |
-| Triton Lesson 03 · Matrix Multiplication | 12 | [打开预览](lesson-03-matrix-multiplication.md) |
-| Triton Lesson 04 · Low-Memory Dropout | 10 | [打开预览](lesson-04-low-memory-dropout.md) |
-| Triton Lesson 05 · Layer Normalization | 16 | [打开预览](lesson-05-layer-norm.md) |
+| Triton Lesson 03 · Matrix Multiplication | 13 | [打开预览](lesson-03-matrix-multiplication.md) |
+| Triton Lesson 04 · Low-Memory Dropout | 8 | [打开预览](lesson-04-low-memory-dropout.md) |
+| Triton Lesson 05 · Layer Normalization | 19 | [打开预览](lesson-05-layer-norm.md) |
 | Triton Lesson 06 · Fused Attention | 34 | [打开预览](lesson-06-fused-attention.md) |
-| Triton Lesson 07 · Extern Functions | 25 | [打开预览](lesson-07-extern-functions.md) |
-| Triton Lesson 08 · Grouped GEMM | 34 | [打开预览](lesson-08-grouped-gemm.md) |
-| Triton Lesson 09 · Persistent Matmul | 39 | [打开预览](lesson-09-persistent-matmul.md) |
-| Triton Lesson 10 · Block-Scaled Matmul | 52 | [打开预览](lesson-10-block-scaled-matmul.md) |
+| Triton Lesson 07 · Extern Functions | 24 | [打开预览](lesson-07-extern-functions.md) |
+| Triton Lesson 08 · Grouped GEMM | 37 | [打开预览](lesson-08-grouped-gemm.md) |
+| Triton Lesson 09 · Persistent Matmul | 41 | [打开预览](lesson-09-persistent-matmul.md) |
+| Triton Lesson 10 · Block-Scaled Matmul | 50 | [打开预览](lesson-10-block-scaled-matmul.md) |
+| Triton 跨课辨析与综合 | 6 | [打开预览](cross-lesson-synthesis.md) |
 
-合计 **254 张**。
+合计 **262 张**（2026-10-21 按审核修订后）。
 
 预览来自上一级目录内的正式 XLSX，并保持卡片原有内容与顺序。每张卡末尾提供来源记录和表格行号；需要导入墨墨时，使用正式 XLSX 及其对应模板。
 

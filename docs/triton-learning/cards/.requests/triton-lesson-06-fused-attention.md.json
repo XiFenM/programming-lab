@@ -1,0 +1,2945 @@
+{
+  "schema": "memo-cards.request/v1",
+  "output_collection": "triton-cards",
+  "target": "docs/triton-learning/cards/triton-lesson-06-fused-attention.md",
+  "selection": "complete",
+  "sources": [
+    {
+      "collection": "triton-study-logs",
+      "id": "attention-early",
+      "path": "docs/triton-learning/logs/2026-09-19-fused-attention.md",
+      "sha256": "1e51f24058b1b7b546dd9c901fab1f48e8adb1e21b6279d495940be36f864d56",
+      "summary": "9/14–19：概念、在线状态、反向与真实纠错"
+    },
+    {
+      "collection": "triton-study-logs",
+      "id": "attention-late",
+      "path": "docs/triton-learning/logs/2026-09-24-fused-attention.md",
+      "sha256": "755e51eeb97bc72caf893978d40e46aff500b2e185096fdfba1dc5632ec2a17f",
+      "summary": "9/20–24：全貌、源码机制、descriptor、FP8、实践和A4解释"
+    }
+  ],
+  "cards": [
+    {
+      "key": "card-01",
+      "rank": 1,
+      "assessment": "mechanism",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "单个 head 的 attention 完整计算是什么?",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "在一个 attention head 内，Q、K、V 都是形状为 [N,D] 的张量，分别表示 N 个 token 的 query、key 和 value；s 是给定的点积分数缩放系数。暂不考虑分块，如何由它们计算输出 O？说明各阶段的作用和结果形状。",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "先让每个 query 与所有 key 计算匹配分数，再把该行分数归一化为权重，最后用这些权重汇总 value。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "匹配分数",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "S=sQKᵀ 的形状为 [N,N]。S[i,j] 是 query i 与 key j 的缩放点积；它此时还没有取指数，也不是概率。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "归一化",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "沿 S 的每一行，也就是 key 轴做 softmax，得到同形状的 P。P[i,j] 是 query i 分配给 value j 的权重；每个有效行的权重和为 1。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "输出",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "O=PV 的形状为 [N,D]。O[i,:] 是第 i 个 query 对所有有效 value 向量的加权和，仍保留 D 个特征。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "S=sQK^{\\mathsf T},\\qquad P=\\operatorname{softmax}_{\\mathrm{key}}(S),\\qquad O=PV"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "causal 模式只允许 key 索引 j≤query 索引 i，包含自身；无效位置不参与归一化。这里的 Q/K/V 已由调用方生成，前面的线性投影和后面的多头输出投影都不属于此算子。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "分数 → 沿 key 归一化 → 加权 V",
+        "来源": "Attention 学习记录 09-24 · 全貌、符号与精度"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "在一个 attention head 内，Q、K、V 都是形状为 [N,D] 的张量，分别表示 N 个 token 的 query、key 和 value；s 是给定的点积分数缩放系数。暂不考虑分块，如何由它们计算输出 O？说明各阶段的作用和结果形状。",
+      "depends_on": []
+    },
+    {
+      "key": "card-02",
+      "rank": 2,
+      "assessment": "recall",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "flashattention 避免了哪项开销?",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "普通 Attention 按 S=sQKᵀ、P=softmax(S)、O=PV 逐步计算（N 个 query、N 个 key，s 为缩放系数），每一步都先得到完整结果再交给下一步。FlashAttention 改为按块计算后，省掉的是哪一类开销，哪一类主要工作仍然保留？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "省掉的是完整 N×N 分数矩阵与概率矩阵的物化，以及它们在全局显存中的写入和读回；QKᵀ 与 PV 两个主要矩阵乘仍要完成。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "普通路径",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "先写出完整 S，再读取它求 softmax 并写出 P，最后读取 P 与 V 相乘，会产生大量中间数据的存储和搬运。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "分块路径",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "固定一个 Q 块，逐块读取 K/V；分数和指数权重只作为当前块的临时量，旧块的影响由少量逐行统计量及输出累加器保留。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "计算边界",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "仍需对相关 query–key 对计算分数，并把权重作用到 V。对完整非因果注意力，主要矩阵乘工作量仍随 N²D 增长。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "减少显存流量是优化机制，不是固定倍数的加速承诺。实际耗时还与 GPU、输入形状、分块及实现有关。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "不物化 N×N；仍计算 QKᵀ、PV",
+        "来源": "Attention 学习记录 09-19 · 不物化 S/P 的要点"
+      },
+      "source_ids": [
+        "attention-early"
+      ],
+      "content_summary": "普通 Attention 按 S=sQKᵀ、P=softmax(S)、O=PV 逐步计算（N 个 query、N 个 key，s 为缩放系数），每一步都先得到完整结果再交给下一步。FlashAttention 改为按块计算后，省掉的是哪一类开销，哪一类主要工作仍然保留？",
+      "depends_on": []
+    },
+    {
+      "key": "card-03",
+      "rank": 3,
+      "assessment": "recall",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton fused-attention tutorial",
+        "version": "source sha-256 5b16be48b7b781ef018931c789b191f3390886ac479bb5df8a3418e5612ab317"
+      },
+      "recall_target": "前向 grid 怎样分配输出块?",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "在 Triton 官方 fused-attention 教程（快照版）的 FP16 前向中，输入 Q/K/V 的形状是 [B,H,N,D]：B 为 batch 数、H 为 head 数、N 为 token 数、D 为每个 head 的特征维。BLOCK_M 是一个 Q tile 的行数。grid=(ceil(N/BLOCK_M),B×H,1) 怎样把计算和最终输出分给各 program？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "每个 program 固定一个 batch/head 和一个 Q 行块，扫描这个行块需要的 K/V，最终独占写回对应的 O 行块及 M 行统计量。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "第0轴",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "program_id(0) 选择 Q tile。编号为 p 的 tile 对应 head 内从 p×BLOCK_M 开始的 query 行。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "第1轴",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "program_id(1) 选择合并后的 batch/head 编号 g；可由 b=g//H、h=g%H 还原到具体输入切片。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "内部循环",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "K/V 的分块扫描在同一个 program 内完成。扫描多少轮与启动多少个 program 是不同概念；这个前向不是每个 Q×K 块都启动一个独立 program。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "第2轴",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "尾部 1 表示第三轴只有一个位置。该教程没有使用这根轴，把 grid 写成前两维即可表达相同分工。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "grid 轴的业务含义来自 kernel 如何使用 program_id。它们不是 Triton 预先规定的 query、batch、head 轴。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "Q tile × batch/head；K/V 在内部扫描",
+        "来源": "Attention 学习记录 09-24 · 全貌、符号与精度"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "在 Triton 官方 fused-attention 教程（快照版）的 FP16 前向中，输入 Q/K/V 的形状是 [B,H,N,D]：B 为 batch 数、H 为 head 数、N 为 token 数、D 为每个 head 的特征维。BLOCK_M 是一个 Q tile 的行数。grid=(ceil(N/BLOCK_M),B×H,1) 怎样把计算和最终输出分给各 program？",
+      "depends_on": []
+    },
+    {
+      "key": "card-04",
+      "rank": 4,
+      "assessment": "recall",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton fused-attention tutorial",
+        "version": "source sha-256 5b16be48b7b781ef018931c789b191f3390886ac479bb5df8a3418e5612ab317"
+      },
+      "recall_target": "fp16 的 [bhn,d] 视图怎样定位 token 行?",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "连续 FP16 Q/K/V 原本形状为 [B,H,N,D]，B/H 分别为 batch/head 数，N 为 token 数，D 为特征维。现在 descriptor 将 batch、head、token 合并成 [BHN,D] 的二维视图。已知 batch=b、head=h、head 内 token=t，这个 token 在 descriptor 中的全局行号怎样计算？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "先求当前 batch/head 的序列起点，再加上该 head 内的 token 索引。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "g=bH+h,\\qquad r=gN+t"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "各量含义",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "g 是合并后的 batch/head 编号，每个 g 占连续 N 行；因此 gN 是该 head 的首行，t 才是它内部的局部偏移。特征坐标 d 不参与这一步行号计算。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "例子",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "若 g=5、N=8，head 内 token 2、3 应读 descriptor 全局行 42、43。只写行号 2、3 会访问整个视图开头的 head。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "用到哪里",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Q tile 起点和 K/V 的每轮扫描起点都需要加当前 head 基址。判断 causal 的先后关系时，也要保证两个 token 坐标使用同一坐标系。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这是 FP16 的普通 [BHN,D] 视图；FP8 V 的重排 descriptor 使用另一组轴，不能直接套用这套行号公式。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "先 gN，再加局部 token",
+        "来源": "Attention 学习记录 09-19 · K descriptor 行号纠错；09-24 · TensorDescriptor、边界与启动准备"
+      },
+      "source_ids": [
+        "attention-early",
+        "attention-late"
+      ],
+      "content_summary": "连续 FP16 Q/K/V 原本形状为 [B,H,N,D]，B/H 分别为 batch/head 数，N 为 token 数，D 为特征维。现在 descriptor 将 batch、head、token 合并成 [BHN,D] 的二维视图。已知 batch=b、head=h、head 内 token=t，这个 token 在 descriptor 中的全局行号怎样计算？",
+      "depends_on": []
+    },
+    {
+      "key": "card-05",
+      "rank": 5,
+      "assessment": "recall",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "为什么 acc 的形状是 [block_m,d]?",
+      "layer": "atomic",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 3,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "分块 Attention 前向中，一个 program 负责 B_M 个 query；本轮读入 B_N 个 key/value，每个 value 是 D 维特征向量；当前块的未归一化指数权重 p 形状为 [B_M,B_N]。跨多轮 K/V 累计 pV 的输出分子 acc 应是什么形状？请用乘加时被归约和被保留的轴说明。",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "acc 的形状是 [B_M,D]：乘加归约掉本轮的 key 轴 B_N，保留 query 轴 B_M 和特征轴 D，每个 query 对应一个 D 维加权 value 向量。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "\\underbrace{p}_{B_M\\times B_N}\\ \\underbrace{V}_{B_N\\times D}\\ \\longrightarrow\\ \\underbrace{acc}_{B_M\\times D}"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "归约轴",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "乘加时对本轮的 key/value 索引求和，B_N 这一轴被消去；下一轮 K/V 的贡献继续加到同一个 acc，形状不变。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "逐行统计",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "运行最大值 m、指数和 l、重标定系数 alpha 都是一 query 一个值，所以形状为 [B_M]。给 acc 重标定时用 alpha[:,None] 沿 D 轴广播。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "形状由轴的含义决定，不能看数值：即使 B_M 与 D 都取 64，acc 的两根轴仍分别是 query 和特征；B_M=32、D=64 时 acc 为 [32,64]。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "消去 key；留下 query × feature",
+        "来源": "Attention 学习记录 09-24 · 全貌、符号与精度"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "分块 Attention 前向中，一个 program 负责 B_M 个 query；本轮读入 B_N 个 key/value，每个 value 是 D 维特征向量；当前块的未归一化指数权重 p 形状为 [B_M,B_N]。跨多轮 K/V 累计 pV 的输出分子 acc 应是什么形状？请用乘加时被归约和被保留的轴说明。",
+      "depends_on": []
+    },
+    {
+      "key": "card-06",
+      "rank": 6,
+      "assessment": "discrimination",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "重标定时 exp 与 exp2 怎样匹配?",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "correction",
+      "fields": {
+        "意图": "在线 softmax 手算：score 已乘原始 sm_scale，属于自然指数域（softmax 权重为 e^score），还没有取指数。旧、新运行最大分数分别为 −15 和 −13。旧分母和旧分子都要乘同一个重标定系数，它等于多少？请分别写出用 exp 和用 exp2 表示的形式。",
+        "场景": "要把已累积的分母 l 和加权 V 分子 acc 换到新最大值的基准上；kernel 内部用 exp2 计算指数。",
+        "正确": "系数为 e^(−15−(−13))=e^(−2)；改用 exp2 时要先把自然分数差除以 ln2，写成 2^(−2/ln2)，数值仍是 e^(−2)。",
+        "错误": "那么重标定系数为2^(-2)",
+        "说明": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "错在把自然指数域的分数差 −2 直接交给 exp2，跳过了换底；判断旧分母和旧分子都要重标定是对的。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "定义",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "令 s_j 表示已乘原始 sm_scale 的点积分数，x_j=s_j/ln2 表示供 exp2 使用的分数。两者均尚未取指数。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "e^{s_j}=2^{x_j},\\quad x_j=s_j/\\ln2,\\qquad \\alpha=2^{x_{old}-x_{new}}=e^{s_{old}-s_{new}}"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "代入",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这里自然分数差为 −2，因此 alpha=e⁻²。把 −2 直接交给 exp2 相当于跳过换底，得到的 1/4 不是相同权重基准。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "用于状态",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "旧分母 l 与旧加权 V 分子 acc 都乘同一个 alpha；原答在这一点上正确，需要修正的只是系数。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "给定分数时先确认它处于哪个表示域：只有已换到 exp2 输入域、已含 1/ln2 的分数差，才能直接作为 2 的指数。"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "source_ids": [
+        "attention-early",
+        "attention-late"
+      ],
+      "content_summary": "在线 softmax 手算：score 已乘原始 sm_scale，属于自然指数域（softmax 权重为 e^score），还没有取指数。旧、新运行最大分数分别为 −15 和 −13。旧分母和旧分子都要乘同一个重标定系数，它等于多少？请分别写出用 exp 和用 exp2 表示的形式。",
+      "depends_on": []
+    },
+    {
+      "key": "card-07",
+      "rank": 7,
+      "assessment": "mechanism",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "新 key 块如何并入在线 softmax 状态?",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "固定一个 query，Attention 前向已经扫描过若干 K/V 块，并保存运行最大值 m、指数和 l、加权 V 分子 acc。新 key 块 J 的分数 x_j 已换到 exp2 的输入域，但尚未取指数。怎样把这个新块并入旧状态，最终得到该 query 的输出？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "先选择旧块与新块共同使用的最大值基准，再同步缩放旧分母和旧分子，加入新块贡献。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "旧状态含义",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "旧 l 是此前各 key 的 2^(x_j−m) 之和；旧 acc 是这些权重乘 V_j 后的向量和。acc 保存着旧 value 对输出的贡献，不能只留下 m 和 l。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "m'=\\max\\bigl(m,\\max_{j\\in J}x_j\\bigr),\\qquad \\alpha=2^{m-m'},\\qquad p_j=2^{x_j-m'}"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "l'=\\alpha l+\\sum_{j\\in J}p_j,\\qquad acc'=\\alpha acc+\\sum_{j\\in J}p_jV_j"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "为何共同缩放",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "旧权重原先减的是 m，现在必须改成减 m′，每一项都恰好多乘 2^(m−m′)。分母和加权分子使用同一批权重，所以必须一起缩放；若最大值不变，alpha=1。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "最终输出",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "扫描完所有有效 K/V 后，O=acc/l，其中 acc 是 D 维分子，l 是标量分母。对一个 Q tile 同时做这些操作时，每一行独立维护状态，Q tile 在整个扫描中保持不变。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "p_j 在这里是当前最大值基准下的未归一化指数权重；它不是已经除以整行分母的概率 P_j。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "新最大值 → 同缩放 → 合并 → acc/l",
+        "来源": "Attention 学习记录 09-19 · 第二轮保留量纠错；09-24 · 前向在线状态与源码语义"
+      },
+      "source_ids": [
+        "attention-early",
+        "attention-late"
+      ],
+      "content_summary": "固定一个 query，Attention 前向已经扫描过若干 K/V 块，并保存运行最大值 m、指数和 l、加权 V 分子 acc。新 key 块 J 的分数 x_j 已换到 exp2 的输入域，但尚未取指数。怎样把这个新块并入旧状态，最终得到该 query 的输出？",
+      "depends_on": []
+    },
+    {
+      "key": "card-08",
+      "rank": 8,
+      "assessment": "mechanism",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "m=−∞ 时,l 初始为 1 为什么不污染首块?",
+      "layer": "mechanism",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 3,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "某个分块 Attention 前向把每个 query 的在线状态初始化为 m=−∞、l=1、acc=0，其中 m 是 exp2 输入域分数的运行最大值。假设首块至少有一个有效 key，有效 score 都有限，无效位置被 mask 为 −∞。为什么初始的 l=1 不会进入最终分母？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "因为 m 从 −∞ 开始：首块使最大值变为有限数，重标定系数 alpha=2^(−∞−m_new)=0，初始 l 被乘 0 消去。所以在这些条件下 l 初值取 0 或 1 都可以，关键是 m 必须从 −∞ 开始。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "符号",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "令 x_j 表示尚未取指数、已换底为 exp2 标度的有效 key 分数，m_new 是加入首块后的有限最大值；l₀ 是初始的有限分母状态。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "\\alpha=2^{-\\infty-m_{new}}=0,\\qquad l_{new}=\\alpha l_0+\\sum_j2^{x_j-m_{new}}"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "m初值的作用",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "若误把 m 初始化为 0，而首块分数都小于 0，新最大值仍是 0，alpha=1，初始 l=1 会残留在分母里；若误写成 +∞，首次重标定就出现 inf−inf，得到 NaN。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "异常值",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "l=1 修复不了 inf−inf 产生的 NaN；首块全无效或含 +∞ 时，必须另行定义和处理数值语义，NaN 乘 0 仍是 NaN。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这只说明该初始化在上述有效输入下成立；没有证据表明选择 1 是为了防止某种异常。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "有限首块 → alpha=0 → 初始 l 消失",
+        "来源": "Attention 学习记录 09-24 · 前向在线状态与源码语义；实践修改与 A4 独立解释"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "某个分块 Attention 前向把每个 query 的在线状态初始化为 m=−∞、l=1、acc=0，其中 m 是 exp2 输入域分数的运行最大值。假设首块至少有一个有效 key，有效 score 都有限，无效位置被 mask 为 −∞。为什么初始的 l=1 不会进入最终分母？",
+      "depends_on": []
+    },
+    {
+      "key": "card-09",
+      "rank": 9,
+      "assessment": "recall",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "causal 前向怎样划分 key 区域?",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "在 causal Attention 前向中，一个 program 负责 head 内 query 区间 [a,b)。causal 规则是 query i 只能读取 key j≤i。为了减少逐元素 mask，这个 program 应怎样划分要扫描的 key 区域？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "把 key 分成过去区 [0,a)、对角区 [a,b) 和未来区 [b,N)：过去区全有效，对角区逐元素检查，未来区跳过。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "过去区",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "对任意 i∈[a,b)，若 j<a，则 j≤i 恒成立，所以这部分 K/V 块可以直接参与计算。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "对角区",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "query 与 key 都在 [a,b) 内时，有些 key 仍在当前 query 之后，必须按 j≤i 加 mask；当前位置自身也有效。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "未来区",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "若 j≥b，则它对整个 Q tile 都在未来，没有有效贡献，可以不扫描。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "状态接续",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "过去区和对角区属于同一批 query，必须接续同一个 m/l/acc。第一个 Q tile 的 a=0，过去区为空，实际处理直接从对角区开始。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这里描述逻辑 token 区间。实际 tile 步长、尾块和整除条件仍需保证循环没有跨过应访问的范围。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "过去／对角／未来",
+        "来源": "Attention 学习记录 09-24 · 前向在线状态与源码语义"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "在 causal Attention 前向中，一个 program 负责 head 内 query 区间 [a,b)。causal 规则是 query i 只能读取 key j≤i。为了减少逐元素 mask，这个 program 应怎样划分要扫描的 key 区域？",
+      "depends_on": []
+    },
+    {
+      "key": "stage-vs-num-stages",
+      "rank": 10,
+      "assessment": "discrimination",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton fused-attention tutorial",
+        "version": "source sha-256 5b16be48b7b781ef018931c789b191f3390886ac479bb5df8a3418e5612ab317"
+      },
+      "recall_target": "辨析教程前向的 STAGE 与 autotune 的 num_stages 各控制什么",
+      "layer": "atomic",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 3,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Triton 官方 fused-attention 教程（快照版）的前向 kernel 有一个编译期参数 STAGE，causal 时取 3、non-causal 时取 1；它的 autotune 候选配置里另有 num_stages。这两个名字相近的参数分别控制什么？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "STAGE 决定前向扫描哪些 key 区段，管的是计算范围和 mask；num_stages 是软件流水线深度，属于执行配置，不改变扫描哪些 key。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "外层位掩码",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "外层 STAGE 按位使用：3=0b11，STAGE&1 与 STAGE&2 都非零，于是先以内层模式 1 扫描过去区、再以模式 2 扫描对角区，两次调用接续同一组 m/l/acc；non-causal 的 1 只打开第一位，以内层模式 3 扫描整段序列。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "两个“3”",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "传给 _attn_fwd_inner 的 1/2/3 是具体扫描模式（过去／对角／全序列），与外层位掩码同名不同义：外层 3 表示两段都执行，内层 3 表示扫描全序列。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "num_stages",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "num_stages 与 num_warps、maxnreg 同属执行与资源配置：它设定编译器软件流水线的深度，影响性能和资源占用，但不是越大越好。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "num_stages 不是 causal 的 STAGE：调整它不会改变 STAGE 决定的扫描区段和有效 key 范围。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "STAGE 管扫描哪些段；num_stages 管流水线多深",
+        "来源": "Attention 学习记录 09-19 · STAGE 位掩码问题；09-24 · 前向在线状态与源码语义；FP8、布局与执行配置"
+      },
+      "source_ids": [
+        "attention-early",
+        "attention-late"
+      ],
+      "content_summary": "Triton 官方 fused-attention 教程（快照版）的前向 kernel 有一个编译期参数 STAGE，causal 时取 3、non-causal 时取 1；它的 autotune 候选配置里另有 num_stages。这两个名字相近的参数分别控制什么？",
+      "depends_on": []
+    },
+    {
+      "key": "card-10",
+      "rank": 11,
+      "assessment": "mechanism",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "为什么 m=m+log2(l) 能恢复概率?",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Attention 前向采用 exp2，令 x_j=S_j/ln2，其中 S_j 是已乘原始 scale 的点积分数。它为一行有效 key 保存 m=max(x_j)、l=Σ2^(x_j−m)，并只把 M=m+log₂(l) 留给反向。为什么反向用 2^(x_j−M) 就能恢复概率，且没有丢掉减最大值的稳定化效果？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "M 是整行原始指数和的 log₂；减去 M 同时完成了减最大值和除以归一化分母。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "M=m+\\log_2l=\\log_2\\sum_j2^{x_j}"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "P_j=2^{x_j-M}=\\frac{2^{x_j-m}}{l}"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "加回m的作用",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "l 是减最大值后得到的指数和，比原始指数和少了因子 2^m。只保存 log₂(l) 会遗漏这个因子；加上 m 才恢复完整分母的对数。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "稳定性",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "对一行有限有效 score，最大值对应的指数项为 1，所以 l≥1，进而 M≥m≥x_j。恢复有效概率时指数不大于 0，不会出现指数上溢。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这个结论限定在有效位置以及前后向使用一致分数的数学运算；全屏蔽行、非有限输入需要单独处理，浮点也仍可能舍入或下溢。M 是 log-sum-exp，不能再把它误认成行最大值 m。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "先稳定求和；再保存 log 分母",
+        "来源": "Attention 学习记录 09-19 · 加回 m 的问题；09-24 · 全貌、符号与精度"
+      },
+      "source_ids": [
+        "attention-early",
+        "attention-late"
+      ],
+      "content_summary": "Attention 前向采用 exp2，令 x_j=S_j/ln2，其中 S_j 是已乘原始 scale 的点积分数。它为一行有效 key 保存 m=max(x_j)、l=Σ2^(x_j−m)，并只把 M=m+log₂(l) 留给反向。为什么反向用 2^(x_j−M) 就能恢复概率，且没有丢掉减最大值的稳定化效果？",
+      "depends_on": []
+    },
+    {
+      "key": "card-11",
+      "rank": 12,
+      "assessment": "recall",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton fused-attention tutorial",
+        "version": "source sha-256 5b16be48b7b781ef018931c789b191f3390886ac479bb5df8a3418e5612ab317"
+      },
+      "recall_target": "本课 fp16 前向怎样安排精度?",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "在 Triton 官方 fused-attention 教程（快照版）的 FP16 前向中，Q/K/V 以 FP16 存储，输出 O 也需要返回 FP16。沿 QKᵀ、softmax 在线统计、pV 到 O/M 写回这条路径，各阶段使用什么精度，关键转换发生在哪里？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "矩阵乘用低精度操作数配合 FP32 累加，归一化与在线状态保留 FP32；中途 pV 前和最终 O 写回前都会发生降精度转换。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "QKᵀ与score",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Q 和 K 是 FP16 操作数，点积累加结果为 FP32。后续缩放、最大值、减最大值和指数权重计算使用 FP32，保护归约和指数相关的数值计算。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "在线状态",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "每个 query 的最大值 m、指数和 l，以及 D 维输出分子 acc 都保留 FP32，使跨多个 K/V 块的合并不必每轮舍入到 FP16。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "pV之前",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "p 表示当前块的未归一化指数权重。先用 FP32 p 求分母增量，再把 p 转为 FP16，与 FP16 V 相乘；乘积继续累计到 FP32 acc。这次转换不可省：在 Triton 3.7.1 的这条路径上，tl.dot 的两个操作数要同型，FP32 p 不能直接与 FP16 V 相乘。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "输出",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "最后 acc/l 得到归一化输出，O 写回时转成 FP16；供反向重建概率的 M=m+log₂l 仍以 FP32 保存。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这是该教程的精度安排。调用者看到的输入或输出 dtype，不能代表每一步内部运算精度；也不能概括成“只有最终 O 才转换精度”。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "低精度乘法输入；高精度统计与累加",
+        "来源": "Attention 学习记录 09-24 · 全貌、符号与精度；实践修改与 A4 独立解释"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "在 Triton 官方 fused-attention 教程（快照版）的 FP16 前向中，Q/K/V 以 FP16 存储，输出 O 也需要返回 FP16。沿 QKᵀ、softmax 在线统计、pV 到 O/M 写回这条路径，各阶段使用什么精度，关键转换发生在哪里？",
+      "depends_on": []
+    },
+    {
+      "key": "card-12",
+      "rank": 13,
+      "assessment": "mechanism",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "为什么 p 的分母归约放在转 fp16 之前?",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Attention 前向中，p 是 FP32 的未归一化指数权重块：一路对每行求 sum(p) 累加到分母 l，另一路把 p 转成 FP16 后与 FP16 V 做矩阵乘。若把 sum(p) 改到 p 转成 FP16 之后再算，并且仍用 FP32 累加，分母会受什么影响？请从误差产生的位置解释。",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "分母可能改变：转成 FP16 时的舍入已经发生在求和的输入上，FP32 累加只能更准确地加这些舍入后的值，找不回丢失的低位。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "原顺序",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "先对尚未降精度的 FP32 权重求行和，用于更新 l；然后仅为 pV 的矩阵乘把 p 转成 FP16。分母因此保留了转换前的权重信息。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "交换后",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "若先转换，传给求和的是 round_fp16(p)，而不是原始 p。即使累加器是 FP32，也无法知道每个元素在转换中丢失了多少低位。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "误差位置",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "高精度累加主要减少累加过程引入的误差，不能撤销累加开始前已经发生的输入量化误差。这就是要分别考虑操作数和累加器精度的原因。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "迁移（延伸）",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "设计其他算子时同样要分开判断存储、操作数、累加器和输出 dtype：先明确误差与数值范围，识别指数、长归约等敏感环节，再决定低精度存储与转换位置，最后对照可信参考验证数值与性能。通用的是这套判断方法，不是固定的 dtype 配方。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "并非每组输入都会出现可见差异，例如恰好能被 FP16 精确表示的权重结果一致；但两种顺序不是普遍数值等价的改写，也不能凭输入或输出 dtype 推断内部精度。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "先保住输入信息，再谈累加精度",
+        "来源": "Attention 学习记录 09-24 · 前向在线状态与源码语义；全貌、符号与精度"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "Attention 前向中，p 是 FP32 的未归一化指数权重块：一路对每行求 sum(p) 累加到分母 l，另一路把 p 转成 FP16 后与 FP16 V 做矩阵乘。若把 sum(p) 改到 p 转成 FP16 之后再算，并且仍用 FP32 累加，分母会受什么影响？请从误差产生的位置解释。",
+      "depends_on": []
+    },
+    {
+      "key": "card-14",
+      "rank": 14,
+      "assessment": "discrimination",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton fused-attention tutorial",
+        "version": "source sha-256 5b16be48b7b781ef018931c789b191f3390886ac479bb5df8a3418e5612ab317"
+      },
+      "recall_target": "前向保存量、反向临时量和梯度如何区分?",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "correction",
+      "fields": {
+        "意图": "在 Triton 官方 fused-attention 教程（快照版）的前后向流程中，哪些量是在前向结束时保存给反向使用的，哪些是在反向中临时计算的，哪些才是最终输出的梯度？请按产生时间和用途区分。",
+        "场景": "前向已用 Q/K/V 计算 O，随后损失函数会提供上游梯度 dO。需要梳理自动求导上下文保存的输入，与反向运算新产生的中间量和输出。",
+        "正确": "前向保存 Q/K/V/O/M；反向用 O、dO 生成 Delta 并按块重建 score/P；最终输出 dQ/dK/dV。",
+        "错误": "backward保存dQ、dK和dV，重新计算了P",
+        "说明": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "错在把反向的最终输出 dQ/dK/dV 当成保存量；原答“重新计算了 P”是对的，只是没有说出前向真正保存的 Q/K/V/O/M。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "前向保存",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Q/K/V 是原输入，O 是前向输出，M 是每个 query 的 base-2 log-sum-exp。官方 wrapper 把这些量交给 ctx，以便之后求输入梯度。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "反向临时量",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "损失传来 dO 后，预处理先计算逐 query 的 Delta=sum_d(O*dO)。主反向利用 Q/K 和 M 按 tile 恢复概率 P，而非读取一张前向保存的完整 P。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "最终梯度",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "dQ、dK、dV 分别描述损失对三个输入张量的导数。它们是反向的结果，不能列为前向就已保存的数据。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这是该教程的保存策略。其他 Attention 实现可能选择不同的保存与重算取舍；分类时仍按每个量何时产生、由谁消费来判断。"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "source_ids": [
+        "attention-early",
+        "attention-late"
+      ],
+      "content_summary": "在 Triton 官方 fused-attention 教程（快照版）的前后向流程中，哪些量是在前向结束时保存给反向使用的，哪些是在反向中临时计算的，哪些才是最终输出的梯度？请按产生时间和用途区分。",
+      "depends_on": []
+    },
+    {
+      "key": "save-recompute-tradeoff",
+      "rank": 15,
+      "assessment": "mechanism",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton fused-attention tutorial",
+        "version": "source sha-256 5b16be48b7b781ef018931c789b191f3390886ac479bb5df8a3418e5612ab317"
+      },
+      "recall_target": "反向为什么只存每行 M 并按块重算 P，而不保存前向的 P",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Triton 官方 fused-attention 教程（快照版）的反向不保存前向算出的概率矩阵 P：前向末尾只为每个 query 留一个统计量 M，反向再按块用 Q/K 与 M 重算 P。输入有 B 个 batch、H 个 head，每个 head N 个 token。这个设计省下了什么，又多付出了什么？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "用一部分重复计算换掉 N² 量级的存储：不再保存、写出和读回每个 head 的 N×N 概率，只保存线性大小的 M；代价是反向要重新计算分数和概率。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "省下的存储",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "完整 P 为 [B,H,N,N]，M 只有 [B,H,N]。以 [B,H,N,D]=[2,4,128,64] 为例，P 有 2·4·128²=131072 个元素，M 只有 2·4·128=1024 个；两者相差 N 倍，N 越大差距越大。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "多付的计算",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "反向要重新计算 QKᵀ 并取指数来重建 P。教程 benchmark 的 FLOP 模型写作 2.0(bwd)+0.5(recompute)：dV、dP、dQ、dK 四个反向矩阵乘之外，再记一次重算的 QKᵀ，合计约为前向的 2.5 倍。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "实际执行",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "该实现的 dK/dV 与 dQ 两条路径还各自重算 score 和 dP，存在重复计算；2.5 是约定的计算量模型，不是硬件实际执行的运算次数。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这是用计算换存储与显存读写的取舍，不是性能保证：是否更快要实测，2.5 也不能当作反向耗时相对前向的倍数。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "存 O(N) 的 M，重算 O(N²) 的 P；省存储，多计算",
+        "来源": "Attention 学习记录 09-19 · 只存行统计量的要点；09-24 · 正确性与 benchmark 边界"
+      },
+      "source_ids": [
+        "attention-early",
+        "attention-late"
+      ],
+      "content_summary": "Triton 官方 fused-attention 教程（快照版）的反向不保存前向算出的概率矩阵 P：前向末尾只为每个 query 留一个统计量 M，反向再按块用 Q/K 与 M 重算 P。输入有 B 个 batch、H 个 head，每个 head N 个 token。这个设计省下了什么，又多付出了什么？",
+      "depends_on": []
+    },
+    {
+      "key": "card-15",
+      "rank": 16,
+      "assessment": "mechanism",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton fused-attention tutorial",
+        "version": "source sha-256 5b16be48b7b781ef018931c789b191f3390886ac479bb5df8a3418e5612ab317"
+      },
+      "recall_target": "所学前后向怎样跨函数和 kernel 传状态?",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "阅读 Triton 官方 fused-attention 教程（快照版）的源码时，会看到前向 kernel 内多次调用 _attn_fwd_inner，也会看到反向先启动 preprocess、再启动主 backward。它们分别怎样传递计算状态？为什么不能把每个 @triton.jit 函数调用都当成独立的 kernel launch？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "前向 inner 调用在同一个 kernel/program 内接续局部在线状态；反向的两个独立 Triton launch 则通过全局 Delta 缓冲区传递数据。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "前向helper",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "_attn_fwd_inner 是 JIT 辅助函数。它更新当前 Q tile 的 m、l、acc，并返回新状态；外层必须按返回顺序重新绑定变量，后续区域才能继续之前的累加。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "前向出错方式",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "只调用 helper 却不接收返回值，不能指望 helper 内的重新赋值自动更新外层局部变量。causal 的过去区和对角区就可能失去状态接续。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "反向launch",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "_attn_bwd_preprocess 用 O 和 dO 计算 Delta，并写入全局缓冲区；随后主反向读取它，以及 Q、预缩放 K、V、M、dO，生成输入梯度。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "反向 wrapper 还包含 K 的预缩放等操作。因此“两次 Triton kernel 启动”只是在描述这两个显式 launch，不代表整个反向恰好只有两项 GPU 操作。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "局部返回状态；全局传递 Delta",
+        "来源": "Attention 学习记录 09-24 · 全貌、符号与精度；实践修改与 A4 独立解释"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "阅读 Triton 官方 fused-attention 教程（快照版）的源码时，会看到前向 kernel 内多次调用 _attn_fwd_inner，也会看到反向先启动 preprocess、再启动主 backward。它们分别怎样传递计算状态？为什么不能把每个 @triton.jit 函数调用都当成独立的 kernel launch？",
+      "depends_on": []
+    },
+    {
+      "key": "card-16",
+      "rank": 17,
+      "assessment": "discrimination",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "delta 应沿哪个维度归约?",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "correction",
+      "fields": {
+        "意图": "Attention 反向预处理拿到前向输出 O 和上游梯度 dO，两者都是 [B,H,N,D]：N 是 query 数，D 是每个输出向量的特征数。为了得到每个 query 一个 Delta，实际应沿哪一维求和？它与沿 key 求和的公式有什么关系？",
+        "场景": "要为 softmax 反向准备逐 query 的标量统计量。这里 i 标识 query，j 标识 key，d 标识输出特征，三个索引代表不同的归约方向。",
+        "正确": "实际预处理沿特征 d 求和：Delta_i=Σ_d O_id*dO_id，结果为 [B,H,N]。它等于 Σ_j P_ij*dP_ij，但两式的归约轴不同。",
+        "错误": "delta=OdO对j求和",
+        "说明": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "原答“O 与 dO 相乘”是对的，错在归约轴：实现对同一 query 的 D 个特征求和，即 O[i,:] 与 dO[i,:] 两个 D 维向量的点积，而不是对 key j 求和。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "概率与梯度",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "P_ij 是 query i 对 key j 的 softmax 概率，dP_ij 是损失对该概率的梯度；它们都用 query×key 两个轴索引。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "\\Delta_i=\\sum_d O_{id}\\,dO_{id}=\\sum_j P_{ij}\\,dP_{ij}"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "恒等式来源",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "由 O_id=Σ_j P_ij V_jd 和 dP_ij=Σ_d dO_id V_jd，交换有限求和顺序，就得到两个表达式相等。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "实现意义",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "右边需要该 query 对所有 key 的 P/dP；左边只需已经保存的 O 和传入的 dO，所以预处理不必为计算 Delta 再物化整行概率。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "反向用途",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "之后每个 query 的 Delta 可以在扫描多个 key 块时复用，用在 dS_ij=P_ij(dP_ij−Delta_i) 中。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "实际代码中的 O*dO 归约轴是特征 D。不能因为等价式右边对 key j 求和，就把左边也说成“对 j 求和”。"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "source_ids": [
+        "attention-early"
+      ],
+      "content_summary": "Attention 反向预处理拿到前向输出 O 和上游梯度 dO，两者都是 [B,H,N,D]：N 是 query 数，D 是每个输出向量的特征数。为了得到每个 query 一个 Delta，实际应沿哪一维求和？它与沿 key 求和的公式有什么关系？",
+      "depends_on": []
+    },
+    {
+      "key": "card-17",
+      "rank": 18,
+      "assessment": "mechanism",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "attention 的反向链怎样闭合?",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "对一个 head，前向为 S=sQKᵀ、P=softmax_key(S)、O=PV；s 是固定缩放系数，Q/K/V 为 [N,D]。损失传来同形状的上游梯度 dO 后，如何依次算出 dP、分数梯度以及 dQ/dK/dV？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "沿前向的相反方向：先从 O=PV 回传到 P/V，再通过每行 softmax 回传到 S，最后通过缩放点积回传到 Q/K。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "记号",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "dP 表示损失对概率 P 的梯度；令 G=∂L/∂S，避免把“对自然分数 S 的梯度”与某种源码临时变量混淆。S、P、dP、G 都是 [N,N]。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "dP=dOV^{\\mathsf T},\\qquad dV=P^{\\mathsf T}dO"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "\\Delta_i=\\sum_jP_{ij}dP_{ij}=\\sum_dO_{id}\\,dO_{id},\\qquad G_{ij}=P_{ij}(dP_{ij}-\\Delta_i)"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "dQ=sGK,\\qquad dK=sG^{\\mathsf T}Q"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "形状与分块",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "dQ/dK/dV 都回到 [N,D]。实现用右式 Σ_d O_id·dO_id 从保存的 O 与传入的 dO 算出 Δ，再按块用 Q/K 和保存的 M 重建 P、累计这些梯度，无需保存完整 N×N 概率。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "causal 模式中，无效 query–key 位置的 P 和 G 均不贡献梯度。这里求的是对 Q/K/V 的梯度，假设 s 固定。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "O → P/V → S → Q/K",
+        "来源": "Attention 学习记录 09-24 · 反向统计量、归约与缩放"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "对一个 head，前向为 S=sQKᵀ、P=softmax_key(S)、O=PV；s 是固定缩放系数，Q/K/V 为 [N,D]。损失传来同形状的上游梯度 dO 后，如何依次算出 dP、分数梯度以及 dQ/dK/dV？",
+      "depends_on": []
+    },
+    {
+      "key": "card-18",
+      "rank": 19,
+      "assessment": "recall",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "m、delta 应沿概率块的哪个轴广播?",
+      "layer": "atomic",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 3,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Attention 反向重建一个概率 tile 时，M 和 Delta 都是“每个 query 一个值”的统计量。如果概率 tile 有时按 [Bq,Bk]（query×key）存放，有时按 [Bk,Bq]（key×query）存放，这两个向量应怎样广播才能对应到正确 query？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "先找出概率 tile 的 query 轴，让每个统计量保持与对应 query 的绑定，再沿 key 轴复制。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "query在行",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "对于 [Bq,Bk]，M 与 Delta 的形状都是 [Bq]。用 M[:,None]、Delta[:,None] 得到 [Bq,1]，向同一 query 的各个 key 列广播。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "query在列",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "对于 [Bk,Bq]，query 是第二轴。用 M[None,:]、Delta[None,:] 得到 [1,Bq]，向各个 key 行广播。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "为什么会不同",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "该教程的 dQ 路径固定 Q 并扫描 K/V，使用 query×key 布局；dK/dV 路径固定 K/V 扫描 Q，使用转置的 key×query 布局。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "不能按变量名照抄另一路的 [:,None] 或 [None,:]。M 用来恢复概率，Delta 用来计算 softmax 梯度，但它们都必须跟随 query 轴。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "统计量属于 query；广播跨 key",
+        "来源": "Attention 学习记录 09-24 · 反向统计量、归约与缩放"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "Attention 反向重建一个概率 tile 时，M 和 Delta 都是“每个 query 一个值”的统计量。如果概率 tile 有时按 [Bq,Bk]（query×key）存放，有时按 [Bk,Bq]（key×query）存放，这两个向量应怎样广播才能对应到正确 query？",
+      "depends_on": []
+    },
+    {
+      "key": "card-19",
+      "rank": 20,
+      "assessment": "mechanism",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "何时可以不用 atomic 写回 dk/dv?",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "分块计算 Attention 的 dK/dV 时，同一个 key 会接收多个 query 的梯度贡献。什么样的 program 分工可以在写回这些梯度时不用 atomic？如果把同一输出块的贡献拆给两个 program，为什么普通 store 不够？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "让一个 program 算齐某个 dK/dV 输出块的全部贡献，并让它成为该块唯一的写入者，就无需跨 program 的 atomic 累加。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "完整归约",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "固定一个 K/V tile 后，负责它的 program 扫描所有有效 query 块，在自己的累加器中把各块贡献求和。扫描结束后只写回一次完整结果。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "独占输出",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "不同 program 可以并行计算不同 K/V 输出块，因为它们的写入位置不重叠；许多 query 参与同一输出，并不必然意味着许多 program 写同一地址。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "拆分后的要求",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "若两个 program 分别得到 A 和 B，最终结果需要 A+B。普通 store 只覆盖目标值，即使强制顺序也不会自动求和；可用 atomic，或分别写临时缓冲区后再归约。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "无需 atomic 的前提是“单个 program 完成完整归约且独占输出”。不能把它推广为所有 Attention 反向实现都不需要同步或归约。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "完整归约 + 独占输出",
+        "来源": "Attention 学习记录 09-19 · dK/dV 无需 atomic 的要点；09-24 · 反向统计量、归约与缩放"
+      },
+      "source_ids": [
+        "attention-early",
+        "attention-late"
+      ],
+      "content_summary": "分块计算 Attention 的 dK/dV 时，同一个 key 会接收多个 query 的梯度贡献。什么样的 program 分工可以在写回这些梯度时不用 atomic？如果把同一输出块的贡献拆给两个 program，为什么普通 store 不够？",
+      "depends_on": []
+    },
+    {
+      "key": "card-20",
+      "rank": 21,
+      "assessment": "recall",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "causal 反向为什么沿两个方向扫描?",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "causal Attention 规定 query i 只能使用 key j≤i。反向计算时，固定一个 query 来求 dQ，与固定一个 key 来求 dK/dV，分别要汇总哪一侧 token 的贡献？为什么扫描方向看起来相反？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "它们来自同一个因果约束，只是固定的索引不同：固定 i 时取 j≤i，固定 j 时取 i≥j。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "dQ的归约",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "求 query i 的 dQ，需要汇总它看得到的 key，所以扫描该位置及此前的 key：0≤j≤i。未来 key 从未参与其前向输出，没有对应贡献。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "dK/dV的归约",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "求 key/value j 的梯度，需要找到所有用过它的 query；这些 query 位于 j 及之后，即 j≤i<N。更早的 query 看不到这个未来 key。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "分块时",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "固定 query tile 通常扫描过去 key 区和对角区；固定 key tile 则扫描对角 query 区和后续区。对角块内部还要按逐元素 i/j 关系加 mask。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "两种范围都包含当前位置自身。不要把前向的“query 看过去 key”机械改写成“key 的梯度也只看过去 query”。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "dQ 看过去 key；dK/dV 看后续 query",
+        "来源": "Attention 学习记录 09-19 · causal 反向扫描范围的要点"
+      },
+      "source_ids": [
+        "attention-early"
+      ],
+      "content_summary": "causal Attention 规定 query i 只能使用 key j≤i。反向计算时，固定一个 query 来求 dQ，与固定一个 key 来求 dK/dV，分别要汇总哪一侧 token 的贡献？为什么扫描方向看起来相反？",
+      "depends_on": []
+    },
+    {
+      "key": "card-21",
+      "rank": 22,
+      "assessment": "mechanism",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton fused-attention tutorial",
+        "version": "source sha-256 5b16be48b7b781ef018931c789b191f3390886ac479bb5df8a3418e5612ab317"
+      },
+      "recall_target": "为什么 dq 末尾乘 ln2,而 dk 乘 s?",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Triton 官方 fused-attention 教程（快照版）的反向先把 K 预缩放为 K̃=(s/ln2)K。令 G=P⊙(dP−Delta) 表示损失对自然分数 S=sQKᵀ 的梯度。为什么 dQ 路径用 K̃ 累加后要乘 ln2，而 dK 路径用原始 Q 累加后要乘 s？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "末尾系数是在补回各路径尚缺或多带的缩放；两条路径输入中的 scale 并不相同。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "dQ路径",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "数学目标是 dQ=sGK。使用预缩放 K̃ 后，临时结果为 GK̃=(s/ln2)GK，已含 s，却多了 1/ln2，因此最后乘 ln2。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "dK路径",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "数学目标是 dK=sGᵀQ。该路径使用原始 Q 得到 GᵀQ，尚未包含 s，所以在写回前乘 s。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "(G\\widetilde K)\\ln2=sGK=dQ,\\qquad s(G^{\\mathsf T}Q)=dK"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "常见遗漏",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "如果漏掉 dQ 的末尾 ln2，结果会是正确 dQ 的 1/ln2 倍。dV=PᵀdO 则没有上述点积分数缩放，不需要这两项系数。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "必须追踪这个版本 wrapper 与 kernel 实际使用的张量。这里的 G 是对自然分数 S 的梯度；若另一实现选择不同表示域或预缩放位置，不能照搬末尾系数。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "追踪预缩放；不要机械套同一系数",
+        "来源": "Attention 学习记录 09-24 · 反向统计量、归约与缩放"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "Triton 官方 fused-attention 教程（快照版）的反向先把 K 预缩放为 K̃=(s/ln2)K。令 G=P⊙(dP−Delta) 表示损失对自然分数 S=sQKᵀ 的梯度。为什么 dQ 路径用 K̃ 累加后要乘 ln2，而 dK 路径用原始 Q 累加后要乘 s？",
+      "depends_on": []
+    },
+    {
+      "key": "card-22",
+      "rank": 23,
+      "assessment": "recall",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "descriptor 怎样确定一次 load 读取的块?",
+      "layer": "atomic",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 3,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "在 Triton 3.7.1 中，用 TensorDescriptor 描述展平后的 Q：base 指向连续 Q 的存储，shape=[BHN,D]、strides=[D,1]（B/H/N/D 分别为 batch 数、head 数、token 数和特征维），block_shape=[BLOCK_M,D]。一次 desc.load([r0,0]) 读到的块由哪个参数决定大小、哪个参数决定位置？把起点改成 [r0+BLOCK_M,0] 时，读到的块和返回的 shape 各怎样变化？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "大小由 descriptor 的 block_shape 决定，位置由每次 load 的 offsets 决定。load([r0,0]) 返回从第 r0 行、第 0 列开始的 [BLOCK_M,D] 块；起点改成 [r0+BLOCK_M,0] 就读下一个 Q tile，返回 shape 仍是 [BLOCK_M,D]。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "视图",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "base 指向已有存储，shape=[BHN,D] 与 strides=[D,1] 声明整个访问视图；strides 以元素为单位，换算字节偏移要再乘元素字节数。创建 descriptor 只建立访问描述，不会提前读取整个张量。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "block_shape",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "[BLOCK_M,D] 是每次 load 返回 tile 的局部形状，属于 descriptor 本身，不随单次 load 改变，也不等于整个视图的大小。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "offsets",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "offsets 是每次 load 的参数，不是创建 descriptor 时固定的块起点；改变它只移动读取位置。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "访问仍须满足该接口的布局、对齐和边界要求；offsets 越过视图时按 descriptor 的填充方式处理。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "布局由描述给出；大小看 block_shape；位置看 offsets",
+        "来源": "Attention 学习记录 09-24 · TensorDescriptor、边界与启动准备"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "在 Triton 3.7.1 中，用 TensorDescriptor 描述展平后的 Q：base 指向连续 Q 的存储，shape=[BHN,D]、strides=[D,1]（B/H/N/D 分别为 batch 数、head 数、token 数和特征维），block_shape=[BLOCK_M,D]。一次 desc.load([r0,0]) 读到的块由哪个参数决定大小、哪个参数决定位置？把起点改成 [r0+BLOCK_M,0] 时，读到的块和返回的 shape 各怎样变化？",
+      "depends_on": []
+    },
+    {
+      "key": "card-23",
+      "rank": 24,
+      "assessment": "discrimination",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "descriptor 会自动保护当前 head 的边界吗?",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "在 Triton 3.7.1 中，Attention 的 Q/K/V descriptor 把多个 batch/head 展平成 [BHN,D] 的视图，每个 head 占连续 N 行。若一次 load 跨过当前 head 的末尾、但仍在整个 BHN 行视图之内，越过 head 末尾的那些行会读到什么？为什么？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "会读到下一个 head 的真实数据，不会补零：descriptor 只按声明的整体视图判断越界，不知道其中哪 N 行属于当前 head。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "为何仍合法",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "跨到下一 head 的行号只要仍小于 BHN，就是 [BHN,D] 中的合法坐标，load 会把它当作正常数据读出。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "需要保证的范围",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "调用方必须正确计算当前 head 的基址，并限制本 program 的 token 扫描范围；batch/head 的逻辑隔离是索引设计的一部分。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "真正越界时",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "只有超出整个声明视图的元素才会被填充：默认补零，返回 tile 的形状仍由 block_shape 决定。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "填充值（延伸）",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "填充值在构造 descriptor 时从 zero（默认）和 nan 两种预设中选定：host 侧 TensorDescriptor 用 padding 参数，kernel 内 tl.make_tensor_descriptor 用 padding_option，nan 只适用于浮点数据。它不能像 tl.load 的 other 那样每次指定任意值；需要别的值时，在 load 后按有效条件替换，或改用带 mask 的普通 tl.load。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "自动处理视图越界，不等于自动实现 Attention 的 head 边界或 causal 规则；这些逻辑条件仍要由访问范围和 score mask 保证。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "视图边界由 descriptor 管；head 范围由索引保证",
+        "来源": "Attention 学习记录 09-24 · TensorDescriptor、边界与启动准备"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "在 Triton 3.7.1 中，Attention 的 Q/K/V descriptor 把多个 batch/head 展平成 [BHN,D] 的视图，每个 head 占连续 N 行。若一次 load 跨过当前 head 的末尾、但仍在整个 BHN 行视图之内，越过 head 末尾的那些行会读到什么？为什么？",
+      "depends_on": []
+    },
+    {
+      "key": "card-24",
+      "rank": 25,
+      "assessment": "mechanism",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "k/v 补零为什么不能代替无效 key 的 mask?",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Attention 处理不足一个 tile 的尾部 key 时，假设 descriptor 已把无效位置的 K 和 V 都补成零。如果省掉对这些 key 的 score mask，直接让 softmax 和 pV 计算整个 tile，结果会怎样？为什么？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "结果会错：零 K/V 没有把无效 key 从 softmax 的归一化集合中删除，每个无效 key 仍向分母贡献一个正项。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "零K的分数",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "对有限 query，零 K 的点积为零，乘 scale 后 score 仍为零。但零分数的指数权重不是零。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "S_{ij}=0\\quad\\Longrightarrow\\quad e^{S_{ij}}=1"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "稳定化也不删除",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "本卡用自然分数 S 说明，令 m_S=max(S)。减去最大值后，零分数的指数项为 exp(−m_S)，仍会计入分母；稳定化没有删除这个无效 key。若换成 exp2，则最大值也必须使用对应的换底标度。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "零V只影响分子",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "零 V 使该项在加权分子中的直接贡献为零，但它仍占据分母，会把真实 key 的权重都压小。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "应在 score/概率上按有效 key 条件屏蔽这些位置，使它们不参与归一化。也不能改成把 K/V 填成 −∞ 来代替：以 K 为例，−∞ 与 q 的负分量相乘得 +∞、与 0 相乘得 NaN，点积可能变成 +∞ 或 NaN，不能保证得到所需的 −∞。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "零数据不等于零概率；分母也要排除",
+        "来源": "Attention 学习记录 09-24 · TensorDescriptor、边界与启动准备"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "Attention 处理不足一个 tile 的尾部 key 时，假设 descriptor 已把无效位置的 K 和 V 都补成零。如果省掉对这些 key 的 score mask，直接让 softmax 和 pV 计算整个 tile，结果会怎样？为什么？",
+      "depends_on": []
+    },
+    {
+      "key": "card-26",
+      "rank": 26,
+      "assessment": "mechanism",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "连续张量为什么仍可能不满足 tma 对齐?",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "在 Triton 3.7.1 中，要把 PyTorch FP16 张量交给 NVIDIA TMA descriptor。设 x 是基址 16 字节对齐的一维连续 FP16 张量，它的切片 x[1:] 调用 is_contiguous() 仍返回 True，却不满足 TMA 的布局条件。为什么连续还不够？传入前应检查哪些量？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "连续只说明元素按顺序紧挨着，不保证视图首地址对齐：x[1:] 的首地址比 x 后移 2 字节，已不是 16 的倍数。传入前要检查视图的实际首地址，以及按字节计的各维 stride。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "需要的量",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "设 A=tensor.data_ptr() 为当前视图第一个元素的地址，e 为每元素字节数，s_k 为第 k 维的元素 stride。descriptor 的 strides 参数以元素计，对齐条件则以字节计。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "A\\bmod16=0,\\qquad s_{last}=1,\\qquad (s_ke)\\bmod16=0\\quad(k<last)"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "偏移规律",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "在对齐的存储上偏移 s 个元素、每个元素 e 字节后，视图仍对齐要求 s·e 是 16 的倍数；FP16 每元素 2 字节，偏移须是 8 个元素的倍数。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "contiguous的限制",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "如果这个视图本来就连续，contiguous() 可以直接返回它，不会为了对齐自动分配新存储。因此调用 contiguous() 不能替代地址检查。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这里只列出本路径的基础布局条件。即使这些条件满足，也还需要核对 block_shape、设备支持及后续矩阵乘的限制。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "查实际首地址与字节步长；连续不保证对齐",
+        "来源": "Attention 学习记录 09-24 · TensorDescriptor、边界与启动准备"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "在 Triton 3.7.1 中，要把 PyTorch FP16 张量交给 NVIDIA TMA descriptor。设 x 是基址 16 字节对齐的一维连续 FP16 张量，它的切片 x[1:] 调用 is_contiguous() 仍返回 True，却不满足 TMA 的布局条件。为什么连续还不够？传入前应检查哪些量？",
+      "depends_on": []
+    },
+    {
+      "key": "descriptor-tma-benefits",
+      "rank": 27,
+      "assessment": "discrimination",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "descriptor/TMA 带来什么能力，又不能据此断言什么",
+      "layer": "atomic",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 3,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "在 Triton 3.7.1 中，把 Attention 的 K/V 读取从“指针加 mask 的 tl.load”改成 TensorDescriptor 的 desc.load。在支持 TMA 的 NVIDIA GPU 上，这种写法带来了什么能力？又有哪些事情不能据此断言？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "它让规则矩形块的访问可以交给 TMA 硬件处理多维搬运、寻址和越界填充，为访存与计算重叠创造条件；但这只是能力，不保证比普通 tl.load 更快。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "带来的能力",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "descriptor 事先声明视图的 shape、strides 和 block_shape，之后每次 load 只给块起点；在支持的硬件上，块的地址计算和越界填充由 TMA 完成。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "不保证更快",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "实际收益取决于 descriptor 的构造成本、块配置、编译结果和设备，要实测才能下结论。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "不说明存放位置",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "desc.load 返回的是参与计算的 tl.tensor，不能只凭这一行判断数据始终放在某种片上存储里。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这些能力以硬件支持 TMA 为前提，张量还要满足 descriptor 的对齐与布局条件。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "TMA 提供搬运与填充的能力，不提供更快的保证",
+        "来源": "Attention 学习记录 09-24 · TensorDescriptor、边界与启动准备"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "在 Triton 3.7.1 中，把 Attention 的 K/V 读取从“指针加 mask 的 tl.load”改成 TensorDescriptor 的 desc.load。在支持 TMA 的 NVIDIA GPU 上，这种写法带来了什么能力？又有哪些事情不能据此断言？",
+      "depends_on": []
+    },
+    {
+      "key": "card-27",
+      "rank": 28,
+      "assessment": "mechanism",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "tutorial source sha-256 5b16be48b7b781ef018931c789b191f3390886ac479bb5df8a3418e5612ab317"
+      },
+      "recall_target": "host descriptor 为何需要 pre-hook 更新块大小?",
+      "layer": "mechanism",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 3,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Triton 官方 fused-attention 教程（快照版）的普通 FP16 路径中，D 表示每个 head 的特征维度。wrapper 在 host 侧先用 dummy_block 创建 TensorDescriptor，而 autotune 会尝试不同 BLOCK_M/BLOCK_N。为什么每次配置运行前必须由 pre-hook 更新 block_shape，不能指望 kernel 中的 _maybe_make_tensor_desc 自动改正确？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "host 传入的已经是 descriptor，helper 会原样返回它；因此进入 kernel 前，它的块大小就必须与当前配置一致。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "占位阶段",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "dummy_block 只是构造 descriptor 时的占位形状。实际一轮候选可能选择不同的 Q tile 行数 BLOCK_M 和 K/V tile 行数 BLOCK_N。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "pre-hook的职责",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "运行每个候选前，把 Q/O descriptor 的 block_shape 改为 [BLOCK_M,D]，K/V 改为 [BLOCK_N,D]，使 load/store 的实际形状匹配该候选。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "helper两条路径",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "收到普通指针时，helper 才使用 shape、strides、block_shape 构造 descriptor；收到已有 descriptor 时直接返回，额外传入的 block_shape 不会覆盖对象。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "pre-hook、grid 和 kernel 内计算形状必须使用同一候选配置。这个问题来自该教程的 host descriptor 调用方式，不能假设所有 descriptor 都必须采用 dummy_block。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "当前配置 → 更新 descriptor → 原样传入 kernel",
+        "来源": "Attention 学习记录 09-24 · TensorDescriptor、边界与启动准备；FP8、布局与执行配置"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "Triton 官方 fused-attention 教程（快照版）的普通 FP16 路径中，D 表示每个 head 的特征维度。wrapper 在 host 侧先用 dummy_block 创建 TensorDescriptor，而 autotune 会尝试不同 BLOCK_M/BLOCK_N。为什么每次配置运行前必须由 pre-hook 更新 block_shape，不能指望 kernel 中的 _maybe_make_tensor_desc 自动改正确？",
+      "depends_on": []
+    },
+    {
+      "key": "card-28",
+      "rank": 29,
+      "assessment": "recall",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "e5m2 与 fp16 的有效精度差在哪里?",
+      "layer": "atomic",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 3,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "把 FP16 数值转换为 FP8 E5M2 时，即使数值落在 E5M2 的范围内、没有溢出，误差为什么仍可能明显变大？已知 E5M2 为 1 位符号、5 位指数、2 位显式小数，FP16 为 1、5、10。请用同一正规数指数区间内相邻可表示数的间距说明。",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "因为小数位少：两者都有 5 位指数，但 E5M2 只有 2 位显式小数。同一正规指数区间内，它的相邻间距是 FP16 的 2^(10−2)=256 倍，转换时只能舍入到更稀疏的点上。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "正规数模型",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "在固定指数 e 的正规区间中，数值可写成符号×2^e×(1+f/2^p)，p 是显式小数位数。f 每增加 1，相邻数就相差 2^(e−p)。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "\\frac{2^{e-2}}{2^{e-10}}=2^8=256"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "含义",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "E5M2 只有 2 位显式小数，同一个区间内可表示的点更稀疏。把 FP16 数值转为它时，即使不发生范围溢出，也可能产生更大的舍入误差。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这里比较的是同一正规指数区间的间距，不覆盖零、非正规数或特殊值。指数位数主要关联范围，小数位数影响局部表示分辨率。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "范围看指数；精度看小数位",
+        "来源": "Attention 学习记录 09-24 · FP8、布局与执行配置"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "把 FP16 数值转换为 FP8 E5M2 时，即使数值落在 E5M2 的范围内、没有溢出，误差为什么仍可能明显变大？已知 E5M2 为 1 位符号、5 位指数、2 位显式小数，FP16 为 1、5、10。请用同一正规数指数区间内相邻可表示数的间距说明。",
+      "depends_on": []
+    },
+    {
+      "key": "card-29",
+      "rank": 30,
+      "assessment": "mechanism",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton fused-attention tutorial",
+        "version": "source sha-256 5b16be48b7b781ef018931c789b191f3390886ac479bb5df8a3418e5612ab317"
+      },
+      "recall_target": "两次逆 permute 中间的 contiguous 改变了什么?",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "Triton 官方 fused-attention 教程（快照版）的 FP8 路径为 V 调整布局：B/H 分别是 batch/head 数，N 是 token 数，D 是特征维。从连续的 [B,H,N,D] 张量出发，先 permute 成 [B,H,D,N] 并 contiguous()，再用逆 permute 恢复 [B,H,N,D]。最终 shape 已恢复，为什么存储布局仍然改变？删掉中间 contiguous() 又会怎样？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "中间 contiguous() 按转置后的轴顺序复制了数据；逆 permute 只恢复逻辑轴顺序，不会把这次复制后的存储重新排列回去。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "原布局",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "连续 [B,H,N,D] 的末两维 stride 是 [D,1]，同一个 token 的 D 个特征相邻。令 g=bH+h，则元素 (g,n,d) 的线性偏移为 gND+nD+d。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "复制后",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "在 [B,H,D,N] 下做 contiguous 后，同一个特征的 N 个 token 相邻。再恢复逻辑 shape，末两维 stride 变成 [1,N]，元素偏移为 gND+dN+n。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "gND+nD+d\\ \\longrightarrow\\ gND+dN+n"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "删除中间复制",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "仅连续做两次互逆 permute 会把 shape 和 stride 都恢复，底层存储没有搬动。对于原本连续的张量，最后再调用 contiguous 通常也无需复制。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "判断布局必须同时看 shape、stride 和是否发生实际复制。此处解释的是该教程的 V 重排；后续转换为 FP8 的 dtype 操作，与轴布局变化是另一件事。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "shape 相同不保证存储布局相同",
+        "来源": "Attention 学习记录 09-24 · FP8、布局与执行配置"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "Triton 官方 fused-attention 教程（快照版）的 FP8 路径为 V 调整布局：B/H 分别是 batch/head 数，N 是 token 数，D 是特征维。从连续的 [B,H,N,D] 张量出发，先 permute 成 [B,H,D,N] 并 contiguous()，再用逆 permute 恢复 [B,H,N,D]。最终 shape 已恢复，为什么存储布局仍然改变？删掉中间 contiguous() 又会怎样？",
+      "depends_on": []
+    },
+    {
+      "key": "card-30",
+      "rank": 31,
+      "assessment": "mechanism",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "pytorch/triton attention correctness test",
+        "version": "source sha-256 5b16be48b7b781ef018931c789b191f3390886ac479bb5df8a3418e5612ab317"
+      },
+      "recall_target": "比较反向结果怎样保证输入条件一致?",
+      "layer": "mechanism",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 3,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "对照两个 Attention 实现的反向结果：参考实现先执行 backward(dout)，再让被测实现执行反向，两边的 Q/K/V、causal 开关和 scale 都相同。为什么两边还必须使用同一个上游梯度 dout？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "因为 dout 也是反向的输入：backward(dout) 可理解为对固定 dout 的标量 L=Σ(O*dout) 求导，换一个 dout 就是在求另一个损失的梯度，两边的差异不能归因于 kernel。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "同一前向问题",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Q/K/V、causal 开关与原始 scale 决定前向函数本身；它们相同只保证两边算的是同一个 O。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "dout的作用",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "dout 即 dO，决定损失对输出各元素的加权；换一个 dout，得到的 dQ/dK/dV 通常也会变。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "另需注意 PyTorch 的 backward 会累计叶子张量的 .grad：保存参考梯度后要清空，否则第二次读到的是两次结果之和。前向 O 一致也不能替代对 dout 一致性的检查。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "dout 也是反向输入；同一个 dout 才能比较梯度",
+        "来源": "Attention 学习记录 09-24 · 正确性与 benchmark 边界"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "对照两个 Attention 实现的反向结果：参考实现先执行 backward(dout)，再让被测实现执行反向，两边的 Q/K/V、causal 开关和 scale 都相同。为什么两边还必须使用同一个上游梯度 dout？",
+      "depends_on": []
+    },
+    {
+      "key": "card-32",
+      "rank": 32,
+      "assessment": "mechanism",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "相同 q 行为何不总产生相同 attention 输出?",
+      "layer": "mechanism",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 3,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "在同一个 Attention head 内，所有 query 向量都相同，K/V 和 scale 固定。非 causal 时，各行 O 与 M 为什么在数学上相同？改成 causal 后，这个“所有行相同”的结论为什么不能直接沿用？M 表示每行归一化分母的 base-2 对数。",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "相同 Q 让每行对同一个 key 的分数相同；只有每行的有效 key 集合也相同，权重、O 和 M 才相同。causal 下有效集合随 query 位置变化，这个前提不再成立。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "非causal",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "每个 query 都访问完整 K/V，因此分数序列和归一化集合都相同。softmax 概率相同，加权相同的 V 后输出也相同，分母的 log₂ 即 M 同样相同。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "causal下的M",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "第 i 行只访问 j≤i 的前缀，包含自身。分数有限时，每多一个有效 key，分母就多一个正项，所以 M 随有效前缀严格增长，各行的 M 互不相同。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "causal下的O",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "O 通常随之变化，但不必两两不同：例如所有 value 向量都相同时，每行输出都等于这个 value，各行必然相同。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这里讨论同一 head、同一 scale、有限 score 下的数学关系；浮点实现还有舍入误差。“O 通常变化”不能加强成“任意两行的 O 必定不同”。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "相同 score + 相同有效集合",
+        "来源": "Attention 学习记录 09-24 · 实践修改与 A4 独立解释"
+      },
+      "source_ids": [
+        "attention-late"
+      ],
+      "content_summary": "在同一个 Attention head 内，所有 query 向量都相同，K/V 和 scale 固定。非 causal 时，各行 O 与 M 为什么在数学上相同？改成 causal 后，这个“所有行相同”的结论为什么不能直接沿用？M 表示每行归一化分母的 base-2 对数。",
+      "depends_on": []
+    },
+    {
+      "key": "card-33",
+      "rank": 33,
+      "assessment": "oral",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton fused-attention tutorial",
+        "version": "source sha-256 5b16be48b7b781ef018931c789b191f3390886ac479bb5df8a3418e5612ab317"
+      },
+      "recall_target": "用 60–90 秒串起分块 attention 前向。",
+      "layer": "oral",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "oral",
+      "fields": {
+        "问题": "以 Triton 官方 fused-attention 教程（快照版）为例，向面试官用约 60–90 秒解释分块 Attention 前向：输入 Q/K/V 为 [B,H,N,D]，B/H 分别是 batch/head 数，N 是 token 数，D 是特征维度，s 为原始 scale；每个 program 负责一个 head 的 B_M 行 Q，并逐块扫描 B_N 行 K/V。请从完整 Attention 公式出发，说明它怎样维护跨块状态，并最终写出 O 和供反向使用的 M。",
+        "参考回答": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "分块实现与完整公式算的是同一个输出，只是靠逐行在线状态避免保存完整的概率矩阵。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "公式与分工",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "每个 head 算 S=sQKᵀ、P=softmax_key(S)、O=PV。一个 program 固定一个 Q tile，在内部逐块扫描 K/V，并独占对应的输出行。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "形状",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "分数块是 [B_M,B_N]，沿 key 轴归约；acc 保留 query 与特征轴，是 [B_M,D]；每个 query 的 m、l 各是一个标量。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "跨块合并",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "分数先换成 x=S/ln2 再用 exp2。m 是已见 x 的最大值，l=Σ2^(x−m)，acc 是同一权重下的加权 V；出现新最大值时，旧 l 与 acc 乘同一个 alpha，再加入新块。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "最终写回",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "扫描结束写出 O=acc/l，并保存 M=m+log₂l，即完整分母的 log₂；反向用 2^(x−M) 恢复概率。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "全程要分清 query、key、特征三根轴，以及未归一化的局部权重与最终概率。"
+                }
+              ]
+            }
+          ]
+        },
+        "评分锚点": [
+          "写出带原始 scale 的完整公式，并指出 softmax 沿 key 轴",
+          "明确一个 program 固定 Q tile、内部扫描 K/V 并独占输出",
+          "正确区分 score=[B_M,B_N] 与 acc=[B_M,D]",
+          "解释 m/l/acc 的含义及分子分母共同重标定",
+          "说明 O=acc/l 以及 M 在反向恢复概率中的用途"
+        ],
+        "来源": "Attention 学习记录 09-19 与 09-24 · 全流程串联"
+      },
+      "source_ids": [
+        "attention-early",
+        "attention-late"
+      ],
+      "content_summary": "以 Triton 官方 fused-attention 教程（快照版）为例，向面试官用约 60–90 秒解释分块 Attention 前向：输入 Q/K/V 为 [B,H,N,D]，B/H 分别是 batch/head 数，N 是 token 数，D 是特征维度，s 为原始 scale；每个 program 负责一个 head 的 B_M 行 Q，并逐块扫描 B_N 行 K/V。请从完整 Attention 公式出发，说明它怎样维护跨块状态，并最终写出 O 和供反向使用的 M。",
+      "depends_on": [
+        "card-01",
+        "card-03",
+        "card-07",
+        "card-05",
+        "card-10"
+      ],
+      "review_resolution": {
+        "summary": "已对照更新后的子卡 card-01、card-03、card-05、card-07、card-10 复核：card-05 改为按轴的含义推出 acc=[B_M,D] 并降为 B，card-03 改称“Triton 官方 fused-attention 教程（快照版）”，card-01、card-07、card-10 只改来源标签；参考回答压缩到约 390 字，题面补上听众（面试官）与教程版本，五个评分锚点只统一了中英文间距，每个锚点仍有子卡支撑，没有引入子卡之外的事实。"
+      }
+    },
+    {
+      "key": "card-34",
+      "rank": 34,
+      "assessment": "oral",
+      "domain": "gpu-attention",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton fused-attention tutorial",
+        "version": "source sha-256 5b16be48b7b781ef018931c789b191f3390886ac479bb5df8a3418e5612ab317"
+      },
+      "recall_target": "用 60–90 秒串起重算概率的反向。",
+      "layer": "oral",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "oral",
+      "fields": {
+        "问题": "以 Triton 官方 fused-attention 教程（快照版）为例，向面试官在 90 秒内解释 Attention 反向的数据流：前向已由 Q/K/V 得到 O，并为每个 query 保存归一化统计量 M；现在收到损失对 O 的梯度 dO。请说明怎样利用保存量、计算 Delta、按块重建概率，并通过输出分工得到 dQ/dK/dV。",
+        "参考回答": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "反向用前向保存量和 dO 按块重建概率，再按各个梯度的归约方向分工，全程不物化 N×N 矩阵。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "保存与准备",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "前向保存 Q/K/V/O/M，dQ/dK/dV 是反向才产生的输出。预处理对每个 query 沿特征维算 Delta_i=Σ_d O_id·dO_id，一行一个标量。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "恢复概率",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "用 Q/K 重算分数并换到 exp2 域 x=S/ln2，再以 P=2^(x−M) 恢复概率；M 是完整分母的 log₂，不只是行最大值。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "梯度链",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "dV=PᵀdO，dP=dO·Vᵀ；对自然分数 S 的梯度 G=P⊙(dP−Delta)；dQ=s·G·K，dK=s·Gᵀ·Q，s 为原始 scale。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "label": "输出所有权",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "dK/dV 固定 key、沿 query 汇总，dQ=s·G·K 则固定 query、沿 key 汇总；一个 program 算齐自己的输出块后独占写回，不需要 atomic。"
+                }
+              ]
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "若把同一输出块的归约拆给多个 program，就要另外合并部分贡献。"
+                }
+              ]
+            }
+          ]
+        },
+        "评分锚点": [
+          "区分前向保存的 Q/K/V/O/M、反向临时量与最终梯度",
+          "说明 Delta 沿特征维求和、每个 query 一个值",
+          "说明用 M 重建概率，且 M 不只是行最大值",
+          "说出 G=P⊙(dP−Delta)，以及 dQ/dK/dV 各由哪两个量相乘",
+          "把归约方向与单 program 完整归约、独占写回联系起来"
+        ],
+        "来源": "Attention 学习记录 09-19 与 09-24 · 全流程串联"
+      },
+      "source_ids": [
+        "attention-early",
+        "attention-late"
+      ],
+      "content_summary": "以 Triton 官方 fused-attention 教程（快照版）为例，向面试官在 90 秒内解释 Attention 反向的数据流：前向已由 Q/K/V 得到 O，并为每个 query 保存归一化统计量 M；现在收到损失对 O 的梯度 dO。请说明怎样利用保存量、计算 Delta、按块重建概率，并通过输出分工得到 dQ/dK/dV。",
+      "depends_on": [
+        "card-16",
+        "card-17",
+        "card-19",
+        "card-10",
+        "card-14"
+      ],
+      "review_resolution": {
+        "summary": "已对照更新后的子卡 card-10、card-14、card-16、card-17、card-19 复核：card-14 改称教程快照版，并在说明首句点明“重新计算了 P”是对的；card-16 点明“O 与 dO 相乘”是对的、只错在归约轴；card-17 在 Delta 式旁补上实现用的 Σ_d O·dO 形式；card-10、card-19 只改来源标签。参考回答压缩到约 400 字以内，题面写明面试官、教程版本和 90 秒，锚点 4 改为只考 G=P⊙(dP−Delta) 及 dQ/dK/dV 各由哪两个量相乘，五个锚点均由子卡支撑。"
+      }
+    }
+  ]
+}

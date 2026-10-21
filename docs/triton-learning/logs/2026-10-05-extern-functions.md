@@ -20,7 +20,7 @@
 
 - [要点] 后端的 `get_module_map()` 没有生效时，现象是什么？——kernel 调到接口里的空壳函数，它静默返回 `None`。报错要到下一行才出现，指向 `tl.store`：`cannot convert None of type <class 'NoneType'> to tensor`，看上去和 libdevice 无关。（来源：`msg-e19abb89fda9453a8d05`。）
 
-- [要点] `tl.math` 和 libdevice 为什么都只接受 fp32、fp64？——`tl.math` 的 `_check_dtype` 在源码里写明：沿用 libdevice 的约定，很多加速器不支持 fp16、bf16 的数学运算，应让用户知情并显式转换。助手在节点 2 把“不做隐式提升是有意的”标为推断，后来由这段源码证实。（来源：`msg-3f21a5d930e606f6c5d6`、`msg-8dce86aba8c15ba7972b`。）
+- [要点] `tl.math` 和 libdevice 为什么都只接受 fp32、fp64？——`tl.math` 的 `_check_dtype` 在源码里写明：沿用 libdevice 的约定，很多加速器不支持 fp16、bf16 的数学运算，应让用户知情并显式转换。助手在节点 2 把“不做隐式提升是有意的”标为推断，后来由这段源码证实。（来源：`msg-3f21a5d930e606f6c5d6`、`msg-8dce86aba8c15ba7972b`。）（2026-10-21 复核更正：“`tl.math` 都只接受 fp32、fp64”说得过宽。Triton 3.7.1 的 `language/math.py` 里，带 `_check_dtype(["fp32", "fp64"])` 的是 exp、exp2、log、log2、cos、sin、sqrt、rsqrt、erf、floor、ceil 这些超越与取整函数；`sqrt_rn`、`div_rn` 只收 fp32（L158、L204），`abs`、`fdiv`、`fma` 不检查 dtype（L175–178、L194–196、L240–242），`umulhi` 只收整数（L85）。dtype 不符时 `tl.math` 报的是 `ValueError`（L25），不是 libdevice 查表处的 `KeyError`。）
 
 ## 编译器前置与逐元素调用、链接、内联
 
@@ -40,7 +40,7 @@
 
 - [要点] 教程第二段演示自定义 libdevice 路径，为什么在本仓库或 pip 环境里跑不通？——教程拼路径的方式假设脚本位于 Triton 源码树的 `python/tutorials/` 下，在本仓库的快照位置或 pip 安装的环境里这个路径不存在。库文件的内容要参与计算缓存键，所以错误出现得很早：还没生成任何 IR，就报 `FileNotFoundError`。pip 环境里正确的位置是已安装 `triton` 包下的 `backends/nvidia/lib/libdevice.10.bc`。（来源：`msg-e19abb89fda9453a8d05`、`msg-8dce86aba8c15ba7972b`。）
 
-- [要点] 在 ftz 和 sqrt 这两个开关上，Triton 默认编进来的 libdevice 相当于 nvcc 的哪种设置？——Triton 默认设置 `nvvm-reflect-ftz=1`，`__CUDA_PREC_SQRT` 没人设置而按 0 处理，所以是“冲掉次正规数、近似 sqrt”。nvcc 默认是 `--ftz=false`、`--prec-sqrt=true`，只有 `--use_fast_math` 才与 Triton 的默认一致。反射参数只作用于 libdevice 函数内部。（来源：`msg-e19abb89fda9453a8d05`。）
+- [要点] 在 ftz 和 sqrt 这两个开关上，Triton 默认编进来的 libdevice 相当于 nvcc 的哪种设置？——Triton 默认设置 `nvvm-reflect-ftz=1`，`__CUDA_PREC_SQRT` 没人设置而按 0 处理，所以是“冲掉次正规数、近似 sqrt”。nvcc 默认是 `--ftz=false`、`--prec-sqrt=true`，只有 `--use_fast_math` 才与 Triton 的默认一致。反射参数只作用于 libdevice 函数内部。（来源：`msg-e19abb89fda9453a8d05`。）（2026-10-21 复核更正：“只有 `--use_fast_math` 才与 Triton 的默认一致”说得过满。在这两个开关上，显式写 `--ftz=true --prec-sqrt=false` 同样一致；`--use_fast_math` 只是隐含了这两项，另外还改动除法和 fmad 的设置。依据：原文 `msg-e19abb89fda9453a8d05` 引用的 NVCC 文档 v13.4，`--use_fast_math` 相当于 `--ftz=true --prec-div=false --prec-sqrt=false --fmad=true`。）
 
 ## 四条实现路线与后端迁移
 
@@ -48,7 +48,7 @@
 
 - [要点] NVIDIA 后端上，`tl.math` 的哪些函数直接生成指令，哪些其实走 libdevice？——本机测到直接出指令的有 `tl.exp`、`tl.sqrt_rn`、除法、`tl.abs`。`tl.log`、`tl.sin`、`tl.erf`、`tl.sqrt`、`tl.rsqrt`、`tl.floor`、`tl.exp2` 被改成 `__nv_*` 调用，PTX 与对应的 `libdevice.*` 完全相同。`tl.math` 是后端中立的写法，怎么实现由各后端决定：同样的只编译观察里，AMD 后端的 exp、log、sqrt 不链接任何库，erf、sin 才走它的数学库。（来源：`msg-8dce86aba8c15ba7972b`。）
 
-- [要点] exp、sqrt、除法各自的快速档和精确档是什么？——`tl.exp` 每元素 2 条指令，`libdevice.exp` 是 8 条；`tl.sqrt` 是近似，`tl.sqrt_rn` 是 IEEE 就近舍入；`a / b` 生成近似的 `div.full`，`tl.div_rn` 生成 `div.rn`。PyTorch 2.13 的 Inductor 为贴近 eager，sqrt 一律生成 `tl.sqrt_rn`，exp 默认生成 `libdevice.exp`，并用 `eager_numerics` 的开关控制除法舍入、ftz 和 libdevice 的版本。其中改用 CUDA 工具链的 libdevice，是因为源码注释说两份库的多项式不同，`erf`、`pow` 会差约 1 ulp。（来源：`msg-8dce86aba8c15ba7972b`。）
+- [要点] exp、sqrt、除法各自的快速档和精确档是什么？——`tl.exp` 每元素 2 条指令，`libdevice.exp` 是 8 条；`tl.sqrt` 是近似，`tl.sqrt_rn` 是 IEEE 就近舍入；`a / b` 生成近似的 `div.full`，`tl.div_rn` 生成 `div.rn`。PyTorch 2.13 的 Inductor 为贴近 eager，sqrt 一律生成 `tl.sqrt_rn`，exp 默认生成 `libdevice.exp`，并用 `eager_numerics` 的开关控制除法舍入、ftz 和 libdevice 的版本。其中改用 CUDA 工具链的 libdevice，是因为源码注释说两份库的多项式不同，`erf`、`pow` 会差约 1 ulp。（来源：`msg-8dce86aba8c15ba7972b`。）（2026-10-21 复核更正：原记录没有写这三个开关的默认值，容易读成 Inductor 默认已经全面对齐 eager。PyTorch 2.13.0 中三个开关默认都关闭：`division_rounding` 只在设置 `TORCHINDUCTOR_EMULATE_DIVISION_ROUNDING=1` 时打开，`disable_ftz` 与 `use_pytorch_libdevice` 默认是 False（`torch/_inductor/config.py` L2965–2985）。所以默认生成的 kernel 里，普通除法仍写成 `x / y`（`codegen/triton.py` L1427–1440）；libdevice 仍按 Triton 的默认清零次正规数，只有 `disable_ftz` 打开时才传 `enable_reflect_ftz=False`（`runtime/triton_heuristics.py` L1097–1098）；用的也仍是 Triton 自带的 libdevice，`use_pytorch_libdevice` 或 `emulate_precision_casts` 打开时才替换（`runtime/compile_tasks.py` L54–66）。默认就选精确写法的只有 sqrt 和 exp（`codegen/triton.py` L1483–1510）。）
 
 - [要点] 快速版 exp 为什么在 |x| 大时更不准？——学习者自己说出了机制：“由于tl.exp会先做log系数乘积再做指数计算，会导致在|x| 大时，放大指数结果误差”。乘积只有 24 位有效数字，丢掉的误差被指数放大。CUDA 文档给同类快速函数的上界是 2 + ⌊|1.173·x|⌋ ulp，标准 `expf` 是 2 ulp；用在 Triton 上是推断，没有实测。（来源：`msg-0cb671c61108393bea26`、`msg-115c0150ef294e79ebc5`。）
 
@@ -58,17 +58,19 @@
 
 - [要点] 自己提供数学库要准备什么，缺了库是什么现象？——用 `core.extern_elementwise` 写一张“dtype → 符号”的表，再用 `extern_libs` 传入含有这些定义的 bitcode 或文本 LLVM IR 文件，之后走和 libdevice 完全相同的链接、内联。本机用一个手写的 5 行文本 IR 验证过；不传 `extern_libs` 时，链接不报错，要到最后一步才报 `Unresolved extern function`。（来源：`msg-8dce86aba8c15ba7972b`。）
 
+- [要点] 算一个数学函数有四条路线，怎样在其中选？——区别在于函数体从哪里来、在哪一站进入管线：`tl.math` 是后端中立的写法，只有十几个函数，实现由后端决定；libdevice 点名厂商库里的函数，CUDA 上约 197 个，`asin`、`pow`、`lgamma` 只能走它；`tl.inline_asm_elementwise` 的指令文本不经过链接，原样进最终汇编；自定义库用 `extern_libs` 传入，走和 libdevice 相同的链接、内联。选择上：能用 `tl.math` 就用它；它没有的函数用 libdevice；要和 eager 对齐，把 exp、sqrt、除法逐项换成精确版。（来源：`msg-8dce86aba8c15ba7972b`。）
+
 - [要点] 新后端编译成功，机器码里却仍有对库函数的真实调用，最可能漏了什么？——学习者答：“最可能是漏了内联优化的标志。可能通过查看O3优化前后的LLVM IR进行对比”，正确。补充一个更省事的顺序：先看链接之后的 IR，有 `define` 但没有 `alwaysinline` 是内联的问题；仍然只有 `declare` 则是库根本没链接进来，只是后端最后一步没有为此报错。（来源：`msg-0cb671c61108393bea26`、`msg-115c0150ef294e79ebc5`。）
 
 - [要点] 给一个新后端加 libdevice 支持，要补哪六样东西？——一是 `get_module_map()`，把接口模块映射到自己的实现模块；二是实现模块里的各个函数；三是每个函数的“dtype → 符号”表；四是库文件和默认路径，内容哈希计入缓存键；五是生成 LLVM IR 阶段的按需链接，表里的符号名要和库里的定义一致；六是让库函数被内联，并把次正规数等数值开关传给库。逐元素拆成标量调用、按名字链接这些机制是 Triton 的公共代码，不用重写。（来源：`msg-8dce86aba8c15ba7972b`。）
 
 - [要点] NVIDIA 和 AMD 决定“链接哪些库”的规则有什么不同？——NVIDIA 只要发现未定义的外部函数，就把 `extern_libs` 里的库都交给链接器。AMD 只链接“键名出现在某个未定义函数名里”的库。本机实测同一个自定义库：键名不匹配时，AMD 编译不报错，但最终 IR 里留着一次未解析的调用。（来源：`msg-8dce86aba8c15ba7972b`。）
 
-- [要点] 同一个 `libdevice.asin` kernel 换到 AMD，哪些内容变了？——符号变成 `__ocml_asin_f32`；每个 warp 是 64 个线程，所以 `BLOCK_SIZE=1024`、`num_warps=4` 时每线程 4 个元素；默认库是 `ocml.bc` 和 `ockl.bc`，这里只链接用到的 `ocml.bc`；次正规数默认保留，由 kernel 函数上的属性控制。逐元素调用、按名字链接、内联这些机制是 Triton 的公共代码，没有变。（来源：`msg-8dce86aba8c15ba7972b`。）
+- [要点] 同一个 `libdevice.asin` kernel 换到 AMD，哪些内容变了？——符号变成 `__ocml_asin_f32`；每个 warp 是 64 个线程，所以 `BLOCK_SIZE=1024`、`num_warps=4` 时每线程 4 个元素；默认库是 `ocml.bc` 和 `ockl.bc`，这里只链接用到的 `ocml.bc`；次正规数默认保留，由 kernel 函数上的属性控制。逐元素调用、按名字链接、内联这些机制是 Triton 的公共代码，没有变。（来源：`msg-8dce86aba8c15ba7972b`。）（2026-10-21 复核更正：“每个 warp 是 64 个线程”只对本课只编译观察的目标 gfx942 成立，不是 AMD 的通则。Triton 3.7.1 的 `backends/amd/compiler.py` L84–85 按架构取值：`warp_size = 32 if gfx_major >= 10 else 64`，即 gfx9（CDNA）为 64，gfx10 及以上（RDNA）为 32；gfx942 是 CDNA3（同文件 L129–130 的注释）。在 RDNA 上，同样的 `BLOCK_SIZE=1024`、`num_warps=4` 是每线程 8 个元素。本课的 AMD 目标见原文 `msg-8dce86aba8c15ba7972b` 节点 6 对照表中的“AMD（gfx942）”。）
 
 ## 综合验收与复查
 
-- [纠错] 场景：综合验收的口述题，条件是输入为 fp16、调用 `libdevice.erf`、目标后端是 AMD。我说“第三，再将TTGIR交由LLVM进行处理，成为LLVM IR。LLVM的处理过程基本分为三步：1、转换，从TTGIR的张量描述方式，转为线程描述方式”，并且全篇没有提 fp16 怎么处理 → 正确：TTGIR 到 LLVM IR 的转换是 Triton 自己做的，LLVM 接手的是之后的链接、O3 和生成汇编；fp16 必须先在 kernel 里 `.to(tl.float32)`，否则在查表处报 `KeyError`；AMD 上符号是 `__ocml_erf_f32`，每个 warp 64 个线程，链接的是 `ocml.bc`。原因：全链路的顺序和“链接加内联所以没有调用”都答对了，但题目给的条件要落到每一环的具体内容上。（来源：`msg-09c3d4a1f584f9d3a1ac`、`msg-56b08ac9654bfcb511c9`。）
+- [纠错] 场景：综合验收的口述题，条件是输入为 fp16、调用 `libdevice.erf`、目标后端是 AMD。我说“第三，再将TTGIR交由LLVM进行处理，成为LLVM IR。LLVM的处理过程基本分为三步：1、转换，从TTGIR的张量描述方式，转为线程描述方式”，并且全篇没有提 fp16 怎么处理 → 正确：TTGIR 到 LLVM IR 的转换是 Triton 自己做的，LLVM 接手的是之后的链接、O3 和生成汇编；fp16 必须先在 kernel 里 `.to(tl.float32)`，否则在查表处报 `KeyError`；AMD 上符号是 `__ocml_erf_f32`，每个 warp 64 个线程，链接的是 `ocml.bc`。原因：全链路的顺序和“链接加内联所以没有调用”都答对了，但题目给的条件要落到每一环的具体内容上。（来源：`msg-09c3d4a1f584f9d3a1ac`、`msg-56b08ac9654bfcb511c9`。）（2026-10-21 复核更正：正确栏里的“每个 warp 64 个线程”只对 gfx942 这类 CDNA（gfx9）目标成立；RDNA（gfx10 及以上）在 Triton 3.7.1 中是 32 个线程，依据同“换到 AMD”一条：`backends/amd/compiler.py` L85。）
 
 - [要点] 要让 `y = x / (1 + tl.exp(-x))` 更接近 PyTorch eager，两处各改成什么，代价是什么？——学习者答：“tl.exp需要换成libdevice.exp，除法'/'需要换成tl.div_rn；exp速度上会变成8条指令，而原本只有2条。除法'/'则不清楚。没有要求与pytorch eager结果尽量一致时，会采用快速版。”改写和取舍都对，也如实说明了不知道除法的代价：`div.rn` 比 `div.full` 慢，Inductor 源码只说“会带来性能损失”，没有实测数字。（来源：`msg-09c3d4a1f584f9d3a1ac`、`msg-56b08ac9654bfcb511c9`。）
 

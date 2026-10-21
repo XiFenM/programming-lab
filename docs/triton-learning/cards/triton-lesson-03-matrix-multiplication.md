@@ -5,12 +5,12 @@
     "id": "markji",
     "profile": "programming-lab-markji"
   },
-  "artifact_set_sha256": "3a9a728580c6cbadca12d319e595c07790d65114856270fee1484d21e53b41c5",
-  "candidate_sha256": "b98651d8a871cfdcbbbd3da2a27a20e77ac935c0540f3a3da624765902c6389f",
+  "artifact_set_sha256": "119e0ff8a875329dd8596d5d7e247f0d16d88e0c7032ee88832d65aa3f4934bc",
+  "candidate_sha256": "5c033b02d8fa84fdf0a92996fbe77f25d0a845e98b02c899a0c5ff6e779df4d8",
   "cards": [
     {
-      "content_sha256": "f11720d7c6a4cb4a3a8dbcf187345b59f831ad9aba8c17c25e40052b1d3e35b3",
-      "content_summary": "从 A[M,K]、B[K,N] 与固定 C 输出块出发，解释 accumulator 形状、沿 K 加载乘加和尾部处理。",
+      "content_sha256": "aa8b05dc7c7bf4ab5321d6a41da52d8e57c16a1fcd5e7a525421f9df6b87d363",
+      "content_summary": "从 A[M,K]、B[K,N] 与固定 C 输出块出发，解释 FP32 accumulator、沿 K 的加载乘加与指针推进，以及尾部处理的位置。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -36,8 +36,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "0849b2d7b0f02df702bbe300b9a94e3971ddd3d2f46480f41c5c53f0ad31b3a4",
-      "content_summary": "在固定 offs_k、指针基址逐轮推进的写法下，用全局 K=t×BLOCK_K+offs_k 区分局部与全局坐标。",
+      "content_sha256": "8fc05684ff1e8508e5f12a95ebe8cf3c39e4f42b9f33ead0dbed70487c97c4fc",
+      "content_summary": "指针推进写法下，用全局 K=t×BLOCK_K+offs_k 说明 K 尾部 load mask 为何不能写成 offs_k<K。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -55,8 +55,8 @@
       "lifecycle": "active",
       "logical_id": "mc-a1636912f944d54665961084",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "lesson-03-concept-log"
       ],
@@ -110,8 +110,8 @@
       "lifecycle": "active",
       "logical_id": "mc-0d4bc6a1836e0d2c6de8bdb5",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "lesson-03-concept-log"
       ],
@@ -120,35 +120,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "480415802208a80a5c8687a82e4e9c57e932d3d30b6079794f4392561c84c752",
-      "content_summary": "通过覆盖全部输出行的目标，纠正 cdiv 之前先整除丢失余数的写法。",
-      "dependency_content_sha256": {},
-      "depends_on": [],
-      "fact_status": "verified",
-      "identity": {
-        "assessment": "discrimination",
-        "domain": "triton-matmul",
-        "fact_scope": {
-          "kind": "evergreen"
-        },
-        "recall_target": "写出 tile 数量的正确 cdiv 调用并避免预先整除"
-      },
-      "layer": "atomic",
-      "lifecycle": "active",
-      "logical_id": "mc-b748990eeb64b83da16794a3",
-      "misconception_of": null,
-      "priority": 3,
-      "quality": "B",
-      "source_ids": [
-        "lesson-03-study-log"
-      ],
-      "successor_to": null,
-      "template_id": "correction",
-      "template_version": "1.1.0"
-    },
-    {
-      "content_sha256": "a4015de03bfe216f7f2ab9af57e3fb39853807852dcd17481dee74252ddaf5db",
-      "content_summary": "明确 output-tile 网格与坐标顺序，解释组内先 M 后 N 的 PID 映射及同列 B 的复用关系。",
+      "content_sha256": "d62fb148ff0c21f9b8742a80a50622d0399cb0c6f915e3b2fe16fb8a622e2814",
+      "content_summary": "在单个 GEMM 内的 grouped ordering 中，说明组内 PID 先沿 M 后沿 N 的映射规律及相邻 PID 的 B tile 复用。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -166,8 +139,8 @@
       "lifecycle": "active",
       "logical_id": "mc-40db2e4425a22efcb30a44e2",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "lesson-03-concept-log"
       ],
@@ -176,7 +149,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "7dbaf61ab8a79efdd68803898d0fdf4859fc3b21e39e3c7600d1e77c886a886a",
+      "content_sha256": "87d5e9cbc6faee011515126853b24086d645a6cca417a3e3f18d0e7a17962164",
       "content_summary": "用 5×3 输出 tile 网格说明尾组实际组高如何同时避免非法行号和合法输出遗漏。",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -204,8 +177,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "fdc2553eb5d07cb9df6f4ee4d7ff29917f30be305019bcfd62cc883e54788ff6",
-      "content_summary": "在尾组组高计算的明确场景中，区分双输入逐元素 minimum 与单输入轴归约 min。",
+      "content_sha256": "413e5d547833c6204d32bbc95a9593a5015139aa50cbcd0f626736426c0219db",
+      "content_summary": "恢复 tl.min(num_pid_m - first_pid_m, GROUP_SIZE_M) 的真实错误，区分归约 tl.min 与两值取小的 tl.minimum／内建 min。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -223,8 +196,8 @@
       "lifecycle": "active",
       "logical_id": "mc-ccc79bbbc7f5c0a5be131add",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "lesson-03-study-log"
       ],
@@ -233,8 +206,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "94809c331a8a195066f65d54525084e312e70ee80a907bb192260d4b0d116f1d",
-      "content_summary": "说明矩阵乘法 tile 配置同时影响边界浪费、寄存器和并发，计数只能筛候选而不能裁决性能。",
+      "content_sha256": "dfbeb4b33af10f2a5c4c39208352120ac4eabc876dce1062dcbd92905a75f2b8",
+      "content_summary": "说明 tile 配置同时影响复用收益、边界浪费与寄存器驻留，计数只能筛候选而不能裁决性能。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -260,8 +233,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "97c1356cfc538045b0fba63acf4d8934a8cac5054cab3ca475415799e793989e",
-      "content_summary": "在配置差异与运行漂移无法分离的 benchmark 中，区分证据不足与真实效应很小。",
+      "content_sha256": "a657297b49b3f98d317c06ee7122486d6527d56cad31b8596a5801892e658950",
+      "content_summary": "用 RTX 5090 上 ABBA 四个 median 的读数，纠正把无法与漂移区分的差异说成影响较小。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -271,11 +244,11 @@
         "fact_scope": {
           "kind": "evergreen"
         },
-        "recall_target": "在配置差异与运行漂移无法分离时给出正确的证据结论"
+        "recall_target": "纠正把无法与运行漂移区分的配置差异说成对性能影响较小"
       },
       "layer": "atomic",
       "lifecycle": "active",
-      "logical_id": "mc-4dc66aa7b63f1fe191d09add",
+      "logical_id": "mc-21b6813aa2b0574e1285b5a8",
       "misconception_of": null,
       "priority": 5,
       "quality": "A",
@@ -283,11 +256,11 @@
         "lesson-03-study-log"
       ],
       "successor_to": null,
-      "template_id": "technical-qa",
+      "template_id": "correction",
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "ccbd31de8a154c42d588051370234678f0420ac69854502f291e0db8f22f27df",
+      "content_sha256": "2fd9e9762d839f934b75fc2ca5629e6db81cdd4bfcdd8f8489544ebfbc6bf2b0",
       "content_summary": "串联输出 tile 的 A/B 复用、重排后的访问间隔与 L2 驻留条件，并限定性能结论。",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -314,15 +287,15 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "c978aa09990b6b2ca39977c2459f453a5f139ea405af2b65cc5c6f1d8413dda5",
-      "content_summary": "用完整 benchmark 场景口述 grouped ordering 的 L2 机制、成立条件与证据不足的报告方式。",
+      "content_sha256": "8aa29c3883a0bd444ad6543d09784a808f72202ba911e69b76cdcc58cd8b6a91",
+      "content_summary": "以面试追问为场景，口述 grouped ordering 的 L2 复用机制、生效条件，以及一次证据不足的测量怎样解读。",
       "dependency_content_sha256": {
-        "mc-2fd335ab94ec21c8a7c24c73": "ccbd31de8a154c42d588051370234678f0420ac69854502f291e0db8f22f27df",
-        "mc-4dc66aa7b63f1fe191d09add": "97c1356cfc538045b0fba63acf4d8934a8cac5054cab3ca475415799e793989e"
+        "mc-21b6813aa2b0574e1285b5a8": "a657297b49b3f98d317c06ee7122486d6527d56cad31b8596a5801892e658950",
+        "mc-2fd335ab94ec21c8a7c24c73": "2fd9e9762d839f934b75fc2ca5629e6db81cdd4bfcdd8f8489544ebfbc6bf2b0"
       },
       "depends_on": [
-        "mc-2fd335ab94ec21c8a7c24c73",
-        "mc-4dc66aa7b63f1fe191d09add"
+        "mc-21b6813aa2b0574e1285b5a8",
+        "mc-2fd335ab94ec21c8a7c24c73"
       ],
       "fact_status": "verified",
       "identity": {
@@ -340,8 +313,73 @@
       "priority": 4,
       "quality": "A",
       "review_resolution": {
-        "summary": "已重新对照本课 card-11, card-10 的增强题答复核本卡：场景与符号定义一致，机制关系和适用边界仍成立，参考回答及评分锚点由这些子卡支持；本轮只增强表达，没有扩大原知识目标。"
+        "summary": "已对照更新后的 card-11 与新子卡 group-size-benchmark-correction 复核：参考回答只使用两张子卡中的复用机制、生效条件、约 4% 漂移与证据不足结论，四个评分锚点与题面三问一一对应。"
       },
+      "source_ids": [
+        "lesson-03-concept-log",
+        "lesson-03-study-log"
+      ],
+      "successor_to": null,
+      "template_id": "oral",
+      "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "734ccca9200f22d753ca51b4f6a71be8888c5f10ca146fa4446818dc4e79c7ca",
+      "content_summary": "用教程 9×9 block 例子，按 A tile 行与 B tile 列计数，说明 row-major 90 与分组 54 的差距来源。",
+      "dependency_content_sha256": {},
+      "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "mechanism",
+        "domain": "triton-matmul-performance",
+        "fact_scope": {
+          "kind": "evergreen"
+        },
+        "recall_target": "用 9×9 block 例子数出 row-major 与分组顺序的输入 block 加载量并说明差距来源"
+      },
+      "layer": "mechanism",
+      "lifecycle": "active",
+      "logical_id": "mc-6a9002bc8f021366a579fe04",
+      "misconception_of": null,
+      "priority": 5,
+      "quality": "A",
+      "source_ids": [
+        "lesson-03-study-log"
+      ],
+      "successor_to": null,
+      "template_id": "technical-qa",
+      "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "3c6217c3ed85676dcf781a890d258347ad9787acf4eee74b957f203fcfdeb75e",
+      "content_summary": "以面试走读为场景，串联 grouped PID 映射与尾组、K 循环与 FP32 累加、K 尾部补零和 M/N 写回 mask。",
+      "dependency_content_sha256": {
+        "mc-0d4bc6a1836e0d2c6de8bdb5": "6000dc6defcdefc6c8435dcbc664527fc763b94de820f3dcf48049132c759f49",
+        "mc-2a2e5e507246b774ac4eee7d": "6812ad091a536c7f12dc5b47a61cc12f682a8b7ec7befd517814a82c73a262eb",
+        "mc-4635ed52ca08d9e8d3d86a8b": "87d5e9cbc6faee011515126853b24086d645a6cca417a3e3f18d0e7a17962164",
+        "mc-93d5cb5f189271bd463f66f5": "aa8b05dc7c7bf4ab5321d6a41da52d8e57c16a1fcd5e7a525421f9df6b87d363"
+      },
+      "depends_on": [
+        "mc-0d4bc6a1836e0d2c6de8bdb5",
+        "mc-2a2e5e507246b774ac4eee7d",
+        "mc-4635ed52ca08d9e8d3d86a8b",
+        "mc-93d5cb5f189271bd463f66f5"
+      ],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "oral",
+        "domain": "triton-matmul",
+        "fact_scope": {
+          "kind": "evergreen"
+        },
+        "recall_target": "综合走读 triton matmul kernel 从 pid 映射到写回的流程与 m/n/k 边界处理"
+      },
+      "layer": "oral",
+      "lifecycle": "active",
+      "logical_id": "mc-daf9aff716344732e34b491e",
+      "misconception_of": null,
+      "priority": 4,
+      "quality": "A",
       "source_ids": [
         "lesson-03-concept-log",
         "lesson-03-study-log"
@@ -351,12 +389,12 @@
       "template_version": "1.1.0"
     }
   ],
-  "managed_body_sha256": "fd049ff02482f1b78edabf71511f2c3453e7d167fd144fed31e8b13d32a3a202",
-  "manifest_payload_sha256": "9081985eb2312dd331403313cbec0490eb76d479a81204d69f2eac05dd7db434",
+  "managed_body_sha256": "379e79fd1a0266567bec14a9c072197c0caf0449423464fd5a74a018e301d185",
+  "manifest_payload_sha256": "921f475c33b98c7192aff3bdd7e8a7b49c89fe2b54ba602218aabb2fbf4b7b03",
   "schema": "memo-cards.artifact/v2",
   "sidecars": [
     {
-      "byte_size": 5119,
+      "byte_size": 5829,
       "columns": [
         "意图",
         "场景",
@@ -369,24 +407,24 @@
       "row_count": 2,
       "rows": [
         {
-          "content_sha256": "480415802208a80a5c8687a82e4e9c57e932d3d30b6079794f4392561c84c752",
-          "logical_id": "mc-b748990eeb64b83da16794a3",
-          "row_sha256": "6e69d94152aec57c7df4b295c1c62f457462e8871bc965ebcc2f07e92f308f8f"
+          "content_sha256": "413e5d547833c6204d32bbc95a9593a5015139aa50cbcd0f626736426c0219db",
+          "logical_id": "mc-ccc79bbbc7f5c0a5be131add",
+          "row_sha256": "3b7fd84453138c704d2926df79621c291a91018e3fecb7a3d6ef17990d8d696c"
         },
         {
-          "content_sha256": "fdc2553eb5d07cb9df6f4ee4d7ff29917f30be305019bcfd62cc883e54788ff6",
-          "logical_id": "mc-ccc79bbbc7f5c0a5be131add",
-          "row_sha256": "f45955bca00dc4fb24a9d85fd6271d3aa37b4f416bb32fe409b9269c47c96393"
+          "content_sha256": "a657297b49b3f98d317c06ee7122486d6527d56cad31b8596a5801892e658950",
+          "logical_id": "mc-21b6813aa2b0574e1285b5a8",
+          "row_sha256": "eb9b4463870eb49bb955d0799c0b5cb403f0bbc955c3212d5f1183f08671af9d"
         }
       ],
-      "sha256": "b6fee9a1d500b89a110ce8a08b9d0e6a0282b13c89ac5c40f63783286e8c32df",
+      "sha256": "b4257aef4e833ca5d39f85e210aa8425b4b22ae4c4495566e62656e9b4d10a02",
       "sheet_name": "cards",
-      "table_sha256": "2066302e5fd2a881bdd33a6f1c0a29070316793753c079c877d1086bad1d625c",
+      "table_sha256": "9b4021f94dfca0c08089432d059be4467ff546d48a51ffa92fdad9305e80a251",
       "template_id": "correction",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 15354,
+      "byte_size": 16144,
       "columns": [
         "问题",
         "答案",
@@ -398,14 +436,14 @@
       "row_count": 9,
       "rows": [
         {
-          "content_sha256": "f11720d7c6a4cb4a3a8dbcf187345b59f831ad9aba8c17c25e40052b1d3e35b3",
+          "content_sha256": "aa8b05dc7c7bf4ab5321d6a41da52d8e57c16a1fcd5e7a525421f9df6b87d363",
           "logical_id": "mc-93d5cb5f189271bd463f66f5",
-          "row_sha256": "44e1e8f56d3c83e62e48b8ebd1b2728c4f9561794266cbb3a74eadadb97a9320"
+          "row_sha256": "82ebe018476cf856a42bfa2108d2c156005984293456df09c2e3b0690230c707"
         },
         {
-          "content_sha256": "0849b2d7b0f02df702bbe300b9a94e3971ddd3d2f46480f41c5c53f0ad31b3a4",
+          "content_sha256": "8fc05684ff1e8508e5f12a95ebe8cf3c39e4f42b9f33ead0dbed70487c97c4fc",
           "logical_id": "mc-a1636912f944d54665961084",
-          "row_sha256": "a4518ee09ca680aac3cbdf27d06a96d27944f175db6603171c807de27311fcc9"
+          "row_sha256": "9ada30fb984cefaf7b647c58370ef074ef8b76702f9b1818b78791c358e6d5dd"
         },
         {
           "content_sha256": "6812ad091a536c7f12dc5b47a61cc12f682a8b7ec7befd517814a82c73a262eb",
@@ -418,39 +456,39 @@
           "row_sha256": "0605acb1db9549b2caa3916557348c10d426524cee73c53a030f9a899559c876"
         },
         {
-          "content_sha256": "a4015de03bfe216f7f2ab9af57e3fb39853807852dcd17481dee74252ddaf5db",
+          "content_sha256": "d62fb148ff0c21f9b8742a80a50622d0399cb0c6f915e3b2fe16fb8a622e2814",
           "logical_id": "mc-40db2e4425a22efcb30a44e2",
-          "row_sha256": "055a7ed2a1dde1fce85c5570466b9efa5c0da659fc9364938e21e22958750fed"
+          "row_sha256": "6837f6d525c11dff31f71e766819bc095202e3138903b22db3af92a3029a8eb5"
         },
         {
-          "content_sha256": "7dbaf61ab8a79efdd68803898d0fdf4859fc3b21e39e3c7600d1e77c886a886a",
+          "content_sha256": "87d5e9cbc6faee011515126853b24086d645a6cca417a3e3f18d0e7a17962164",
           "logical_id": "mc-4635ed52ca08d9e8d3d86a8b",
-          "row_sha256": "21c2acef98910dcaf045e281d3f79b78de04ce9ccca4843a159b407852b00a10"
+          "row_sha256": "1c2dd8d8900ae65e75a3b5efb1af1658dca9f9ffc4a566d07ad84ddb5a827178"
         },
         {
-          "content_sha256": "94809c331a8a195066f65d54525084e312e70ee80a907bb192260d4b0d116f1d",
+          "content_sha256": "dfbeb4b33af10f2a5c4c39208352120ac4eabc876dce1062dcbd92905a75f2b8",
           "logical_id": "mc-62ebe8a0b30dea5145854637",
-          "row_sha256": "18777b5309730c95183c6b7b17a76b055bd5eb45292a0aa4de011d130d5f9c8c"
+          "row_sha256": "ceb0859199c65756aac619c9600268a723fa017a95018157f4f68ad510b85b79"
         },
         {
-          "content_sha256": "97c1356cfc538045b0fba63acf4d8934a8cac5054cab3ca475415799e793989e",
-          "logical_id": "mc-4dc66aa7b63f1fe191d09add",
-          "row_sha256": "bf64699c49d53f930df4687ae970826b5b53eb0a3fc9e9cfdb23bb567099fbe5"
-        },
-        {
-          "content_sha256": "ccbd31de8a154c42d588051370234678f0420ac69854502f291e0db8f22f27df",
+          "content_sha256": "2fd9e9762d839f934b75fc2ca5629e6db81cdd4bfcdd8f8489544ebfbc6bf2b0",
           "logical_id": "mc-2fd335ab94ec21c8a7c24c73",
-          "row_sha256": "c17cb30033f85442814501c3496e2df51025c6cf972cdf52f87b1db25b4ddf8d"
+          "row_sha256": "1ab8b321c099ec2ec2dbf9636706a1df0690f9608602e7f6daddc483fe8cdd20"
+        },
+        {
+          "content_sha256": "734ccca9200f22d753ca51b4f6a71be8888c5f10ca146fa4446818dc4e79c7ca",
+          "logical_id": "mc-6a9002bc8f021366a579fe04",
+          "row_sha256": "3e402709e37cffd800506869082178c441b049f6d1e6e28714f64b3b83eab134"
         }
       ],
-      "sha256": "e732f6df87fecadc1d67dc5e7f8fbac8e1ffc2ee3e0bb43e0efde81ae70d5641",
+      "sha256": "844963100c30f050062cfeaf31ae115888479e1b4374edc70973c0c8fe599ac0",
       "sheet_name": "cards",
-      "table_sha256": "5510ae5ab7e44ff16be55b844e206979b908212295d52b5539c91ad5b3a7fb27",
+      "table_sha256": "fcd0deb8ccd7e4eed3449e267f05658f72cfbd769422eefe8ef09b14ab3086d5",
       "template_id": "technical-qa",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 4243,
+      "byte_size": 6390,
       "columns": [
         "问题",
         "参考回答",
@@ -459,22 +497,27 @@
       ],
       "kind": "markji-import-xlsx",
       "path": "docs/triton-learning/cards/triton-lesson-03-matrix-multiplication-oral.xlsx",
-      "row_count": 1,
+      "row_count": 2,
       "rows": [
         {
-          "content_sha256": "c978aa09990b6b2ca39977c2459f453a5f139ea405af2b65cc5c6f1d8413dda5",
+          "content_sha256": "8aa29c3883a0bd444ad6543d09784a808f72202ba911e69b76cdcc58cd8b6a91",
           "logical_id": "mc-89f34aea9a94a29d20e579d9",
-          "row_sha256": "4a552b8d87895bfe38a1abcc5bb030de721acad056e204bd157b42ec986d3920"
+          "row_sha256": "4225aee8fe9f4b2c0d0876b5599a033f7e18d187428fac087cd1d6fee5591fe8"
+        },
+        {
+          "content_sha256": "3c6217c3ed85676dcf781a890d258347ad9787acf4eee74b957f203fcfdeb75e",
+          "logical_id": "mc-daf9aff716344732e34b491e",
+          "row_sha256": "58601bdd7b86b5ca28424292ab17f3502fa218f723061647426b9aa7f34849c7"
         }
       ],
-      "sha256": "faeddc5517cad7b3afdb6f1987d368b9dc67ac4d209d913f99e82a27402009e8",
+      "sha256": "dca1611fcb14916e3b1a6d4a649dd49162f4cdf5cea57e2158d06fa0075916b9",
       "sheet_name": "cards",
-      "table_sha256": "adb6018ed93bff52a3bacdff280631665acfdaf9de06e141f4cb96089b17e06c",
+      "table_sha256": "5b838ced07805550b1067d2950555f8acb009f2408ee0636027d711e81b10c2c",
       "template_id": "oral",
       "template_version": "1.1.0"
     }
   ],
-  "source_fingerprint": "62a9f3d524161b8b07fa450e954e734455163b1c41f691f68197e2460c95754e",
+  "source_fingerprint": "3e9d3ea7b3ce318f9761240fa2621c265e92afc773f8464dd1c277eb88349182",
   "sources": [
     {
       "collection": "triton-study-logs",
@@ -487,7 +530,7 @@
       "collection": "triton-study-logs",
       "id": "lesson-03-study-log",
       "path": "docs/triton-learning/logs/2026-08-19-matrix-multiplication.md",
-      "sha256": "110cf8458df06de765f7b50a50dd4b6c2820e815d6a7ce715336b936d44c4731",
+      "sha256": "2cc3e5f83e899a5c97c91e46c65ac69f42dd18ce4141c1399ec22d3de0d47d23",
       "summary": "Lesson 03 实践、纠错、性能证据解释与结课记录"
     }
   ],
@@ -541,4 +584,4 @@
 📍 [T#!939393#{{来源}}]
 ```
 
-导入文件：[triton-lesson-03-matrix-multiplication-oral.xlsx](triton-lesson-03-matrix-multiplication-oral.xlsx)（1 张卡）
+导入文件：[triton-lesson-03-matrix-multiplication-oral.xlsx](triton-lesson-03-matrix-multiplication-oral.xlsx)（2 张卡）

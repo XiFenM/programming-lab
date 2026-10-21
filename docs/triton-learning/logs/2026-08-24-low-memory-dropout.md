@@ -12,6 +12,10 @@
 - [要点] Boundary mask 与 Dropout keep mask 分别回答什么？——我说：“`valid_mask` 检查该位置是否是
   有效元素，是否越界；而 `x_keep` 是 dropout 计算逻辑中的判断元素是否被保留。”前者保护合法访存，
   后者在合法元素中选择清零或保留并缩放。（来源：`msg-acc0212b75a5b8b1fe2c`）
+- [要点] keep 决策怎样由随机数得到？——固定教程写 `random = tl.rand(seed, offsets)`、
+  `x_keep = random > p`：`tl.rand` 为每个 offset 生成一个 `[0, 1)` 内的 float32 伪随机数，只有
+  `random > p` 的元素被保留并输出 `x/(1−p)`，其余输出 `0`。（来源：`msg-3955c52d5b2b42ef2434`，
+  对话原文 08-24 #017；课程证据 E-03）
 - [要点] 为什么 `tl.rand` 必须接收 global offsets？——我判断 local offsets 会让 `pid 0` 与 `pid 1`
   得到完全相同的随机模式，使 `x[8:12]` 重复 `x[0:4]` 的 keep/drop 决策；global offsets 让两段分别
   使用 `F(seed,0..7)` 与 `F(seed,8..15)`。（来源：`msg-de0d18a0fc033e9bc227`）

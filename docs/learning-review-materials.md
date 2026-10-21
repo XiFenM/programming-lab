@@ -1,6 +1,6 @@
 # 学习复盘材料索引
 
-整理与核对日期：2026-09-14；2026-10-05 补入 Triton 第 06、07 课，2026-10-09 补入第 08 课，2026-10-14 补入 Rust 第 01、02 课与 Triton 第 09 课，2026-10-20 补入 Triton 第 10 课，此前各行未重新核对；2026-10-21 核对了 Triton 01–10 课卡片与墨墨远端的一致性。
+整理与核对日期：2026-09-14；2026-10-05 补入 Triton 第 06、07 课，2026-10-09 补入第 08 课，2026-10-14 补入 Rust 第 01、02 课与 Triton 第 09 课，2026-10-20 补入 Triton 第 10 课，此前各行未重新核对；2026-10-21 核对了 Triton 01–10 课卡片与墨墨远端的一致性，并按整组审核修订了全部 Triton 卡片与 11 份日志。
 本页索引已经完成课程的复盘材料及可恢复来源，
 不裁决课程进度或掌握程度；课程状态仍以各轨道的 Program 和 Lesson 为准。
 
@@ -9,16 +9,17 @@
 | 课程 | 结构化学习日志 | 可追溯可见对话 | 本地复习卡片 |
 | --- | --- | --- | --- |
 | 算法面试 01：约束驱动的算法选择 | [8 月 15 日](algorithm-interview-learning/logs/2026-08-15-lesson-01-constraint-driven-selection.md) | 本机未找到该课原会话或已保存全文；保留日志已有来源标识 | [9 张，3 个 XLSX](algorithm-interview-learning/cards/algorithm-interview-lesson-01-constraint-driven-selection.md) |
-| Triton 01：向量运算与基础 Benchmark | [7 月 20–27 日，补整理](triton-learning/logs/2026-07-27-vector-add.md) | 4 段 frozen legacy，共 199 条，见下方索引 | [15 张，3 个 XLSX](triton-learning/cards/triton-lesson-01-vector-add.md) |
+| Triton 01：向量运算与基础 Benchmark | [7 月 20–27 日，补整理](triton-learning/logs/2026-07-27-vector-add.md) | 4 段 frozen legacy，共 199 条，见下方索引 | [13 张，3 个 XLSX](triton-learning/cards/triton-lesson-01-vector-add.md) |
 | Triton 02：Fused Softmax | [7 月 31 日–8 月 7 日，补整理](triton-learning/logs/2026-08-07-fused-softmax.md) | 5 段 frozen legacy，共 229 条，见下方索引 | [17 张，3 个 XLSX](triton-learning/cards/triton-lesson-02-fused-softmax.md) |
-| Triton 03：矩阵乘法 | [8 月 17 日概念学习](triton-learning/logs/2026-08-17-matrix-multiplication.md)、[8 月 18–19 日综合验收与实践](triton-learning/logs/2026-08-19-matrix-multiplication.md) | 本机恢复 8 月 18 日 14 条与 8 月 19 日 37 条；8 月 17 日全文未找到 | [12 张，3 个 XLSX](triton-learning/cards/triton-lesson-03-matrix-multiplication.md)，覆盖两份日志 |
-| Triton 04：Low-Memory Dropout | [8 月 24 日](triton-learning/logs/2026-08-24-low-memory-dropout.md) | 本机恢复开课到关闭的 62 条可见消息 | [10 张，3 个 XLSX](triton-learning/cards/triton-lesson-04-low-memory-dropout.md) |
-| Triton 05：LayerNorm | [9 月 9–14 日](triton-learning/logs/2026-09-14-layer-norm.md) | [学习与实践 111 条](triton-learning/transcripts/2026-09-09-layer-norm-learning.md)、[复验与结课 14 条](triton-learning/transcripts/2026-09-14-layer-norm-review-and-closure.md) | [16 张，3 个 XLSX](triton-learning/cards/triton-lesson-05-layer-norm.md) |
+| Triton 03：矩阵乘法 | [8 月 17 日概念学习](triton-learning/logs/2026-08-17-matrix-multiplication.md)、[8 月 18–19 日综合验收与实践](triton-learning/logs/2026-08-19-matrix-multiplication.md) | 本机恢复 8 月 18 日 14 条与 8 月 19 日 37 条；8 月 17 日全文未找到 | [13 张，3 个 XLSX](triton-learning/cards/triton-lesson-03-matrix-multiplication.md)，覆盖两份日志 |
+| Triton 04：Low-Memory Dropout | [8 月 24 日](triton-learning/logs/2026-08-24-low-memory-dropout.md) | 本机恢复开课到关闭的 62 条可见消息 | [8 张，3 个 XLSX](triton-learning/cards/triton-lesson-04-low-memory-dropout.md) |
+| Triton 05：LayerNorm | [9 月 9–14 日](triton-learning/logs/2026-09-14-layer-norm.md) | [学习与实践 111 条](triton-learning/transcripts/2026-09-09-layer-norm-learning.md)、[复验与结课 14 条](triton-learning/transcripts/2026-09-14-layer-norm-review-and-closure.md) | [19 张，3 个 XLSX](triton-learning/cards/triton-lesson-05-layer-norm.md) |
 | Triton 06：Fused Attention | [9 月 14–19 日](triton-learning/logs/2026-09-19-fused-attention.md)、[9 月 20–24 日全貌补充与 FP16 前向实践](triton-learning/logs/2026-09-24-fused-attention.md) | 9 月 14–19 日未保存原文；[9 月 20–24 日 120 条](triton-learning/logs-raw/2026-09-24-fused-attention.md) | [34 张，3 个 XLSX](triton-learning/cards/triton-lesson-06-fused-attention.md)，覆盖两份日志 |
-| Triton 07：外部函数（libdevice） | [9 月 30 日–10 月 5 日](triton-learning/logs/2026-10-05-extern-functions.md) | [开课到确认结课 90 条](triton-learning/logs-raw/2026-10-05-extern-functions.md) | [25 张，3 个 XLSX](triton-learning/cards/triton-lesson-07-extern-functions.md) |
-| Triton 08：Grouped GEMM | [10 月 5–9 日](triton-learning/logs/2026-10-09-grouped-gemm.md) | [开课到确认结课 82 条](triton-learning/logs-raw/2026-10-09-grouped-gemm.md) | [34 张，3 个 XLSX](triton-learning/cards/triton-lesson-08-grouped-gemm.md) |
-| Triton 09：持久化矩阵乘 | [10 月 10–14 日](triton-learning/logs/2026-10-14-persistent-matmul.md) | [开课到确认结课 161 条](triton-learning/logs-raw/2026-10-14-persistent-matmul.md) | [39 张，3 个 XLSX](triton-learning/cards/triton-lesson-09-persistent-matmul.md) |
-| Triton 10：块缩放矩阵乘 | [10 月 14–20 日](triton-learning/logs/2026-10-20-block-scaled-matmul.md) | [开课到结课后的存档请求 199 条](triton-learning/logs-raw/2026-10-20-block-scaled-matmul.md) | [52 张，3 个 XLSX](triton-learning/cards/triton-lesson-10-block-scaled-matmul.md) |
+| Triton 07：外部函数（libdevice） | [9 月 30 日–10 月 5 日](triton-learning/logs/2026-10-05-extern-functions.md) | [开课到确认结课 90 条](triton-learning/logs-raw/2026-10-05-extern-functions.md) | [24 张，3 个 XLSX](triton-learning/cards/triton-lesson-07-extern-functions.md) |
+| Triton 08：Grouped GEMM | [10 月 5–9 日](triton-learning/logs/2026-10-09-grouped-gemm.md) | [开课到确认结课 82 条](triton-learning/logs-raw/2026-10-09-grouped-gemm.md) | [37 张，3 个 XLSX](triton-learning/cards/triton-lesson-08-grouped-gemm.md) |
+| Triton 09：持久化矩阵乘 | [10 月 10–14 日](triton-learning/logs/2026-10-14-persistent-matmul.md) | [开课到确认结课 161 条](triton-learning/logs-raw/2026-10-14-persistent-matmul.md) | [41 张，3 个 XLSX](triton-learning/cards/triton-lesson-09-persistent-matmul.md) |
+| Triton 10：块缩放矩阵乘 | [10 月 14–20 日](triton-learning/logs/2026-10-20-block-scaled-matmul.md) | [开课到结课后的存档请求 199 条](triton-learning/logs-raw/2026-10-20-block-scaled-matmul.md) | [50 张，3 个 XLSX](triton-learning/cards/triton-lesson-10-block-scaled-matmul.md) |
+| Triton 跨课辨析 | 引用第 01–10 课的 11 份结构化日志 | — | [6 张，1 个 XLSX](triton-learning/cards/triton-cross-lesson-synthesis.md) |
 | Rust 01：第一个程序与格式化输出 | [10 月 7–8 日，补整理](rust-learning/logs/2026-10-08-hello-formatting.md) | [开课到结课后的反馈 32 条](rust-learning/logs-raw/2026-10-08-hello-formatting.md) | [21 张，3 个 XLSX](rust-learning/cards/rust-lesson-01-hello-formatting.md) |
 | Rust 02：数据的形状 | [10 月 8–14 日](rust-learning/logs/2026-10-14-data-shapes.md) | [开课到确认结课 94 条](rust-learning/logs-raw/2026-10-14-data-shapes.md) | [42 张，3 个 XLSX](rust-learning/cards/rust-lesson-02-data-shapes.md) |
 
@@ -280,3 +281,49 @@ request 复核为 `no-op`、`would_write=false`。阅读版预览在 [Rust 复�
 254 张本地卡片在对应章节中各有且只有一张内容逐字相同的正常卡片；远端没有多余或重复的卡片，语法版本均为 3。各章上传回执记录的远端 ID、内容摘要和语法版本与远端逐张一致；第 07–10 课另以原 request 运行上传预览，全部为 `skip`。核对只发出读取请求；接口内容一致不代替客户端视觉渲染检查。
 
 远端时间戳显示，现有十个章节都在 2026-09-24 08:40（UTC）新建；第 01–06 课的 104 张卡于同日 08:50–08:56 写入，内容正是当天 08:19 的提交 `afea992` 把这几课卡片改写为可独立理解后的版本，上传器为它们留下了对应回执。上文 2026-09-09 与 2026-09-14 两次上传所在的章节都已不在 `Triton` 牌库中，9 月 9 日回执记录的卡片也不在任何现有章节里。这次重传此前没有记入本索引。
+
+## 2026-10-21 Triton 复习卡片审核与修订
+
+按学习者请求，逐张审核了第 01–10 课的 254 张卡，依据是学习记录、对话原文和 Triton 3.7.1 源码。审核发现 5 处硬错误：
+
+- 被肯定过的推导标成了红色错误；
+- 把 AMD gfx9 的 warp 大小写成通则；
+- 把违反 `tl.multiple_of` 时“没有报错”写成事实，而这一点并未实测；
+- 沿用了更正前的“flatten 下乘加与 epilogue 不能重叠”；
+- 估算计算强度时漏算输出字节。
+
+此外，约四成题面一题多问或泄露答案，A 级占 78%；早期几课的卡偏向课上的岔路，漏掉了课程核心的“为什么”。据此改进了中央 memo-cards Skill 的制卡规范，新增制卡自检清单（agent-skills `8a75a90`，D53）。
+
+修订结果如下：
+
+- **日志**：11 份日志只追加“2026-10-21 复核更正”和有原文依据的新条目；第 01 课那条被肯定的推导由 [纠错] 改为 [要点]。原文找不到的要点不补，列为来源缺口。
+- **卡片**：10 个卡片包按两轮发布，先发布修订内容，再给受子卡影响的口述卡写复核说明并恢复 active，各课 verify 均为 `no-op`、`would_write=false`。卡片由 254 张变为 256 张：新增 40 张（含少量换了身份的旧卡），修改 202 张，删除 38 张。
+- **跨课辨析卡**：另新建 6 张跨课辨析卡，内容为 padding 与单位元、三种 group、静态步长与动态领取、TMA 的两条 16 字节规则、存还是重算、局部偏移与全局坐标。
+- **总量与指标**：
+  - 合计 262 张；
+  - A 级占比由 78% 降为 65%；
+  - 三问及以上的非口述题面由 20 张降为 0；
+  - 正面的课内定位由 47 处降为 0。
+- **来源**：之前未进入仓库的第 01–06 课 request 已从 2026-09-24 那次改写的工作目录中找回，校验与当时的卡片包逐字节一致，这次一并保存到 `.requests/`。
+
+## 2026-10-21 Triton 修订版卡片重新上传
+
+学习者先清空了私有牌库 `Triton` 的全部章节。章节重建后 ID 全部变了，上传前按接口返回的名称逐章重新定位，确认 10 个章节都为空，也没有可能冲突的旧回执。随后按学习者的明确请求，通过墨墨官方 API 重新上传修订后的全部课程卡片，语法版本为 3。
+
+| 牌库 | 章节 | 卡片 |
+| --- | --- | ---: |
+| Triton | Triton 01 | 13 |
+| Triton | Triton 02 | 17 |
+| Triton | Triton 03 | 13 |
+| Triton | Triton 04 | 8 |
+| Triton | Triton 05 | 19 |
+| Triton | Triton 06 | 34 |
+| Triton | Triton 07 | 24 |
+| Triton | Triton 08 | 37 |
+| Triton | Triton 09 | 41 |
+| Triton | Triton 10 | 50 |
+| Triton | 跨课辨析 | 6 |
+
+上传第 02 课时，官方接口返回一次 HTTP 503，上传器立即停止，没有重试。核对后确认：第 12 张卡已创建，只是读回核验没有完成。随后用同一份 request 重新预览，已上传的 12 张按内容唯一匹配为 `skip` 并补做读回，剩余 5 张新建。
+
+结束后做了独立的只读双向比对：本地 256 张与远端逐字一致，没有缺卡、多卡或重复卡，只出现语法版本 3，回执记录的远端 ID、内容摘要与语法版本逐张吻合。跨课辨析的 6 张卡随后上传到学习者新建的 `跨课辨析` 章节：新增 6 张，读回核验通过，语法版本 3。远端合计 262 张，与本地一致。恢复回执保存在仓库外。

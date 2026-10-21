@@ -5,11 +5,11 @@
     "id": "markji",
     "profile": "programming-lab-markji"
   },
-  "artifact_set_sha256": "12b90dff07d69eb60f63c124166de50dbd6ea63cd033ed1df027cb11bb7e3e29",
-  "candidate_sha256": "61992a3ece7faef40c0246b5f07fe68209bea2ae216e1c6609d234c5cbe313ee",
+  "artifact_set_sha256": "e3b689528548a15aea36a9a1d0aef6bca5178f80f1801fa955db00f1ef3f88b1",
+  "candidate_sha256": "f91f9f499011c65541bc0fb75ac502cc82d8ada14619191bb5107ec142cdc1f1",
   "cards": [
     {
-      "content_sha256": "8fbb0d060514e572c004778b47b9f702a8174c600be62315e7d489ac5f654857",
+      "content_sha256": "44a9b783a67cb763e303a51e9dc45b411aa22079eae1f2de474d5574a60d56e3",
       "content_summary": "为末维 LayerNorm 定义 M/N 展平映射、按行 mean/rstd 与跨行共享 w/b 的存储和广播形状。",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -26,8 +26,8 @@
       "lifecycle": "active",
       "logical_id": "mc-f3e47cb52cfcc440d822f058",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "lesson-05-study-log"
       ],
@@ -36,8 +36,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "3bd8730560f0030097c2eebbc333b5e63f8d4414ebf1c98737c3da01c0a1cfff",
-      "content_summary": "以逐行 LayerNorm 的归约范围解释 cols<N，并用跨行误读和尾列例子澄清行数、列数、地址的区别。",
+      "content_sha256": "57cd31e33f0e64caa020873c2cfcd520c455dc9cbe27ac5b0cf6f05e2ca7662c",
+      "content_summary": "以逐行 LayerNorm 的归约域纠正 offsets<M 的改法，区分列号与 N、线性偏移与总元素数、行数。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -63,8 +63,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "4b68468be5abdb1f5f4ba99ae81a17bdfba4e7f1b414472bba16caf4335f684a",
-      "content_summary": "说明零 padding 经中心化后不再是归约中性值，并解释 FP16 other=mean 仍可能留下残差。",
+      "content_sha256": "0a685e9a817aa883e5649e9dc84fc63864876edf47f4bdb0a14c8581f994539e",
+      "content_summary": "说明零 padding 经中心化后变成 −mean、使方差多出 (B−N)×mean²/N，因此要在 FP32 中心化后把无效位置置零。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -90,7 +90,36 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "c3d05d87cd4242148b44ef4c0e4c765097dcee76d714433a87f8fcd50d9aa9c4",
+      "content_sha256": "86b732f5d6e2d721dd62249b88bba6da72bb38a366329b63cb2f90dc2fb7932a",
+      "content_summary": "说明 FP16 load 的 other=mean 会先舍入为 FP16，转回 FP32 后留下残差污染方差，应在 FP32 中心化后置零。",
+      "dependency_content_sha256": {},
+      "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "mechanism",
+        "domain": "triton-layernorm-numerics",
+        "fact_scope": {
+          "kind": "snapshot",
+          "product": "triton",
+          "version": "3.7.1"
+        },
+        "recall_target": "解释 fp16 masked load 用 other=mean 填 padding 为何仍会污染方差"
+      },
+      "layer": "mechanism",
+      "lifecycle": "active",
+      "logical_id": "mc-1663633d4f15f51222c1f5dc",
+      "misconception_of": null,
+      "priority": 5,
+      "quality": "A",
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "successor_to": null,
+      "template_id": "technical-qa",
+      "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "80018b6375cd0f8eca2b4f0077526abbdc9ae8e23d02afdaa11cb3ac13453903",
       "content_summary": "从共享仿射参数的前向式定义 dY/x_hat，推导 dw/db 的逐行贡献与跨行归约。",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -117,8 +146,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "dd709354d4b285c987c277eef5a41f24d2729f3252e6fd415e79a6f097b7d3df",
-      "content_summary": "定义 M/N/G 和组槽语义，串联 pid%G、互斥累加与第二 kernel 的列向归约。",
+      "content_sha256": "39d4dc0289312c73af4602c7b3001728ceb36c25f1f413c6ed4afa43dcf005c5",
+      "content_summary": "在 G<M 的共享 FP32 [G,N] 槽下，串联 pid%G 映射、加锁读改写与第二个 kernel 沿 G 的归约。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -146,8 +175,35 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "9e82f5d3244f736dd2552319aa06fcf8a5ed64a761981ddafa5446f15204f02c",
-      "content_summary": "定义 g、r、x_hat 与行均值，解释 LayerNorm 输入梯度通过均值/方差共享产生的行内耦合。",
+      "content_sha256": "56d71351759c5ed6829d5f98417a92c64d5edfc3c516ba6e3a74999467b33b7f",
+      "content_summary": "比较 G=M 独占槽（无锁、8MN 字节）与共享 [G,N] 槽（省空间、同组争锁）的取舍，两者都需第二阶段归约。",
+      "dependency_content_sha256": {},
+      "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "discrimination",
+        "domain": "triton-layernorm-reduction",
+        "fact_scope": {
+          "kind": "evergreen"
+        },
+        "recall_target": "比较参数梯度部分和每行独占槽与共享 g 组槽在临时空间和锁竞争上的取舍"
+      },
+      "layer": "atomic",
+      "lifecycle": "active",
+      "logical_id": "mc-d50b788a4b300286fae0649c",
+      "misconception_of": null,
+      "priority": 5,
+      "quality": "A",
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "successor_to": null,
+      "template_id": "technical-qa",
+      "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "a6e921e01fadf56361f636adf44f1fd94d0b5effa25c9825036eb68aad8fc582",
+      "content_summary": "定义 g、r、x_hat，写出 dx 在直接项之外的均值与方差两项修正，并解释行内耦合。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -173,54 +229,25 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "d1e6aeb361474e94543202d60685a93b25fe54d6ef725ecf20bfe55ef8f5a9a0",
-      "content_summary": "针对常量输入行，定义上游加权梯度并用三列反例区分前向点值与输入导数。",
-      "dependency_content_sha256": {},
-      "depends_on": [],
-      "fact_status": "verified",
-      "identity": {
-        "assessment": "discrimination",
-        "domain": "layernorm-backward",
-        "fact_scope": {
-          "kind": "evergreen"
-        },
-        "recall_target": "纠正常量行前向输出为 b 就断言输入梯度必为零"
-      },
-      "layer": "atomic",
-      "lifecycle": "active",
-      "logical_id": "mc-f6dfb343d6a843799454c598",
-      "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
-      "source_ids": [
-        "lesson-05-study-log"
-      ],
-      "successor_to": null,
-      "template_id": "technical-qa",
-      "template_version": "1.1.0"
-    },
-    {
-      "content_sha256": "b86496d88c1f1f7bfa90fffd4a1836d1a6a6906cf0b7392a75de5b99ce8e043b",
-      "content_summary": "在明确 0/1 状态的共享梯度锁中解释 CAS 返回旧值、成功条件与拆分 load/store 的竞争。",
+      "content_sha256": "1841483bd9dab7978ef4853b475fdb0a8d4fed800a7bc21332d72412b8f79a11",
+      "content_summary": "用整行平移不改变输出解释行内 Σdx=0，并用 dx 公式核对；常量行例子说明总和为零不等于分量为零。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
       "identity": {
         "assessment": "mechanism",
-        "domain": "triton-locks",
+        "domain": "layernorm-backward",
         "fact_scope": {
-          "kind": "snapshot",
-          "product": "triton",
-          "version": "3.7.1"
+          "kind": "evergreen"
         },
-        "recall_target": "解释 atomic_cas 获取标量锁时的返回值及拆分 load/store 的竞争"
+        "recall_target": "解释 layernorm 一行输入梯度分量之和恒为零的原因"
       },
-      "layer": "atomic",
+      "layer": "mechanism",
       "lifecycle": "active",
-      "logical_id": "mc-315521cbea3d61b699c57c01",
+      "logical_id": "mc-7d9fbc470e32cec616d8aa9d",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "lesson-05-study-log"
       ],
@@ -229,8 +256,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "8c8d0316fb62ee1950fb3521a6e611059ac906ea107385532e7096d98bb70de6",
-      "content_summary": "在锁地址与梯度 buffer 分离的情景下，解释 relaxed 原子竞争与 release/acquire 数据交接的区别。",
+      "content_sha256": "bca94162d7df351465669a555fa17f04ff08950159078df3a3bf91e02c089548",
+      "content_summary": "在显式 relaxed 的锁交接中区分锁槽原子性与 release/acquire 数据交接，并说明 Triton 3.7.1 省略 sem 时默认 acq_rel/gpu。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -258,7 +285,34 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "80e130243dafaccd29a91fa248f3973453afbd5fe1ef290b428edf71c726f659",
+      "content_sha256": "1629338a77c6ef8cec1dd09631b6daece339d061f5588f7664ffdacd81555c23",
+      "content_summary": "纠正把跨 program 读到旧值归因于 load/store 异步：数据依赖不保证新版本，交接要靠同步或 kernel 边界。",
+      "dependency_content_sha256": {},
+      "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "discrimination",
+        "domain": "triton-memory-ordering",
+        "fact_scope": {
+          "kind": "evergreen"
+        },
+        "recall_target": "纠正把跨 program 读到旧值归因于普通 load/store 是异步操作"
+      },
+      "layer": "atomic",
+      "lifecycle": "active",
+      "logical_id": "mc-6c3ee89dd146de499b4da75c",
+      "misconception_of": null,
+      "priority": 4,
+      "quality": "B",
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "successor_to": null,
+      "template_id": "correction",
+      "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "bdd1d2c64d6e75f291e470f1b06d5238d37797e9c7f4d5fbd7c0bfd0421be53b",
       "content_summary": "用已知 T0 解锁、T1 尚未完成的情景，纠正把 barrier 需求归因于解锁线程身份未知。",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -287,15 +341,13 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "fcffcb90d572b7cf562c5903f83b473a478b513ca66c09ddcf266096701b6dc0",
-      "content_summary": "围绕多个 program 更新同一梯度向量，串联锁所有权、块内协作完成与跨 program 数据可见性。",
+      "content_sha256": "e9ff9e379aa411d80c5107b6eb7c15b988256864f5c8a925de88190b5965bc71",
+      "content_summary": "围绕多个 program 更新同一梯度向量，串联 CAS 返回旧值决定的所有权、块内汇合与跨 program 交接。",
       "dependency_content_sha256": {
-        "mc-315521cbea3d61b699c57c01": "b86496d88c1f1f7bfa90fffd4a1836d1a6a6906cf0b7392a75de5b99ce8e043b",
-        "mc-879fac50921ad524b439c624": "8c8d0316fb62ee1950fb3521a6e611059ac906ea107385532e7096d98bb70de6",
-        "mc-946dfd030cd2cebb7efcb48a": "80e130243dafaccd29a91fa248f3973453afbd5fe1ef290b428edf71c726f659"
+        "mc-879fac50921ad524b439c624": "bca94162d7df351465669a555fa17f04ff08950159078df3a3bf91e02c089548",
+        "mc-946dfd030cd2cebb7efcb48a": "bdd1d2c64d6e75f291e470f1b06d5238d37797e9c7f4d5fbd7c0bfd0421be53b"
       },
       "depends_on": [
-        "mc-315521cbea3d61b699c57c01",
         "mc-879fac50921ad524b439c624",
         "mc-946dfd030cd2cebb7efcb48a"
       ],
@@ -317,7 +369,7 @@
       "priority": 5,
       "quality": "A",
       "review_resolution": {
-        "summary": "已重新对照本课 card-08, card-09, card-10 的增强题答复核本卡：场景与符号定义一致，机制关系和适用边界仍成立，参考回答及评分锚点由这些子卡支持；本轮只增强表达，没有扩大原知识目标。"
+        "summary": "已对照修订后的 card-09（显式 relaxed 前提，以及 Triton 3.7.1 默认 acq_rel/gpu 的边界）和 card-10（T0 解锁情景）复核本卡：并入了原 card-08 的 CAS 返回旧值与拆分 load/store 竞争，删去与 card-09 同义的边界；三项职责与锚点仍由子卡支持，回忆目标没有变。"
       },
       "source_ids": [
         "lesson-05-study-log"
@@ -327,7 +379,7 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "272f4e2609be405b7909c120ef2256bcb268719568b2e4c8738c995805a2c3c0",
+      "content_sha256": "1438dd5e36dcd6e28696e2e48bbfb16ecc0043d7be9100dc1235d219ae341626",
       "content_summary": "用 wrapper 的 BLOCK_SIZE_N≥N 前提解释官方反向无列循环仍正确，以及绕过前提的后果。",
       "dependency_content_sha256": {},
       "depends_on": [],
@@ -346,8 +398,8 @@
       "lifecycle": "active",
       "logical_id": "mc-f1be8807a2aa399b0bd38aab",
       "misconception_of": null,
-      "priority": 5,
-      "quality": "A",
+      "priority": 4,
+      "quality": "B",
       "source_ids": [
         "lesson-05-study-log"
       ],
@@ -383,8 +435,8 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "158d01b08f7bffd0a03f72df732f4f77817474bb38c5639d42a1852d0c2efbe6",
-      "content_summary": "限定 div_rn 只改善当前除法，并在明确 dy=1 的常量行场景下追踪均值偏差、实际 rstd 与 dw 贡献。",
+      "content_sha256": "45ea410f7b46b43ffa5b734abe5ac6c9108f2feb6811fdc139c998178bd8e190",
+      "content_summary": "说明普通 / 在本课 NVIDIA 编译产物中是 div.full.f32 近似除法，tl.div_rn 只修这一步舍入，修不了先前的求和误差。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -412,8 +464,35 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "9a9aa2f0cec3689ddc82a071a9912d51fe84bafb2713986a04ceb5d2e7336480",
-      "content_summary": "区分两次 kernel 启动、dx/dw/db 的任务划分与参数梯度是否经过全局部分和两阶段归约。",
+      "content_sha256": "10165644a0ce508795e759d83dfe2b98e14d32b0b573d8336f4176b5312ce759",
+      "content_summary": "追踪常量行均值误差 eta：方差 eta²、r≈1/√ε 把 x_hat 放大为 −eta×r，同号贡献跨行累加使 dw 超差。",
+      "dependency_content_sha256": {},
+      "depends_on": [],
+      "fact_status": "verified",
+      "identity": {
+        "assessment": "mechanism",
+        "domain": "triton-layernorm-numerics",
+        "fact_scope": {
+          "kind": "evergreen"
+        },
+        "recall_target": "解释近常量行的微小均值误差为何经 rstd 放大并在 dw 中跨行累积"
+      },
+      "layer": "mechanism",
+      "lifecycle": "active",
+      "logical_id": "mc-9e7f35fa3a0e76f647df5bff",
+      "misconception_of": null,
+      "priority": 5,
+      "quality": "A",
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "successor_to": null,
+      "template_id": "technical-qa",
+      "template_version": "1.1.0"
+    },
+    {
+      "content_sha256": "ee54dd75fdcc1ba69020e52b35112caa3e96d539a2eb52ca83fcab9c230b5544",
+      "content_summary": "用数据流而非 kernel 数判断 LayerNorm 反向的 dw/db 是否经过全局部分和两阶段归约。",
       "dependency_content_sha256": {},
       "depends_on": [],
       "fact_status": "verified",
@@ -441,14 +520,14 @@
       "template_version": "1.1.0"
     },
     {
-      "content_sha256": "418e19dfa6a31d7a5116bae0bd0e08965e0776b6fa7c93273a8d8ec9cbf81fe2",
-      "content_summary": "围绕 [M,N] 输入与带锁 [G,N] 参数梯度槽，串联前向保存、行内 dx、跨行 dw/db 和同步协议。",
+      "content_sha256": "80e1f49d6fc0672e080f2cc2ff44dcccbee4829db65f41dbb42855d3d96bb22d",
+      "content_summary": "向面试官在 90 秒内串联前向统计量与 padding、行内 dx、分组槽的 dw/db 归约和锁同步。",
       "dependency_content_sha256": {
-        "mc-4b8c4c94f5dcc855d503cf1b": "4b68468be5abdb1f5f4ba99ae81a17bdfba4e7f1b414472bba16caf4335f684a",
-        "mc-61f0c63697e23c4bb8877e7e": "9e82f5d3244f736dd2552319aa06fcf8a5ed64a761981ddafa5446f15204f02c",
-        "mc-b381f39d42523624ddc91eb1": "dd709354d4b285c987c277eef5a41f24d2729f3252e6fd415e79a6f097b7d3df",
-        "mc-beed8ffc12a497ed91a95d0a": "fcffcb90d572b7cf562c5903f83b473a478b513ca66c09ddcf266096701b6dc0",
-        "mc-cbc73c4ece568a8e2a6048f3": "c3d05d87cd4242148b44ef4c0e4c765097dcee76d714433a87f8fcd50d9aa9c4"
+        "mc-4b8c4c94f5dcc855d503cf1b": "0a685e9a817aa883e5649e9dc84fc63864876edf47f4bdb0a14c8581f994539e",
+        "mc-61f0c63697e23c4bb8877e7e": "a6e921e01fadf56361f636adf44f1fd94d0b5effa25c9825036eb68aad8fc582",
+        "mc-b381f39d42523624ddc91eb1": "39d4dc0289312c73af4602c7b3001728ceb36c25f1f413c6ed4afa43dcf005c5",
+        "mc-beed8ffc12a497ed91a95d0a": "e9ff9e379aa411d80c5107b6eb7c15b988256864f5c8a925de88190b5965bc71",
+        "mc-cbc73c4ece568a8e2a6048f3": "80018b6375cd0f8eca2b4f0077526abbdc9ae8e23d02afdaa11cb3ac13453903"
       },
       "depends_on": [
         "mc-4b8c4c94f5dcc855d503cf1b",
@@ -475,7 +554,7 @@
       "priority": 5,
       "quality": "A",
       "review_resolution": {
-        "summary": "已重新对照本课 card-03, card-06, card-05, card-11, card-04 的增强题答复核本卡：场景与符号定义一致，机制关系和适用边界仍成立，参考回答及评分锚点由这些子卡支持；本轮只增强表达，没有扩大原知识目标。"
+        "summary": "已对照修订后的 card-03、04、05、06、11 复核本卡：参考回答压到约 400 字，4 个评分锚点各有子卡支撑；删去子卡未覆盖的‘保存统计量’和 FP16 padding 边界；题面写明面试官与 60–90 秒；回忆目标没有变。"
       },
       "source_ids": [
         "lesson-05-study-log"
@@ -485,12 +564,12 @@
       "template_version": "1.1.0"
     }
   ],
-  "managed_body_sha256": "1c271528cf93acc7b6c6c4257421b2b0fa9ee7dede07e371c6cca7413189227a",
-  "manifest_payload_sha256": "9753cab9d77596f10140e4d569829133ec7acba079aa3934bc6d6af7202447a5",
+  "managed_body_sha256": "4af0bed79b8c48bcf4fb5a1471806a62743d9667e610cba038f8544ff7b82fe5",
+  "manifest_payload_sha256": "aeb9ae11645bd362b329ec1bb28a451b7c18416da1b0c2ca40795f6345b36f99",
   "schema": "memo-cards.artifact/v2",
   "sidecars": [
     {
-      "byte_size": 5748,
+      "byte_size": 7756,
       "columns": [
         "意图",
         "场景",
@@ -500,27 +579,32 @@
       ],
       "kind": "markji-import-xlsx",
       "path": "docs/triton-learning/cards/triton-lesson-05-layer-norm-correction.xlsx",
-      "row_count": 2,
+      "row_count": 3,
       "rows": [
         {
-          "content_sha256": "3bd8730560f0030097c2eebbc333b5e63f8d4414ebf1c98737c3da01c0a1cfff",
+          "content_sha256": "57cd31e33f0e64caa020873c2cfcd520c455dc9cbe27ac5b0cf6f05e2ca7662c",
           "logical_id": "mc-3f189dd018e0a515751339fa",
-          "row_sha256": "6ca30031086406f180e78ae5d1992c07f71574ca53eff1a4f665bbc79a0cf7a7"
+          "row_sha256": "14ceafd317392fa142774932a1853073b3ee919bf0872623e255290b352d7b32"
         },
         {
-          "content_sha256": "80e130243dafaccd29a91fa248f3973453afbd5fe1ef290b428edf71c726f659",
+          "content_sha256": "1629338a77c6ef8cec1dd09631b6daece339d061f5588f7664ffdacd81555c23",
+          "logical_id": "mc-6c3ee89dd146de499b4da75c",
+          "row_sha256": "71ac6f24f59852c9c8fde1f1c4c08f71c51e42a5db594a6e0a19f6b896787531"
+        },
+        {
+          "content_sha256": "bdd1d2c64d6e75f291e470f1b06d5238d37797e9c7f4d5fbd7c0bfd0421be53b",
           "logical_id": "mc-946dfd030cd2cebb7efcb48a",
-          "row_sha256": "4c49493575fbbe8f46a41d3d51cac6b1e62b8e5f4a5ef47156ebff347cf68fa8"
+          "row_sha256": "43b994665a96fc9b9310ea517540ad2fd18589b5b5dfb473bb4d99ebbb17728a"
         }
       ],
-      "sha256": "9cc0e630a61a4faccf2b01b70cc0db53d7c1f66773b92b66b10ff029c52df730",
+      "sha256": "46727b4fefdc0f26abd9f7eab0749c7cadfb9f53dc0c29e9cd47d0ef0ede1d90",
       "sheet_name": "cards",
-      "table_sha256": "617c31c190c28eefc9354ce301bb7057f1e897dea87ace6145286ea09d8d799d",
+      "table_sha256": "878149e58c13f16f6990524e0ebb116320a6b3dfb14773d599ca1c1d1ad0341f",
       "template_id": "correction",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 22413,
+      "byte_size": 25781,
       "columns": [
         "问题",
         "答案",
@@ -529,57 +613,62 @@
       ],
       "kind": "markji-import-xlsx",
       "path": "docs/triton-learning/cards/triton-lesson-05-layer-norm-technical-qa.xlsx",
-      "row_count": 13,
+      "row_count": 15,
       "rows": [
         {
-          "content_sha256": "8fbb0d060514e572c004778b47b9f702a8174c600be62315e7d489ac5f654857",
+          "content_sha256": "44a9b783a67cb763e303a51e9dc45b411aa22079eae1f2de474d5574a60d56e3",
           "logical_id": "mc-f3e47cb52cfcc440d822f058",
-          "row_sha256": "01c0f4995d2e09d5a4e54c79ec582732596cab9988154eff69d387c392d5b57c"
+          "row_sha256": "8eb9b68eec30faf8b55d7e9c396dbfb3e3100a2d25715bead97a35966f2621b7"
         },
         {
-          "content_sha256": "4b68468be5abdb1f5f4ba99ae81a17bdfba4e7f1b414472bba16caf4335f684a",
+          "content_sha256": "0a685e9a817aa883e5649e9dc84fc63864876edf47f4bdb0a14c8581f994539e",
           "logical_id": "mc-4b8c4c94f5dcc855d503cf1b",
-          "row_sha256": "9bab325aa1c86ce1823c5ebed11298c7edbc63a3e0b10e50200e0489fdbaed0f"
+          "row_sha256": "e9e03231aae57b9296bdcc45e149b1719950f9799e4744ff00674614850c08c5"
         },
         {
-          "content_sha256": "c3d05d87cd4242148b44ef4c0e4c765097dcee76d714433a87f8fcd50d9aa9c4",
+          "content_sha256": "86b732f5d6e2d721dd62249b88bba6da72bb38a366329b63cb2f90dc2fb7932a",
+          "logical_id": "mc-1663633d4f15f51222c1f5dc",
+          "row_sha256": "d651da8e1320de9c6c7d14d055073754e02e0e35d280f03ce6a2b951d9d53230"
+        },
+        {
+          "content_sha256": "80018b6375cd0f8eca2b4f0077526abbdc9ae8e23d02afdaa11cb3ac13453903",
           "logical_id": "mc-cbc73c4ece568a8e2a6048f3",
-          "row_sha256": "9e9a659503f854312b878e397df9d7c9f5535cc4e3d1a41a2eb60bdef4897be5"
+          "row_sha256": "d257007e1c46939f4d07c81c9325aa601346df5a3a8322fad65811a787a50537"
         },
         {
-          "content_sha256": "dd709354d4b285c987c277eef5a41f24d2729f3252e6fd415e79a6f097b7d3df",
+          "content_sha256": "39d4dc0289312c73af4602c7b3001728ceb36c25f1f413c6ed4afa43dcf005c5",
           "logical_id": "mc-b381f39d42523624ddc91eb1",
-          "row_sha256": "cb1da3726a42b322b9414346cec4db36039ac3b0ff08f5589805178ceadbf823"
+          "row_sha256": "61af7a33c5e0a98ed1f625f572c153f14ddbfcfa68c90bac8b3f5470ae3f33a6"
         },
         {
-          "content_sha256": "9e82f5d3244f736dd2552319aa06fcf8a5ed64a761981ddafa5446f15204f02c",
+          "content_sha256": "56d71351759c5ed6829d5f98417a92c64d5edfc3c516ba6e3a74999467b33b7f",
+          "logical_id": "mc-d50b788a4b300286fae0649c",
+          "row_sha256": "a6802f08f9fa9ecacbd44f6a7d374acebb87203ea9c445170407f3547973f243"
+        },
+        {
+          "content_sha256": "a6e921e01fadf56361f636adf44f1fd94d0b5effa25c9825036eb68aad8fc582",
           "logical_id": "mc-61f0c63697e23c4bb8877e7e",
-          "row_sha256": "393e55c7dc577a888f55a1ef934abdc59b296236366e013f81f06acc02c6274c"
+          "row_sha256": "c28751cd9c40a7ed07fe9579951e55fd229b0aaed4255df8d1ad0fd2e8a54538"
         },
         {
-          "content_sha256": "d1e6aeb361474e94543202d60685a93b25fe54d6ef725ecf20bfe55ef8f5a9a0",
-          "logical_id": "mc-f6dfb343d6a843799454c598",
-          "row_sha256": "a5588f16c91106e6e5f8d5499b61ce2722d28ac07175c45551136f19e1a1f828"
+          "content_sha256": "1841483bd9dab7978ef4853b475fdb0a8d4fed800a7bc21332d72412b8f79a11",
+          "logical_id": "mc-7d9fbc470e32cec616d8aa9d",
+          "row_sha256": "0d7c143f40108b302011a6b2bd2b0bd8d2b7d1837e6ecfdbe18a4a001ebae56d"
         },
         {
-          "content_sha256": "b86496d88c1f1f7bfa90fffd4a1836d1a6a6906cf0b7392a75de5b99ce8e043b",
-          "logical_id": "mc-315521cbea3d61b699c57c01",
-          "row_sha256": "b788a203c8da784db9f630cb79ee598f74cbac239f6d86d33fd09799b2148ece"
-        },
-        {
-          "content_sha256": "8c8d0316fb62ee1950fb3521a6e611059ac906ea107385532e7096d98bb70de6",
+          "content_sha256": "bca94162d7df351465669a555fa17f04ff08950159078df3a3bf91e02c089548",
           "logical_id": "mc-879fac50921ad524b439c624",
-          "row_sha256": "3108e4c959b07dade8c7eaa184221573006a8af6c8465e2db8d373724936c472"
+          "row_sha256": "f19998af688845e7bc8516ed343f5556df8d7333bd2a9e65d47b0fe07bc89283"
         },
         {
-          "content_sha256": "fcffcb90d572b7cf562c5903f83b473a478b513ca66c09ddcf266096701b6dc0",
+          "content_sha256": "e9ff9e379aa411d80c5107b6eb7c15b988256864f5c8a925de88190b5965bc71",
           "logical_id": "mc-beed8ffc12a497ed91a95d0a",
-          "row_sha256": "5bca76d5ef41c05ec49514c4cb5a8d9425b50df608778de7e89ad2624bc389e8"
+          "row_sha256": "1f187d3784deca21c030c62007f5c98446e719f140afcabb879c7fbfced8d44a"
         },
         {
-          "content_sha256": "272f4e2609be405b7909c120ef2256bcb268719568b2e4c8738c995805a2c3c0",
+          "content_sha256": "1438dd5e36dcd6e28696e2e48bbfb16ecc0043d7be9100dc1235d219ae341626",
           "logical_id": "mc-f1be8807a2aa399b0bd38aab",
-          "row_sha256": "3be06fc7d7efb50e8b49d1d622e564806a2782bd550a642cc817360e40c6f4f7"
+          "row_sha256": "36df6a79cbcd81c14a8ccd6edaf85d3465117ba2fdb8da51f1400fa2b9010773"
         },
         {
           "content_sha256": "9defab3791b7c828576041bb4609b0d490f160af327ea9cc92e09d74b603a88c",
@@ -587,24 +676,29 @@
           "row_sha256": "80c40455f305b8ea8c2bd9da5c5f25b3d3287210a80a8624986fa37a665efb51"
         },
         {
-          "content_sha256": "158d01b08f7bffd0a03f72df732f4f77817474bb38c5639d42a1852d0c2efbe6",
+          "content_sha256": "45ea410f7b46b43ffa5b734abe5ac6c9108f2feb6811fdc139c998178bd8e190",
           "logical_id": "mc-01c401f0b87f8a8a6bc0026b",
-          "row_sha256": "9eb4380dbd5990ae3b6cdaf749b628a818bc869e188cda385af57d6722011ef9"
+          "row_sha256": "21127d38c1247c417c3a41ec877ef52a9fd98d1b0d96a09edb6f6072bc2e6ee4"
         },
         {
-          "content_sha256": "9a9aa2f0cec3689ddc82a071a9912d51fe84bafb2713986a04ceb5d2e7336480",
+          "content_sha256": "10165644a0ce508795e759d83dfe2b98e14d32b0b573d8336f4176b5312ce759",
+          "logical_id": "mc-9e7f35fa3a0e76f647df5bff",
+          "row_sha256": "372a90b85290e168ba794a94e36893bccbb3e677a4541883b46f3187917929ac"
+        },
+        {
+          "content_sha256": "ee54dd75fdcc1ba69020e52b35112caa3e96d539a2eb52ca83fcab9c230b5544",
           "logical_id": "mc-63ec0c40480143b82350e469",
-          "row_sha256": "4376df869ff817a1e2062cc2d64c21458744faf4c74acabe3c267a6edd0bf412"
+          "row_sha256": "8b2b325d6b3089d3b2286a8ef15207d2f7adef3f825f6e5f8a8baed831ffec8d"
         }
       ],
-      "sha256": "1cc3dd828b60be8ce8d033a9b812cb3bc7a5f293c7dc4ab4562332f67df1e86d",
+      "sha256": "35e7e6949e178568377414b6ccd18e76255c6311746081568a92c78eafdca576",
       "sheet_name": "cards",
-      "table_sha256": "ceeebc570cbcbac7c05d05af43635df24b932abe4df6d1963f5b239a4d9ac5af",
+      "table_sha256": "c17b51334880801f07fb4274be89138de676435c450112c9c70accf23fb61676",
       "template_id": "technical-qa",
       "template_version": "1.1.0"
     },
     {
-      "byte_size": 4725,
+      "byte_size": 4250,
       "columns": [
         "问题",
         "参考回答",
@@ -616,25 +710,25 @@
       "row_count": 1,
       "rows": [
         {
-          "content_sha256": "418e19dfa6a31d7a5116bae0bd0e08965e0776b6fa7c93273a8d8ec9cbf81fe2",
+          "content_sha256": "80e1f49d6fc0672e080f2cc2ff44dcccbee4829db65f41dbb42855d3d96bb22d",
           "logical_id": "mc-3d7b7882d5fe98bf89ce8f11",
-          "row_sha256": "93f792586b1c7ed10b8fe8722dffd8f93652e68254e2a719728f810491985689"
+          "row_sha256": "f7f234f52e1d5c7b713936c5714f5a16609563d278a3c33ed8fd7f20a01d4fb0"
         }
       ],
-      "sha256": "553129a64636e423e465e8a6ff7b536278b6e77f90f566e9a5c6c0474a5318cb",
+      "sha256": "78030ff0e60477e696ce55a7a2c729da09f013d0a352f5064eed76599085385a",
       "sheet_name": "cards",
-      "table_sha256": "316e72f86c36a1b6e801a2c13395aeae959e64e9416566805900d21e5bbd4a7e",
+      "table_sha256": "2290dbc2430277dbf3b9fbf45b43e0fa200c7ccbc6ae28d19838ceefdd65105c",
       "template_id": "oral",
       "template_version": "1.1.0"
     }
   ],
-  "source_fingerprint": "f1cb3760e74f3eee76b57277574861919de99b20b9b15b5f457468f3b2c8cd0c",
+  "source_fingerprint": "7d5741315801427cf1c5bc59e6c4b1566a201a1c9600ab7cf99461c7e0a22978",
   "sources": [
     {
       "collection": "triton-study-logs",
       "id": "lesson-05-study-log",
       "path": "docs/triton-learning/logs/2026-09-14-layer-norm.md",
-      "sha256": "8ecd1459eaebca14b401f670f54da83d1693a8fe150a4e25492d29830ca4f828",
+      "sha256": "3dbda96ab8eae4588e1279f26b31a1a5819b7ae64eb169e1448ace1a7fd75e0f",
       "summary": "Lesson 05 经核验的 LayerNorm 结构化学习过程记录"
     }
   ],
@@ -660,7 +754,7 @@
 {{说明}}
 ```
 
-导入文件：[triton-lesson-05-layer-norm-correction.xlsx](triton-lesson-05-layer-norm-correction.xlsx)（2 张卡）
+导入文件：[triton-lesson-05-layer-norm-correction.xlsx](triton-lesson-05-layer-norm-correction.xlsx)（3 张卡）
 
 ## 技术问答卡
 
@@ -674,7 +768,7 @@
 📍 [T#!939393#{{来源}}]
 ```
 
-导入文件：[triton-lesson-05-layer-norm-technical-qa.xlsx](triton-lesson-05-layer-norm-technical-qa.xlsx)（13 张卡）
+导入文件：[triton-lesson-05-layer-norm-technical-qa.xlsx](triton-lesson-05-layer-norm-technical-qa.xlsx)（15 张卡）
 
 ## 综合口述卡
 

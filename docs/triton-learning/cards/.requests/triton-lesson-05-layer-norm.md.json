@@ -1,0 +1,1459 @@
+{
+  "schema": "memo-cards.request/v1",
+  "output_collection": "triton-cards",
+  "target": "docs/triton-learning/cards/triton-lesson-05-layer-norm.md",
+  "selection": "complete",
+  "sources": [
+    {
+      "collection": "triton-study-logs",
+      "id": "lesson-05-study-log",
+      "path": "docs/triton-learning/logs/2026-09-14-layer-norm.md",
+      "sha256": "3dbda96ab8eae4588e1279f26b31a1a5819b7ae64eb169e1448ace1a7fd75e0f",
+      "summary": "Lesson 05 经核验的 LayerNorm 结构化学习过程记录"
+    }
+  ],
+  "cards": [
+    {
+      "key": "card-01",
+      "rank": 1,
+      "assessment": "mechanism",
+      "domain": "layernorm-math",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "把沿最后一维的 layernorm 映射为 m 行 n 列并区分统计量与仿射参数形状",
+      "layer": "mechanism",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 4,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "对形状为 [d₀,…,dₖ,N] 的 tensor 只沿最后一维做 LayerNorm 时，怎样把计算看成 [M,N]，并确定行统计量与仿射参数 w、b 的形状？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "把所有前导维的组合视为 M 行，每行有 N 个待共同归一化的特征；统计量按行独立保存，仿射参数按特征列在所有行之间共享。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "M=d₀×…×dₖ，N 是最后一维长度。例如输入 [B,T,N] 可看成 [B×T,N]：每个 batch/token 对应一行。"
+                }
+              ],
+              "label": "行列映射"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "每行计算一个均值 mean 和一个标准差倒数 rstd=1/sqrt(variance+epsilon)，其中 epsilon 是稳定分母的正数。紧凑保存时二者各为 [M]；参与逐元素计算时，可按 [M,1] 沿列广播。"
+                }
+              ],
+              "label": "行统计量"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "归一化后执行 y=x_hat×w+b。w 是缩放参数、b 是偏置参数，各为 [N]；它们可按 [1,N] 沿行广播，所有行使用同一列对应的参数。"
+                }
+              ],
+              "label": "仿射参数"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "参数跨行共享，不意味着前向统计量跨行计算。保持 w、b 不变时，修改一行输入不会改变其他行的均值、方差或前向输出。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "前导维→M，归一化维→N；统计量 [M]，w/b [N] 跨行共享",
+        "来源": "Lesson 05 · 9/14 学习记录 · 形状映射"
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "为末维 LayerNorm 定义 M/N 展平映射、按行 mean/rstd 与跨行共享 w/b 的存储和广播形状。",
+      "depends_on": []
+    },
+    {
+      "key": "card-02",
+      "rank": 2,
+      "assessment": "discrimination",
+      "domain": "triton-layernorm-indexing",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "纠正逐行 layernorm 用行数或总元素数判断行内有效列的错误",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "correction",
+      "fields": {
+        "意图": "为逐行 LayerNorm 的 load/store 写出只覆盖当前行有效元素的 mask。",
+        "场景": "输入按行优先布局看成 [M,N]（M 行，每行 N 列）。一个 program 处理第 row 行：cols=tl.arange(0,BLOCK)，读写地址 offsets=row×N+cols，且 BLOCK≥N。原代码用 offsets<M×N 作 mask。",
+        "正确": "mask=cols<N：拿本行列号 cols 与每行列数 N 比较；读写地址仍是 row×N+cols。",
+        "错误": "应改成mask = offsets < M",
+        "说明": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "原答已正确发现 offsets<M×N 只挡住整个 tensor 的末尾、会混入下一行；错在改法：M 是行数，offsets 是整个 tensor 的线性偏移，两者不能比较。归一化域是当前行的 N 列，所以要拿列号 cols 与 N 比较。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "例如 M=5、N=3、BLOCK=4，第 row=2 行的 offsets=[6,7,8,9]。地址 9 小于 M×N=15，仍在 tensor 内，却属于下一行，会混入当前行的统计量。"
+                }
+              ],
+              "label": "为何总边界不够"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "cols<N 得到 [真,真,真,假]，只读写地址 [6,7,8]。"
+                }
+              ],
+              "label": "正确结果"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "地址在 tensor 内合法，与地址属于当前 program 的归一化行，是两个不同条件；mask 必须同时保护内存安全和归约域正确性。"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "以逐行 LayerNorm 的归约域纠正 offsets<M 的改法，区分列号与 N、线性偏移与总元素数、行数。",
+      "depends_on": []
+    },
+    {
+      "key": "card-03",
+      "rank": 3,
+      "assessment": "mechanism",
+      "domain": "triton-layernorm-numerics",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "解释 layernorm 方差归约为何必须在中心化后再次将无效 lane 置零",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "逐行 LayerNorm 用一个比行长 N 更大的计算块处理尾部。即使 load 时给无效位置补了 0，为什么计算方差前仍需在减均值后再次把无效位置置零？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "因为填入的 0 在减去行均值后会变成 −mean；若继续平方并求和，无效位置就会额外贡献 mean²，污染本应只包含 N 个有效元素的方差。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "例如 N=5、计算块含 8 个位置、行均值为 2。三个无效位置若都参与平方，会多加 3×(−2)²=12，再除以 N=5，使方差额外增加 2.4；一般地，块长为 B 时多出 (B−N)×mean²/N。"
+                }
+              ],
+              "label": "具体误差"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "先以 FP32 计算有效元素的中心化值 x−mean，再把无效位置明确置为 0，最后平方、求和并除以有效长度 N。关键是不让 padding 对方差分子有任何贡献。"
+                }
+              ],
+              "label": "正确处理"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "load mask 保证地址合法，并不自动保证后续变换的数学中性。方差归约需要的是中心化后的无效贡献严格为零；改填其他值时同样要核对这一点。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "中心化后再 mask 为0",
+        "来源": "Lesson 05 · 9/14 学习记录 · padding 回归"
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "说明零 padding 经中心化后变成 −mean、使方差多出 (B−N)×mean²/N，因此要在 FP32 中心化后把无效位置置零。",
+      "depends_on": []
+    },
+    {
+      "key": "fp16-other-mean-padding",
+      "rank": 4,
+      "assessment": "mechanism",
+      "domain": "triton-layernorm-numerics",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "解释 fp16 masked load 用 other=mean 填 padding 为何仍会污染方差",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "在 Triton 3.7.1 中，逐行 LayerNorm 的输入是 FP16，前向用 tl.load(..., mask=cols<N, other=mean) 给尾部 padding 填入 FP32 的行均值 mean，想让无效位置减均值后恰好为 0。为什么方差仍可能被污染？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "因为 load 结果的类型是指针元素类型 FP16，other 会先被转成 FP16：FP32 的 mean 被舍入成 FP16 值。之后转回 FP32 再减原来的 mean，每个无效位置都留下残差（舍入后的 mean 减原 mean），平方后进入方差。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "残差就是 mean 的 FP16 舍入误差，量级约为 mean 附近相邻 FP16 值的间距，而且每个无效位置都会出现一次。真实方差越小（例如近常量行），这点残差的相对影响越大。"
+                }
+              ],
+              "label": "残差有多大"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "不依赖填充值：在 FP32 中先算中心化值 x−mean，再用 mask 把无效位置的中心化值置为 0，然后平方、求和、除以 N。"
+                }
+              ],
+              "label": "正确做法"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "masked load 的 other 只决定无效位置读出什么值，不保证这个值在后续变换后仍然中性；换 dtype 或换填充值时都要重新核对。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "other 先转成 FP16 → 残差平方进方差",
+        "来源": "Lesson 05 · 9/14 学习记录 · FP16 方差 padding"
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "说明 FP16 load 的 other=mean 会先舍入为 FP16，转回 FP32 后留下残差污染方差，应在 FP32 中心化后置零。",
+      "depends_on": []
+    },
+    {
+      "key": "card-04",
+      "rank": 5,
+      "assessment": "mechanism",
+      "domain": "layernorm-backward",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "写出 layernorm 共享仿射参数 w 和 b 的梯度并说明归约方向",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "输入 X 为 [M,N]、每行独立归一化，前向为 Yᵢⱼ=x_hatᵢⱼ×wⱼ+bⱼ，其中 w、b 在所有行间共享。已知上游梯度 dY，参数梯度 dw、db 应如何计算、沿哪个轴归约？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "对每个特征列 j，把所有 M 行对同一个共享参数的梯度贡献相加；最终 dw、db 的形状都为 [N]。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "dYᵢⱼ 是损失对输出 Yᵢⱼ 的梯度；x_hatᵢⱼ 是该行经过减均值、乘 rstd 后的归一化输入。i 遍历行，j 遍历特征列。"
+                }
+              ],
+              "label": "符号定义"
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "dw_j=\\sum_{i=0}^{M-1}dY_{ij}\\hat{x}_{ij},\\qquad db_j=\\sum_{i=0}^{M-1}dY_{ij}"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "一个逐行 program 只能产生该行的长度 N 贡献向量；它不是最终参数梯度。需要继续沿行维求和，才能把所有使用同一 wⱼ、bⱼ 的贡献合并。"
+                }
+              ],
+              "label": "局部与全局"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "dw 乘的是归一化输入 x_hat，而不是原始 X；各行贡献带符号相加，可以互相抵消。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "dw 用 x_hat，db 用1，二者跨行求和",
+        "来源": "Lesson 05 · 9/14 学习记录 · 参数梯度"
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "从共享仿射参数的前向式定义 dY/x_hat，推导 dw/db 的逐行贡献与跨行归约。",
+      "depends_on": []
+    },
+    {
+      "key": "card-05",
+      "rank": 6,
+      "assessment": "mechanism",
+      "domain": "triton-layernorm-reduction",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "programming-lab triton lesson 05",
+        "version": "practice revision 2"
+      },
+      "recall_target": "解释共享 g 组参数梯度槽的映射、互斥更新和最终归约",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "LayerNorm 反向中，M 个逐行 program 要合并共享参数 w、b 的梯度，但 dw、db 各只分配一份 FP32 的 [G,N] 临时槽（G<M，多行共用一个槽）。第 pid 行的贡献写进哪个槽、同槽的多个 program 怎样避免互相覆盖、最后怎样得到 [N] 梯度？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "第 pid 行加到第 pid%G 组的槽：同组 program 先拿到该组的锁，再读旧部分和、加上本行贡献、写回；全部行累加完后，第二个 kernel 沿 G 维把各组部分和相加，得到最终 dw、db（各 [N]）。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "每个槽是一条长度 N 的向量，保存分到该组的若干行贡献之和。例如 M=5、G=2 时，组 0 汇总 pid 0、2、4 的贡献，组 1 汇总 pid 1、3。"
+                }
+              ],
+              "label": "槽的含义"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "累加是“读旧值→相加→写回”三步。两个同组 program 若同时读到旧值，各自写回后只会留下其中一个贡献，所以同组必须互斥地完成整段累加。"
+                }
+              ],
+              "label": "为什么要锁"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "第一阶段结束后，对每列 j 把组 0 到 G−1 的部分和相加。槽初始化、组映射和归约范围要保证每行贡献恰好计入一次。"
+                }
+              ],
+              "label": "第二阶段"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "即使令 G=M、每行独占一个槽，得到的仍是 [M,N] 行贡献，仍需沿行（组）维归约；这里描述的是本课练习（practice revision 2）的共享分组实现。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "pid%G → 加锁累加 → 沿G归约",
+        "来源": "Lesson 05 · 9/14 学习记录 · 分组归约"
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "在 G<M 的共享 FP32 [G,N] 槽下，串联 pid%G 映射、加锁读改写与第二个 kernel 沿 G 的归约。",
+      "depends_on": []
+    },
+    {
+      "key": "group-count-tradeoff",
+      "rank": 7,
+      "assessment": "discrimination",
+      "domain": "triton-layernorm-reduction",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "比较参数梯度部分和每行独占槽与共享 g 组槽在临时空间和锁竞争上的取舍",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "LayerNorm 反向要先暂存每行对 dw、db 的贡献，再归约成 [N]。比较两种暂存方案：每行独占一个槽（G=M，dw、db 各一份 FP32 [M,N]），与 G 组共享槽（各一份 [G,N]，G<M）。两者各付出什么代价？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "每行独占槽：各行写不同位置，没有读改写竞争、不需要锁，但两份 FP32 [M,N] 共占 8×M×N 字节；共享 G 组：空间降到两份 [G,N]，代价是同组 program 要争同一把锁、串行完成累加。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "例如 M=8192、N=4096 时，两份 FP32 [M,N] 部分和占 256 MiB；若只保存 128 行部分和，则为 4 MiB。"
+                }
+              ],
+              "label": "空间"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "共享槽的累加是“读旧值→相加→写回”，必须在组锁保护下进行。每组分到约 M/G 行，G 越小，同一把锁上排队的 program 越多。"
+                }
+              ],
+              "label": "竞争"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "两种方案都还要第二阶段归约，G 只决定暂存粒度；8×M×N 只算参数梯度部分和，不是总 workspace。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "独占：无锁但 8MN 字节；共享 G：省空间但争锁",
+        "来源": "Lesson 05 · 9/14 学习记录 · 分组取舍"
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "比较 G=M 独占槽（无锁、8MN 字节）与共享 [G,N] 槽（省空间、同组争锁）的取舍，两者都需第二阶段归约。",
+      "depends_on": []
+    },
+    {
+      "key": "card-06",
+      "rank": 8,
+      "assessment": "mechanism",
+      "domain": "layernorm-backward",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "解释 layernorm 输入梯度中的两项行均值修正及分量耦合",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "LayerNorm 反向中，一行的上游梯度为 dy、缩放参数为 w；令 g=dy×w，r 为该行的 rstd，x_hat=(x−mean)×r，mean(·) 表示沿本行 N 列求平均。dxⱼ 除了直接项 r×gⱼ，还有哪两项修正，各自来自哪个共享统计量？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "两项修正是 −r×mean(g) 和 −r×x_hatⱼ×mean(g×x_hat)：前者来自整行共享的均值，后者来自整行共享的方差（经 rstd 传回）。合起来就是下式。"
+                }
+              ]
+            },
+            {
+              "type": "display",
+              "parts": [
+                {
+                  "type": "formula",
+                  "katex": "dx_j=r\\left(g_j-\\operatorname{mean}(g)-\\hat{x}_j\\operatorname{mean}(g\\hat{x})\\right)"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "两个 mean 都汇总整行：改变任一输入都会改变本行的均值和方差，进而影响整行输出，所以 dxⱼ 也会收到同一行其他列 dy 的贡献。"
+                }
+              ],
+              "label": "为何耦合"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "即使某个 dyⱼ=0，对应 dxⱼ 仍可能非零；这种耦合只限同一归一化行，其他行不参与本行 dx 的计算。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "r×g − r×mean(g)（均值）− r×x_hat×mean(g×x_hat)（方差）",
+        "来源": "Lesson 05 · 9/14 学习记录 · 输入梯度"
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "定义 g、r、x_hat，写出 dx 在直接项之外的均值与方差两项修正，并解释行内耦合。",
+      "depends_on": []
+    },
+    {
+      "key": "row-dx-sum-zero",
+      "rank": 9,
+      "assessment": "mechanism",
+      "domain": "layernorm-backward",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "解释 layernorm 一行输入梯度分量之和恒为零的原因",
+      "layer": "mechanism",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 4,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "LayerNorm 反向中，固定 w、b、epsilon 和上游梯度 dy，并忽略浮点舍入。一行输入梯度的分量之和 Σⱼdxⱼ 等于多少？请从“整行输入都加上同一个常数 c 时输出怎样变化”来解释。",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "Σⱼdxⱼ=0。整行加 c 时均值也加 c，中心化输入、方差、rstd 和 x_hat 都不变，所以输出 y 不变；而 Σⱼdxⱼ 正是损失沿“整行同加一个数”方向的变化率，输出不变，这个变化率就是 0。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "设 g=dy×w。由 dxⱼ=r×(gⱼ−mean(g)−x_hatⱼ×mean(g×x_hat)) 求和，得 r×(Σg−N×mean(g)−mean(g×x_hat)×Σx_hat)。前两项相消，而 Σx_hat=0，所以总和为 0。"
+                }
+              ],
+              "label": "公式核对"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "整行平移后 r 和 x_hat 不变，dy、w 又固定，所以这一行的 dx 本身也不变。"
+                }
+              ],
+              "label": "dx 也不变"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "总和为 0 不表示每个分量为 0：常量行（x_hat=0、r=1/sqrt(epsilon)）的前向输出等于 b，但取 g=[1+delta,1,1] 时 dx=r×[2delta/3,−delta/3,−delta/3]；只有 g 在行内各列相同时 dx 才全为零。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "整行平移不改变 y → Σdx=0（Σx_hat=0）",
+        "来源": "Lesson 05 · 9/14 学习记录 · 平移不变与 Σdx"
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "用整行平移不改变输出解释行内 Σdx=0，并用 dx 公式核对；常量行例子说明总和为零不等于分量为零。",
+      "depends_on": []
+    },
+    {
+      "key": "card-09",
+      "rank": 10,
+      "assessment": "mechanism",
+      "domain": "triton-locks",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton/ptx",
+        "version": "triton 3.7.1 / ptx isa current at 2026-09-11"
+      },
+      "recall_target": "区分 relaxed 锁槽原子性与 release acquire 对受保护数据的交接",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "两个 Triton program 用同一标量锁轮流更新另一个地址上的梯度 buffer，获锁与解锁都显式写成 sem=\"relaxed\"。后一个 program 的 CAS 已成功拿到锁，为什么仍不能保证它读到前一个 program 写完的 buffer？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "因为锁槽和梯度 buffer 是不同的内存位置。relaxed 原子操作只保证锁槽上的竞争不可分割，不为周围的普通 buffer 读写建立所需的数据交接顺序与可见性。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "生产者先完成受保护的 buffer 更新，并让本 program 的协作线程汇合，再用 release 语义释放锁，把释放前的更新纳入交接。"
+                }
+              ],
+              "label": "前一个 program"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "消费者用 acquire 语义成功获取同一把锁，与对应的 release 建立同步后再读 buffer，才能看到前面的受保护更新。acquire 必须与合适范围内的 release 配对，不会单独把所有内存变成“最新”。"
+                }
+              ],
+              "label": "后一个 program"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "CAS 原子性回答“谁拿到锁”；release/acquire 回答“拿到锁后能看到哪些数据”。看见锁可用，不会自动让另一个地址上的数据满足同样的保证。"
+                }
+              ],
+              "label": "两个保证"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "在 Triton 3.7.1 中，tl.atomic_cas 与 tl.atomic_xchg 省略 sem、scope 时默认 acq_rel、gpu，所以教程不写 sem 的锁已经带有获锁 acquire、解锁 release；只有显式改成 relaxed 才会出现本题的问题。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "锁槽原子性 ≠ buffer 可见性",
+        "来源": "Lesson 05 · 9/14 学习记录 · 锁与内存顺序"
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "在显式 relaxed 的锁交接中区分锁槽原子性与 release/acquire 数据交接，并说明 Triton 3.7.1 省略 sem 时默认 acq_rel/gpu。",
+      "depends_on": []
+    },
+    {
+      "key": "load-store-not-async",
+      "rank": 11,
+      "assessment": "discrimination",
+      "domain": "triton-memory-ordering",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "纠正把跨 program 读到旧值归因于普通 load/store 是异步操作",
+      "layer": "atomic",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 4,
+      "template_id": "correction",
+      "fields": {
+        "意图": "解释：A 已执行写 buffer 的 store，B 随后读 buffer，为什么仍可能读到旧值？",
+        "场景": "两个 Triton program 交接 buffer：A 写 buffer=42，再用 relaxed 原子操作解锁；B 的 relaxed CAS 拿到锁后读 buffer，没有其他同步。这里要说明旧值从哪来，而不是锁协议该怎么改。",
+        "正确": "普通 load/store 不是需要专门等待完成的显式异步操作；B 读到旧值，是因为没有同步关系约束它看到哪个版本：访问可能被重排、重叠或命中旧缓存，已经完成的 load 也可能返回旧值。",
+        "错误": "store和load这些操作本质上是异步的，仅发出读取和写入的指令。该条代码执行完成还不能保证读取和写入动作的完成。",
+        "说明": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "原答后半段（跨 program 需要 acquire+release 的同步锁，relaxed 锁无法确保这种同步关系）是对的；错在把读到旧值归因于 load/store “异步、尚未完成”。问题不在读写有没有完成，而在没有同步关系规定 B 能看到哪个版本。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "v=tl.load(ptr)；y=v+1 中，编译器和硬件保证拿到 v 之后才计算 y，但不保证 v 是另一个 program 刚写入的版本。"
+                }
+              ],
+              "label": "数据依赖保证什么"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "跨 program 要建立顺序与可见性：用 release/acquire 的锁交接，或依靠同一 stream 中前后两个 kernel 的执行边界——第二阶段归约 kernel 读部分和不需要锁，靠的就是后者。"
+                }
+              ],
+              "label": "怎样交接"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "普通访问可以流水化、存在在途请求，但不应等同于需要专门等待完成的显式异步操作。"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "纠正把跨 program 读到旧值归因于 load/store 异步：数据依赖不保证新版本，交接要靠同步或 kernel 边界。",
+      "depends_on": []
+    },
+    {
+      "key": "card-10",
+      "rank": 12,
+      "assessment": "discrimination",
+      "domain": "triton-locks",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "纠正把解锁前 block barrier 的必要性归因于不知道解锁线程身份",
+      "layer": "atomic",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "correction",
+      "fields": {
+        "意图": "若已规定由线程 T0 执行解锁，共享梯度槽解锁前的 tl.debug_barrier() 能省掉吗？为什么？",
+        "场景": "Triton LayerNorm 反向的共享梯度槽：持锁后用 tl.store 写组槽 → tl.debug_barrier() → tl.atomic_xchg 解锁；下一个 program 随后获锁读取该槽。",
+        "正确": "不能省：即使已知由 T0 解锁，同一 program 的其他线程可能还没写完各自的分片；barrier 让所有协作线程先汇合，再解锁。",
+        "错误": "而我们无法确定是哪个线程负责解锁，所以需要barrier。",
+        "说明": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "原答前半句对：解锁由某个线程执行，它先走到就可能提前解锁。错在归因：需要 barrier 是因为协作写入可能尚未全部完成，与是否知道谁解锁无关。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "一行 tl.store 由本 program 的多个线程分片执行。假设由 T0 解锁：T0 写完自己的分片走到解锁位置时，T1 可能还在写另一分片；此刻释放锁，下一个 program 可能读到不完整的槽。"
+                }
+              ],
+              "label": "具体竞争"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "block barrier 先让当前 program 内的协作线程汇合；随后的 release 与下一个 program 的 acquire，再负责跨 program 的数据交接。"
+                }
+              ],
+              "label": "正确分工"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "解锁不是“某个线程一完成 store 就自动触发”，而是一条按执行路径运行的指令；它必须排在块内同步之后。"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "用已知 T0 解锁、T1 尚未完成的情景，纠正把 barrier 需求归因于解锁线程身份未知。",
+      "depends_on": []
+    },
+    {
+      "key": "card-11",
+      "rank": 13,
+      "assessment": "mechanism",
+      "domain": "triton-locks",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "串联 triton 共享向量锁中 cas、block barrier 和 release acquire 的职责",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "在 Triton LayerNorm 反向中，多个逐行 program 会轮流累加同一组梯度向量。CAS、解锁前的 block barrier、release/acquire 分别提供什么保证，为什么不能互相替代？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "三者分别保证“同一时刻谁能修改共享槽”“当前 program 的协作写入是否都已完成”“下一个 program 能否看到这些写入”，缺一项都不能构成完整的锁协议。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "tl.atomic_cas(lock,0,1) 返回操作前的旧值：返回 0 表示本 program 完成了 0→1、拿到锁；返回 1 说明锁仍被占用，继续等待。比较与修改在一次原子操作中完成；若拆成先 load 判断、再 store 写 1，两个 program 可能都读到 0 而同时进入临界区。"
+                }
+              ],
+              "label": "CAS：所有权"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "共享梯度向量由当前 program 的多个线程分片写入。解锁前的 block barrier 让它们汇合，避免执行解锁的线程在其他分片尚未写完时释放锁。"
+                }
+              ],
+              "label": "Barrier：块内汇合"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "当前持有者以 release 解锁；下一位持有者以匹配的 acquire 成功获锁后，读到的槽才包含前任的全部更新。"
+                }
+              ],
+              "label": "Release/acquire：交接"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "block barrier 只协调当前 block，不能排斥其他 program，也不能代替跨 program 的 release/acquire。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "所有权 → 块内汇合 → 跨块交接",
+        "来源": "Lesson 05 · 9/14 学习记录 · 锁协议"
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "围绕多个 program 更新同一梯度向量，串联 CAS 返回旧值决定的所有权、块内汇合与跨 program 交接。",
+      "depends_on": [
+        "card-09",
+        "card-10"
+      ],
+      "review_resolution": {
+        "summary": "已对照修订后的 card-09（显式 relaxed 前提，以及 Triton 3.7.1 默认 acq_rel/gpu 的边界）和 card-10（T0 解锁情景）复核本卡：并入了原 card-08 的 CAS 返回旧值与拆分 load/store 竞争，删去与 card-09 同义的边界；三项职责与锚点仍由子卡支持，回忆目标没有变。"
+      }
+    },
+    {
+      "key": "card-12",
+      "rank": 14,
+      "assessment": "mechanism",
+      "domain": "triton-source-reading",
+      "fact_scope": {
+        "commit": "35de6d6dcdd3e885a45bce6ba9d1b5e6da191a7c",
+        "kind": "snapshot",
+        "product": "triton official tutorial 05"
+      },
+      "recall_target": "通过 wrapper 的 block_size 约束判断官方 layernorm 反向不循环 n 是否正确",
+      "layer": "mechanism",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 4,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "阅读官方 Triton LayerNorm 教程（tutorial 05，commit 35de6d6）时，反向 kernel 只生成一次 tl.arange(0,BLOCK_SIZE_N)，没有沿行宽 N 循环。为什么这不算漏算？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "因为教程的外层 wrapper 只接受能够由 BLOCK_SIZE_N 一次覆盖的行宽，并保证 BLOCK_SIZE_N≥N；反向复用这个值，因此一次索引生成已包含全部有效列。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "有效列为 0 到 N−1。生成 0 到 BLOCK_SIZE_N−1 后，只要 BLOCK_SIZE_N≥N，再用列号<N 的 mask，就能完整处理有效列并排除 padding。"
+                }
+              ],
+              "label": "覆盖关系"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "同一 wrapper 的前提也约束前向，因此前向源码即使保留了沿 N 的分段循环，对它实际接受的输入也只执行一轮。源码存在循环不代表每次调用都会多轮执行。"
+                }
+              ],
+              "label": "为何前向看似不同"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "判断是否漏算，要一起检查 wrapper 拒绝哪些输入、传入的 launch 参数，以及前向保存并在反向复用的上下文，不能只看 kernel 的循环形式。"
+                }
+              ],
+              "label": "阅读方法"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "若绕过 wrapper、强行令 BLOCK_SIZE_N<N，单次索引就不再覆盖整行，dx 和行内归约都会出错。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "wrapper 建立 N≤BLOCK_SIZE_N",
+        "来源": "Triton tutorial 05 · commit 35de6d6"
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "用 wrapper 的 BLOCK_SIZE_N≥N 前提解释官方反向无列循环仍正确，以及绕过前提的后果。",
+      "depends_on": []
+    },
+    {
+      "key": "card-13",
+      "rank": 15,
+      "assessment": "mechanism",
+      "domain": "triton-layernorm-numerics",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "解释 fp16 layernorm 反向为何要在 dy 与 w 相乘前提升到 fp32",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "FP16 LayerNorm 反向计算加权上游梯度 g=dy×w 时，为什么应先把 dy 和 w 转为 FP32 再乘，而不是先做 FP16 乘法、再把乘积转为 FP32？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "因为如果乘积已经在 FP16 中被舍入，两个本来不同的值可能变成相同结果；之后转为 FP32 只能保存这个已舍入结果，无法恢复被丢掉的差异。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "dy 是损失对输出的梯度，w 是仿射缩放参数；g 会参与 dx 中的行均值和中心化修正，因此相近乘积之间的微小差异也可能决定非零梯度。"
+                }
+              ],
+              "label": "这些量用于哪里"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "例如精确乘积 1.0004067 和 1 都可能被 FP16 舍入成 1。后续即使用 FP32 计算 g−mean(g)，原本应存在的差异也已经消失，可能把非零的中心化结果算成 0。"
+                }
+              ],
+              "label": "误差如何被放大"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "应先分别转换 dy、w，再执行 FP32 乘法。若实现分开循环计算行归约和最终 dx，两处都要采用相同的提升顺序，不能只修正其中一次乘法。"
+                }
+              ],
+              "label": "正确提升位置"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "FP32 累加能减小后续累加误差，却不能修复低精度乘法已经造成的信息丢失；精度必须从需要保留差异的运算开始保证。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "先提升操作数，再乘",
+        "来源": "Lesson 05 · 9/14 学习记录 · FP16 dx 回归"
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "明确 LayerNorm 中 dy/w/g 的含义与梯度用途，解释先乘后提升为何无法挽回差异。",
+      "depends_on": []
+    },
+    {
+      "key": "card-14",
+      "rank": 16,
+      "assessment": "mechanism",
+      "domain": "triton-layernorm-numerics",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "triton",
+        "version": "3.7.1"
+      },
+      "recall_target": "说明 tl.div_rn 改善均值除法的范围以及不能修复前序求和误差",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "在 Triton 3.7.1 的 NVIDIA 后端上，LayerNorm 前向用普通除法 sum(x)/N 求 FP32 均值，FP32 常量行的 dw 回归超出容差；把这次除法改成 tl.div_rn 后回归通过。tl.div_rn 修的是哪一步误差，修不了什么？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "它修的是这一次除法的舍入：普通 / 在本课的 NVIDIA 编译产物里是近似除法 div.full.f32，tl.div_rn 改为 IEEE 最近舍入，回归因此通过；它修不了分子 sum(x) 此前已有的求和误差。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "常量行的正确 dw 为 0，实测最大偏差约 3.65e-4，超过 1e-4 容差。定位到均值的普通除法编译成了 div.full.f32；近似除法带来的微小均值偏差，经归一化和跨行累加后被放大到超差。"
+                }
+              ],
+              "label": "根因"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "把 N 转成 FP32，再用 tl.div_rn(sum, N_fp32) 求均值；它仍是 FP32 除法，只是舍入方式变成精确舍入。"
+                }
+              ],
+              "label": "写法"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "tl.div_rn 只决定这一次除法怎样舍入；如果分子 sum(x) 已带有求和舍入误差，它不会回溯修正，链条上其他步骤的浮点误差也仍然存在。"
+                }
+              ],
+              "label": "修不了什么"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "div.full.f32 是在本课 NVIDIA 后端的编译产物里观察到的；换后端或换版本时，要重新查看实际生成的除法指令，不能直接套用。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "/ 是近似除法 div.full.f32；div_rn 只修这一步",
+        "来源": "Lesson 05 · 9/14 学习记录 · FP32 均值回归"
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "说明普通 / 在本课 NVIDIA 编译产物中是 div.full.f32 近似除法，tl.div_rn 只修这一步舍入，修不了先前的求和误差。",
+      "depends_on": []
+    },
+    {
+      "key": "mean-error-dw-amplification",
+      "rank": 17,
+      "assessment": "mechanism",
+      "domain": "triton-layernorm-numerics",
+      "fact_scope": {
+        "kind": "evergreen"
+      },
+      "recall_target": "解释近常量行的微小均值误差为何经 rstd 放大并在 dw 中跨行累积",
+      "layer": "mechanism",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "LayerNorm 前向中，有很多行都是常量行（行内所有 xⱼ=a），这些行保存的均值都带有同号的微小误差：mean=a+eta。设 epsilon=1e-5、所有 dyⱼ=1，保存的 rstd 记为 r。为什么这么小的 eta 也可能让最终 dw 超出测试容差？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "因为这些常量行的方差几乎为 0，r 接近最大值 1/sqrt(epsilon)≈316，把 eta 放大成 x_hat=−eta×r；每行都给每个 dwⱼ 贡献 −eta×r，这些同号误差在跨行求和中不断累加。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "用 a+eta 计算方差得 (1/N)×Σeta²=eta²，所以 r=1/sqrt(eta²+epsilon)；eta²≪epsilon 时 r≈1/sqrt(epsilon)。"
+                }
+              ],
+              "label": "方差与 r"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "正确的 x_hat 应为 0，实际为 (a−(a+eta))×r=−eta×r；dyⱼ=1 时这一行对每个 dwⱼ 的贡献都是 −eta×r（一般为 −eta×r×dyⱼ），而正确贡献是 0。"
+                }
+              ],
+              "label": "dw 贡献"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "dw 要沿 M 行求和，同号误差不会互相抵消，偏差随行数增长。本课 FP32 常量行回归中，正确 dw=0，实测最大偏差约 3.65e-4，超过 1e-4 容差。"
+                }
+              ],
+              "label": "跨行累积"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "一般式要用实际保存的 r=1/sqrt(eta²+epsilon)，不能直接写成 −eta/sqrt(epsilon)；后者只在 eta²≪epsilon 时近似成立。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "方差≈0 → r≈1/√ε → x_hat=−eta×r → 同号累加",
+        "来源": "Lesson 05 · 9/14 学习记录 · 均值误差传播"
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "追踪常量行均值误差 eta：方差 eta²、r≈1/√ε 把 x_hat 放大为 −eta×r，同号贡献跨行累加使 dw 超差。",
+      "depends_on": []
+    },
+    {
+      "key": "card-15",
+      "rank": 18,
+      "assessment": "discrimination",
+      "domain": "layernorm-implementations",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "pytorch and nvidia layernorm implementations",
+        "version": "pytorch 2.13.0; transformer engine 1634a5a; apex a1d527a"
+      },
+      "recall_target": "区分 layernorm 反向的 kernel 数量、参数梯度归约阶段和全局部分和空间",
+      "layer": "mechanism",
+      "quality": "B",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 4,
+      "template_id": "technical-qa",
+      "fields": {
+        "问题": "阅读某个框架的 LayerNorm 反向实现时，发现它启动了两个 kernel。要判断 dw/db 是否先写入全局部分和缓冲区、再由第二个 kernel 归约，应该看什么，为什么只看 kernel 数不够？",
+        "答案": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "要看数据流：追踪每个 kernel 读写哪些 buffer，它写出的是最终 dw/db，还是供另一阶段消费的部分和。kernel 数只说明分了几次执行，不说明每个 kernel 负责哪个梯度。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "输入梯度 dx 依赖每行内部的归约；共享参数梯度 dw/db 则需要跨行求和。因此两个 kernel 可能分别负责 dx 和最终 dw/db，而不是同一个参数梯度的两个归约阶段。"
+                }
+              ],
+              "label": "归约方向不同"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "另一类组织会让第一阶段写出参数梯度部分和，第二阶段再合并。部分和也不一定逐行保存为 [M,N]，可以按线程块（CTA）保存更少的部分和。"
+                }
+              ],
+              "label": "真正的两阶段"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "省去部分和可能要分别重读输入；融合复用输入则可能增加同步、缓冲区和寄存器压力。"
+                }
+              ],
+              "label": "代价取舍"
+            },
+            {
+              "type": "boundary",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "这里依据 PyTorch 2.13.0、Transformer Engine 1634a5a、Apex a1d527a 的固定源码比较。具体组织还会按形状和后端分派，kernel 更少不能直接推出更快。"
+                }
+              ]
+            }
+          ]
+        },
+        "锚点": "kernel 数 ≠ 参数梯度归约阶段数",
+        "来源": "Lesson 05 · 9/10 固定源码比较"
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "用数据流而非 kernel 数判断 LayerNorm 反向的 dw/db 是否经过全局部分和两阶段归约。",
+      "depends_on": []
+    },
+    {
+      "key": "card-16",
+      "rank": 19,
+      "assessment": "oral",
+      "domain": "triton-layernorm",
+      "fact_scope": {
+        "kind": "snapshot",
+        "product": "programming-lab triton lesson 05",
+        "version": "practice revision 2 / triton 3.7.1"
+      },
+      "recall_target": "综合口述 triton layernorm 前向、反向、分组同步和精度边界",
+      "layer": "oral",
+      "quality": "A",
+      "fact_status": "verified",
+      "lifecycle": "active",
+      "priority": 5,
+      "template_id": "oral",
+      "fields": {
+        "问题": "向面试官用 60–90 秒讲你实现的 Triton LayerNorm：输入看成 [M,N] 逐行归一化，w、b 跨行共享，反向用带锁的 FP32 [G,N] 梯度槽。说明前向统计量、dx、dw/db 与共享槽同步怎样衔接。",
+        "参考回答": {
+          "blocks": [
+            {
+              "type": "lead",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "前向逐行求统计量并做共享仿射；反向把行内的 dx 与跨行的 dw/db 分开：dx 在本行内算完，dw/db 先分组累加、再归约。"
+                }
+              ]
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "每行在 FP32 中求 mean 和 rstd，x_hat=(x−mean)×rstd，输出 x_hat×w+b；尾部无效列先减均值、再置零，然后才求方差。"
+                }
+              ],
+              "label": "前向"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "令 g=dy×w，dx=rstd×(g−mean(g)−x_hat×mean(g×x_hat))；两个 mean 都沿本行 N 列，所以同一行的分量互相耦合。"
+                }
+              ],
+              "label": "dx"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "每行贡献 dy×x_hat 与 dy，按 pid%G 加进 dw、db 各自的 [G,N] 槽，第二个 kernel 再沿 G 求和得到 [N]；即使 G=M，这一步归约也省不掉。"
+                }
+              ],
+              "label": "dw/db"
+            },
+            {
+              "type": "point",
+              "parts": [
+                {
+                  "type": "text",
+                  "text": "同组 program 用 CAS 抢锁；解锁前用 block barrier 等本 program 的线程都写完；再以 release 解锁，下一位以 acquire 获锁接手更新。"
+                }
+              ],
+              "label": "同步"
+            }
+          ]
+        },
+        "评分锚点": [
+          "前向：FP32 的逐行 mean/rstd 与 x_hat，中心化后把无效列置零",
+          "dx：两项行均值修正，说明行内耦合",
+          "dw/db：行贡献经 pid%G 的 [G,N] 槽，再沿 G 归约到 [N]（G=M 也要归约）",
+          "同步：CAS 抢锁、block barrier 汇合、release/acquire 交接"
+        ],
+        "来源": "Lesson 05 · 9/14 学习记录 · 综合口述"
+      },
+      "source_ids": [
+        "lesson-05-study-log"
+      ],
+      "content_summary": "向面试官在 90 秒内串联前向统计量与 padding、行内 dx、分组槽的 dw/db 归约和锁同步。",
+      "depends_on": [
+        "card-03",
+        "card-06",
+        "card-05",
+        "card-11",
+        "card-04"
+      ],
+      "review_resolution": {
+        "summary": "已对照修订后的 card-03、04、05、06、11 复核本卡：参考回答压到约 400 字，4 个评分锚点各有子卡支撑；删去子卡未覆盖的‘保存统计量’和 FP16 padding 边界；题面写明面试官与 60–90 秒；回忆目标没有变。"
+      }
+    }
+  ]
+}
